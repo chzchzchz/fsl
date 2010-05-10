@@ -1,0 +1,124 @@
+S	->	CONST S |
+		TYPE S |
+		ENUM S | 
+		FUNC S
+
+
+
+CONST -> 'const id '= EXPR ';			|
+	 'const ARRAY '= EXPR_LIST ';
+
+ENUM -> 'enum id '= ENUM_LIST
+
+ENUM_LIST -> { ENUM_LIST_INNER }
+ENUM_LIST_INNER ->	ENUM_LIST_INNER, ENUM_LIST_INNER 	|
+			id 					|
+			id '= CONST-EXPR
+
+
+EXPR_LIST -> { EXPR_LIST_INNER }
+EXPR_LIST_INNTER -> EXPR, EXPR | EXPR
+
+
+CONST-EXPR -> 	id			|
+		num 			|
+		'( CONST-EXPR ') 	| 
+		CONST-EXPR OP CONST-EXPR |
+		UOP CONST-EXPR
+
+EXPR ->		(EXPR)		|
+		num		|
+		id		|
+		'.		|
+		ARRAY		|
+		EXPR OP EXPR 	|
+		UOP EXPR	|
+		FCALL		|
+
+ASSIGN ->	id ASSIGNOP EXPR |
+		ARRAY ASSIGNOP EXPR
+
+FCALL -> id '( FARG ') 
+FARG -> FARG, FARG | EXPR
+
+ARRAY -> 'id '[ EXPR ']
+
+OPLOGIC	->	'&&	|
+		'||
+
+OPCMP	->	'!=	|
+		'==	|
+		'>=	|
+		'<=	|
+		'>	|
+		'<
+
+OPBITWISE -> 	'& 	|
+		'^	|
+		'|	
+
+OPMUL ->	'*	|
+		'/	|
+		'%
+OPSHIFT ->	'<<	|
+		'>>
+OPADD -> '+ |
+	 '- 
+
+UOP	-> 	'~	|
+		'-
+
+ASSIGNOP	->	'=	|
+			'+=	|
+			'-=
+			
+TYPE	->	'type id TYPE-ARGS PREAMBLE TYPE-BLOCK
+TYPE-ARGS -> 				|
+		( TYPE-ARGS-INNER ) 	
+TYPE-ARGS-INNER -> 	TYPE-ARGS-INNER ', TYPE-ARGS-INNER | 
+			id id
+TYPE-BLOCK -> { TYPE-BLOCK-EXPR-LIST }
+TYPE-BLOCK-EXPR-LIST -> TYPE-EXPR TYPE-BLOCK-EXPR-LIST | 
+			TYPE-EXPR
+
+
+TYPE-COND -> 	if ( COND-EXPR ) TYPE-BLOCK TYPE-COND-ELSE |
+		if ( COND-EXPR ) TYPE-EXPR TYPE-COND-ELSE
+TYPE-COND-ELSE ->	else TYPE-BLOCK	|
+			else TYPE-EXPR
+
+COND-EXPR -> 	'! COND-EXPR			|
+		'( COND-EXPR ')			|
+		FCALL				|
+		EXPR OPCMP EXPR			|
+		COND-EXPR OPCMP COND-EXPR 	|
+
+
+FUNC -> id id TYPE-ARGS FUNC-BLOCK
+FUNC-BLOCK -> { FUNC-BLOCK-INNER }
+FUNC-BLOCK-INNER -> FUNC-EXPR FUNC-BLOCK-INNER | FUNC-EXPR
+FUNC-EXPR -> 	id id;							|
+		id ARRAY;						|
+		id ASSIGNOP EXPR;					|
+		ARRAY ASSIGNOP EXPR;					|
+		'if '( COND-EXPR ') FUNC-COND-EXPR			|
+		'if '( COND-EXPR ') FUNC-COND-EXPR else FUNC-COND-EXPR	|
+		'while '( COND-EXPR ') FUNC-COND-EXPR			|
+		'for '(FUNC-EXPR COND-EXPR '; FUNC-EXPR ') FUNC-COND-EXPR |
+		return EXPR;
+
+FUNC-COND-EXPR->	FUNC-EXPR 	| 
+			FUNC-BLOCK
+
+TYPE-EXPR ->	DECL ';	|
+		'union TYPE-BLOCK '; |
+		'union TYPE-BLOCK DECL '; |
+		TYPE-COND 
+
+PREAMBLE -> 	PREAMBLE PREMABLE |
+		FCALL ';
+
+DECL		 ->	id ' 		|
+			id id ' 	|
+			id ARRAY '
+

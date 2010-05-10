@@ -1,0 +1,173 @@
+type disk {
+	bpb		d_bpb;
+	align(d_bpb.bytes_per_sector);
+	skip(d_bpb.bytes_per_sector * (d_bpb.reserved_sector_c - 1));
+	fat(d_bpb)	fats[d_bpb.fat_count];
+	align(d_bpb.bytes_per_sector);
+	fat_de		root_dir[d_bpb.root_de_c];
+	align(d_bpb.bytes_per_sector);
+}
+
+const LAST_LONG_ENTRY_MASK = 0x40;
+const ATTR_READ_ONLY = 0x1;
+const ATTR_HIDDEN = 0x02;
+const ATTR_SYSTEM = 0x04;
+const ATTR_VOLUME_ID = 0x08;
+const ATTR_DIRECTORY = 0x10;
+const ATTR_ARCHIVE = 0x20;
+const ATTR_LONG_NAME_MASK =	ATTR_READ_ONLY |
+				ATTR_HIDDEN |
+				ATTR_SYSTEM |
+				ATTR_VOLUME_ID |
+				ATTR_DIRECTORY |
+				ATTR_ARCHIVE;
+const ATTR_LONG_NAME = 	ATTR_READ_ONLY | ATTR_HIDDEN | 
+			ATTR_SYSTEM | ATTR_VOLUME_ID;
+
+type fat_de
+{
+	u8		name[11];
+	u8		attr;
+	u8		nters;	/* special NT data */
+	u8		time_create_ms;
+	u16		time_create_time;
+	u16		time_create_date;
+	u16		time_lastaccess_date;
+	u16		first_cluster_hi;
+	u16		time_write_time;
+	u16		time_write_date;
+	u16		first_cluster_lo;
+	u32		file_size;
+}
+
+type fat_long_de 
+know ((attr & ATTR_LONG_NAME_MASK) == ATTR_LONG_NAME)
+know (first_cluster_lo == 0)
+{
+	u8	order;
+	u8	name[10];
+	u8	attr;
+	u8	type;
+	u8	chksum;
+	u8	name2[12];
+	u16	first_cluster_lo;
+	u8	name3[4];
+}
+
+type bpb_16 {
+	u8	drvnum;
+	u8	resv1;
+	u8	bootsig;
+	u8	volid[4];
+	u8	vollabel[11];
+	u8	fs_str[8];
+}
+
+type bpb_32 {
+	u32	sectors_in_fat32;
+	u16	ext_flags;
+	u16	fsver;
+	u32	root_cluster;
+	u16	fsinfo;
+	u16	bkbootsector;
+	u8	reserved[12];
+	u8	drvnum;
+	u8	resv1;
+	u8	bootsig;
+	u32	volid;
+	u8	vollabel[11];
+	u8	fs_str[8];
+}
+
+type bpb
+know (is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb)) 
+{
+	u8		jmp[2];
+	u8		oem_name[8];
+	u16.le		bytes_per_sector;
+	u8		sectors_per_cluster;
+	u16.le		reserved_sector_c;
+	u8		fat_count;
+	u16		root_de_c;
+	u16		total_sect16;
+	u8		media;
+	u16		sectors_in_fat16;
+	u16		sec_per_track;
+	u16		num_heads;
+	u32		hidden_sec;
+	u32		total_sec32;
+	assert (. == 36);
+	union {
+		bpb_16	priv16;
+		bpb_32	priv32;
+	};
+	know (is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb))
+}
+
+type fat(bpb b) { 
+	if (is_fat12(b)) {
+		u12	ent[get_cluster_count(b)];
+	} else if (is_fat16(b)) {
+		u16	ent[get_cluster_count(b)];
+	} else if (is_fat32(b)) {
+		u32	ent[get_cluster_count(b)];
+	} else {
+		fail(is_fat12(b) || is_fat16(b) || is_fat32(b));
+	}
+	align(b.bytes_per_sector);
+}
+
+
+enum fat_type = {FAT_TYPE_FAT12, FAT_TYPE_FAT16, FAT_TYPE_FAT32};
+
+uint get_fat_sectors(bpb b)
+{
+	if (b.sectors_in_fat16 != 0)
+		return b.sectors_in_fat16;
+	return b.priv32.sectors_in_fat32;
+}
+
+uint get_total_sectors(bpb b)
+{
+	if (b.total_sect16) {
+		return b.total_sect16;
+	}
+	return b.total_sec32;
+}
+
+uint get_cluster_count(bpb b)
+{
+	uint	fat_sectors = get_fat_sectors(b);
+	uint	total_sectors = get_total_sectors(b);
+	uint	root_dir_sectors;
+	uint	data_sectors;
+
+	root_dir_sectors = (b.root_de_c * sizeof(fat_de)) + 
+		b.bytes_per_sector;
+	data_sectors = total_sectors - (b.reserved_sector_c + 
+		(b.fat_count * fat_sectors) + root_dir_sectors);
+
+	return data_sectors / b.sectors_per_cluster;
+}
+
+fat_type get_fat_type(bpb b)
+{
+	unsigned int cluster_count;
+
+	cluster_count = get_cluster_count(b);
+	if (countofclusters < 4085) {
+		return FAT_TYPE_FAT12;
+	} else if (countofclusters < 65525) {
+		return FAT_TYPE_FAT16;
+	} 
+	return FAT_TYPE_FAT32;
+}
+
+
+
+bool is_fat12(bpb b){ return (get_fat_type(b) == FAT_TYPE_FAT12); }
+bool is_fat16(bpb b){ return (get_fat_type(b) == FAT_TYPE_FAT16); }
+bool is_fat32(bpb b){ return (get_fat_type(b) == FAT_TYPE_FAT32); }
+
+
+

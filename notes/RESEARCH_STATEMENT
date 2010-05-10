@@ -1,0 +1,25 @@
+Filesystems have been an integral part of operating systems for the at least past fifty years. However, despite the attention given to design and interfaces, developing a serious filesystem remains difficult. 
+User-level filesystem drivers [sfs, fuse] and to a lesser extent, extensible operating systems [mach, exo, spin], have bolstered creation, not by necessarily making development easier, but by shifting the penalty of mistake from panic or kernel corruption to recoverable access violation.
+Creatin modern filesystem with sophisticated data layouts is a significant effort that can easily span years [btrfs].
+Reasoning about the consistency is hard to get right by hand; even well-tested code exposed to the wild have been shown to have serious bugs through model checking [explode].
+Correctness is paramount; the tension between consistency and performance can lead to developers erring on the side of caution with suboptimal access patterns [fs logic].
+The disparity of kernel APIs necessary for writing a filesystem, although fundamentally equivalent across operating systems, places an excessive burden on the filesystem writer; few filesystems have a single code base that targets multiple operating systems. 
+[note something about filesystem utilities being a pain to write]
+On a related note, the proliferation of ways to handle disk I/O within an operating system can lead the programmer to resort to "safe" APIs that are easy to reason about rather than venture out to "risky" APIs [overlapping i/o, etc].
+Even though code reuse is the cornerstone of building large systems, little, if any code, is shared among filesystems besides "generic" wrappers that simulate advanced filesystem operations (e.g. aio?) [linux journalling]. 
+Performance policies are not immediately clear and may affect the user in unexpected ways; e.g. ext4 delayed inode allocation.
+
+We present fsl (pronounced "fizzle"), a domain specific language for describing filesystem that compiles to kernel-level filesystem code. Our reasoning is that given the proper abstractions on the language-level, robust, high-performance filesystem code may be written with both ease and confidence. Correctness errors may be caught at compile-time, rather than on file-system corruption. Performance becomes a run-time problem that can design the best plan that ensures filesystem invariants are preseerved. 
+We lift design decisions that are "baked-in" to the filesystem to the run-time.
+fsl is type-safe with the guarantee that any fsl program is safe to load into the kernel (need to show the run-time keeps things OK).
+
+Our work is different from previous stuff; we propose a language designed for writing filesystems, rather than a general purpose systems language. 
+
+
+Performance gains in disk technology from overlapping I/O requests 
+
+High performance kernel-level interfaces 
+
+disk technology 
+
+The tension among consistency and performance, and high-performance interfaces

@@ -1,0 +1,12 @@
+The proper way of doing this sort of thing is not to have hundreds of tiny
+files in private ~/.gnome2* and ~/.kde2* directories. Instead, the answer is
+to use a proper small database like sqlite for application registries, but
+fixed up so that it allocates and releases space for its database in chunks,
+and that it uses fdatawrite() instead of fsync() to guarantee that data is
+written on disk.
+
+If sqllite had been properly written so that it grabbed new space for its
+database storage in chunks of 16k or 64k, and released space when it was no
+longer needed in similar large chunks via truncate(), and if it used
+fdatasync() instead of fsync(), the performance problems with FireFox 3
+wouldn't have taken place."
