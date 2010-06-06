@@ -3,6 +3,7 @@
 #include "Token.h"
 #include "AST.h"
 #include "type.h"
+#include "func.h"
 #include "parser.hh"
 
 #define IN_TOKEN(x)			\
@@ -65,9 +66,10 @@ WHITESPACE [ 	]
 "]"		IN_TOKEN(TOKEN_RBRACK);
 {ID}		IN_TOKEN_TEXT(TOKEN_ID);
 "."		IN_TOKEN(TOKEN_DOT);
+"\n"		{ yyset_lineno(yyget_lineno() + 1); }
 "//"		{ BEGIN(COMMENT); }
 <COMMENT>[^\n]	
-<COMMENT>"\n"	{ BEGIN(INITIAL); }
+<COMMENT>"\n"	{ BEGIN(INITIAL); yyset_lineno(yyget_lineno() + 1); }
 "/*"		{ BEGIN(COMMENT2); }
 <COMMENT2>[^*]
 <COMMENT2>"*/"	{ BEGIN(INITIAL); }

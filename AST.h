@@ -183,10 +183,33 @@ public:
 private:
 };
 
-class FuncBlock {
+
+
+class ArgsList	 
+{
+public:
+	ArgsList() {}
+	~ArgsList() 
+	{
+		for (int i = 0; i < types.size(); i++) {
+			delete types[i];
+			delete names[i];
+		}
+	}
+
+	void add(const Id* type_name, const Id* arg_name) 
+	{
+		types.push_back(type_name);
+		names.push_back(arg_name);
+	}
+private:
+	std::vector<const Id*>	types;
+	std::vector<const Id*>	names;
+
 };
 
-class FuncCond : public CondExpr {
+class FuncCond : public CondExpr 
+{
 public: 
 	FuncCond(const FCall* fc) {} 
 	virtual ~FuncCond() {} 

@@ -2,6 +2,7 @@
 #include <iostream>
 #include "AST.h"
 #include "type.h"
+#include "func.h"
 
 Scope*	global_scope;
 Scope*	cur_scope;
@@ -18,6 +19,8 @@ void yyerror(const char* s)
 	Scope			*scope;
 	GlobalStmt		*g_stmt;
 	TypeStmt		*t_stmt;
+	FuncStmt		*f_stmt;
+	FuncBlock		*f_block;
 	ExprList		*expr_l;
 	Expr			*e;
 	EnumEnt			*enm_ent;
@@ -29,7 +32,7 @@ void yyerror(const char* s)
 	Id			*id;
 	IdStruct		*idstruct;
 	TypePreamble		*preamb_l;
-	TypeArgs		*t_args;
+	ArgsList		*args;
 	TypeBlock		*t_block;
 	TypePreamble		*t_preamble;
 	CondExpr		*c_expr;
@@ -54,27 +57,32 @@ void yyerror(const char* s)
 
 %token <token> TOKEN_CONST
 
+%token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS
+
 %token <text> TOKEN_ID
-%token <val> TOKEN_ASSIGN
 %token <val> TOKEN_NUM
 
+// keywords
+%token <token> TOKEN_TYPE TOKEN_UNION TOKEN_IF TOKEN_ELSE TOKEN_ENUM TOKEN_WHILE TOKEN_FOR TOKEN_RETURN 
 
 // unused
-%token <token> TOKEN_TYPE TOKEN_UNION TOKEN_IF TOKEN_ELSE TOKEN_ENUM TOKEN_WHILE TOKEN_FOR TOKEN_RETURN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS TOKEN_LOGOR TOKEN_LOGAND 
+%token <token> TOKEN_LOGOR TOKEN_LOGAND 
 
 %type <expr_l> expr_list_ent expr_list
-%type <e> expr expr_ident num array expr_id_struct fcall struct_type arith
+%type <e> expr expr_ident num array expr_id_struct fcall struct_type arith fcall_no_args fcall_args
 %type <id> ident
 %type <scope> program program_stmts
 %type <g_stmt> program_stmt
 %type <idstruct> ident_struct
 %type <t_stmt> type_stmt
-%type <t_args> type_args type_args_list
+%type <args> type_args type_args_list
 %type <t_block> type_block type_stmts
 %type <t_preamble> type_preamble
 %type <c_expr> cond_expr
 %type <enm_enum> enum_ents
 %type <enm_ent> enum_ent
+%type <f_stmt> func_stmt
+%type <f_block> func_block func_stmts
 
 %start program
 
@@ -126,6 +134,43 @@ program_stmt	: TOKEN_CONST ident TOKEN_ASSIGN expr TOKEN_SEMI
 			$5->setName($2);
 			$$ = $5;
 		}
+		| ident ident type_args func_block
+		{
+			$$ = new Func(
+				(Id*)$1, (Id*)$2, 
+				$3, (FuncBlock*)$4);
+		}
+		;
+
+func_block	: TOKEN_LBRACE func_stmts TOKEN_RBRACE { $$ = $2; }
+		;
+
+func_stmts	: func_stmts func_stmt { $1->add($2); }
+		| func_stmt
+		{
+			$$ = new FuncBlock();
+			$$->add($1);
+		}
+		;
+
+func_stmt	: ident ident TOKEN_SEMI { } 
+		| ident array TOKEN_SEMI {}
+		| ident TOKEN_ASSIGN expr TOKEN_SEMI {}
+		| ident TOKEN_ASSIGNPLUS expr TOKEN_SEMI {}
+		| ident TOKEN_ASSIGNMINUS expr TOKEN_SEMI {}
+		| array TOKEN_ASSIGN expr TOKEN_SEMI {}
+		| array TOKEN_ASSIGNPLUS expr TOKEN_SEMI {}
+		| array TOKEN_ASSIGNMINUS expr TOKEN_SEMI {}
+		| TOKEN_RETURN expr TOKEN_SEMI {}
+		| TOKEN_IF TOKEN_LPAREN cond_expr TOKEN_RPAREN func_stmt
+		{
+			
+		}
+		| TOKEN_IF TOKEN_LPAREN cond_expr TOKEN_RPAREN func_stmt TOKEN_ELSE func_stmt
+		{
+			$$ = new FuncCondStmt($3, $5, $7);
+		}
+		| func_block { $$ = $1; }
 		;
 
 enum_ents	: enum_ents TOKEN_COMMA enum_ent  { $1->add($3); }
@@ -155,7 +200,7 @@ type_args_list	: type_args_list TOKEN_COMMA ident ident
 		}
 		| ident ident
 		{
-			$$ = new TypeArgs();
+			$$ = new ArgsList();
 			$$->add($1, $2);
 		}
 		;
@@ -200,6 +245,12 @@ type_stmt	: ident ident TOKEN_SEMI
 		{
 			$$ = new TypeFunc((const FCall*)$1);
 		}
+		| fcall_args ident TOKEN_SEMI
+		{
+		}
+		| fcall_args array TOKEN_SEMI
+		{
+		}
 		| TOKEN_UNION type_block ident TOKEN_SEMI
 		{
 			$$ = new TypeUnion($2, (const Id*)$3);
@@ -240,26 +291,28 @@ expr_list	: TOKEN_LBRACE expr_list_ent TOKEN_RBRACE { $$ = $2; }
 
 
 expr_list_ent	: expr_list_ent TOKEN_COMMA expr
-			{
-				$1->add($3);
-			}
+		{
+			$1->add($3);
+		}
 		| expr
-			{
-				$$ = new ExprList();
-				$$->add($1);
-			}
+		{
+			$$ = new ExprList();
+			$$->add($1);
+		}
 		;
 
-fcall	:	ident TOKEN_LPAREN TOKEN_RPAREN
+fcall_no_args	: ident TOKEN_LPAREN TOKEN_RPAREN
 		{
 			$$ = new FCall($1, new ExprList());
 		}
-	|	ident TOKEN_LPAREN expr_list_ent TOKEN_RPAREN 
+fcall_args	: ident TOKEN_LPAREN expr_list_ent TOKEN_RPAREN 
 		{ 
 			$$ = new FCall($1, $3);
 		}
-	;
 
+fcall	: fcall_no_args { $$ = $1; }
+	| fcall_args { $$ = $1; }
+	;
 
 expr	:	TOKEN_LPAREN expr TOKEN_RPAREN	{ $$ = $2; }
 	|	num				{ $$ = $1; }

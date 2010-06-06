@@ -97,6 +97,17 @@ private:
 	BinArithOp() {}
 };
 
+class AOPNOP : public BinArithOp
+{
+public:
+	AOPNOP(const Expr* e1, const Expr* e2)
+		: BinArithOp(e1, e2)
+	{
+	}
+	virtual ~AOPNOP() {}
+private:
+};
+
 
 class AOPOr : public BinArithOp
 {
