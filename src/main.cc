@@ -4,7 +4,7 @@
 
 extern int yyparse();
 
-extern Scope* global_scope;
+extern GlobalBlock* global_scope;
 
 using namespace std;
 
@@ -22,7 +22,7 @@ ostream& operator<<(ostream& in, const GlobalStmt& gs)
 
 int main(int argc, char *argv[])
 {
-	Scope::iterator	it;
+	GlobalBlock::iterator	it;
 
 	yyparse();
 
