@@ -21,13 +21,13 @@
 #define IN_TOKEN_INT(x)				\
 	do {					\
 		yylval.val = atol(yytext);	\
-		IN_TOKEN(x);			\
+		return x;			\
 	} while (0)
 
 #define IN_TOKEN_HEX(x)					\
 	do {						\
 		yylval.val = getLongHex(yytext);	\
-		IN_TOKEN(x);				\
+		return x;				\
 	} while (0)
 
 extern "C" int yywrap();

@@ -1,13 +1,3 @@
-type disk {
-	bpb		d_bpb;
-	align(d_bpb.bytes_per_sector);
-	skip(d_bpb.bytes_per_sector * (d_bpb.reserved_sector_c - 1));
-	fat(d_bpb)	fats[d_bpb.fat_count];
-	align(d_bpb.bytes_per_sector);
-	fat_de		root_dir[d_bpb.root_de_c];
-	align(d_bpb.bytes_per_sector);
-}
-
 const LAST_LONG_ENTRY_MASK = 0x40;
 const ATTR_READ_ONLY = 0x1;
 const ATTR_HIDDEN = 0x02;
@@ -24,7 +14,34 @@ const ATTR_LONG_NAME_MASK =	ATTR_READ_ONLY |
 const ATTR_LONG_NAME = 	ATTR_READ_ONLY | ATTR_HIDDEN | 
 			ATTR_SYSTEM | ATTR_VOLUME_ID;
 
+
+
+type disk 
+{
+	bpb		d_bpb;
+	
+	align(d_bpb.bytes_per_sector);
+	skip(d_bpb.bytes_per_sector * (d_bpb.reserved_sector_c - 1));
+	
+	fat(d_bpb)	fats[d_bpb.fat_count];
+	
+	align(d_bpb.bytes_per_sector);
+	
+	fat_de		root_dir[d_bpb.root_de_c];
+	
+	align(d_bpb.bytes_per_sector);
+
+	cluster		clusters[get_cluster_count(d_bpb)];
+}
+
+type cluster
+aligned(512)
+{
+	u8	data[d_bpb.sectors_per_cluster*d_bpb.bytes_per_sector];
+}
+
 type fat_de
+points(disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))])
 {
 	u8		name[11];
 	u8		attr;
@@ -41,8 +58,8 @@ type fat_de
 }
 
 type fat_long_de 
-know ((attr & ATTR_LONG_NAME_MASK) == ATTR_LONG_NAME)
-know (first_cluster_lo == 0)
+know_eq (attr & ATTR_LONG_NAME_MASK, ATTR_LONG_NAME)
+know_eq (first_cluster_lo, 0)
 {
 	u8	order;
 	u8	name[10];
@@ -80,7 +97,7 @@ type bpb_32 {
 }
 
 type bpb
-know (is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb)) 
+know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb)) 
 {
 	u8		jmp[2];
 	u8		oem_name[8];
@@ -101,10 +118,12 @@ know (is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb))
 		bpb_16	priv16;
 		bpb_32	priv32;
 	};
-	know (is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb))
 }
 
-type fat(bpb b) { 
+type fat(bpb b) 
+pointsa(i, ent[i], disk.clusters[i])
+freea(i, ent[i], 0, disk.clusters[i])
+{ 
 	if (is_fat12(b)) {
 		u12	ent[get_cluster_count(b)];
 	} else if (is_fat16(b)) {
@@ -112,7 +131,7 @@ type fat(bpb b) {
 	} else if (is_fat32(b)) {
 		u32	ent[get_cluster_count(b)];
 	} else {
-		fail(is_fat12(b) || is_fat16(b) || is_fat32(b));
+		fail();
 	}
 	align(b.bytes_per_sector);
 }

@@ -1,24 +1,37 @@
 #ifndef EXPR_H
 #define EXPR_H
 
+#include "collection.h"
+
 class Expr
 {
+public:
+	virtual void print(std::ostream& out) const = 0;
+	virtual ~Expr() {}
+protected:
+	Expr() {}
 };
 
-class ExprList
+class ExprList : public PtrList<Expr>
 {
 public:
 	ExprList() {}
-	~ExprList() 
+	virtual ~ExprList()  {}
+	void print(std::ostream& out) const
 	{
-		for (int i = 0; i < exprs.size(); i++)
-			delete exprs[i];
-	}
+		const_iterator	it;
 
-	void add(const Expr* expr) { exprs.push_back(expr); }
-	const std::vector<const Expr*>&	get() const { return exprs; }
+		it = begin();
+		if (it == end()) return;
+
+		(*it)->print(out);
+		it++;
+		for (; it != end(); it++) {
+			out << ", ";
+			(*it)->print(out);
+		}
+	}
 private:
-	std::vector<const Expr*>	exprs;
 };
 
 class Id  : public Expr
@@ -27,6 +40,7 @@ public:
 	Id(const std::string& s) : id_name(s) {}
 	virtual ~Id() {}
 	const std::string& getName() const { return id_name; }
+	void print(std::ostream& out) const { out << id_name; }
 private:
 	const std::string id_name;
 };
@@ -35,41 +49,87 @@ private:
 class FCall  : public Expr
 {
 public:
-	FCall(const Id* in_id, const ExprList* in_exprs) 
+	FCall(Id* in_id, ExprList* in_exprs) 
 	:	id(in_id),
 		exprs(in_exprs)
 	{ 
+		assert (id != NULL);
+		assert (exprs != NULL);
 	}
-	virtual ~FCall() {}
-	const ExprList* getExprs(void) const { return exprs; }
-	const std::string& getName(void) const { return id->getName(); }
+	virtual ~FCall()
+	{
+		delete id;
+		delete exprs;
+	}
+	ExprList* getExprs(void) const { return exprs; }
+	std::string getName(void) const { return id->getName(); }
+	void print(std::ostream& out) const
+	{
+		out << "fcall " << getName() << "("; 
+		exprs->print(out);
+		out << ")";
+	}
+
 private:
-	const Id*		id;
-	const ExprList*		exprs;
+	Id*		id;
+	ExprList*	exprs;
 };
 
-class IdStruct : public Expr 
+class IdStruct : public Expr, public PtrList<Expr>
 {
 public:
 	IdStruct() { }
 	virtual ~IdStruct() {} 
-	void add(const Expr* e) { ids.push_back(e); }
+	void print(std::ostream& out) const
+	{
+		const_iterator	it;
+		
+		it = begin();
+		assert (it != end());
+
+		(*it)->print(out);
+
+		for (; it != end(); it++) {
+			out << '.';
+			(*it)->print(out);
+		}
+	}
 private:
-	std::list<const Expr*>	ids;
 };
 
 
 class IdArray  : public Expr
 {
 public: 
-	IdArray(const Id *in_id, const Expr* expr) : 
-		id(in_id), idx(expr) {}
+	IdArray(Id *in_id, Expr* expr) : 
+		id(in_id), idx(expr) 
+	{
+		assert (id != NULL);
+		assert (idx != NULL);
+	}
 
-	virtual ~IdArray() {}
-	const std::string& getName() const { return id->getName(); }
+	virtual ~IdArray() 
+	{
+		delete id;
+		delete idx;
+	}
+
+	const std::string& getName() const 
+	{
+		return id->getName();
+	}
+
+	void print(std::ostream& out) const 
+	{
+		id->print(out);
+		out << '[';
+		idx->print(out);
+		out << ']';
+	}
+
 private:
-	const Id		*id;
-	const Expr		*idx;
+	Id		*id;
+	Expr		*idx;
 };
 
 
@@ -80,6 +140,8 @@ public:
 	virtual ~Number() {}
 
 	unsigned long getValue() const { return n; }
+
+	void print(std::ostream& out) const { out << n; }
 private:
 	unsigned long n;
 };
@@ -87,12 +149,31 @@ private:
 class BinArithOp : public Expr
 {
 public:
-	virtual ~BinArithOp() {}
+	virtual ~BinArithOp() 
+	{
+		delete e_lhs;
+		delete e_rhs;
+	}
+
+	void print(std::ostream& out) const
+	{
+		e_lhs->print(out);
+		out << ' ' << getOpSymbol() << ' ';
+		e_rhs->print(out);
+	}
+
 protected:
-	BinArithOp(const Expr* e1, const Expr* e2)
-		: e_lhs(e1), e_rhs(e2) {}
-	const Expr	*e_lhs;
-	const Expr	*e_rhs;
+	BinArithOp(Expr* e1, Expr* e2)
+		: e_lhs(e1), e_rhs(e2) 
+	{
+		assert (e_lhs != NULL);
+		assert(e_rhs != NULL);
+
+	}
+	virtual char getOpSymbol() const = 0;
+
+	Expr	*e_lhs;
+	Expr	*e_rhs;
 private:
 	BinArithOp() {}
 };
@@ -100,11 +181,13 @@ private:
 class AOPNOP : public BinArithOp
 {
 public:
-	AOPNOP(const Expr* e1, const Expr* e2)
+	AOPNOP(Expr* e1, Expr* e2)
 		: BinArithOp(e1, e2)
 	{
 	}
 	virtual ~AOPNOP() {}
+protected:
+	virtual char getOpSymbol() const { return '_'; }
 private:
 };
 
@@ -112,22 +195,26 @@ private:
 class AOPOr : public BinArithOp
 {
 public:
-	AOPOr(const Expr* e1, const Expr* e2)
+	AOPOr(Expr* e1, Expr* e2)
 		: BinArithOp(e1, e2)
 	{
 	}
 	virtual ~AOPOr() {}
+protected:
+	virtual char getOpSymbol() const { return '|'; }
 private:
 };
 
 class AOPAnd : public BinArithOp
 {
 public:
-	AOPAnd(const Expr* e1, const Expr* e2)
+	AOPAnd(Expr* e1, Expr* e2)
 		: BinArithOp(e1, e2)
 	{
 	}
 	virtual ~AOPAnd() {}
+protected:
+	virtual char getOpSymbol() const { return '&'; }
 private:
 };
 
@@ -136,72 +223,84 @@ private:
 class AOPAdd : public BinArithOp
 {
 public:
-	AOPAdd(const Expr* e1, const Expr* e2)
+	AOPAdd(Expr* e1, Expr* e2)
 		: BinArithOp(e1, e2)
 	{
 		e_lhs = e1;
 	}
 	virtual ~AOPAdd() {}
+protected:
+	virtual char getOpSymbol() const { return '+'; }
 private:
 };
 
 class AOPSub : public BinArithOp
 {
 public:
-	AOPSub(const Expr* e1, const Expr* e2) 
+	AOPSub(Expr* e1, Expr* e2) 
 		: BinArithOp(e1, e2)
 	{
 	}
 
 	virtual ~AOPSub() {} 
+protected:
+	virtual char getOpSymbol() const { return '-'; }
 private:
 };
 
 class AOPDiv : public BinArithOp
 {
 public:
-	AOPDiv(const Expr* e1, const Expr* e2) 
+	AOPDiv(Expr* e1, Expr* e2) 
 		: BinArithOp(e1, e2)
 	{
 	}
 
 	virtual ~AOPDiv() {}
+protected:
+	virtual char getOpSymbol() const { return '/'; }
 private:
 };
 
 class AOPMul : public BinArithOp
 {
 public:
-	AOPMul(const Expr* e1, const Expr* e2)
+	AOPMul(Expr* e1, Expr* e2)
 		: BinArithOp(e1, e2)
 	{
 	}
 
 	virtual ~AOPMul() {}
+protected:
+	virtual char getOpSymbol() const { return '*'; }
 private:
 };
 
 class AOPLShift : public BinArithOp
 {
 public:
-	AOPLShift(const Expr* e1, const Expr* e2)
+	AOPLShift(Expr* e1, Expr* e2)
 		: BinArithOp(e1, e2)
 	{
 	}
 
 	virtual ~AOPLShift() {}
+protected:
+virtual char getOpSymbol() const { return '<'; }
 private:
 };
 
 class AOPRShift : public BinArithOp
 {
 public:
-	AOPRShift(const Expr* e1, const Expr* e2) 
+	AOPRShift(Expr* e1, Expr* e2) 
 		: BinArithOp(e1, e2)
 	{
 	}
 
 	virtual ~AOPRShift() {}
+protected:
+	virtual char getOpSymbol() const { return '>'; }
 private:
 };
 

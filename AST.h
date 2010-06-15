@@ -1,6 +1,8 @@
 #ifndef AST_H
 #define AST_H
 
+#include "collection.h"
+
 #include <iostream>
 #include <vector>
 #include <list>
@@ -11,36 +13,18 @@ class GlobalStmt
 {
 public:
 	virtual ~GlobalStmt() {}
+	virtual void print(std::ostream& out) const 
+		{ out << "BASE CLASS"; }
 protected:
 	GlobalStmt() {}
 };
 
 
-class Scope {
+class GlobalBlock : public PtrList<GlobalStmt>
+{
 public:
-	Scope() {} 
-	virtual ~Scope() 
-	{
-		std::list<GlobalStmt*>::iterator	it, end;
-
-		end = stmts.end();
-		for (it = stmts.begin(); it != end; it++) {
-			delete (*it);
-		}
-	}
-
-	void add(GlobalStmt* s)
-	{
-		stmts.push_back(s);
-	}
-
-	unsigned int getStmts(void) const
-	{
-		return stmts.size();
-	}
-
-private:
-	std::list<GlobalStmt*>	stmts;
+	GlobalBlock() {} 
+	virtual ~GlobalBlock() {}
 };
 
 
@@ -48,31 +32,47 @@ private:
 class ConstVar : public GlobalStmt
 {
 public:
-	ConstVar(const Id* in_id, const Expr* e) :
+	ConstVar(Id* in_id, Expr* e) :
 		id(in_id),
 		expr(e)
 	{
+		assert (id != NULL);
+		assert (expr != NULL);
 	}
 
-	virtual ~ConstVar() {}
+	virtual ~ConstVar()
+	{
+		delete id;
+		delete expr;
+	}
+
+	void print(std::ostream& out) const { out << "CONST VAR"; }
 private:
-	const Id*		id;
-	const Expr*		expr;
+	Id*		id;
+	Expr*		expr;
 };
 
 class ConstArray : public GlobalStmt
 {
 public:
-	ConstArray(const Id* in_id, const ExprList* e) :
+	ConstArray(Id* in_id, ExprList* e) :
 		id(in_id),
 		elist(e)
 	{
+		assert (e != NULL);
+		assert (id != NULL);
 	}
 
-	virtual ~ConstArray() {}
+	virtual ~ConstArray() 
+	{
+		delete id;
+		delete elist;
+	}
+
+	void print(std::ostream& out) const { out << "CONST ARRAY"; }
 private:
-	const Id*		id;
-	const ExprList*		elist;
+	Id*			id;
+	ExprList*		elist;
 };
 
 
@@ -80,6 +80,7 @@ class CondExpr
 {
 public:
 	virtual ~CondExpr() {}
+
 protected:
 	CondExpr() {} 
 };
@@ -166,21 +167,38 @@ class UnBoolOp {
 class EnumEnt 
 {
 public:
-	EnumEnt(const Id* id) {} 
-	EnumEnt(const Id* id, const Number* num) {}
-	~EnumEnt() {}
+	EnumEnt(Id* in_id) : id(in_id) { assert (id != NULL); } 
+	EnumEnt(Id* in_id, Number* in_num) : id(in_id), num(in_num)
+	{ assert (id != NULL); }
+	virtual ~EnumEnt() 
+	{
+		delete id;
+		if (num != NULL) delete num;
+	}
+private:
+	Id*	id;
+	Number*	num;
 };
 
 
-class Enum : public GlobalStmt 
+class Enum : public GlobalStmt, public PtrList<EnumEnt>
 {
 public:
 	Enum() {}
-	Enum(const Id* id) {} 
-	void add(const EnumEnt* ent) {}
-	void setName(const Id* id) {}
-	virtual ~Enum() {} 
+	Enum(Id* id) : name(id)  { assert (name != NULL); }
+	void setName(Id* id)
+	{
+		if (name != NULL) delete name; 
+		name = id;
+	}
+	virtual ~Enum() 
+	{
+		if (name != NULL) delete name;
+	} 
+
+	void print(std::ostream& out) const { out << "ENUM"; }
 private:
+	Id	*name;
 };
 
 
@@ -214,5 +232,8 @@ public:
 	FuncCond(const FCall* fc) {} 
 	virtual ~FuncCond() {} 
 };
+
+std::ostream& operator<<(std::ostream& in, const GlobalStmt& gs);
+
 
 #endif

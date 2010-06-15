@@ -4,8 +4,7 @@
 #include "type.h"
 #include "func.h"
 
-Scope*	global_scope;
-Scope*	cur_scope;
+GlobalBlock*	global_scope;
 extern int yylex();
 extern int yylineno;
 void yyerror(const char* s)
@@ -16,7 +15,7 @@ void yyerror(const char* s)
 %}
 
 %union {
-	Scope			*scope;
+	GlobalBlock		*g_scope;
 	GlobalStmt		*g_stmt;
 	TypeStmt		*t_stmt;
 	FuncStmt		*f_stmt;
@@ -71,7 +70,7 @@ void yyerror(const char* s)
 %type <expr_l> expr_list_ent expr_list
 %type <e> expr expr_ident num array expr_id_struct fcall struct_type arith fcall_no_args fcall_args
 %type <id> ident
-%type <scope> program program_stmts
+%type <g_scope> program program_stmts
 %type <g_stmt> program_stmt
 %type <idstruct> ident_struct
 %type <t_stmt> type_stmt
@@ -100,7 +99,7 @@ program_stmts	: program_stmts program_stmt
 		}
 		| program_stmt
 		{
-			$$ = new Scope();
+			$$ = new GlobalBlock();
 			$$->add($1);
 		}
 		;
@@ -181,10 +180,10 @@ enum_ents	: enum_ents TOKEN_COMMA enum_ent  { $1->add($3); }
 		}
 		;
 
-enum_ent	: ident { $$ = new EnumEnt((const Id*)$1); } 
+enum_ent	: ident { $$ = new EnumEnt($1); } 
 		| ident TOKEN_ASSIGN num 
 		{ 
-			$$ = new EnumEnt((const Id*)$1, (const Number*)$3);  
+			$$ = new EnumEnt((Id*)$1, (Number*)$3);  
 		} 
 		;
 
@@ -207,12 +206,12 @@ type_args_list	: type_args_list TOKEN_COMMA ident ident
 
 type_preamble 	: type_preamble fcall
 		{
-			$1->add((const FCall*)$2);
+			$1->add((FCall*)$2);
 		}
 		| fcall 
 		{
 			$$ = new TypePreamble();
-			$$->add((const FCall*)$1);
+			$$->add((FCall*)$1);
 		}
 		;
 
@@ -235,21 +234,23 @@ type_stmts	: type_stmts type_stmt
 
 type_stmt	: ident ident TOKEN_SEMI
 		{
-			$$ = new TypeDecl((const Id*)$1, (const Id*)$2);
+			$$ = new TypeDecl((Id*)$1, (Id*)$2);
 		}
 		| ident array TOKEN_SEMI
 		{
-			$$ = new TypeDecl((const Id*)$1, (const IdArray*)$2);
+			$$ = new TypeDecl((Id*)$1, (IdArray*)$2);
 		}
 		| fcall TOKEN_SEMI
 		{
-			$$ = new TypeFunc((const FCall*)$1);
+			$$ = new TypeFunc((FCall*)$1);
 		}
 		| fcall_args ident TOKEN_SEMI
 		{
+			$$ = new TypeParamDecl((FCall*)$1, (Id*)$2);
 		}
 		| fcall_args array TOKEN_SEMI
 		{
+			$$ = new TypeParamDecl((FCall*)$1, (IdArray*)$2);
 		}
 		| TOKEN_UNION type_block ident TOKEN_SEMI
 		{

@@ -43,6 +43,8 @@ public:
 	}
 
 	virtual ~Func() {}
+
+	void print(std::ostream& out) const { out << "Func"; }
 };
 
 
