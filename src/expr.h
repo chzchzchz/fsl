@@ -8,6 +8,7 @@ class Expr
 public:
 	virtual void print(std::ostream& out) const = 0;
 	virtual ~Expr() {}
+	virtual Expr* copy(void) const = 0;
 protected:
 	Expr() {}
 };
@@ -16,6 +17,7 @@ class ExprList : public PtrList<Expr>
 {
 public:
 	ExprList() {}
+	ExprList(const PtrList<Expr>& p) : PtrList<Expr>(p) {}
 	virtual ~ExprList()  {}
 	void print(std::ostream& out) const
 	{
@@ -31,6 +33,10 @@ public:
 			(*it)->print(out);
 		}
 	}
+	ExprList* copy(void) const
+	{
+		return new ExprList(*this);
+	}
 private:
 };
 
@@ -41,6 +47,7 @@ public:
 	virtual ~Id() {}
 	const std::string& getName() const { return id_name; }
 	void print(std::ostream& out) const { out << id_name; }
+	Expr* copy(void) const { return new Id(id_name); }
 private:
 	const std::string id_name;
 };
@@ -61,13 +68,19 @@ public:
 		delete id;
 		delete exprs;
 	}
+
 	ExprList* getExprs(void) const { return exprs; }
-	std::string getName(void) const { return id->getName(); }
+	const std::string& getName(void) const { return id->getName(); }
 	void print(std::ostream& out) const
 	{
 		out << "fcall " << getName() << "("; 
 		exprs->print(out);
 		out << ")";
+	}
+
+	Expr* copy(void) const 
+	{
+		return new FCall((Id*)id->copy(), exprs->copy());
 	}
 
 private:
@@ -79,6 +92,7 @@ class IdStruct : public Expr, public PtrList<Expr>
 {
 public:
 	IdStruct() { }
+	IdStruct(const PtrList<Expr>& p) : PtrList<Expr>(p) {}
 	virtual ~IdStruct() {} 
 	void print(std::ostream& out) const
 	{
@@ -94,6 +108,12 @@ public:
 			(*it)->print(out);
 		}
 	}
+
+	Expr* copy(void) const 
+	{
+		return new IdStruct(*this);
+	}
+
 private:
 };
 
@@ -127,11 +147,47 @@ public:
 		out << ']';
 	}
 
+	Id* getId(void) const { return id; }
+	Expr* getIdx(void) const { return idx; }
+
+	Expr* copy(void) const
+	{
+		return new IdArray((Id*)id->copy(), idx->copy());
+	}
+
 private:
 	Id		*id;
 	Expr		*idx;
 };
 
+
+class ExprParens : public Expr
+{
+public:
+	ExprParens(Expr* in_expr)
+		: expr(in_expr)
+	{
+		assert (expr != NULL);
+	}
+
+
+	virtual ~ExprParens() { delete expr; }
+
+	void print(std::ostream& out) const
+	{
+		out << '(';
+		expr->print(out);
+		out << ')';
+	}
+
+	Expr* copy(void) const
+	{
+		return new ExprParens(expr->copy());
+	}
+
+private:
+	Expr	*expr;
+};
 
 class Number : public Expr
 {
@@ -142,6 +198,8 @@ public:
 	unsigned long getValue() const { return n; }
 
 	void print(std::ostream& out) const { out << n; }
+
+	Expr* copy(void) const { return new Number(n); }
 private:
 	unsigned long n;
 };
@@ -182,10 +240,9 @@ class AOPNOP : public BinArithOp
 {
 public:
 	AOPNOP(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2)
-	{
-	}
+		: BinArithOp(e1, e2) {}
 	virtual ~AOPNOP() {}
+
 protected:
 	virtual char getOpSymbol() const { return '_'; }
 private:
@@ -200,6 +257,12 @@ public:
 	{
 	}
 	virtual ~AOPOr() {}
+
+	Expr* copy(void) const
+	{
+		return new AOPOr(e_lhs->copy(), e_rhs->copy()); 
+	}
+
 protected:
 	virtual char getOpSymbol() const { return '|'; }
 private:
@@ -213,6 +276,12 @@ public:
 	{
 	}
 	virtual ~AOPAnd() {}
+
+	Expr* copy(void) const
+	{
+		return new AOPAnd(e_lhs->copy(), e_rhs->copy()); 
+	}
+
 protected:
 	virtual char getOpSymbol() const { return '&'; }
 private:
@@ -229,6 +298,12 @@ public:
 		e_lhs = e1;
 	}
 	virtual ~AOPAdd() {}
+
+	Expr* copy(void) const
+	{
+		return new AOPAdd(e_lhs->copy(), e_rhs->copy()); 
+	}
+
 protected:
 	virtual char getOpSymbol() const { return '+'; }
 private:
@@ -243,6 +318,13 @@ public:
 	}
 
 	virtual ~AOPSub() {} 
+
+	Expr* copy(void) const
+	{
+		return new AOPSub(e_lhs->copy(), e_rhs->copy()); 
+	}
+
+
 protected:
 	virtual char getOpSymbol() const { return '-'; }
 private:
@@ -257,6 +339,12 @@ public:
 	}
 
 	virtual ~AOPDiv() {}
+
+	Expr* copy(void) const
+	{
+		return new AOPDiv(e_lhs->copy(), e_rhs->copy()); 
+	}
+
 protected:
 	virtual char getOpSymbol() const { return '/'; }
 private:
@@ -271,6 +359,11 @@ public:
 	}
 
 	virtual ~AOPMul() {}
+
+	Expr* copy(void) const
+	{
+		return new AOPMul(e_lhs->copy(), e_rhs->copy()); 
+	}
 protected:
 	virtual char getOpSymbol() const { return '*'; }
 private:
@@ -285,6 +378,12 @@ public:
 	}
 
 	virtual ~AOPLShift() {}
+
+	Expr* copy(void) const
+	{
+		return new AOPLShift(e_lhs->copy(), e_rhs->copy());
+	}
+
 protected:
 virtual char getOpSymbol() const { return '<'; }
 private:
@@ -299,6 +398,12 @@ public:
 	}
 
 	virtual ~AOPRShift() {}
+
+	Expr* copy(void) const
+	{
+		return new AOPRShift(e_lhs->copy(), e_rhs->copy()); 
+	}
+
 protected:
 	virtual char getOpSymbol() const { return '>'; }
 private:

@@ -3,11 +3,15 @@
 
 #include <iostream>
 #include <list>
+#include <map>
 #include <assert.h>
-#include "collection.h"
-
 #include <stdint.h>
+
+#include "AST.h"
+#include "collection.h"
 #include "expr.h"
+
+typedef std::map<std::string, class PhysicalType*> type_map;
 
 class TypeStmt
 {
@@ -16,12 +20,15 @@ public:
 	virtual void print(std::ostream& out) const = 0;
 	unsigned int getLineNo() const { return lineno; }
 	void setLineNo(unsigned int l) { lineno = l; }
+
+	virtual PhysicalType* resolve(const type_map& tm) const = 0;
 protected:
 	TypeStmt() {}
 private:
 	unsigned int lineno;
 };
 
+#if 0
 class TypeBB : public PtrList<TypeStmt>
 {
 public:
@@ -29,6 +36,7 @@ public:
 	~TypeBB() {}
 private:
 };
+#endif
 
 static inline unsigned int tstmt_count_conds(const TypeStmt* t);
 
@@ -53,21 +61,12 @@ public:
 		assert (type != NULL);
 		assert (array != NULL);
 	}
-	virtual ~TypeDecl()
-	{
-		delete type;
-		if (name != NULL) delete name;
-		if (array != NULL) delete array;
-	}
 
-	void print(std::ostream& out) const 
-	{
-		out << "DECL: "; 
-		if (array != NULL)	array->print(out);
-		else			name->print(out);
-		out << " -> ";
-		type->print(out);
-	}
+	virtual ~TypeDecl();
+
+	void print(std::ostream& out) const;
+	
+	virtual PhysicalType* resolve(const type_map& tm) const;
 private:
 	Id*		type;
 	Id*		name;
@@ -98,14 +97,10 @@ public:
 		delete type;
 	}
 
-	void print(std::ostream& out) const 
-	{
-		out << "PDECL: "; 
-		if (array != NULL)	array->print(out);
-		else			name->print(out);
-		out << " -> ";
-		type->print(out);
-	}
+	void print(std::ostream& out) const;
+
+	virtual PhysicalType* resolve(const type_map& tm) const;
+
 private:
 	Id*		name;
 	IdArray*	array;
@@ -117,7 +112,7 @@ class TypeCond: public TypeStmt
 {
 public:
 	TypeCond(CondExpr* ce, TypeStmt* taken, TypeStmt* nottaken = NULL) 
-		: cond(ce), is_true(taken), is_false(nottaken)
+	: cond(ce), is_true(taken), is_false(nottaken)
 	{
 		assert (cond != NULL);
 		assert (is_true != NULL);
@@ -135,6 +130,7 @@ public:
 	const TypeStmt* getTrueStmt() const { return is_true; }
 	const TypeStmt* getFalseStmt() const { return is_false; }
 
+	virtual PhysicalType* resolve(const type_map& tm) const;
 private:
 	CondExpr	*cond;
 	TypeStmt	*is_true;
@@ -154,44 +150,12 @@ class TypeBlock : public TypeStmt, public PtrList<TypeStmt>
 {
 public:
 	TypeBlock() {}
-	~TypeBlock() 
-	{
-		for (iterator it = begin(); it != end(); it++)
-			delete (*it);
-	}
+	virtual ~TypeBlock() {}
 
-	void print(std::ostream& out) const 
-	{
-		out << "BLOCK:" << std::endl; 
-		for (const_iterator it = begin(); it != end(); it++) {
-			(*it)->print(out);
-			out << std::endl;
-		}
-		out << "ENDBLOCK";
-	}
-
-	std::vector<TypeBB> getBB() const
-	{
-		std::vector<TypeBB>	ret;
-		TypeBB			cur_bb;
-
-		for (const_iterator it = begin(); it != end(); it++) {
-			TypeStmt*	s;
-
-			if (dynamic_cast<TypeDecl*>(s) != NULL) {
-				cur_bb.add(s);
-			} else {
-				ret.push_back(cur_bb);
-				cur_bb.clear();
-			}
-		}
-
-		if (cur_bb.size() != 0) {
-			ret.push_back(cur_bb);
-		}
-
-		return ret;
-	}
+	void print(std::ostream& out) const;
+#if 0
+	std::vector<TypeBB> getBB() const;
+#endif
 
 	/* get number of conditions */
 	unsigned int getNumConds(void) const
@@ -206,16 +170,7 @@ public:
 		return ret;
 	}
 
-	Expr* getBytes(uint32_t bmp) const
-	{
-		
-	}
-
-	Expr* getBits(uint32_t bmp) const
-	{
-		
-	}
-	
+	virtual PhysicalType* resolve(const type_map& tm) const;
 };
 
 class TypeUnion : public TypeStmt
@@ -229,19 +184,36 @@ public:
 	}
 
 	void print(std::ostream& out) const { out << "UNION"; }
+
+	virtual PhysicalType* resolve(const type_map& tm) const { assert (0 == 1); }
 };
 
 
 class TypeFunc : public TypeStmt
 {
 public:
-	TypeFunc(const FCall* fcall) {} 
-	virtual ~TypeFunc() {}
+	TypeFunc(FCall* in_fcall) 
+		: fcall(in_fcall)
+	{
+		assert (fcall != NULL);
+	} 
+
+	virtual ~TypeFunc() 
+	{
+		delete fcall;
+	}
+
 	void print(std::ostream& out) const { out << "TYPEFUNC"; }
+
+	const std::string& getName(void) const { return fcall->getName(); }
+
+	virtual PhysicalType* resolve(const type_map& tm) const { assert (0 == 1); }
+private:
+	FCall*	fcall;
 };
 
 
-class Type : public GlobalStmt 
+class Type : public GlobalStmt
 {
 public:
 
@@ -256,46 +228,13 @@ public:
 		assert (in_block != NULL);
 	}
 
-	void print(std::ostream& out) const 
-	{
-		Expr	*bits, *bytes;
+	void print(std::ostream& out) const;
 
-		bits = getBits(0);
-		bytes = getBytes(0);
+	virtual ~Type(void);
 
-		out << "Type (";
-		name->print(out);
-		out << ") "; 
-		bits->print(out);
-		out << "b / ";
-		bytes->print(out);
+	const std::string& getName(void) const { return name->getName(); }
 
-		block->print(out);
-		out << std::endl;
-		out << "End Type";
-
-		delete bits;
-		delete bytes;
-	}
-
-	virtual ~Type(void)
-	{
-		delete name;
-		if (args != NULL) delete args;
-		if (preamble != NULL) delete preamble;
-		delete block;
-	}
-
-
-	Expr* getBytes(uint32_t bmp) const
-	{
-		return block->getBytes(bmp);
-	}
-
-	Expr* getBits(uint32_t bmp) const
-	{
-		return block->getBits(bmp);
-	}
+	virtual PhysicalType* resolve(const type_map& tm) const { assert (0 == 1); }
 
 private:
 	Id		*name;
@@ -303,6 +242,21 @@ private:
 	TypePreamble	*preamble;
 	TypeBlock	*block;
 	
+};
+
+class TypeCtx 
+{
+public:
+	TypeCtx(Expr* in_offset) : offset(in_offset)
+	{
+		assert (offset != NULL);
+	}
+
+	virtual ~TypeCtx() { delete offset; }
+
+
+private:
+	Expr	*offset;
 };
 
 

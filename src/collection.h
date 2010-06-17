@@ -11,6 +11,15 @@ class PtrList : public std::list<T*>
 {
 public:	
 	PtrList() {}
+	PtrList(const PtrList<T>& pl)
+	{
+		typename std::list<T*>::const_iterator	it;
+
+		for (it = pl.begin(); it != pl.end(); it++) {
+			add((*it)->copy());
+		}
+	}
+
 	virtual ~PtrList() 
 	{
 		typename std::list<T*>::iterator	it;
