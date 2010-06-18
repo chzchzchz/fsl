@@ -207,7 +207,7 @@ public:
 
 	const std::string& getName(void) const { return fcall->getName(); }
 
-	virtual PhysicalType* resolve(const type_map& tm) const { assert (0 == 1); }
+	virtual PhysicalType* resolve(const type_map& tm) const;
 private:
 	FCall*	fcall;
 };
@@ -234,7 +234,9 @@ public:
 
 	const std::string& getName(void) const { return name->getName(); }
 
-	virtual PhysicalType* resolve(const type_map& tm) const { assert (0 == 1); }
+	PhysicalType* resolve(const type_map& tm) const;
+
+	const ArgsList* getArgs(void) const { return args; }
 
 private:
 	Id		*name;

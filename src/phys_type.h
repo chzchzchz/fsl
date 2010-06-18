@@ -93,53 +93,86 @@ public:
 };
 
 /* this should be used for evaluated parameterized type declarations within
- * another type (this way we avoid possible recursion in the compile stage) */
+ * another type (this way we avoid possible recursion in the compile stage) 
+ * thunk functions take the form
+ * __thunk_xxx(TYPENAME, arg1, arg2, ...)
+ *
+ * NOTE: for single argument types, we can directly replace these..
+ */
 class PhysTypeThunk : public PhysicalType
 {
 public:
-	PhysTypeThunk(
-		const std::string& in_type,
-		ExprList* in_exprs) 
-	: PhysicalType("thunk_" + in_type),
-	  type(in_type)
+	PhysTypeThunk(const Type* t, ExprList* in_exprs = NULL) 
+	: PhysicalType(std::string("thunk_") + t->getName()),
+	  type(t), exprs(in_exprs)
 	{
-		if (in_exprs != NULL) {
-			exprs = in_exprs;
-			exprs->insert(exprs->begin(), new Id(type));
-		} else {
+		if (exprs == NULL) 
 			exprs = new ExprList();
-			exprs->add(new Id(type));
-		}
 	}
 
 	virtual ~PhysTypeThunk() 
 	{
-		delete exprs;
+		if (exprs != NULL) delete exprs;
 	}
+
+	const Type* getType(void) const { return type; }
 
 	virtual Expr* getBytes(void) const
 	{
+		assert (exprs != NULL);
 		return new FCall(new Id("__thunk_bytes"), exprs);
 	}
 
 	virtual Expr* getBits(void) const
 	{
+		assert (exprs != NULL);
 		return new FCall(new Id("__thunk_bits"), exprs);
 	}
 
+	PhysicalType* copy(void) const
+	{
+		return new PhysTypeThunk(type, new ExprList(*exprs));
+	}
+
+	bool setArgs(ExprList* args)
+	{
+		if (args == NULL) {
+			if (type->getArgs()->size() != 0)
+				return false;
+			
+			if (exprs != NULL) delete exprs;
+
+			exprs = new ExprList();
+			return true;
+		}
+
+		if (args->size() != type->getArgs()->size()) {
+			/* thunk arg mismatch */
+			return false;
+		}
+
+		if (exprs != NULL) delete exprs;
+
+		exprs = args;
+		exprs->insert(exprs->begin(), new Id(type->getName()));
+
+		return true;
+	}
+
 private:
-	std::string 	type;
-	ExprList*	exprs;
-	
+	const Type	*type;
+	ExprList	*exprs;
 };
 
 class PhysTypeArray : public PhysicalType
 {
 public:
-	PhysTypeArray(PhysicalType* base, Expr* in_length)
-	:	PhysicalType(base->getName() + "[]"),
+	PhysTypeArray(PhysicalType* in_base, Expr* in_length)
+	:	PhysicalType(in_base->getName() + "[]"),
+		base(in_base),
 		len(in_length)
 	{
+		assert (base != NULL);
 		assert (len != NULL);
 	}
 
@@ -177,30 +210,35 @@ public:
 	PhysicalType* copy(void) const { return new PhysTypeEmpty(); }
 };
 
-#if 0
 class PhysTypeUser : public PhysicalType
 {
 public:
-	PhysTypeUser(const Type* in_t, uint32_t in_cond_bmp)
+	PhysTypeUser(const Type* in_t, PhysicalType* in_resolved)
 	: 	PhysicalType(in_t->getName()),
 		t(in_t),
-		cond_bmp(in_cond_bmp) {}
+		resolved(in_resolved)
+	{
+		assert (t != NULL);
+		assert (resolved != NULL);
+	}
 
-	virtual ~PhysTypeUser() {}
+	virtual ~PhysTypeUser()
+	{
+		delete resolved;
+	}
 
-	virtual Expr* getBytes(void) const { return t->getBytes(cond_bmp); }
-	virtual Expr* getBits(void) const { return t->getBits(cond_bmp); }
+	virtual Expr* getBytes(void) const { return resolved->getBytes(); }
+	virtual Expr* getBits(void) const { return resolved->getBits(); }
 
-	void setConditionBits(uint32_t cond_bits) { cond_bmp = cond_bits; }
-	uint32_t getConditionBits() const { return cond_bmp; }
-
-	PhysicalType* copy(void) const { return new PhysTypeUser(t, cond_bmp); }
+	PhysicalType* copy(void) const
+	{
+		return new PhysTypeUser(t, resolved->copy());
+	}
 
 private:
 	const Type*		t;
-	uint32_t		cond_bmp;
+	PhysicalType*		resolved;
 };
-#endif
 
 template <typename T>
 class PhysTypePrimitive : public PhysicalType

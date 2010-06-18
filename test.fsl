@@ -17,21 +17,32 @@ const c2[] = {1, 2, 3, 4};
 //test the types
 //
 //with args
-type t1(t x, t y, t z) { i16 a; }
+type t1_args(t x, t y, t z) { i16 a; }
 
 
-type t1(t x, t y, t z) 
+type t1_args_preamble(t x, t y, t z) 
 fcall1()
 fcall2()
 { i16 a; }
 
 // without args
-type t2 { i16 a; }
+type t2_noargs { i16 a; }
 
-type t2
+type t2_noargs_preamble
 	fcall1()
 	fcall2()
 { i16 b; }
+
+type ptype(int i)
+{
+	i16	some_array[i];
+}
+
+type paramtype(i16 x, i16 y)
+{
+	i32	a[x];
+	i32	b[y];
+}
 
 // more type stuff.. layout..
 type t3
@@ -47,18 +58,18 @@ type t3
 
 	ptype(2)	a;
 
-	union {
-		i16	f;
-		i16	g;
-	} ugh;
+//	union {
+//		i16	f;
+//		i16	g;
+//	} ugh;
 
-	union {
-		i16	f;
-		i8	g;
-	} ugh2[10];
+//	union {
+//		i16	f;
+//		i8	g;
+//	} ugh2[10];
 	
 	paramtype(x,y)	f;
-
+	t_after		next_type;
 }
 
 
@@ -85,4 +96,10 @@ i16 hello(i16 r)
 	return z;
 }
 
-
+//
+// this type makes sure that thunk-conversion works
+//
+type t_after
+{
+	i32	o;
+}

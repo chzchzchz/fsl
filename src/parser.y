@@ -315,7 +315,7 @@ fcall	: fcall_no_args { $$ = $1; }
 	| fcall_args { $$ = $1; }
 	;
 
-expr	:	TOKEN_LPAREN expr TOKEN_RPAREN	{ $$ = $2; }
+expr	:	TOKEN_LPAREN expr TOKEN_RPAREN	{ $$ = new ExprParens($2); }
 	|	num				{ $$ = $1; }
 	|	expr_ident			{ $$ = $1; }
 	|	expr_id_struct			{ $$ = $1; }

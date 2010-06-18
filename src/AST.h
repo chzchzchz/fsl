@@ -220,6 +220,8 @@ public:
 		types.push_back(type_name);
 		names.push_back(arg_name);
 	}
+
+	unsigned int size(void) const { return types.size(); }
 private:
 	std::vector<const Id*>	types;
 	std::vector<const Id*>	names;

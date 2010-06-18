@@ -3,7 +3,7 @@
 
 using namespace std;
 
-static PhysicalType* resolve_by_id(const type_map& tm, Id* id);
+static PhysicalType* resolve_by_id(const type_map& tm, const Id* id);
 
 void Type::print(ostream& out) const 
 {
@@ -42,8 +42,6 @@ void TypeDecl::print(ostream& out) const
 	out << " -> ";
 	type->print(out);
 }
-
-
 
 #if 0
 vector<TypeBB> TypeBlock::getBB() const
@@ -91,13 +89,40 @@ void TypeParamDecl::print(std::ostream& out) const
 
 PhysicalType* TypeParamDecl::resolve(const type_map& tm) const
 {
-	/* XXX STUB */
-	cerr << "XXX: resolving param decl" << endl;
-	/* this should probably be some sort of thunk type */
-	return new PhysTypeEmpty();
+	/* directly resolving this is impossible, that's why we set the phys
+	 * type as a thunk for later resolution */
+	type_map::const_iterator	it;
+	PhysicalType			*pt;
+	PhysTypeThunk			*thunk;
+	ExprList			*arg_copy;
+	const string&			type_name(type->getName());
+
+	it = tm.find(string("thunk_") + type_name);
+	if (it == tm.end()) {
+		cerr	<< "Could not resolve thunk: \"" << type_name << "\""
+			<< endl;
+		return NULL;
+	}
+
+	pt = ((*it).second)->copy();
+	thunk = dynamic_cast<PhysTypeThunk*>(pt);
+	assert (thunk != NULL);
+
+	arg_copy = (type->getExprs())->copy();
+	if (thunk->setArgs(arg_copy) == false) {
+		cerr << "Thunk arg length mismatch\n" << endl;
+		delete arg_copy;
+		delete thunk;
+		return NULL;
+	}
+
+	/* if it's an array, we need to wrap in an array type */
+	if (array != NULL) {
+		pt = new PhysTypeArray(pt, (array->getIdx())->copy());
+	}
+
+	return pt;
 }
-
-
 
 PhysicalType* TypeDecl::resolve(const type_map& tm) const
 {
@@ -114,22 +139,37 @@ PhysicalType* TypeDecl::resolve(const type_map& tm) const
 		/* static decl must map to either an array or an id */
 		assert (0 == 1);
 	}
+	
 
 	return NULL;
 }
 
-static PhysicalType* resolve_by_id(const type_map& tm, Id* id)
+static PhysicalType* resolve_by_id(const type_map& tm, const Id* id)
 {
+	const std::string&		id_name(id->getName());
 	type_map::const_iterator	it;
 
-	it = tm.find(id->getName());
-	if (it == tm.end()) {
-		cerr << "Could not resolve type: ";
-		cerr << id->getName() << endl;
-		return NULL;
+	/* try to resovle type directly */
+	it = tm.find(id_name);
+	if (it != tm.end()) {
+		return ((*it).second)->copy();
 	}
 
+	/* type does not resolve directly, may have a thunk available */
+	it = tm.find(string("thunk_") + id_name);
+	if (it == tm.end()) {
+		cerr << "Could not resolve type: ";
+		cerr << id_name << endl;
+		return NULL;
+	}	
+
 	return ((*it).second)->copy();
+}
+
+PhysicalType* TypeFunc::resolve(const type_map& tm) const
+{
+	/* XXX, we should be smarter here about what functions can/can't do.. */
+	return new PhysTypeEmpty();
 }
 
 PhysicalType* TypeCond::resolve(const type_map& tm) const
@@ -137,6 +177,15 @@ PhysicalType* TypeCond::resolve(const type_map& tm) const
 	/* XXX */
 	cerr << "XXX: resolving cond." << endl;
 	return is_true->resolve(tm);
+}
+
+PhysicalType* Type::resolve(const type_map& tm) const
+{
+	PhysicalType	*pt_block;
+
+	pt_block = block->resolve(tm);
+
+	return new PhysTypeUser(this, pt_block);
 }
 
 PhysicalType* TypeBlock::resolve(const type_map& tm) const

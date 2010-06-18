@@ -13,6 +13,9 @@ using namespace std;
 
 type_map	types;
 
+static void load_user_types_thunk(const GlobalBlock* gb);
+static void load_primitive_types(void);
+
 ostream& operator<<(ostream& in, const Type& t)
 {
 	t.print(in);
@@ -42,12 +45,11 @@ static void load_primitive_types(void)
 	}
 }
 
-#if 0
-static void load_user_types(void)
+static void load_user_types_thunk(GlobalBlock* gb)
 {
 	GlobalBlock::iterator	it;
 
-	for (it = global_scope->begin(); it != global_scope->end(); it++) {
+	for (it = gb->begin(); it != gb->end(); it++) {
 		Type	*t;
 
 		t = dynamic_cast<Type*>(*it);
@@ -56,10 +58,46 @@ static void load_user_types(void)
 
 		/* XXX condition bitmap should not be zero, should
 		 * the condition bitmap be exposed at this level? */
-		types[t->getName()] = new PhysTypeUser(t, 0);
+		types[string("thunk_") + t->getName()] = new PhysTypeThunk(t);
 	}
 }
-#endif
+
+static void load_user_types_resolved(GlobalBlock* gb)
+{
+	GlobalBlock::iterator	it;
+
+	for (it = gb->begin(); it != gb->end(); it++) {
+		Type	*t;
+
+		t = dynamic_cast<Type*>(*it);
+		if (t == NULL)
+			continue;
+
+		if (types.count(t->getName()) != 0) {
+			cerr << t->getName() << " already declared!" << endl;
+		}
+
+		cout << "resolving " << t->getName() << endl;
+
+		types[t->getName()] = new PhysTypeUser(t, t->resolve(types));
+	}
+
+
+	/* now, do it again to get the missing thunks */
+	for (it = gb->begin(); it != gb->end(); it++) {
+		Type	*t;
+
+		t = dynamic_cast<Type*>(*it);
+		if (t == NULL)
+			continue;
+
+		delete types[t->getName()];
+
+		cout << "resolving " << t->getName() << endl;
+
+		types[t->getName()] = new PhysTypeUser(t, t->resolve(types));
+	}
+}
 
 static void dump_resolved(const Type* t)
 {
@@ -79,17 +117,29 @@ int main(int argc, char *argv[])
 	yyparse();
 
 	load_primitive_types();
+	load_user_types_thunk(global_scope);
+	load_user_types_resolved(global_scope);
 
 	for (it = global_scope->begin(); it != global_scope->end(); it++) {
 		GlobalStmt	*gs = *it;
 		Type		*t;
+		PhysicalType	*pt;
+		Expr		*e;
 
 		cout << *gs << endl << endl;
 
 		t = dynamic_cast<Type*>(gs);
 		if (t == NULL) continue;
 
-		t->resolve(types);
+		pt = types[t->getName()];
+		assert (pt != NULL);
+
+		e = pt->getBytes();
+		assert (e != NULL);
+
+		e->print(cout);
+		cout << endl;
+		delete e;
 	}
 
 	return 0;

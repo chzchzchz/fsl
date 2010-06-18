@@ -1,8 +1,16 @@
+OBJS=	parser.o	\
+	lex.yy.o	\
+	main.o		\
+	type.o		\
+
+CFLAGS= -g
 
 all: lang
+
+
  
-lang:  parser.o lex.yy.o main.o
-	g++  $^ -o $@	
+lang:  $(OBJS)
+	g++ $(CFLAGS)  $^ -o $@	
 
 
 parser.hh: parser.cc
@@ -14,7 +22,7 @@ lex.yy.cc: lang.lex parser.hh
 	flex -o $@ $^
 
 .cc.o:
-	g++ -c $< -o $@
+	g++ $(CFLAGS) -c $< -o $@
 
 
 clean: 
