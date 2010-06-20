@@ -46,7 +46,14 @@ public:
 		delete expr;
 	}
 
-	void print(std::ostream& out) const { out << "CONST VAR"; }
+	void print(std::ostream& out) const 
+	{
+		out << "CONST: "; 
+		id->print(out);
+		out << " = ";
+		expr->print(out);
+	}
+
 private:
 	Id*		id;
 	Expr*		expr;
@@ -215,16 +222,21 @@ public:
 		}
 	}
 
-	void add(const Id* type_name, const Id* arg_name) 
+	void add(Id* type_name, Id* arg_name) 
 	{
 		types.push_back(type_name);
 		names.push_back(arg_name);
 	}
 
 	unsigned int size(void) const { return types.size(); }
+
+	std::pair<Id*, Id*> get(unsigned int i) const
+	{
+		return std::pair<Id*, Id*>(types[i], names[i]);
+	}
 private:
-	std::vector<const Id*>	types;
-	std::vector<const Id*>	names;
+	std::vector<Id*>	types;
+	std::vector<Id*>	names;
 
 };
 

@@ -45,7 +45,7 @@ void yyerror(const char* s)
 
 // arith
 %token <token> TOKEN_BITOR TOKEN_BITAND TOKEN_ADD TOKEN_SUB TOKEN_MUL TOKEN_DIV
-%token <token> TOKEN_LSHIFT TOKEN_RSHIFT
+%token <token> TOKEN_LSHIFT TOKEN_RSHIFT TOKEN_MOD
 
 
 %token <token> TOKEN_SEMI
@@ -254,11 +254,11 @@ type_stmt	: ident ident TOKEN_SEMI
 		}
 		| TOKEN_UNION type_block ident TOKEN_SEMI
 		{
-			$$ = new TypeUnion($2, (const Id*)$3);
+			$$ = new TypeUnion($2, (Id*)$3);
 		}
 		| TOKEN_UNION type_block array TOKEN_SEMI
 		{
-			$$ = new TypeUnion($2, (const IdArray*)$3);
+			$$ = new TypeUnion($2, (IdArray*)$3);
 		}
 		| TOKEN_IF TOKEN_LPAREN cond_expr TOKEN_RPAREN type_stmt
 		{
@@ -272,7 +272,7 @@ type_stmt	: ident ident TOKEN_SEMI
 		;
 
 cond_expr	: TOKEN_LPAREN cond_expr TOKEN_RPAREN { $$ = $2; }
-		| fcall { $$ = new FuncCond((const FCall*)$1); }
+		| fcall { $$ = new FuncCond((FCall*)$1); }
 		| expr TOKEN_CMPEQ expr { $$ = new CmpEQ($1, $3); }
 		| expr TOKEN_CMPNE expr { $$ = new CmpNE($1, $3); }
 		| expr TOKEN_CMPLE expr { $$ = new CmpLE($1, $3); }
@@ -361,4 +361,5 @@ arith		: 	expr TOKEN_BITOR expr  	{ $$ = new AOPOr($1, $3); }
 		|	expr TOKEN_MUL expr	{ $$ = new AOPMul($1, $3); }
 		| 	expr TOKEN_LSHIFT expr	{ $$ = new AOPLShift($1, $3); }
 		|	expr TOKEN_RSHIFT expr 	{ $$ = new AOPRShift($1, $3); }
+		|	expr TOKEN_MOD expr	{ $$ = new AOPMod($1, $3); }
 		;

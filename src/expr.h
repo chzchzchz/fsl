@@ -47,7 +47,7 @@ public:
 	virtual ~Id() {}
 	const std::string& getName() const { return id_name; }
 	void print(std::ostream& out) const { out << id_name; }
-	Expr* copy(void) const { return new Id(id_name); }
+	Id* copy(void) const { return new Id(id_name); }
 private:
 	const std::string id_name;
 };
@@ -78,9 +78,9 @@ public:
 		out << ")";
 	}
 
-	Expr* copy(void) const 
+	FCall* copy(void) const 
 	{
-		return new FCall((Id*)id->copy(), exprs->copy());
+		return new FCall(id->copy(), exprs->copy());
 	}
 
 private:
@@ -109,7 +109,7 @@ public:
 		}
 	}
 
-	Expr* copy(void) const 
+	IdStruct* copy(void) const 
 	{
 		return new IdStruct(*this);
 	}
@@ -150,9 +150,9 @@ public:
 	Id* getId(void) const { return id; }
 	Expr* getIdx(void) const { return idx; }
 
-	Expr* copy(void) const
+	IdArray* copy(void) const
 	{
-		return new IdArray((Id*)id->copy(), idx->copy());
+		return new IdArray(id->copy(), idx->copy());
 	}
 
 private:
@@ -215,9 +215,11 @@ public:
 
 	void print(std::ostream& out) const
 	{
+		out << '(';
 		e_lhs->print(out);
 		out << ' ' << getOpSymbol() << ' ';
 		e_rhs->print(out);
+		out << ')';
 	}
 
 protected:
@@ -407,6 +409,25 @@ public:
 protected:
 	virtual char getOpSymbol() const { return '>'; }
 private:
+};
+
+class AOPMod : public BinArithOp
+{
+public:
+	AOPMod(Expr* e1, Expr* e2) 
+		: BinArithOp(e1, e2)
+	{
+	}
+
+	virtual ~AOPMod() {}
+
+	Expr* copy(void) const
+	{
+		return new AOPMod(e_lhs->copy(), e_rhs->copy()); 
+	}
+
+protected:
+	virtual char getOpSymbol() const { return '%'; }
 };
 
 #endif

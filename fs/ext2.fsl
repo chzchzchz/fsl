@@ -1,0 +1,190 @@
+const EXT2_NDIR_BLOCKS = 12;
+const EXT2_GOOD_OLD_INODE_SIZE = 128;
+const EXT2_INO_BAD = 1;
+const EXT2_INO_ROOT = 2;
+const EXT2_INO_LOADER = 5;
+const EXT2_INO_FIRST = 11;
+
+u32 get_block_size(ext2_sb sb)
+{
+	return (1024 << sb.s_log_block_sz);
+}
+
+u32 get_group_count(ext2_sb sb)
+{
+	return 1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/sb.blks_per_grp);
+}
+
+u32 blocks_off(ext2_sb sb)
+{
+	return 1 + sb.s_first_data_block +
+		(get_group_count(sb)*sizeof(ext2_group_desc)+
+			get_block_size(sb)-1)/get_block_size(sb);
+}
+
+u32 inode_table_block_count(ext2_sb sb)
+{
+	return (sizeof(ext2_inode)*sb.s_inos_per_grp + get_block_size(sb)-1)/ 
+		get_block_size(sb);
+}
+
+type disk
+{
+	/* superblock is always located at byte offset 1024 from the beginning 
+	 * of the file, block device or partition formated with Ext2 */
+	skip(1024);
+	ext2_sb		sb;
+	align(get_block_size(sb));
+
+	assert_le(sb.s_blks_per_grp, get_block_size(sb) * 8);
+	assert_le(sb.s_inos_per_grp, get_block_size(sb) * 8);
+
+	ext2_group_desc	grp_desc_table[get_group_count(sb)];
+	align(get_block_size(sb));
+	
+	union {
+		ext2_inode_block(sb)	ino_blk;
+		ext2_bmp_blk		blk_bmp;
+		ext2_bmp_ino		ino_bmp;
+		ext2_data_block(sb)	data;
+	}blocks[sb.s_blocks_c - from_base()/get_block_size(sb)];
+	
+}
+
+type ext2_inode_block(ext2_sb sb)
+{
+	ext2_inode	ino[get_block_size(sb)/sizeof(ext2_inode)];
+}
+
+type ext2_data_block(ext2_sb sb)
+{
+	u8	data[get_block_size(sb)];
+}
+
+type ext2_group_desc
+points(disk.blocks[block_bmp - blocks_off(disk.sb)].blk_bmp)
+points(disk.blocks[inode_bmp - blocks_off(disk.sb)].ino_bmp)
+points_range(
+	disk.blocks[inode_table - blocks_off(disk.sb)].ino_blk,
+	disk.blocks[inode_table 
+			+ (inode_table_block_count(disk.sb)-1)
+			- blocks_off(disk.sb)].ino_blk)
+sum(free_block_c)
+sum(free_inode_c)
+sum(used_dir_c)
+{
+	u32	block_bmp;
+	u32	inode_bmp;
+	u32	inode_table;
+	u16	free_block_c;
+	u16	free_inode_c;
+	u16	used_dir_c;
+	u16	pad;
+	u32	reserved[3];
+	assert_eq(from_base(), 32);
+}
+
+type ext2_sb
+{
+	u32	s_inodes_c;
+	u32	s_blocks_c;
+	u32	s_r_blocks_c;		/* reserved blocks */
+	u32	s_free_blocks_c;
+	u32	s_free_inodes_c;
+	u32	s_first_data_block;
+	u32	s_log_block_sz;		/* block size (log)) */
+	u32	s_log_frag_sz;
+	u32	s_blks_per_grp;
+	u32	s_frags_per_grp;
+	u32	s_inos_per_grp;
+	u32	s_mtime;		/* mount time */
+	u32	s_wtime;		/* write time */
+	u32	s_mnt_c;		/* mounts since last fsck */
+	u16	s_max_mnt_c;		/* max mounts until fsck */
+	u16	s_magic;
+	u16	s_state;
+	u16	s_errors;
+	u16	s_minor_rev_level;
+	u32	s_lastcheck;
+	u32	s_checkinterval;
+	u32	s_creator_os;
+	u32	s_rev_level;
+	u16	s_def_resuid;		/* uid for reserved blocks */
+	u16	s_def_resgid;		/* gid for reserved blocks */
+	/* these fields are for EXT2_DYNAMIC_REV */
+	u32	s_first_ino;
+	/* XXX ... */
+
+	/* finally, padding */
+	align(1024);
+	assert_eq(from_base(), 1024);
+}
+
+/* XXX add points-to here */
+type ext2_inode
+{
+	u16	i_mode;	/* file mode */
+	u16	i_uid;	/* low 16 bits of owner uid */
+	u32	i_size;	/* size in bytes */
+	u32	i_atime;
+	u32	i_ctime;
+	u32	i_mtime;
+	u32	i_dtime;
+	u16	i_gid;
+	u16	i_links_c;
+	u32	i_blocks_c;
+	u32	i_flags;
+	u32	i_osd_resv;
+	u32	i_block_direct[EXT2_NDIR_BLOCKS];
+	u32	i_block_indir;
+	u32	i_block_biindir;
+	u32	i_block_triindir;
+	u32	i_gen;
+	u32	i_file_acl;
+	u32	i_dir_acl;
+	u32	i_faddr;
+	align(EXT2_GOOD_OLD_INODE_SIZE);
+}
+
+ext2_inode ino_by_num(u32 ino_num)
+{
+	u32	ino_grp;
+	u32	ino_grp_idx;
+	u32	ino_grp_blk;
+	u32	table_base;
+	u32	blk_sz;
+
+	blk_sz = get_block_size(disk.sb);
+	ino_grp = ino_num / disk.sb.s_inos_per_grp;
+	ino_grp_idx = ino_num % disk.sb.s_inos_per_grp;
+	ino_grp_blk = (ino_grp_idx * sizeof(ext2_inode)) / blk_sz;
+	ino_grp_blk_idx = (ino_grp_idx*sizeof(ext2_inode)) % blk_sz;
+
+	table_base = disk.grp_desc_table[ino_grp].inode_table;
+	return disk.blocks[
+		table_base + ino_grp_blk - blocks_off(disk.sb)].ino_blk.ino[
+			ino_grp_blk_idx];
+}
+
+type ext2_dir_entry
+points(ino_by_num(inode))
+{
+	u32	inode;		/* inode number */
+	u16	rec_len;	/* de length */
+	u8	name_len;
+	u8	file_type;
+	u8	name[name_len];
+	pad(rec_len);
+}
+
+
+/* XXX add points-to here */
+type ext2_bmp_blk
+{
+	u1	data[get_block_size(disk.sb)*8];
+}
+
+type ext2_bmp_ino(ext2_sb sb)
+{
+	u1	data[get_block_size(disk.sb)*8];
+}

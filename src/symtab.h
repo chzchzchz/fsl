@@ -1,6 +1,7 @@
 #ifndef SYMTAB_H
 #define SYMTAB_H
 
+#include <iostream>
 #include <map>
 #include "phys_type.h"
 
@@ -15,12 +16,12 @@ class SymbolTable
 {
 public:
 	SymbolTable(
-		const SymbolTable* in_backref, 
-		const PhysicalType* in_owner)
+		const SymbolTable*	in_backref, 
+		PhysicalType*		in_owner)
 	: backref(in_backref),
 	  owner(in_owner)
 	{
-
+		assert (owner != NULL);
 	}
 
 	virtual ~SymbolTable()
@@ -28,37 +29,62 @@ public:
 		sym_map::iterator	it;
 
 		for (it = sm.begin(); it != sm.end(); it++) {
-			sym_binding	sb(*it);
+			sym_binding	sb((*it).second);
 
 			delete symbind_phys(sb);
 			delete symbind_off(sb);
 		}
+
+		delete owner;
 	}
 
-	bool add(const std::string& name, PhysicalType* pt, Expr* offset)
+	bool add(const std::string& name, PhysicalType* pt, Expr* offset_bits)
 	{
 		if (sm.count(name) != 0) {
 			/* exists */
 			return false;
 		}
 
-		sm[name] = symbind_make(pt,offset);
+		sm[name] = symbind_make(pt,offset_bits);
 		return true;
 	}
 
 	bool lookup(const std::string& name, sym_binding& sb) const
 	{
+		sym_map::const_iterator	it;
+
 		if (sm.count(name) == 0) {
-			return false;
+			if (backref == NULL)
+				return false;
+
+			return backref->lookup(name, sb);
 		}
 
-		sb = sm[name];
+		it = sm.find(name);
+		if (it == sm.end()) return false;
+
+		sb = ((*it).second);
 		return true;
+	}
+
+	void print(std::ostream& out) const
+	{
+		sym_map::const_iterator	it;
+
+		out << "SymTable for " << owner->getName() << std::endl;
+		for (it = sm.begin(); it != sm.end(); it++) {
+			sym_binding	sb((*it).second);
+			out 	<< "Symbol: \"" <<  (*it).first << "\" = ";
+			out << symbind_phys(sb)->getName();
+			out << '@';
+			symbind_off(sb)->print(out);
+			out << std::endl;
+		}
 	}
 
 private:
 	const SymbolTable*	backref;
-	const PhysicalType*	owner;
+	PhysicalType*		owner;
 	sym_map			sm;
 
 };

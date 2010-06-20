@@ -4,6 +4,7 @@
 #include "AST.h"
 #include "type.h"
 #include "phys_type.h"
+#include "symtab.h"
 
 extern int yyparse();
 
@@ -11,10 +12,17 @@ extern GlobalBlock* global_scope;
 
 using namespace std;
 
-type_map	types;
+typedef list<Type*>	type_list;
 
-static void load_user_types_thunk(const GlobalBlock* gb);
-static void load_primitive_types(void);
+map<string, SymbolTable*>	symtabs;
+ptype_map			ptypes;
+type_list			types;
+
+static void load_user_types(const GlobalBlock* gb);
+static bool load_user_ptypes_thunk(void);
+static bool load_user_ptypes_resolved(void);
+static void load_primitive_ptypes(void);
+static void build_sym_tables(void);
 
 ostream& operator<<(ostream& in, const Type& t)
 {
@@ -28,75 +36,101 @@ ostream& operator<<(ostream& in, const GlobalStmt& gs)
 	return in;
 }
 
-static void load_primitive_types(void)
+static void load_primitive_ptypes(void)
 {
 	PhysicalType	*pt[] = {
+		new U1(),
 		new U8(),
 		new U16(),
 		new U32(),
 		new U64(),
 		new I16(),
 		new I32(),
-		new U64(),
+		new I64(),
 		new U12()};
 	
 	for (unsigned int i = 0; i < (sizeof(pt)/sizeof(PhysicalType*)); i++) {
-		types[pt[i]->getName()] = pt[i];
+		assert (ptypes.count(pt[i]->getName()) == 0);
+		ptypes[pt[i]->getName()] = pt[i];
 	}
 }
 
-static void load_user_types_thunk(GlobalBlock* gb)
+static void load_user_types(const GlobalBlock* gb)
 {
-	GlobalBlock::iterator	it;
+	GlobalBlock::const_iterator	it;
 
 	for (it = gb->begin(); it != gb->end(); it++) {
 		Type	*t;
 
 		t = dynamic_cast<Type*>(*it);
-		if (t == NULL)
-			continue;
+		if (t == NULL) continue;
 
-		/* XXX condition bitmap should not be zero, should
-		 * the condition bitmap be exposed at this level? */
-		types[string("thunk_") + t->getName()] = new PhysTypeThunk(t);
-	}
+		types.push_back(t);
+	}	
 }
 
-static void load_user_types_resolved(GlobalBlock* gb)
+static bool load_user_ptypes_thunk(void)
 {
-	GlobalBlock::iterator	it;
+	type_list::iterator	it;
+	bool			success;
 
-	for (it = gb->begin(); it != gb->end(); it++) {
-		Type	*t;
+	success = true;
+	for (it = types.begin(); it != types.end(); it++) {
+		Type		*t;
+		string		thunk_str;
 
-		t = dynamic_cast<Type*>(*it);
-		if (t == NULL)
+		t = *it;
+		thunk_str = string("thunk_") + t->getName();
+		if (ptypes.count(thunk_str) != 0) {
+			cerr << "Type \"" << t->getName() <<
+				"\" already declared!" << endl;
+			success = false;
 			continue;
-
-		if (types.count(t->getName()) != 0) {
-			cerr << t->getName() << " already declared!" << endl;
 		}
 
-		cout << "resolving " << t->getName() << endl;
-
-		types[t->getName()] = new PhysTypeUser(t, t->resolve(types));
+		ptypes[string("thunk_") + t->getName()] = new PhysTypeThunk(t);
 	}
 
+	return success;
+}
 
-	/* now, do it again to get the missing thunks */
-	for (it = gb->begin(); it != gb->end(); it++) {
+static bool load_user_ptypes_resolved(void)
+{
+	type_list::iterator	it;
+	bool			success;
+
+	success = true;
+	for (it = types.begin(); it != types.end(); it++) {
 		Type	*t;
 
-		t = dynamic_cast<Type*>(*it);
-		if (t == NULL)
+		t = *it;
+		if (ptypes.count(t->getName()) != 0) {
+			cerr << t->getName() << " already declared!" << endl;
+			success = false;
 			continue;
+		}
 
-		delete types[t->getName()];
 
 		cout << "resolving " << t->getName() << endl;
 
-		types[t->getName()] = new PhysTypeUser(t, t->resolve(types));
+		ptypes[t->getName()] = new PhysTypeUser(t, t->resolve(ptypes));
 	}
+
+
+	/* now, do it again to get the non-parameterized thunks */
+	for (it = types.begin(); it != types.end(); it++) {
+		Type	*t;
+
+		t = *it;
+
+		delete ptypes[t->getName()];
+
+		cout << "resolving " << t->getName() << endl;
+
+		ptypes[t->getName()] = new PhysTypeUser(t, t->resolve(ptypes));
+	}
+
+	return success;
 }
 
 static void dump_resolved(const Type* t)
@@ -105,9 +139,28 @@ static void dump_resolved(const Type* t)
 	Expr		*bytes;
 	Expr		*bits;
 
-	pt = t->resolve(types);
+	pt = t->resolve(ptypes);
 
 	cout << "Type \"" << t->getName() << "\". Bytes = " << endl;
+}
+
+/**
+ * build up symbol tables, disambiguate if possible
+ */
+static void build_sym_tables(void)
+{
+	type_list::iterator	it;
+
+	for (it = types.begin(); it != types.end(); it++) {
+		Type		*t;
+		SymbolTable	*syms;
+
+		t = *it;
+
+		syms = t->getSyms(ptypes);
+		symtabs[t->getName()] = syms;
+		syms->print(cout);
+	}
 }
 
 int main(int argc, char *argv[])
@@ -116,10 +169,19 @@ int main(int argc, char *argv[])
 
 	yyparse();
 
-	load_primitive_types();
-	load_user_types_thunk(global_scope);
-	load_user_types_resolved(global_scope);
+	/* load ptypes in */
+	load_primitive_ptypes();
+	load_user_types(global_scope);
+	load_user_ptypes_thunk();
+	load_user_ptypes_resolved();
 
+	/* next, build up symbol tables on types.. this is our type checking */
+	build_sym_tables();
+
+	/* also, verify that ptypes are correct for arguments */
+	
+
+	/* dump ptypes.. */
 	for (it = global_scope->begin(); it != global_scope->end(); it++) {
 		GlobalStmt	*gs = *it;
 		Type		*t;
@@ -131,7 +193,7 @@ int main(int argc, char *argv[])
 		t = dynamic_cast<Type*>(gs);
 		if (t == NULL) continue;
 
-		pt = types[t->getName()];
+		pt = ptypes[t->getName()];
 		assert (pt != NULL);
 
 		e = pt->getBytes();

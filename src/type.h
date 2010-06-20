@@ -11,7 +11,7 @@
 #include "collection.h"
 #include "expr.h"
 
-typedef std::map<std::string, class PhysicalType*> type_map;
+typedef std::map<std::string, class PhysicalType*> ptype_map;
 
 class TypeStmt
 {
@@ -21,7 +21,7 @@ public:
 	unsigned int getLineNo() const { return lineno; }
 	void setLineNo(unsigned int l) { lineno = l; }
 
-	virtual PhysicalType* resolve(const type_map& tm) const = 0;
+	virtual PhysicalType* resolve(const ptype_map& tm) const = 0;
 protected:
 	TypeStmt() {}
 private:
@@ -66,7 +66,14 @@ public:
 
 	void print(std::ostream& out) const;
 	
-	virtual PhysicalType* resolve(const type_map& tm) const;
+	virtual PhysicalType* resolve(const ptype_map& tm) const;
+
+	const std::string getName() const 
+	{
+		if (name != NULL)
+			return name->getName();
+		return array->getName();
+	}
 private:
 	Id*		type;
 	Id*		name;
@@ -99,7 +106,14 @@ public:
 
 	void print(std::ostream& out) const;
 
-	virtual PhysicalType* resolve(const type_map& tm) const;
+	virtual PhysicalType* resolve(const ptype_map& tm) const;
+
+	const std::string getName() const 
+	{
+		if (name != NULL)
+			return name->getName();
+		return array->getName();
+	}
 
 private:
 	Id*		name;
@@ -130,7 +144,7 @@ public:
 	const TypeStmt* getTrueStmt() const { return is_true; }
 	const TypeStmt* getFalseStmt() const { return is_false; }
 
-	virtual PhysicalType* resolve(const type_map& tm) const;
+	virtual PhysicalType* resolve(const ptype_map& tm) const;
 private:
 	CondExpr	*cond;
 	TypeStmt	*is_true;
@@ -170,22 +184,47 @@ public:
 		return ret;
 	}
 
-	virtual PhysicalType* resolve(const type_map& tm) const;
+	virtual PhysicalType* resolve(const ptype_map& tm) const;
 };
 
 class TypeUnion : public TypeStmt
 {
 public:
-	TypeUnion(const TypeBlock* tb, const Id* name)
+	TypeUnion(TypeBlock* in_block, Id* in_name)
+	: block(in_block),
+	  name(in_name),
+	  array(NULL)
 	{
-	}
-	TypeUnion(const TypeBlock* tb, const IdArray* array)
-	{
+		assert (block != NULL);
+		assert (name != NULL);
 	}
 
-	void print(std::ostream& out) const { out << "UNION"; }
+	TypeUnion(TypeBlock* in_block, IdArray* in_array)
+	: block(in_block),
+	  name(NULL),
+	  array(in_array)
+	{
+		assert (block != NULL);
+		assert (array != NULL);
+	}
 
-	virtual PhysicalType* resolve(const type_map& tm) const { assert (0 == 1); }
+	virtual ~TypeUnion()
+	{
+		if (name != NULL) delete name;
+		if (array != NULL) delete array;
+		delete block;
+	}
+
+	void print(std::ostream& out) const { 
+		out << "UNION: "; 
+		block->print(out);
+	}
+
+	virtual PhysicalType* resolve(const ptype_map& tm) const;
+private:
+	TypeBlock	*block;
+	Id		*name;
+	IdArray		*array;
 };
 
 
@@ -207,7 +246,7 @@ public:
 
 	const std::string& getName(void) const { return fcall->getName(); }
 
-	virtual PhysicalType* resolve(const type_map& tm) const;
+	virtual PhysicalType* resolve(const ptype_map& tm) const;
 private:
 	FCall*	fcall;
 };
@@ -234,9 +273,11 @@ public:
 
 	const std::string& getName(void) const { return name->getName(); }
 
-	PhysicalType* resolve(const type_map& tm) const;
+	PhysicalType* resolve(const ptype_map& tm) const;
 
 	const ArgsList* getArgs(void) const { return args; }
+
+	class SymbolTable* getSyms(const ptype_map& tm) const;
 
 private:
 	Id		*name;

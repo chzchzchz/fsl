@@ -37,6 +37,120 @@ private:
 	std::string name;
 };
 
+#if 0
+class PhysTypeDisk : public PhysicalType
+{
+public:
+	PhysTypeDisk(void) : PhysicalType(disk) {}
+
+	virtual ~PhysTypeDisk() {}
+
+	virtual Expr* getBits(void) const
+	{
+		return new FCall(new Id("__disk_bits"), new ExprList());
+	}
+
+	virtual Expr* getBytes(void) const
+	{
+		return new FCall(new Id("__disk_bits"), new ExprList());
+	}
+
+	virtual PhysicalType* copy(void) const { return new PhysTypeDisk(); }
+};
+#endif
+
+class PhysTypeFunc : public PhysicalType
+{
+public:
+	PhysTypeFunc(FCall* fc) 
+	: PhysicalType(std::string("func_") + fc->getName()),
+	  func(fc)
+	{
+		assert (fc != NULL);
+	}
+
+	virtual ~PhysTypeFunc() { delete func; }
+
+	Expr* getBytes(void) const
+	{
+		return new FCall(
+			new Id(func->getName() + "_bytes"), 
+			(func->getExprs())->copy());
+	}
+
+	Expr* getBits(void) const
+	{
+		return new FCall(
+			new Id(func->getName() + "_bits"),
+			(func->getExprs())->copy());
+	}
+
+	virtual PhysicalType* copy(void) const { 
+		return new PhysTypeFunc(func->copy());
+	}
+
+private:
+	FCall	*func;
+};
+
+class PhysTypeUnion : public PhysicalType, public PtrList<PhysicalType>
+{
+public:
+	PhysTypeUnion(const std::string& name) : PhysicalType(name)  {}
+	PhysTypeUnion(const PhysTypeUnion& ptu)
+	: PhysicalType(ptu.getName()),
+	  PtrList<PhysicalType>(ptu) {}
+
+	virtual Expr* getBytes(void) const 
+	{
+		const_iterator	it;
+		ExprList	*exprs;
+
+		it = begin();
+		if (it == end()) {
+			return new Number(0);
+		}
+
+		exprs = new ExprList();
+		exprs->add((*it)->getBytes());
+
+		it++;
+		for (; it != end(); it++) {
+			exprs->add((*it)->getBytes());
+		}
+
+		return new FCall(new Id("__max"), exprs);
+	}
+
+	virtual Expr* getBits(void) const
+	{
+		const_iterator	it;
+		ExprList	*exprs;
+
+		it = begin();
+		if (it == end()) {
+			return new Number(0);
+		}
+
+		exprs = new ExprList();
+		exprs->add((*it)->getBits());
+
+		it++;
+		for (; it != end(); it++) {
+			exprs->add((*it)->getBits());
+		}
+
+		return new FCall(new Id("__max"), exprs);
+
+	}
+
+	PhysicalType* copy(void) const
+	{
+		return new PhysTypeUnion(*this);
+	}
+
+};
+
 /**
  * collection of multiple types wrapped into a single aggregate.
  */
@@ -120,13 +234,17 @@ public:
 	virtual Expr* getBytes(void) const
 	{
 		assert (exprs != NULL);
-		return new FCall(new Id("__thunk_bytes"), exprs);
+		return new FCall(new Id(
+			std::string("__thunk_")	
+			+ type->getName() + std::string("_bytes")), exprs);
 	}
 
 	virtual Expr* getBits(void) const
 	{
 		assert (exprs != NULL);
-		return new FCall(new Id("__thunk_bits"), exprs);
+		return new FCall(new Id(
+			std::string("__thunk_")	
+			+ type->getName() + std::string("_bytes")), exprs);
 	}
 
 	PhysicalType* copy(void) const
@@ -136,8 +254,12 @@ public:
 
 	bool setArgs(ExprList* args)
 	{
+		const ArgsList*	type_args;
+
+		type_args = type->getArgs();
+
 		if (args == NULL) {
-			if (type->getArgs()->size() != 0)
+			if (type_args != NULL)
 				return false;
 			
 			if (exprs != NULL) delete exprs;
@@ -146,7 +268,8 @@ public:
 			return true;
 		}
 
-		if (args->size() != type->getArgs()->size()) {
+		if (type_args == NULL || 
+		    args->size() != type_args->size()) {
 			/* thunk arg mismatch */
 			return false;
 		}
@@ -268,6 +391,15 @@ public:
 	virtual ~I32() {}
 private:
 };
+
+class I64 : public PhysTypePrimitive<int64_t>
+{
+public:
+	I64 () : PhysTypePrimitive<int64_t>("i64") {}
+	virtual ~I64() {}
+private:
+};
+
 
 
 class U64 : public PhysTypePrimitive<uint64_t>

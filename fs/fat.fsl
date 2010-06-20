@@ -64,7 +64,7 @@ know_eq (first_cluster_lo, 0)
 	u8	order;
 	u8	name[10];
 	u8	attr;
-	u8	type;
+	u8	de_type;
 	u8	chksum;
 	u8	name2[12];
 	u16	first_cluster_lo;
@@ -101,9 +101,9 @@ know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb))
 {
 	u8		jmp[2];
 	u8		oem_name[8];
-	u16.le		bytes_per_sector;
+	u16		bytes_per_sector;
 	u8		sectors_per_cluster;
-	u16.le		reserved_sector_c;
+	u16		reserved_sector_c;
 	u8		fat_count;
 	u16		root_de_c;
 	u16		total_sect16;
@@ -113,23 +113,28 @@ know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb))
 	u16		num_heads;
 	u32		hidden_sec;
 	u32		total_sec32;
-	assert (. == 36);
-	union {
-		bpb_16	priv16;
+	assert_eq (from_base(), 36);
+	if (get_fat_type(bpb) == FAT_TYPE_FAT32) {
 		bpb_32	priv32;
-	};
+	} else {
+		bpb_16	priv16;
+	}
 }
 
 type fat(bpb b) 
-pointsa(i, ent[i], disk.clusters[i])
-freea(i, ent[i], 0, disk.clusters[i])
+points(ent12, disk.clusters)
+free(ent12, disk.clusters, 0)
+points(ent16, disk.clusters)
+free(ent16, disk.clusters, 0)
+points(ent32, disk.clusters)
+free(ent32, disk.clusters, 0)
 { 
 	if (is_fat12(b)) {
-		u12	ent[get_cluster_count(b)];
+		u12	ent12[get_cluster_count(b)];
 	} else if (is_fat16(b)) {
-		u16	ent[get_cluster_count(b)];
+		u16	ent16[get_cluster_count(b)];
 	} else if (is_fat32(b)) {
-		u32	ent[get_cluster_count(b)];
+		u32	ent32[get_cluster_count(b)];
 	} else {
 		fail();
 	}
@@ -148,7 +153,7 @@ uint get_fat_sectors(bpb b)
 
 uint get_total_sectors(bpb b)
 {
-	if (b.total_sect16) {
+	if (b.total_sect16 != 0) {
 		return b.total_sect16;
 	}
 	return b.total_sec32;
@@ -156,10 +161,13 @@ uint get_total_sectors(bpb b)
 
 uint get_cluster_count(bpb b)
 {
-	uint	fat_sectors = get_fat_sectors(b);
-	uint	total_sectors = get_total_sectors(b);
+	uint	fat_sectors;
+	uint	total_sectors;
 	uint	root_dir_sectors;
 	uint	data_sectors;
+
+	fat_sectors = get_fat_sectors(b);
+	total_sectors  = get_total_sectors(b);
 
 	root_dir_sectors = (b.root_de_c * sizeof(fat_de)) + 
 		b.bytes_per_sector;
@@ -171,7 +179,7 @@ uint get_cluster_count(bpb b)
 
 fat_type get_fat_type(bpb b)
 {
-	unsigned int cluster_count;
+	uint cluster_count;
 
 	cluster_count = get_cluster_count(b);
 	if (countofclusters < 4085) {
@@ -184,9 +192,20 @@ fat_type get_fat_type(bpb b)
 
 
 
-bool is_fat12(bpb b){ return (get_fat_type(b) == FAT_TYPE_FAT12); }
-bool is_fat16(bpb b){ return (get_fat_type(b) == FAT_TYPE_FAT16); }
-bool is_fat32(bpb b){ return (get_fat_type(b) == FAT_TYPE_FAT32); }
+bool is_fat12(bpb b){ 
+	if (get_fat_type(b) == FAT_TYPE_FAT12) 
+		return true;
+	return false;
+}
 
+bool is_fat16(bpb b){ 
+	if (get_fat_type(b) == FAT_TYPE_FAT16)
+		return true;
+	return false;
+}
 
-
+bool is_fat32(bpb b){ 
+	if (get_fat_type(b) == FAT_TYPE_FAT32)
+		return true; 
+	return false;
+}
