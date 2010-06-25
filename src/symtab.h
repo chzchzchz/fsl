@@ -5,8 +5,9 @@
 #include <map>
 #include "phys_type.h"
 
-typedef std::pair<PhysicalType*, Expr*>		sym_binding;
-typedef std::map<std::string, sym_binding>	sym_map;
+typedef std::pair<PhysicalType*, class Expr*>		sym_binding;
+typedef std::map<std::string, sym_binding>		sym_map;
+typedef std::map<std::string, SymbolTable*>		symtab_map;
 
 #define symbind_make(x,y)	(sym_binding(x,y))
 #define symbind_phys(x)		((x).first)
@@ -26,17 +27,10 @@ public:
 
 	virtual ~SymbolTable()
 	{
-		sym_map::iterator	it;
-
-		for (it = sm.begin(); it != sm.end(); it++) {
-			sym_binding	sb((*it).second);
-
-			delete symbind_phys(sb);
-			delete symbind_off(sb);
-		}
-
-		delete owner;
+		freeData();
 	}
+
+	const PhysicalType* getOwner(void) const { return owner; }
 
 	bool add(const std::string& name, PhysicalType* pt, Expr* offset_bits)
 	{
@@ -82,7 +76,45 @@ public:
 		}
 	}
 
+	SymbolTable& operator=(const SymbolTable& st)
+	{
+		sym_map::const_iterator	it;
+
+		if (&st == this)
+			return *this;
+
+		freeData();
+
+		owner = (st.owner)->copy();
+		backref = st.backref;
+	
+		for (it = st.sm.begin(); it != st.sm.end(); it++) {
+			add(	(*it).first,
+				symbind_phys(((*it).second))->copy(),
+				symbind_off((*it).second)->copy());
+		}
+	}
+
 private:
+	void freeData(void)
+	{
+		sym_map::iterator	it;
+
+		assert (owner != NULL);
+
+		for (it = sm.begin(); it != sm.end(); it++) {
+			sym_binding	sb((*it).second);
+
+			delete symbind_phys(sb);
+			delete symbind_off(sb);
+		}
+
+		sm.clear();
+
+		delete owner;
+		owner = NULL;
+	}
+
 	const SymbolTable*	backref;
 	PhysicalType*		owner;
 	sym_map			sm;

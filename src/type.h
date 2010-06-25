@@ -11,7 +11,8 @@
 #include "collection.h"
 #include "expr.h"
 
-typedef std::map<std::string, class PhysicalType*> ptype_map;
+typedef std::map<std::string, class PhysicalType*>	ptype_map;
+typedef std::list<class Type*>				type_list;
 
 class TypeStmt
 {
@@ -261,7 +262,8 @@ public:
 	: name(in_name),
 	  args(in_args),
 	  preamble(in_preamble),
-	  block(in_block)
+	  block(in_block),
+	  type_num(-1)
 	{
 		assert (in_name != NULL);
 		assert (in_block != NULL);
@@ -279,11 +281,30 @@ public:
 
 	class SymbolTable* getSyms(const ptype_map& tm) const;
 
+	std::list<const FCall*> getPreambles(const std::string& name) const;
+
+	void setTypeNum(int new_type_num)
+	{
+		/* do not set type number more than once since we may happen
+		 * to rely on a stale value */
+		assert (type_num == -1);
+		assert (new_type_num >= 0);
+		type_num = new_type_num;
+	}
+
+	int getTypeNum(void) const 
+	{
+		/* do not allow get if it hasn't been set yet! */
+		assert (type_num != -1);
+		return type_num;
+	}
+
 private:
 	Id		*name;
 	ArgsList	*args;
 	TypePreamble	*preamble;
 	TypeBlock	*block;
+	int		type_num;
 	
 };
 

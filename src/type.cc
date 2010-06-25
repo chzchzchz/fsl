@@ -22,6 +22,23 @@ static bool load_sym_block(
 	const ptype_map&		tm,
 	SymbolTable*		symtab);
 
+static PhysicalType* cond_cmpop_resolve(
+	const CmpOp*		cmpop,
+	const ptype_map&	tm,
+	PhysicalType		*t,
+	PhysicalType		*f);
+
+static PhysicalType* cond_bop_resolve(
+	const BinBoolOp*	bop,
+	const ptype_map&	tm,
+	PhysicalType		*t,
+	PhysicalType		*f);
+
+static PhysicalType* cond_resolve(
+	const CondExpr* cond, 
+	const ptype_map& tm,
+	PhysicalType* t, PhysicalType* f);
+
 void Type::print(ostream& out) const 
 {
 	out << "Type (";
@@ -189,11 +206,102 @@ PhysicalType* TypeFunc::resolve(const ptype_map& tm) const
 	return new PhysTypeFunc(fcall->copy());
 }
 
+
+static PhysicalType* cond_cmpop_resolve(
+	const CmpOp*		cmpop,
+	const ptype_map&	tm,
+	PhysicalType		*t,
+	PhysicalType		*f)
+{
+	Expr		*lhs, *rhs;
+
+	assert (cmpop != NULL);
+
+	lhs = (cmpop->getLHS())->simplify();
+	rhs = (cmpop->getRHS())->simplify();
+
+	switch (cmpop->getOp()) {
+	case CmpOp::EQ: return new PhysTypeCondEQ(lhs, rhs, t, f);
+	case CmpOp::NE: return new PhysTypeCondNE(lhs, rhs, t, f);
+	case CmpOp::LE: return new PhysTypeCondLE(lhs, rhs, t, f);
+	case CmpOp::LT: return new PhysTypeCondLT(lhs, rhs, t, f);
+	case CmpOp::GT: return new PhysTypeCondGT(lhs, rhs, t, f);
+	case CmpOp::GE: return new PhysTypeCondGE(lhs, rhs, t, f);
+	default:
+		assert (0 == 1);
+	}
+
+	return NULL;
+}
+
+static PhysicalType* cond_bop_resolve(
+	const BinBoolOp*	bop,
+	const ptype_map& 	tm,
+	PhysicalType*		t,
+	PhysicalType*		f)
+{
+	const CondExpr*	cond_lhs;
+	const CondExpr*	cond_rhs;
+
+	cond_lhs = bop->getLHS();
+	cond_rhs = bop->getRHS();
+
+	assert (bop != NULL);
+
+	if ((dynamic_cast<const BOPAnd*>(bop)) != NULL) {
+		/* if LHS evaluates to true, do RHS */
+
+		return cond_resolve(
+			cond_lhs,
+			tm,
+			cond_resolve(cond_rhs, tm, t, f), 
+			f);
+	} else {
+		/* must be an OR */
+		assert (dynamic_cast<const BOPOr*>(bop) != NULL);
+
+		return cond_resolve(
+			cond_lhs,
+			tm,
+			t,
+			cond_resolve(cond_rhs, tm, t, f));
+	}
+
+	/* should not happen */
+	assert (0 == 1);
+	return NULL;
+}
+
+static PhysicalType* cond_resolve(
+	const CondExpr* cond, 
+	const ptype_map& tm,
+	PhysicalType* t, PhysicalType* f)
+{
+	const CmpOp	*cmpop;
+	const BinBoolOp	*bop;
+
+	cmpop = dynamic_cast<const CmpOp*>(cond);
+	if (cmpop != NULL) {
+		return cond_cmpop_resolve(cmpop, tm, t, f);
+	}
+
+	bop = dynamic_cast<const BinBoolOp*>(cond);
+	assert (bop != NULL);
+
+	return cond_bop_resolve(bop, tm, t, f);
+
+}
+
+/* build up cond phys type by drilling down 
+ * compound condition expressions into single condition expressions.. */
 PhysicalType* TypeCond::resolve(const ptype_map& tm) const
 {
-	/* XXX */
-	cerr << "XXX: resolving cond." << endl;
-	return is_true->resolve(tm);
+	PhysicalType	*t, *f;
+
+	t = is_true->resolve(tm);
+	f = (is_false == NULL) ? NULL : is_false->resolve(tm);
+
+	return cond_resolve(cond, tm, t, f);
 }
 
 PhysicalType* Type::resolve(const ptype_map& tm) const
@@ -275,7 +383,7 @@ static bool load_sym_stmt(
 		rc = symtab->add(
 			t_decl->getName(),
 			stmt->resolve(tm),
-			base_expr->copy());
+			base_expr->simplify());
 		if (rc == false) {
 			cerr	<< "Duplicate symbol: " 
 				<< t_decl->getName() << endl;
@@ -284,7 +392,7 @@ static bool load_sym_stmt(
 		rc = symtab->add(
 			t_pdecl->getName(),
 			stmt->resolve(tm),
-			base_expr->copy());
+			base_expr->simplify());
 		if (rc == false) {
 			cerr	<< "Duplicate symbol: " 
 				<< t_pdecl->getName() << endl;
@@ -326,7 +434,7 @@ static bool load_sym_block(
 	bool				rc;
 
 	rc = true;
-	cur_expr = base_expr->copy();
+	cur_expr = base_expr->simplify();
 
 	for (it = tb->begin(); it != tb->end(); it++) {
 		TypeStmt	*cur_stmt;
@@ -415,3 +523,24 @@ err:
 	return NULL;
 }
 
+
+/* find all preamble entries that match given name */
+list<const FCall*> Type::getPreambles(const std::string& name) const
+{
+	list<const FCall*>		ret;
+	TypePreamble::const_iterator	it;
+
+	if (preamble == NULL)
+		return ret;
+
+	if (preamble->size() == 0)
+		return ret;
+
+	for (it = preamble->begin(); it != preamble->end(); it++) {
+		FCall	*fc = *it;
+		if (fc->getName() == name)
+			ret.push_back(fc);
+	}
+
+	return ret;
+}

@@ -2,8 +2,10 @@ OBJS=	parser.o	\
 	lex.yy.o	\
 	main.o		\
 	type.o		\
+	eval.o
 
-CFLAGS= -g
+LLVM_FLAGS:=$(shell llvm-config --cxxflags)
+CFLAGS= -g $(LLVM_FLAGS) 
 
 all: lang
 

@@ -54,6 +54,8 @@ public:
 		expr->print(out);
 	}
 
+	const std::string& getName(void) const { return id->getName(); }
+	const Expr* getExpr(void) const { return expr; }
 private:
 	Id*		id;
 	Expr*		expr;
@@ -66,6 +68,10 @@ public:
 		id(in_id),
 		elist(e)
 	{
+		/* XXX */
+		std::cerr << 
+			"Ooops: Constant arrays not supported. Ignoring" << 
+			id->getName() << std::endl;
 		assert (e != NULL);
 		assert (id != NULL);
 	}
@@ -80,88 +86,6 @@ public:
 private:
 	Id*			id;
 	ExprList*		elist;
-};
-
-
-class CondExpr 
-{
-public:
-	virtual ~CondExpr() {}
-
-protected:
-	CondExpr() {} 
-};
-
-
-class BinBoolOp : public CondExpr 
-{
-public:
-	virtual ~BinBoolOp() {}
-	BinBoolOp(CondExpr*, CondExpr*) {}
-};
-
-class BOPAnd : public BinBoolOp 
-{
-public:
-	BOPAnd(CondExpr* lhs, CondExpr* rhs) : BinBoolOp(lhs, rhs) {} 
-	virtual ~BOPAnd() {} 
-};
-
-class BOPOr : public BinBoolOp
-{
-public:
-	BOPOr(CondExpr* lhs, CondExpr* rhs) : BinBoolOp(lhs, rhs) {} 
-	virtual ~BOPOr() {} 
-};
-
-class CmpOp : public CondExpr {
-public:
-	CmpOp(Expr* lhs, Expr* rhs) {}
-	virtual ~CmpOp() {} 
-private:
-	CmpOp() {}
-};
-
-class CmpEQ : public CmpOp 
-{
-public:
-	CmpEQ(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpEQ() {} 
-};
-
-class CmpNE : public CmpOp 
-{
-public:
-	CmpNE(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpNE() {} 
-};
-
-class CmpLE : public CmpOp
-{
-public:
-	CmpLE(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpLE() {} 
-};
-
-class CmpGE : public CmpOp
-{
-public:
-	CmpGE(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpGE() {} 
-};
-
-class CmpLT : public CmpOp
-{
-public:
-	CmpLT(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpLT() {} 
-};
-
-class CmpGT : public CmpOp
-{
-public:
-	CmpGT(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpGT() {} 
 };
 
 
@@ -182,6 +106,13 @@ public:
 		delete id;
 		if (num != NULL) delete num;
 	}
+
+	const Number* getNumber(void) const { return NULL; }
+	const std::string& getName(void) const 
+	{ 
+		assert (id != NULL);
+		return id->getName(); 
+	}
 private:
 	Id*	id;
 	Number*	num;
@@ -191,13 +122,15 @@ private:
 class Enum : public GlobalStmt, public PtrList<EnumEnt>
 {
 public:
-	Enum() {}
+	Enum() : name(NULL) {}
 	Enum(Id* id) : name(id)  { assert (name != NULL); }
 	void setName(Id* id)
 	{
+		assert (id != NULL);
 		if (name != NULL) delete name; 
 		name = id;
 	}
+
 	virtual ~Enum() 
 	{
 		if (name != NULL) delete name;
@@ -248,6 +181,5 @@ public:
 };
 
 std::ostream& operator<<(std::ostream& in, const GlobalStmt& gs);
-
 
 #endif

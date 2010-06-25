@@ -99,7 +99,7 @@ type bpb_32 {
 type bpb
 know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb)) 
 {
-	u8		jmp[2];
+	u8		jmp[3];
 	u8		oem_name[8];
 	u16		bytes_per_sector;
 	u8		sectors_per_cluster;

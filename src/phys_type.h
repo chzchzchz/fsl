@@ -165,7 +165,7 @@ public:
 	virtual Expr* getBytes(void) const 
 	{
 		const_iterator	it;
-		Expr		*sum;
+		Expr		*sum, *simp_sum;
 
 		it = begin();
 		if (it == end()) {
@@ -178,13 +178,15 @@ public:
 			sum = new AOPAdd(sum, (*it)->getBytes());
 		}
 
-		return sum;
+		simp_sum = sum->simplify();
+		delete sum;
+		return simp_sum;
 	}
 
 	virtual Expr* getBits(void) const
 	{
 		const_iterator	it;
-		Expr		*sum;
+		Expr		*sum, *simp_sum;
 
 		it = begin();
 		if (it == end()) {
@@ -197,7 +199,9 @@ public:
 			sum = new AOPAdd(sum, (*it)->getBits());
 		}
 
-		return sum;
+		simp_sum = sum->simplify();
+		delete sum;
+		return simp_sum;
 	}
 
 	PhysicalType* copy(void) const
@@ -320,6 +324,8 @@ public:
 		return new PhysTypeArray(base->copy(), len->copy());
 	}
 
+	const PhysicalType* getBase() const { return base; }
+
 private:
 	PhysicalType	*base;
 	Expr		*len;
@@ -356,6 +362,11 @@ public:
 	PhysicalType* copy(void) const
 	{
 		return new PhysTypeUser(t, resolved->copy());
+	}
+
+	const Type* getType(void) const 
+	{
+		return t;
 	}
 
 private:
@@ -463,5 +474,156 @@ public:
 	virtual ~U1() {}
 private:
 };
+
+
+class PhysTypeCond : public PhysicalType
+{
+public:
+	PhysTypeCond(
+		const std::string& in_cond_name,
+		Expr* in_e1, Expr* in_e2,
+		PhysicalType* in_true, PhysicalType* in_false)
+	: PhysicalType("cond"),
+	  cond_name(in_cond_name),
+	  e1(in_e1),
+	  e2(in_e2),
+	  is_true(in_true),
+	  is_false(in_false)
+	{
+		assert (e1 != NULL);
+		assert (e2 != NULL);
+		assert (in_true != NULL);
+
+		if (is_false == NULL) {
+			is_false = new PhysTypeEmpty();
+		}
+	}
+
+	virtual ~PhysTypeCond() 
+	{
+		delete e1;
+		delete e2;
+		delete is_true;
+		delete is_false;
+	}
+
+	virtual Expr* getBytes(void) const
+	{
+		ExprList*	exprs = new ExprList();
+
+		exprs->add(e1->simplify());
+		exprs->add(e2->simplify());
+		exprs->add(is_true->getBytes());
+		exprs->add(is_false->getBytes());
+
+		return new FCall(new Id(cond_name), exprs);
+	}
+
+	virtual Expr* getBits(void) const
+	{
+		ExprList*	exprs = new ExprList();
+
+		exprs->add(e1->simplify());
+		exprs->add(e2->simplify());
+		exprs->add(is_true->getBits());
+		exprs->add(is_false->getBits());
+
+		return new FCall(new Id(cond_name), exprs);;
+	}
+
+protected:
+	const std::string	cond_name;
+	Expr			*e1;
+	Expr			*e2;
+	PhysicalType		*is_true;
+	PhysicalType		*is_false;
+};
+
+class PhysTypeCondEQ : public PhysTypeCond
+{
+public:
+	PhysTypeCondEQ(Expr* e1, Expr* e2, PhysicalType* t, PhysicalType* f)
+	: PhysTypeCond("cond_eq", e1, e2, t, f) {}
+	virtual ~PhysTypeCondEQ() {}
+	virtual PhysTypeCondEQ* copy() const { 
+		return new PhysTypeCondEQ(
+			e1->copy(), e2->copy(), 
+			is_true->copy(),
+			(is_false == NULL) ? NULL : is_false->copy());
+	}
+};
+
+
+class PhysTypeCondNE : public PhysTypeCond
+{
+public:
+	PhysTypeCondNE(Expr* e1, Expr* e2, PhysicalType* t, PhysicalType* f)
+	: PhysTypeCond("cond_ne", e1, e2, t, f) {}
+	virtual ~PhysTypeCondNE() {}
+
+	virtual PhysTypeCondNE* copy() const { 
+		return new PhysTypeCondNE(
+			e1->copy(), e2->copy(), 
+			is_true->copy(),
+			(is_false == NULL) ? NULL : is_false->copy());
+	}
+};
+
+class PhysTypeCondLE : public PhysTypeCond
+{
+public:
+	PhysTypeCondLE(Expr* e1, Expr* e2, PhysicalType* t, PhysicalType* f)
+	: PhysTypeCond("cond_le", e1, e2, t, f) {}
+	virtual ~PhysTypeCondLE() {}
+	virtual PhysTypeCondLE* copy() const { 
+		return new PhysTypeCondLE(
+			e1->copy(), e2->copy(), 
+			is_true->copy(),
+			(is_false == NULL) ? NULL : is_false->copy());
+	}
+};
+
+class PhysTypeCondGE : public PhysTypeCond
+{
+public:
+	PhysTypeCondGE(Expr* e1, Expr* e2, PhysicalType* t, PhysicalType* f)
+	: PhysTypeCond("cond_ge", e1, e2, t, f) {}
+	virtual ~PhysTypeCondGE() {}
+	virtual PhysTypeCondGE* copy() const { 
+		return new PhysTypeCondGE(
+			e1->copy(), e2->copy(), 
+			is_true->copy(),
+			(is_false == NULL) ? NULL : is_false->copy());
+	}
+};
+
+class PhysTypeCondLT : public PhysTypeCond
+{
+public:
+	PhysTypeCondLT(Expr* e1, Expr* e2, PhysicalType* t, PhysicalType* f)
+	: PhysTypeCond("cond_lt", e1, e2, t, f) {}
+	virtual ~PhysTypeCondLT() {}
+	virtual PhysTypeCondLT* copy() const { 
+		return new PhysTypeCondLT(
+			e1->copy(), e2->copy(), 
+			is_true->copy(),
+			(is_false == NULL) ? NULL : is_false->copy());
+	}
+};
+
+class PhysTypeCondGT : public PhysTypeCond
+{
+public:
+	PhysTypeCondGT(Expr* e1, Expr* e2, PhysicalType* t, PhysicalType* f)
+	: PhysTypeCond("cond_gt", e1, e2, t, f) {}
+	virtual ~PhysTypeCondGT() {}
+	virtual PhysTypeCondGT* copy() const { 
+		return new PhysTypeCondGT(
+			e1->copy(), e2->copy(), 
+			is_true->copy(),
+			(is_false == NULL) ? NULL : is_false->copy());
+	}
+};
+
 
 #endif
