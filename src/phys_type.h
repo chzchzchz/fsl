@@ -33,6 +33,7 @@ public:
 		{ return (name < t.name); }
 
 	virtual PhysicalType* copy(void) const = 0;
+
 private:
 	std::string name;
 };
@@ -624,6 +625,30 @@ public:
 			(is_false == NULL) ? NULL : is_false->copy());
 	}
 };
+
+static inline  PhysicalType* resolve_by_id(const ptype_map& tm, const Id* id);
+static inline PhysicalType* resolve_by_id(const ptype_map& tm, const Id* id)
+{
+	const std::string&		id_name(id->getName());
+	ptype_map::const_iterator	it;
+
+	/* try to resovle type directly */
+	it = tm.find(id_name);
+	if (it != tm.end()) {
+		return ((*it).second)->copy();
+	}
+
+	/* type does not resolve directly, may have a thunk available */
+	it = tm.find(std::string("thunk_") + id_name);
+	if (it == tm.end()) {
+		std::cerr << "Could not resolve type: ";
+		std::cerr << id_name << std::endl;
+		return NULL;
+	}	
+
+	return ((*it).second)->copy();
+}
+
 
 
 #endif

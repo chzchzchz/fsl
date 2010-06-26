@@ -20,11 +20,13 @@ Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 {
 	ExprParens*	ep;
 	Id*		id;
+	IdArray*	ida;
 	BinArithOp*	bop;
 	FCall*		fc;
 
 	ep = dynamic_cast<ExprParens*>(cur_expr);
 	id = dynamic_cast<Id*>(cur_expr);
+	ida = dynamic_cast<IdArray*>(cur_expr);
 	bop = dynamic_cast<BinArithOp*>(cur_expr);
 	fc = dynamic_cast<FCall*>(cur_expr);
 
@@ -48,6 +50,15 @@ Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 		}
 
 		return const_expr->copy();
+	} else if (ida != NULL) {
+		Expr*	idx_expr;
+		
+		idx_expr = expr_resolve_consts(consts, ida->getIdx());
+		if (idx_expr != NULL) {
+			ida->setIdx(idx_expr);
+		}
+
+		return NULL;
 	} else if (bop != NULL) {
 		Expr	*ret;
 
@@ -162,26 +173,6 @@ static Expr* expr_resolve_ids(const EvalCtx& ectx, Expr* expr)
 	return NULL;
 }
 
-static Expr* expr_resolve_macros(const EvalCtx& ectx, Expr* expr)
-{
-	BinArithOp	*bop;
-	FCall		*fc;
-
-	bop = dynamic_cast<BinArithOp*>(expr);
-	if (bop != NULL) {
-		/* recurse */
-
-		return NULL;
-	}
-
-	fc = dynamic_cast<FCall*>(expr);
-	if (fc != NULL) {
-		/* if it's a macro, apply the appropriate function */
-	}
-
-	
-}
-
 void eval(
 	const EvalCtx& ectx,
 	const Expr* expr)
@@ -199,18 +190,8 @@ void eval(
 		our_expr = tmp_expr;
 	}
 
-	/* expand macros (e.g. sizeof, from_base, ...) */
-	tmp_expr = expr_resolve_macros(ectx, our_expr);
-	if (tmp_expr != NULL) {
-		delete our_expr;
-		our_expr = tmp_expr;
-	}
-
 	/* 
-	 * XXX
-	 * resolve all unknown ids into function calls. 
-	 * ***THIS NEEDS SCOPING INFORMATION!!!***
-	 * (e.g. id's that are not in the current scope)
+	 * resolve all unknown ids into function calls
 	 */
 	tmp_expr = expr_resolve_ids(ectx, our_expr);
 	if (tmp_expr != NULL) {
@@ -218,10 +199,6 @@ void eval(
 		our_expr = tmp_expr;
 	}
 
-	/**
-	 * XXX
-	 * resolve all 'from_base' function calls
-	 */
 
 	/**
 	 * finally, codegen.

@@ -95,7 +95,26 @@ public:
 		}
 	}
 
+	bool loadArgs(const ptype_map& tm, const ArgsList* args);
+	bool loadTypeBlock(
+		const ptype_map& tm, 
+		const Expr* base_expr,
+		const TypeBlock* tb);
+
+
 private:
+	bool loadTypeStmt(
+		const ptype_map&	tm,
+		const Expr*		base_expr,
+		const TypeStmt*		stmt);
+
+	bool loadTypeCond(
+		const ptype_map&	tm,
+		const Expr*		base_expr,
+		const TypeCond*		tc);
+
+
+
 	void freeData(void)
 	{
 		sym_map::iterator	it;

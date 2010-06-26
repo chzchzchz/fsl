@@ -4,7 +4,8 @@
 #include <map>
 #include "collection.h"
 
-typedef std::map<std::string, class Expr*>	const_map;
+typedef std::map<std::string, class Expr*>		const_map;
+typedef std::map<const class Expr, const class Expr*>	rewrite_map;
 
 class Expr
 {
@@ -17,6 +18,31 @@ public:
 	bool operator!=(const Expr* e) const
 	{
 		return ((*this == e) == false);
+	}
+
+#if 0
+	virtual bool operator<(const Expr* e) const
+	{
+		if (this == e) {
+			return false;
+		}
+
+		if (typeid(this) == typeid(e)) 
+			return (*this < e);
+		else if (typeid(this) < typeid(e))
+			return true;
+		else
+			return false;
+	}
+#endif
+
+	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
+	{
+		if (*this == to_rewrite) {
+			return new_expr->simplify();
+		}
+
+		return NULL;
 	}
 protected:
 	Expr() {}
@@ -79,6 +105,20 @@ public:
 
 		return true;
 	}
+
+	void rewrite(const Expr* to_rewrite, const Expr* new_expr)
+	{
+		for (iterator it = begin(); it != end(); it++) {
+			Expr	*cur_expr, *tmp_expr;
+
+			cur_expr = *it;
+			tmp_expr = cur_expr->rewrite(to_rewrite, new_expr);
+			if (tmp_expr != NULL) {
+				*it = tmp_expr;
+				delete cur_expr;
+			}
+		}
+	}
 private:
 };
 
@@ -97,6 +137,8 @@ public:
 		if (in_id == NULL) return false;
 		return (id_name == in_id->getName());
 	}
+
+
 private:
 	const std::string id_name;
 };
@@ -155,6 +197,31 @@ public:
 		return (in_fc->id == id) && (*exprs == in_fc->exprs);
 	}
 
+	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
+	{
+		exprs->rewrite(to_rewrite, new_expr);
+		return Expr::rewrite(to_rewrite, new_expr);
+	}
+
+#if 0
+	bool operator<(const Expr* e) const
+	{
+		FCall *fc;
+
+		fc = dynamic_cast<const FCalL*>(e);
+		if (fc == NULL) {
+			return Expr::operator<(e);
+		}
+
+		if (*id != fc->id) {
+			return (*id < fc->id);
+		}
+
+
+		assert (0 == 1);
+		return id_name < cmp_id.id_name
+	}
+#endif
 private:
 	Id*		id;
 	ExprList*	exprs;
@@ -247,7 +314,15 @@ public:
 	}
 
 	Id* getId(void) const { return id; }
-	Expr* getIdx(void) const { return idx; }
+	const Expr* getIdx(void) const { return idx; }
+	Expr* getIdx(void) { return idx; }
+	void setIdx(Expr* in_idx)
+	{
+		assert (in_idx != NULL);
+		assert (idx != NULL);
+		delete idx;
+		idx = in_idx;
+	}
 
 	IdArray* copy(void) const
 	{
@@ -265,6 +340,18 @@ public:
 		return ((*id == in_array->id) && (*idx == in_array->idx));
 	}
 
+	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
+	{
+		Expr*	ret;
+
+		ret = idx->rewrite(to_rewrite, new_expr);
+		if (ret != NULL) {
+			delete idx;
+			idx = ret;
+		}
+
+		return Expr::rewrite(to_rewrite, new_expr);
+	}
 private:
 	Id		*id;
 	Expr		*idx;
@@ -316,6 +403,19 @@ public:
 		in_parens = dynamic_cast<const ExprParens*>(e);
 		if (in_parens == NULL)
 			return false;
+	}
+
+	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
+	{
+		Expr*	ret;
+
+		ret = expr->rewrite(to_rewrite, new_expr);
+		if (ret != NULL) {
+			delete expr;
+			expr = ret;
+		}
+
+		return NULL;
 	}
 
 private:
@@ -422,6 +522,25 @@ public:
 			return false;
 
 		return true;
+	}
+
+	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
+	{
+		Expr*	ret;
+
+		ret = e_lhs->rewrite(to_rewrite, new_expr);
+		if (ret != NULL) {
+			delete e_lhs;
+			e_lhs = ret;
+		}
+
+		ret = e_rhs->rewrite(to_rewrite, new_expr);
+		if (ret != NULL) {
+			delete e_rhs;
+			e_rhs = ret;
+		}
+
+		return Expr::rewrite(to_rewrite, new_expr);
 	}
 
 protected:
@@ -744,6 +863,8 @@ class CondExpr
 public:
 	virtual ~CondExpr() {}
 
+	virtual void expr_rewrite(
+		const Expr* to_rewrite, const Expr* replacement) = 0;
 protected:
 	CondExpr() {} 
 };
@@ -767,6 +888,13 @@ public:
 		delete cond_lhs;
 		delete cond_rhs;
 	}
+
+	void expr_rewrite(const Expr* to_rewrite, const Expr* replacement)
+	{
+		cond_lhs->expr_rewrite(to_rewrite, replacement);
+		cond_rhs->expr_rewrite(to_rewrite, replacement);
+	}
+
 private:
 	CondExpr	*cond_lhs;
 	CondExpr	*cond_rhs;
@@ -806,6 +934,22 @@ public:
 	const Expr* getLHS() const { return lhs; }
 	const Expr* getRHS() const { return rhs; }
 
+	void expr_rewrite(const Expr* to_rewrite, const Expr* replacement)
+	{
+		Expr	*ret;
+
+		ret = lhs->rewrite(to_rewrite, replacement);
+		if (ret != NULL) {
+			delete lhs;
+			lhs = ret;
+		}
+
+		ret = rhs->rewrite(to_rewrite, replacement);
+		if (ret != NULL) {
+			delete rhs;
+			rhs = ret;
+		}
+	}
 private:
 	Expr	*lhs;
 	Expr	*rhs;

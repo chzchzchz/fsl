@@ -178,6 +178,7 @@ class FuncCond : public CondExpr
 public: 
 	FuncCond(const FCall* fc) {} 
 	virtual ~FuncCond() {} 
+	void expr_rewrite(const Expr*, const Expr*) { assert (0 == 1); }
 };
 
 std::ostream& operator<<(std::ostream& in, const GlobalStmt& gs);

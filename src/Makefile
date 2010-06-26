@@ -2,7 +2,8 @@ OBJS=	parser.o	\
 	lex.yy.o	\
 	main.o		\
 	type.o		\
-	eval.o
+	eval.o		\
+	symtab.o
 
 LLVM_FLAGS:=$(shell llvm-config --cxxflags)
 CFLAGS= -g $(LLVM_FLAGS) 

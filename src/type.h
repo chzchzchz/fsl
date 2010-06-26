@@ -6,6 +6,7 @@
 #include <map>
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "AST.h"
 #include "collection.h"
@@ -13,6 +14,8 @@
 
 typedef std::map<std::string, class PhysicalType*>	ptype_map;
 typedef std::list<class Type*>				type_list;
+
+extern int yylineno;
 
 class TypeStmt
 {
@@ -23,21 +26,31 @@ public:
 	void setLineNo(unsigned int l) { lineno = l; }
 
 	virtual PhysicalType* resolve(const ptype_map& tm) const = 0;
-protected:
-	TypeStmt() {}
-private:
-	unsigned int lineno;
-};
 
-#if 0
-class TypeBB : public PtrList<TypeStmt>
-{
-public:
-	TypeBB() {}
-	~TypeBB() {}
+	const Type* getOwner() const
+	{
+		/* do not try to get the owner when still anonymous */
+		if (owner == NULL)
+			assert (0 == 1);
+
+		return owner;
+	}
+
+	virtual void setOwner(const Type* new_owner)
+	{
+		/* set once */
+		assert (owner == NULL);
+		owner = new_owner;
+	}
+
+
+protected:
+	TypeStmt() : lineno(yylineno), owner(NULL) {}
+	const Type*	owner;
+
 private:
+	unsigned int	lineno;
 };
-#endif
 
 static inline unsigned int tstmt_count_conds(const TypeStmt* t);
 
@@ -146,6 +159,13 @@ public:
 	const TypeStmt* getFalseStmt() const { return is_false; }
 
 	virtual PhysicalType* resolve(const ptype_map& tm) const;
+
+	void setOwner(const Type* t) 
+	{
+		TypeStmt::setOwner(t);
+		is_true->setOwner(t);
+		if (is_false != NULL) is_false->setOwner(t);
+	}	
 private:
 	CondExpr	*cond;
 	TypeStmt	*is_true;
@@ -168,9 +188,6 @@ public:
 	virtual ~TypeBlock() {}
 
 	void print(std::ostream& out) const;
-#if 0
-	std::vector<TypeBB> getBB() const;
-#endif
 
 	/* get number of conditions */
 	unsigned int getNumConds(void) const
@@ -186,6 +203,13 @@ public:
 	}
 
 	virtual PhysicalType* resolve(const ptype_map& tm) const;
+
+	virtual void setOwner(const Type* t)
+	{
+		for (iterator it = begin(); it != end(); it++) {
+			(*it)->setOwner(t);
+		}
+	}
 };
 
 class TypeUnion : public TypeStmt
@@ -222,6 +246,12 @@ public:
 	}
 
 	virtual PhysicalType* resolve(const ptype_map& tm) const;
+
+	virtual void setOwner(const Type* t) 
+	{
+		TypeStmt::setOwner(t);
+		block->setOwner(t);
+	}
 private:
 	TypeBlock	*block;
 	Id		*name;
@@ -245,7 +275,16 @@ public:
 
 	void print(std::ostream& out) const { out << "TYPEFUNC"; }
 
-	const std::string& getName(void) const { return fcall->getName(); }
+	const std::string getName(void) const 
+	{
+		std::string	s(fcall->getName());
+		int		tmp_str_bufsz = s.size() + 32;
+		char		tmp_str[tmp_str_bufsz];
+
+		snprintf(tmp_str, tmp_str_bufsz, "%s_%p", s.c_str(), this);
+
+		return std::string(tmp_str);
+	}
 
 	virtual PhysicalType* resolve(const ptype_map& tm) const;
 private:
@@ -267,6 +306,7 @@ public:
 	{
 		assert (in_name != NULL);
 		assert (in_block != NULL);
+		in_block->setOwner(this);
 	}
 
 	void print(std::ostream& out) const;
