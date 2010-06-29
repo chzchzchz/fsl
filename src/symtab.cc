@@ -31,7 +31,7 @@ bool SymbolTable::loadTypeStmt(
 	} else if (t_decl != NULL) {
 		rc = add(
 			t_decl->getName(),
-			stmt->resolve(tm),
+			stmt->resolve(base_expr, tm),
 			base_expr->simplify());
 		if (rc == false) {
 			cerr	<< "Duplicate symbol: " 
@@ -40,7 +40,7 @@ bool SymbolTable::loadTypeStmt(
 	} else if (t_pdecl != NULL) {
 		rc = add(
 			t_pdecl->getName(),
-			stmt->resolve(tm),
+			stmt->resolve(base_expr, tm),
 			base_expr->simplify());
 		if (rc == false) {
 			cerr	<< "Duplicate symbol: " 
@@ -85,6 +85,7 @@ bool SymbolTable::loadTypeBlock(
 
 	for (it = tb->begin(); it != tb->end(); it++) {
 		TypeStmt	*cur_stmt;
+		Expr		*new_expr;
 		PhysicalType	*pt;
 
 		cur_stmt = *it;
@@ -93,8 +94,7 @@ bool SymbolTable::loadTypeBlock(
 		if (rc == false)
 			break;
 
-
-		pt = cur_stmt->resolve(tm);
+		pt = cur_stmt->resolve(cur_expr, tm);
 		if (pt == NULL) {
 			cerr << "Could not resolve type" << endl;
 			rc = false;
@@ -102,8 +102,12 @@ bool SymbolTable::loadTypeBlock(
 		}
 
 		cur_expr = new AOPAdd(cur_expr, pt->getBits());
+		new_expr = cur_expr->simplify();
 
+		delete cur_expr;
 		delete pt;
+
+		cur_expr = new_expr;
 	}
 
 	delete cur_expr;

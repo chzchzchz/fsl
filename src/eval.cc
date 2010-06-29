@@ -11,7 +11,6 @@
 #include "eval.h"
 
 using namespace std;
-using namespace llvm;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, Expr* expr);
 
@@ -157,7 +156,7 @@ static Expr* expr_resolve_ids(const EvalCtx& ectx, Expr* expr)
 		{
 			Expr*	new_expr;
 			
-			new_expr = expr_resolve_ids(ectx, *it);
+			new_expr = eval(ectx, *it);
 			if (new_expr == NULL) {
 				new_el->add((*it)->copy());
 			} else {
@@ -173,12 +172,9 @@ static Expr* expr_resolve_ids(const EvalCtx& ectx, Expr* expr)
 	return NULL;
 }
 
-void eval(
-	const EvalCtx& ectx,
-	const Expr* expr)
+Expr* eval(const EvalCtx& ectx, const Expr* expr)
 {
 	Expr	*our_expr, *tmp_expr;
-	Expr	*base;
 	
 	/* first, get simplified copy */
 	our_expr = expr->simplify();
@@ -199,16 +195,307 @@ void eval(
 		our_expr = tmp_expr;
 	}
 
+	return our_expr;
+}
 
-	/**
-	 * finally, codegen.
-	 */
+Expr* EvalCtx::resolve(const Id* id) const
+{
+	const_map::const_iterator	const_it;
+	sym_binding			symbind;
 
-	/* next, codegen...  */
-#if 0
-	base = new Number(0);
-	eval_recur(base, our_expr);
-	delete base;
-#endif
+	assert (id != NULL);
+
+	/* is it a constant? */
+	const_it = constants.find(id->getName());
+	if (const_it != constants.end()) {
+		return ((*const_it).second)->simplify();
+	}
+	
+	
+	/* is it in the current scope? */
+	if (cur_scope.lookup(id->getName(), symbind) == true) {
+		ExprList	*elist;
+
+		elist = new ExprList();
+		elist->add(symbind_off(symbind)->simplify());
+		elist->add(symbind_phys(symbind)->getBits());
+
+		return new FCall(new Id("__getLocal"), elist);
+	}
+	
+
+	/* could not resolve */
+	return NULL;
+}
+
+Expr* EvalCtx::getStructExpr(
+	const SymbolTable		*first_symtab,
+	const IdStruct::const_iterator	ids_first,
+	const IdStruct::const_iterator	ids_end,
+	const PhysicalType*		&final_type) const
+{
+	IdStruct::const_iterator	it;
+	Expr				*ret;
+	const SymbolTable		*cur_symtab;
+
+
+	ret = new Number(0);
+	cur_symtab = first_symtab;
+
+	for (it = ids_first; it != ids_end; it++) {
+		const Expr		*cur_expr = *it;
+		std::string		cur_name;
+		Expr			*cur_idx;
+		PhysicalType		*cur_pt;
+		PhysTypeArray		*pta;
+		sym_binding		sb;
+		const PhysTypeUser	*cur_ptu;
+
+		if (cur_symtab == NULL) {
+			/* no way we could possibly resolve the current 
+			 * element. */
+			delete ret;
+			return NULL;
+		}
+
+		if (toName(cur_expr, cur_name, cur_idx) == false) {
+			delete ret;
+			return NULL;
+		}
+
+		if (cur_symtab->lookup(cur_name, sb) == false) {
+			if (cur_idx != NULL) delete cur_idx;
+			delete ret;
+			return NULL;
+
+		}
+
+		cur_pt = symbind_phys(sb);
+		pta = dynamic_cast<PhysTypeArray*>(cur_pt);
+		if (pta != NULL) {
+			/* it's an array */
+			if (cur_idx == NULL) {
+				cerr << "Array type but no index?" << endl;
+				delete ret;
+				return NULL;
+			}
+
+			ret = new AOPAdd(ret, pta->getBits(cur_idx));
+			delete cur_idx;
+
+			cur_ptu = dynamic_cast<const PhysTypeUser*>(
+				pta->getBase());
+		} else {
+			/* it's a scalar */
+			if (cur_idx != NULL) {
+				cerr << "Tried to index a scalar?" << endl;
+				delete cur_idx;
+				delete ret;
+				return NULL;
+			}
+			ret = new AOPAdd(ret, cur_pt->getBits());
+			cur_ptu = dynamic_cast<const PhysTypeUser*>(cur_pt);
+		}
+
+		if (cur_ptu == NULL) {
+			cur_symtab = NULL;
+		} else {
+			cur_symtab = symtabByName(
+				(cur_ptu->getType())->getName());
+		}
+
+		final_type = cur_pt;
+	}
+
+	return ret;
+}
+
+Expr* EvalCtx::resolve(const IdStruct* ids) const
+{	
+	Expr				*offset;
+	const PhysicalType		*ids_pt;
+	const Id			*front_id;
+	IdStruct::const_iterator	it;
+
+	assert (ids != NULL);
+
+	it = ids->begin();
+	assert (it != ids->end());
+
+	/* in current scope? */
+	offset = getStructExpr(&cur_scope, ids->begin(), ids->end(), ids_pt);
+	if (offset != NULL) {
+		ExprList		*exprs;
+		const PhysTypeArray	*pta;
+
+		pta = dynamic_cast<const PhysTypeArray*>(ids_pt);
+
+		exprs = new ExprList();
+		exprs->add(offset->simplify());
+
+		if (pta != NULL)
+			exprs->add((pta->getBase())->getBits());
+		else
+			exprs->add(ids_pt->getBits());
+
+		delete offset;
+
+		return new FCall(new Id("__getLocal"), exprs);
+	}
+
+	/* global call? */
+	it = ids->begin();
+	front_id = dynamic_cast<const Id*>(*it);
+	if (front_id != NULL) {
+		const SymbolTable	*top_symtab;
+		const Type		*top_type;
+
+		top_type = typeByName(front_id->getName());
+		top_symtab = symtabByName(front_id->getName());
+		if (top_symtab == NULL || top_type == NULL)
+			goto err;
+
+		it++;
+		offset = getStructExpr(top_symtab, it, ids->end(), ids_pt);
+		if (offset != NULL) {
+			ExprList		*exprs;
+			const PhysTypeArray	*pta;
+
+			pta = dynamic_cast<const PhysTypeArray*>(ids_pt);
+
+			exprs = new ExprList();
+			exprs->add(new Number(top_type->getTypeNum()));
+			exprs->add(offset->simplify());
+
+			if (pta != NULL)
+				exprs->add((pta->getBase())->getBits());
+			else
+				exprs->add(ids_pt->getBits());
+
+			delete offset;
+			return new FCall(new Id("__getDyn"), exprs);
+		}
+	}
+
+err:
+	/* can't resolve it.. */
+	cerr << "Can't resolve idstruct: ";
+	ids->print(cerr);
+	cerr << endl;
+
+	return NULL;
+}
+
+Expr* EvalCtx::resolve(const IdArray* ida) const
+{
+	const_map::const_iterator	const_it;
+	sym_binding			symbind;
+	const PhysicalType		*pt;
+	const PhysTypeArray		*pta;
+
+	assert (ida != NULL);
+
+	if (cur_scope.lookup(ida->getName(), symbind) == true) {
+		/* array is in current scope */
+		ExprList	*elist;
+		Expr		*evaled_idx;
+
+		cout << "Evaluating array index: ";
+		ida->getIdx()->print(cout);
+		cout << endl;
+
+		evaled_idx = eval(*this, ida->getIdx());
+
+		if (evaled_idx == NULL) {
+			cerr << "Could not resolve ";
+			(ida->getIdx())->print(cerr);
+			cerr << endl;
+			return NULL;
+		}
+
+		pt = symbind_phys(symbind);
+		assert (pt != NULL);
+
+		pta = dynamic_cast<const PhysTypeArray*>(pt);
+		assert (pta != NULL);
+
+
+		/* convert into __getLocalArray call */
+		elist = new ExprList();
+		elist->add(evaled_idx->simplify());
+		elist->add((pta->getBase())->getBits());
+		elist->add(symbind_off(symbind)->simplify());
+		elist->add(symbind_phys(symbind)->getBits());
+
+		delete evaled_idx;
+
+		return new FCall(new Id("__getLocalArray"), elist);
+	}
+	
+/* TODO -- add support for constant arrays */
 	assert (0 == 1);
+#if 0
+	const_it = constants.find(id->getName());
+	if (const_it != constants.end()) {
+		return (const_it.second)->simplify();
+	}
+#endif
+	
+	
+	/* could not resolve */
+	return NULL;
+}
+
+bool EvalCtx::toName(const Expr* e, std::string& in_str, Expr* &idx) const
+{
+	const Id		*id;
+	const IdArray		*ida;
+	
+	idx = NULL;
+	id = dynamic_cast<const Id*>(e);
+	if (id != NULL) {
+		in_str = id->getName();
+		return true;
+	}
+
+	ida = dynamic_cast<const IdArray*>(e);
+	if (ida != NULL) {
+		in_str = ida->getName();
+		idx = (ida->getIdx())->simplify();
+		return true;
+	}
+
+	return false;
+}
+
+const SymbolTable* EvalCtx::symtabByName(const std::string& s) const
+{
+	symtab_map::const_iterator	it;
+
+	it = all_types.find(s);
+	if (it == all_types.end())
+		return NULL;
+
+	return (*it).second;
+}
+
+const Type* EvalCtx::typeByName(const std::string& s) const
+{
+	const SymbolTable	*st;
+	const Type		*t;
+	const PhysicalType	*pt;
+	const PhysTypeUser	*ptu;
+
+	st = symtabByName(s);
+	if (st == NULL)
+		return NULL;
+
+	pt = st->getOwner();
+	assert (pt != NULL);
+
+	ptu = dynamic_cast<const PhysTypeUser*>(pt);
+	if (ptu == NULL)
+		return NULL;
+
+	return ptu->getType();
 }

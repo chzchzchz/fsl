@@ -4,8 +4,17 @@
 #include <typeinfo>
 #include "AST.h"
 #include "type.h"
+#include "func.h"
 #include "phys_type.h"
 #include "symtab.h"
+#include "eval.h"
+
+#include <stdint.h>
+#include <llvm/DerivedTypes.h>
+#include <llvm/LLVMContext.h>
+#include <llvm/Module.h>
+#include <llvm/Analysis/Verifier.h>
+#include <llvm/Support/IRBuilder.h>
 
 extern int yyparse();
 
@@ -13,10 +22,17 @@ extern GlobalBlock* global_scope;
 
 using namespace std;
 
-ptype_map			ptypes;
-type_list			types;
-const_map			constants;
-symtab_map			symtabs;
+static func_map		funcs_map;
+static func_list	funcs_list;
+static ptype_map	ptypes;
+static type_list	types_list;
+static type_map		types_map;
+static const_map	constants;
+static symtab_map	symtabs;
+
+llvm::Module	*mod;
+llvm::IRBuilder<> *builder;
+
 
 static void	load_user_types(const GlobalBlock* gb);
 static bool	load_user_ptypes_thunk(void);
@@ -79,10 +95,27 @@ static void load_user_types(const GlobalBlock* gb)
 		t = dynamic_cast<Type*>(*it);
 		if (t == NULL) continue;
 
-		types.push_back(t);
+		types_list.push_back(t);
+		types_map[t->getName()] = t;
+
 		t->setTypeNum(type_num);
 		type_num++;
 	}	
+}
+
+static void load_user_funcs(const GlobalBlock* gb)
+{
+	GlobalBlock::const_iterator	it;
+
+	for (it = gb->begin(); it != gb->end(); it++) {
+		Func*	f;
+
+		f = dynamic_cast<Func*>(*it);
+		if (f == NULL) continue;
+
+		funcs_list.push_back(f);
+		funcs_map[f->getName()] = f;
+	}
 }
 
 static bool load_user_ptypes_thunk(void)
@@ -91,7 +124,7 @@ static bool load_user_ptypes_thunk(void)
 	bool			success;
 
 	success = true;
-	for (it = types.begin(); it != types.end(); it++) {
+	for (it = types_list.begin(); it != types_list.end(); it++) {
 		Type		*t;
 		string		thunk_str;
 
@@ -114,9 +147,10 @@ static bool load_user_ptypes_resolved(void)
 {
 	type_list::iterator	it;
 	bool			success;
+	Expr			*base = new Number(0);
 
 	success = true;
-	for (it = types.begin(); it != types.end(); it++) {
+	for (it = types_list.begin(); it != types_list.end(); it++) {
 		Type	*t;
 
 		t = *it;
@@ -127,14 +161,13 @@ static bool load_user_ptypes_resolved(void)
 		}
 
 
-		cout << "resolving " << t->getName() << endl;
-
-		ptypes[t->getName()] = new PhysTypeUser(t, t->resolve(ptypes));
+		ptypes[t->getName()] = new PhysTypeUser(
+			t, t->resolve(base, ptypes));
 	}
 
 
 	/* now, do it again to get the non-parameterized thunks */
-	for (it = types.begin(); it != types.end(); it++) {
+	for (it = types_list.begin(); it != types_list.end(); it++) {
 		Type	*t;
 
 		t = *it;
@@ -143,21 +176,14 @@ static bool load_user_ptypes_resolved(void)
 
 		cout << "resolving " << t->getName() << endl;
 
-		ptypes[t->getName()] = new PhysTypeUser(t, t->resolve(ptypes));
+		ptypes[t->getName()] = new PhysTypeUser(
+			t, t->resolve(base, ptypes));
+
 	}
 
+	delete base;
+
 	return success;
-}
-
-static void dump_resolved(const Type* t)
-{
-	PhysicalType	*pt;
-	Expr		*bytes;
-	Expr		*bits;
-
-	pt = t->resolve(ptypes);
-
-	cout << "Type \"" << t->getName() << "\". Bytes = " << endl;
 }
 
 /**
@@ -167,12 +193,14 @@ static void build_sym_tables(void)
 {
 	type_list::iterator	it;
 
-	for (it = types.begin(); it != types.end(); it++) {
+	for (it = types_list.begin(); it != types_list.end(); it++) {
 		Type		*t;
 		SymbolTable	*syms;
 
 		t = *it;
 		assert (t != NULL);
+
+		cout << "Building " << t->getName() << endl;
 
 		syms = t->getSyms(ptypes);
 		symtabs[t->getName()] = syms;
@@ -250,9 +278,9 @@ static void simplify_constants(void)
 	pass = 0;
 	while (pass < MAX_PASSES) {
 		if (!apply_consts_to_consts()) {
-			cerr << "DONE WITH SIMPLIFY" << endl;
-			dump_constants();
-			cerr << "_-----------------------__" << endl;
+//			cerr << "DONE WITH SIMPLIFY" << endl;
+//			dump_constants();
+//			cerr << "_-----------------------__" << endl;
 			return;
 		}
 		pass++;
@@ -282,14 +310,8 @@ static bool apply_consts_to_consts(void)
 		new_expr = expr_resolve_consts(constants, p.second);
 
 		if (new_expr == NULL) {
-			if (*old_expr != cur_expr) {
-				cout << "HELO" << endl;
-				old_expr->print(cout);
-				cout << " vs ";
-				cur_expr->print(cout);
-				cout << endl;
+			if (*old_expr != cur_expr)
 				updated = true;
-			}
 		} else {
 			delete cur_expr;
 			constants[p.first] = new_expr;
@@ -302,61 +324,171 @@ static bool apply_consts_to_consts(void)
 	return updated;
 }
 
-static void dump_ptypes(GlobalBlock* gb)
+/**
+ * create function for a type
+ */
+static void thunk_from_type(
+	const Type* t,
+	llvm::Function* &thunk_bytes, llvm::Function* &thunk_bits)
 {
-	GlobalBlock::iterator	it;
-	/* dump ptypes.. */
-	for (it = gb->begin(); it != gb->end(); it++) {
-		GlobalStmt	*gs = *it;
-		Type		*t;
-		PhysicalType	*pt;
-		Expr		*e;
+	llvm::Function		*f_bytes, *f_bits;
+	llvm::FunctionType	*ft;
+	llvm::BasicBlock	*bb_bits, *bb_bytes;
+	string			fcall_bits, fcall_bytes;
+	Expr			*expr_bits, *expr_bytes;
+	Expr			*expr_eval_bits, *expr_eval_bytes;
+	PhysicalType		*pt;
+	vector<const llvm::Type*>	args(
+		t->getNumArgs(), 
+		llvm::Type::getInt64Ty(llvm::getGlobalContext()));
 
-		cout << *gs << endl << endl;
+	ft = llvm::FunctionType::get(
+		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
+		args,
+		false);
+	
+	fcall_bits = (string("__thunk_") + t->getName()) + "_bits";
+	fcall_bytes = (string("__thunk_") + t->getName()) + "_bytes";
 
-		t = dynamic_cast<Type*>(gs);
-		if (t == NULL) continue;
+	f_bytes = llvm::Function::Create(
+		ft,
+		llvm::Function::ExternalLinkage, 
+		fcall_bytes,
+		mod);
 
-		pt = ptypes[t->getName()];
-		assert (pt != NULL);
+	f_bits = llvm::Function::Create(
+		ft,
+		llvm::Function::ExternalLinkage, 
+		fcall_bits,
+		mod);
 
-		e = pt->getBytes();
-		assert (e != NULL);
+	/* should not be redefinitions.. */
+	assert (f_bytes->getName() == fcall_bytes);
+	assert (f_bits->getName() == fcall_bits);
 
-		e->print(cout);
-		cout << endl;
-		delete e;
-	}
+	pt = ptypes[t->getName()];
+	assert (pt != NULL);
+
+	expr_bits = pt->getBits();
+	expr_bytes = pt->getBytes();
+
+	expr_eval_bits = eval(
+		EvalCtx(*(symtabs[t->getName()]),
+			symtabs,
+			constants), expr_bits);
+				
+	expr_eval_bytes = eval(
+		EvalCtx(*(symtabs[t->getName()]),
+			symtabs,
+			constants), expr_bytes);
+
+
+
+	bb_bytes = llvm::BasicBlock::Create(
+		llvm::getGlobalContext(), "entry", f_bytes);
+	bb_bits = llvm::BasicBlock::Create(
+		llvm::getGlobalContext(), "entry", f_bits);
+
+	builder->SetInsertPoint(bb_bytes);
+	builder->CreateRet(expr_eval_bytes->codeGen());
+
+	builder->SetInsertPoint(bb_bits);
+	builder->CreateRet(expr_eval_bits->codeGen());
+
+	delete expr_bits;
+	delete expr_bytes;
+	delete expr_eval_bits;
+	delete expr_eval_bytes;
+
+	thunk_bytes = f_bytes;
+	thunk_bits = f_bits;
 }
 
 static void gen_thunks(void)
 {
 	/* XXX -- Generate code for all type thunks! */
-	assert (0 == 1);
+	for (	type_list::const_iterator it = types_list.begin();
+		it != types_list.end();
+		it++)
+	{
+		Type		*t;
+		llvm::Function	*type_thunk_bits_f, *type_thunk_bytes_f;
+
+		t = *it;
+		cout << "Generating thunk: " << t->getName() << endl;
+
+		thunk_from_type(t, type_thunk_bits_f, type_thunk_bytes_f);
+
+		type_thunk_bytes_f->dump();
+	}
 }
 
+#define NUM_RUNTIME_FUNCS	4
+const char*	f_names[] = {	
+	"__getLocal", "__getLocalArray", "__arg", "__getDyn"};
+int	f_arg_c[] = {2, 4, 1, 3};
+
+/**
+ * insert run-time functions into the llvm module so that they resolve
+ * when called..
+ */
+static void load_runtime_funcs(void)
+{
+	for (int i = 0; i < NUM_RUNTIME_FUNCS; i++) {
+		vector<const llvm::Type*>	args;
+		llvm::FunctionType		*ft;
+		llvm::Function			*f;
+
+		args = vector<const llvm::Type*>(
+			f_arg_c[i], 
+			llvm::Type::getInt64Ty(llvm::getGlobalContext()));
+
+		ft = llvm::FunctionType::get(
+			llvm::Type::getInt64Ty(llvm::getGlobalContext()),
+			args,
+			false);
+	
+		f = llvm::Function::Create(
+			ft,
+			llvm::Function::ExternalLinkage, 
+			f_names[i],
+			mod);
+	}
+}
 
 int main(int argc, char *argv[])
 {
+	llvm::LLVMContext&	ctx = llvm::getGlobalContext();
+
 	yyparse();
 
 	/* load ptypes in */
+	cout << "Loading ptypes" << endl;
 	load_primitive_ptypes();
+	cout << "Loading user types" << endl;
 	load_user_types(global_scope);
+	cout << "Loading thunks" << endl;
 	load_user_ptypes_thunk();
+	cout << "Resolving user types" << endl;
 	load_user_ptypes_resolved();
 
 	/* next, build up symbol tables on types.. this is our type checking */
+	cout << "Building symbol tables" << endl;
 	build_sym_tables();
 
 	/* make consts resolve to numbers */
+	cout << "Setting up constants" << endl;
 	load_constants(global_scope);
 	load_enums(global_scope);
+	cout << "Simplifying constants" << endl;
 	simplify_constants();
 
-//	eval();
+	builder = new llvm::IRBuilder<>(ctx);
+	mod = new llvm::Module("mod", ctx);
 
-	dump_ptypes(global_scope);
+	load_runtime_funcs();
+
+	gen_thunks();
 
 	return 0;
 }

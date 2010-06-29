@@ -14,6 +14,7 @@
 
 typedef std::map<std::string, class PhysicalType*>	ptype_map;
 typedef std::list<class Type*>				type_list;
+typedef std::map<std::string, class Type*>		type_map;
 
 extern int yylineno;
 
@@ -25,7 +26,7 @@ public:
 	unsigned int getLineNo() const { return lineno; }
 	void setLineNo(unsigned int l) { lineno = l; }
 
-	virtual PhysicalType* resolve(const ptype_map& tm) const = 0;
+	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const = 0;
 
 	const Type* getOwner() const
 	{
@@ -80,7 +81,7 @@ public:
 
 	void print(std::ostream& out) const;
 	
-	virtual PhysicalType* resolve(const ptype_map& tm) const;
+	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
 
 	const std::string getName() const 
 	{
@@ -120,7 +121,7 @@ public:
 
 	void print(std::ostream& out) const;
 
-	virtual PhysicalType* resolve(const ptype_map& tm) const;
+	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
 
 	const std::string getName() const 
 	{
@@ -158,7 +159,7 @@ public:
 	const TypeStmt* getTrueStmt() const { return is_true; }
 	const TypeStmt* getFalseStmt() const { return is_false; }
 
-	virtual PhysicalType* resolve(const ptype_map& tm) const;
+	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
 
 	void setOwner(const Type* t) 
 	{
@@ -202,7 +203,7 @@ public:
 		return ret;
 	}
 
-	virtual PhysicalType* resolve(const ptype_map& tm) const;
+	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
 
 	virtual void setOwner(const Type* t)
 	{
@@ -245,7 +246,7 @@ public:
 		block->print(out);
 	}
 
-	virtual PhysicalType* resolve(const ptype_map& tm) const;
+	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
 
 	virtual void setOwner(const Type* t) 
 	{
@@ -286,7 +287,7 @@ public:
 		return std::string(tmp_str);
 	}
 
-	virtual PhysicalType* resolve(const ptype_map& tm) const;
+	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
 private:
 	FCall*	fcall;
 };
@@ -315,7 +316,7 @@ public:
 
 	const std::string& getName(void) const { return name->getName(); }
 
-	PhysicalType* resolve(const ptype_map& tm) const;
+	PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
 
 	const ArgsList* getArgs(void) const { return args; }
 
@@ -337,6 +338,12 @@ public:
 		/* do not allow get if it hasn't been set yet! */
 		assert (type_num != -1);
 		return type_num;
+	}
+
+	unsigned int getNumArgs(void) const
+	{
+		if (args == NULL) return 0;
+		return args->size();
 	}
 
 private:

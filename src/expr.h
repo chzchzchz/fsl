@@ -2,6 +2,7 @@
 #define EXPR_H
 
 #include <map>
+#include "llvm/DerivedTypes.h"
 #include "collection.h"
 
 typedef std::map<std::string, class Expr*>		const_map;
@@ -44,6 +45,10 @@ public:
 
 		return NULL;
 	}
+
+	virtual llvm::Value* codeGen() const = 0;
+
+	llvm::Value* ErrorV(const char* s) const;
 protected:
 	Expr() {}
 };
@@ -112,10 +117,12 @@ public:
 			Expr	*cur_expr, *tmp_expr;
 
 			cur_expr = *it;
+
 			tmp_expr = cur_expr->rewrite(to_rewrite, new_expr);
 			if (tmp_expr != NULL) {
-				*it = tmp_expr;
+				(*it) = tmp_expr;
 				delete cur_expr;
+				cur_expr = tmp_expr;
 			}
 		}
 	}
@@ -138,7 +145,7 @@ public:
 		return (id_name == in_id->getName());
 	}
 
-
+	llvm::Value* codeGen(void) const;
 private:
 	const std::string id_name;
 };
@@ -194,7 +201,7 @@ public:
 		in_fc = dynamic_cast<const FCall*>(e);
 		if (in_fc == NULL) return false;
 
-		return (in_fc->id == id) && (*exprs == in_fc->exprs);
+		return (*(in_fc->id) == id) && (*exprs == in_fc->exprs);
 	}
 
 	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
@@ -222,6 +229,7 @@ public:
 		return id_name < cmp_id.id_name
 	}
 #endif
+	llvm::Value*  codeGen() const;
 private:
 	Id*		id;
 	ExprList*	exprs;
@@ -241,6 +249,7 @@ public:
 		assert (it != end());
 
 		(*it)->print(out);
+		it++;
 
 		for (; it != end(); it++) {
 			out << '.';
@@ -280,6 +289,7 @@ public:
 		return true;
 	}
 
+	llvm::Value* codeGen() const;
 private:
 };
 
@@ -352,6 +362,8 @@ public:
 
 		return Expr::rewrite(to_rewrite, new_expr);
 	}
+
+	llvm::Value* codeGen() const;
 private:
 	Id		*id;
 	Expr		*idx;
@@ -418,6 +430,7 @@ public:
 		return NULL;
 	}
 
+	llvm::Value* codeGen() const;
 private:
 	Expr	*expr;
 };
@@ -444,570 +457,13 @@ public:
 
 		return (n == in_num->getValue());
 	}
+
+	llvm::Value* codeGen() const;
 private:
 	unsigned long n;
 };
 
-class BinArithOp : public Expr
-{
-public:
-	virtual ~BinArithOp() 
-	{
-		delete e_lhs;
-		delete e_rhs;
-	}
-
-	void print(std::ostream& out) const
-	{
-		out << '(';
-		e_lhs->print(out);
-		out << ' ' << getOpSymbol() << ' ';
-		e_rhs->print(out);
-		out << ')';
-	}
-
-	bool toNumbers(unsigned long& n_lhs, unsigned long& n_rhs) const
-	{
-		Number	*lhs, *rhs;
-
-		lhs = dynamic_cast<Number*>(e_lhs);
-		rhs = dynamic_cast<Number*>(e_rhs);
-		if (lhs == NULL || rhs == NULL)
-			return false;
-
-		n_lhs = lhs->getValue();
-		n_rhs = rhs->getValue();
-
-		return true;
-	}
-
-	Expr* getLHS() { return e_lhs; }
-	Expr* getRHS() { return e_rhs; }
-	const Expr* getLHS() const { return e_lhs; }
-	const Expr* getRHS() const { return e_rhs; }
-
-	void setLHS(Expr* e) 
-	{
-		assert (e != NULL);
-		delete e_lhs;
-
-		e_lhs = e->simplify();
-		delete e;
-	}
-
-	void setRHS(Expr* e) 
-	{
-		assert (e != NULL);
-		delete e_rhs;
-
-		e_rhs = e->simplify();
-		delete e;
-	}
-
-	bool operator==(const Expr* e) const
-	{
-		const BinArithOp *in_bop;
-		
-		in_bop = dynamic_cast<const BinArithOp*>(e);
-		if (in_bop == NULL)
-			return false;
-
-		if (in_bop->getOpSymbol() != getOpSymbol())
-			return false;
-
-		if (*e_lhs != in_bop->getLHS())
-			return false;
-
-		if (*e_rhs != in_bop->getRHS())
-			return false;
-
-		return true;
-	}
-
-	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
-	{
-		Expr*	ret;
-
-		ret = e_lhs->rewrite(to_rewrite, new_expr);
-		if (ret != NULL) {
-			delete e_lhs;
-			e_lhs = ret;
-		}
-
-		ret = e_rhs->rewrite(to_rewrite, new_expr);
-		if (ret != NULL) {
-			delete e_rhs;
-			e_rhs = ret;
-		}
-
-		return Expr::rewrite(to_rewrite, new_expr);
-	}
-
-protected:
-	BinArithOp(Expr* e1, Expr* e2)
-		: e_lhs(e1), e_rhs(e2) 
-	{
-		Expr	*new_lhs, *new_rhs;
-
-		assert (e_lhs != NULL);
-		assert(e_rhs != NULL);
-
-		new_lhs = e_lhs->simplify();
-		new_rhs = e_rhs->simplify();
-
-		delete e_lhs;
-		delete e_rhs;
-
-		e_lhs = new_lhs;
-		e_rhs = new_rhs;
-	}
-	virtual char getOpSymbol() const = 0;
-
-	Expr	*e_lhs;
-	Expr	*e_rhs;
-private:
-	BinArithOp() {}
-};
-
-class AOPNOP : public BinArithOp
-{
-public:
-	AOPNOP(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2) {}
-	virtual ~AOPNOP() {}
-
-protected:
-	virtual char getOpSymbol() const { return '_'; }
-private:
-};
-
-
-class AOPOr : public BinArithOp
-{
-public:
-	AOPOr(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2)
-	{
-	}
-	virtual ~AOPOr() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPOr(e_lhs->copy(), e_rhs->copy()); 
-	}
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs | n_rhs);
-	}
-	
-protected:
-	virtual char getOpSymbol() const { return '|'; }
-private:
-};
-
-class AOPAnd : public BinArithOp
-{
-public:
-	AOPAnd(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2)
-	{
-	}
-	virtual ~AOPAnd() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPAnd(e_lhs->copy(), e_rhs->copy()); 
-	}
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs & n_rhs);
-	}
-
-protected:
-	virtual char getOpSymbol() const { return '&'; }
-private:
-};
-
-
-
-class AOPAdd : public BinArithOp
-{
-public:
-	AOPAdd(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2) {}
-
-	virtual ~AOPAdd() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPAdd(e_lhs->copy(), e_rhs->copy()); 
-	}
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs + n_rhs);
-	}
-
-protected:
-	virtual char getOpSymbol() const { return '+'; }
-private:
-};
-
-class AOPSub : public BinArithOp
-{
-public:
-	AOPSub(Expr* e1, Expr* e2) 
-		: BinArithOp(e1, e2)
-	{
-	}
-
-	virtual ~AOPSub() {} 
-
-	Expr* copy(void) const
-	{
-		return new AOPSub(e_lhs->copy(), e_rhs->copy()); 
-	}
-
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs - n_rhs);
-	}
-
-protected:
-	virtual char getOpSymbol() const { return '-'; }
-private:
-};
-
-class AOPDiv : public BinArithOp
-{
-public:
-	AOPDiv(Expr* e1, Expr* e2) 
-		: BinArithOp(e1, e2)
-	{
-	}
-
-	virtual ~AOPDiv() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPDiv(e_lhs->copy(), e_rhs->copy()); 
-	}
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		if (n_rhs == 0) {
-			std::cerr << "Dividing by zero in ";
-			print(std::cerr);
-			std::cerr << std::endl;
-			return NULL;
-		}
-
-		return new Number(n_lhs / n_rhs);
-	}
-
-protected:
-	virtual char getOpSymbol() const { return '/'; }
-private:
-};
-
-class AOPMul : public BinArithOp
-{
-public:
-	AOPMul(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2)
-	{
-	}
-
-	virtual ~AOPMul() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPMul(e_lhs->copy(), e_rhs->copy()); 
-	}
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs * n_rhs);
-	}
-
-protected:
-	virtual char getOpSymbol() const { return '*'; }
-private:
-};
-
-class AOPLShift : public BinArithOp
-{
-public:
-	AOPLShift(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2)
-	{
-	}
-
-	virtual ~AOPLShift() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPLShift(e_lhs->copy(), e_rhs->copy());
-	}
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs << n_rhs);
-	}
-
-protected:
-virtual char getOpSymbol() const { return '<'; }
-private:
-};
-
-class AOPRShift : public BinArithOp
-{
-public:
-	AOPRShift(Expr* e1, Expr* e2) 
-		: BinArithOp(e1, e2)
-	{
-	}
-
-	virtual ~AOPRShift() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPRShift(e_lhs->copy(), e_rhs->copy()); 
-	}
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs >> n_rhs);
-	}
-
-
-protected:
-	virtual char getOpSymbol() const { return '>'; }
-private:
-};
-
-class AOPMod : public BinArithOp
-{
-public:
-	AOPMod(Expr* e1, Expr* e2) 
-		: BinArithOp(e1, e2)
-	{
-	}
-
-	virtual ~AOPMod() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPMod(e_lhs->copy(), e_rhs->copy()); 
-	}
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs % n_rhs);
-	}
-
-protected:
-	virtual char getOpSymbol() const { return '%'; }
-};
-
-class CondExpr 
-{
-public:
-	virtual ~CondExpr() {}
-
-	virtual void expr_rewrite(
-		const Expr* to_rewrite, const Expr* replacement) = 0;
-protected:
-	CondExpr() {} 
-};
-
-
-class BinBoolOp : public CondExpr 
-{
-public:
-	BinBoolOp(CondExpr* in_lhs, CondExpr* in_rhs) 
-	: cond_lhs(in_lhs), cond_rhs(in_rhs)
-	{
-		assert (cond_lhs != NULL);
-		assert (cond_rhs != NULL);
-	}
-
-	const CondExpr* getLHS() const { return cond_lhs; }
-	const CondExpr* getRHS() const { return cond_rhs; } 
-
-	virtual ~BinBoolOp() 
-	{
-		delete cond_lhs;
-		delete cond_rhs;
-	}
-
-	void expr_rewrite(const Expr* to_rewrite, const Expr* replacement)
-	{
-		cond_lhs->expr_rewrite(to_rewrite, replacement);
-		cond_rhs->expr_rewrite(to_rewrite, replacement);
-	}
-
-private:
-	CondExpr	*cond_lhs;
-	CondExpr	*cond_rhs;
-};
-
-class BOPAnd : public BinBoolOp 
-{
-public:
-	BOPAnd(CondExpr* lhs, CondExpr* rhs) : BinBoolOp(lhs, rhs) {} 
-	virtual ~BOPAnd() {} 
-};
-
-class BOPOr : public BinBoolOp
-{
-public:
-	BOPOr(CondExpr* lhs, CondExpr* rhs) : BinBoolOp(lhs, rhs) {} 
-	virtual ~BOPOr() {} 
-};
-
-class CmpOp : public CondExpr {
-public:
-	CmpOp(Expr* in_lhs, Expr* in_rhs) 
-	: lhs(in_lhs), rhs(in_rhs)
-	{
-		assert (lhs != NULL);
-		assert (rhs != NULL);
-	}
-	virtual ~CmpOp() 
-	{
-		delete lhs;
-		delete rhs;
-	} 
-
-	enum Op {EQ, NE, LE, LT, GT, GE};
-	virtual Op getOp(void) const = 0;
-
-	const Expr* getLHS() const { return lhs; }
-	const Expr* getRHS() const { return rhs; }
-
-	void expr_rewrite(const Expr* to_rewrite, const Expr* replacement)
-	{
-		Expr	*ret;
-
-		ret = lhs->rewrite(to_rewrite, replacement);
-		if (ret != NULL) {
-			delete lhs;
-			lhs = ret;
-		}
-
-		ret = rhs->rewrite(to_rewrite, replacement);
-		if (ret != NULL) {
-			delete rhs;
-			rhs = ret;
-		}
-	}
-private:
-	Expr	*lhs;
-	Expr	*rhs;
-
-	CmpOp() {}
-};
-
-class CmpEQ : public CmpOp 
-{
-public:
-	CmpEQ(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpEQ() {}
-
-	Op getOp(void) const { return EQ; }
-};
-
-class CmpNE : public CmpOp 
-{
-public:
-	CmpNE(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpNE() {} 
-	Op getOp(void) const { return NE; }
-};
-
-class CmpLE : public CmpOp
-{
-public:
-	CmpLE(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpLE() {} 
-
-	Op getOp(void) const { return LE; }
-};
-
-class CmpGE : public CmpOp
-{
-public:
-	CmpGE(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpGE() {} 
-
-	Op getOp(void) const { return GE; }
-};
-
-class CmpLT : public CmpOp
-{
-public:
-	CmpLT(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpLT() {} 
-
-	Op getOp(void) const { return LT; }
-};
-
-class CmpGT : public CmpOp
-{
-public:
-	CmpGT(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {} 
-	virtual ~CmpGT() {} 
-	Op getOp(void) const { return GT; }
-};
-
+#include "binarithop.h"
+#include "cond_expr.h"
 
 #endif

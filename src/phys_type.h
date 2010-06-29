@@ -241,7 +241,8 @@ public:
 		assert (exprs != NULL);
 		return new FCall(new Id(
 			std::string("__thunk_")	
-			+ type->getName() + std::string("_bytes")), exprs);
+			+ type->getName() + std::string("_bytes")), 
+			exprs->simplify());
 	}
 
 	virtual Expr* getBits(void) const
@@ -249,7 +250,8 @@ public:
 		assert (exprs != NULL);
 		return new FCall(new Id(
 			std::string("__thunk_")	
-			+ type->getName() + std::string("_bytes")), exprs);
+			+ type->getName() + std::string("_bytes")), 
+			exprs->simplify());
 	}
 
 	PhysicalType* copy(void) const
@@ -323,6 +325,18 @@ public:
 	PhysicalType* copy(void) const 
 	{
 		return new PhysTypeArray(base->copy(), len->copy());
+	}
+
+	Expr* getBytes(Expr* idx) const
+	{
+		/* XXX needs check to ensure we don't go out of bounds */
+		return new AOPMul(base->getBytes(), idx->simplify());
+	}
+
+	Expr* getBits(Expr* idx) const
+	{
+		/* XXX Needs check to ensure we don't go out of bounds */
+		return new AOPMul(base->getBits(), idx->simplify());
 	}
 
 	const PhysicalType* getBase() const { return base; }

@@ -3,9 +3,13 @@ OBJS=	parser.o	\
 	main.o		\
 	type.o		\
 	eval.o		\
-	symtab.o
+	symtab.o	\
+	expr.o		\
+	cond.o		\
+	func.o
 
-LLVM_FLAGS:=$(shell llvm-config --cxxflags)
+LLVM_FLAGS:=$(shell llvm-config --cxxflags --ldflags --libs core)
+LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
 CFLAGS= -g $(LLVM_FLAGS) 
 
 all: lang
@@ -13,7 +17,7 @@ all: lang
 
  
 lang:  $(OBJS)
-	g++ $(CFLAGS)  $^ -o $@	
+	g++ -g -O3 $^ $(LLVM_FLAGS) -o $@	
 
 
 parser.hh: parser.cc
@@ -25,7 +29,7 @@ lex.yy.cc: lang.lex parser.hh
 	flex -o $@ $^
 
 .cc.o:
-	g++ $(CFLAGS) -c $< -o $@
+	g++ -g -O3 -c $< $(LLVM_FLAGS) -o $@
 
 
 clean: 

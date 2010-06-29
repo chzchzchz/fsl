@@ -1,25 +1,11 @@
 #include "phys_type.h"
 #include "type.h"
 #include "symtab.h"
+#include "cond.h"
 
 using namespace std;
 
-static PhysicalType* cond_cmpop_resolve(
-	const CmpOp*		cmpop,
-	const ptype_map&	tm,
-	PhysicalType		*t,
-	PhysicalType		*f);
-
-static PhysicalType* cond_bop_resolve(
-	const BinBoolOp*	bop,
-	const ptype_map&	tm,
-	PhysicalType		*t,
-	PhysicalType		*f);
-
-static PhysicalType* cond_resolve(
-	const CondExpr* cond, 
-	const ptype_map& tm,
-	PhysicalType* t, PhysicalType* f);
+static FCall	from_base_fc(new Id("from_base"), new ExprList());
 
 void Type::print(ostream& out) const 
 {
@@ -78,7 +64,7 @@ void TypeParamDecl::print(std::ostream& out) const
 	type->print(out);
 }
 
-PhysicalType* TypeParamDecl::resolve(const ptype_map& tm) const
+PhysicalType* TypeParamDecl::resolve(const Expr* off, const ptype_map& tm) const
 {
 	/* directly resolving this is impossible, that's why we set the phys
 	 * type as a thunk for later resolution */
@@ -121,39 +107,25 @@ PhysicalType* TypeParamDecl::resolve(const ptype_map& tm) const
 	return pt;
 }
 
-PhysicalType* TypeDecl::resolve(const ptype_map& tm) const
+PhysicalType* TypeDecl::resolve(const Expr* off, const ptype_map& tm) const
 {
 	if (name != NULL) {
 		return resolve_by_id(tm, type);
 	} else if (array != NULL) {
 		PhysicalType	*base;
 		Expr		*e, *e_tmp;
-		FCall		*tmp_fc;
-		SymbolTable	*st;
-		sym_binding	sb;
-		bool		found;
 
 		base = resolve_by_id(tm, type);
 		if (base == NULL) return NULL;
 
-		st = getOwner()->getSyms(tm);
-		assert (st != NULL);
-		found = st->lookup(getName(), sb);
-		delete st;
-
-		if (found == false) {
-			return new PhysTypeArray(
-				base, (array->getIdx())->simplify());
-		}
 
 		e = (array->getIdx())->simplify();
-		tmp_fc = new FCall(new Id("from_base"), new ExprList());
-		e_tmp = e->rewrite(tmp_fc, symbind_off(sb));
+		e_tmp = e->rewrite(&from_base_fc, off);
 		if (e_tmp != NULL) {
 			delete e;
 			e = e_tmp;
 		}
-		
+
 		return new PhysTypeArray(base, e);
 	} else {
 		/* static decl must map to either an array or an id */
@@ -164,171 +136,128 @@ PhysicalType* TypeDecl::resolve(const ptype_map& tm) const
 	return NULL;
 }
 
-PhysicalType* TypeFunc::resolve(const ptype_map& tm) const
+static PhysicalType* genAssertEq(const ExprList* args, unsigned int lineno)
 {
+	Expr	*lhs, *rhs;
+	Number	*n_lhs, *n_rhs;
+	bool	static_checked;
+
+	static_checked = false;
+
+	if (args->size() != 2) {
+		cerr << "ASSERT_EQ: Expected two arguments." << endl;
+		return NULL;
+	}
+
+	lhs = *(args->begin());
+	rhs = *(++(args->begin()));
+
+	n_rhs = dynamic_cast<Number*>(rhs);
+	n_lhs = dynamic_cast<Number*>(lhs);
+	if (n_rhs != NULL && n_lhs != NULL) {
+		if (n_rhs->getValue() != n_lhs->getValue()) {
+			cerr << lineno << ": ASSERT_EQ failed. ";
+			cerr << n_lhs->getValue() << " != " << 
+				n_rhs->getValue() << endl;
+			return NULL;
+		} else {
+			static_checked = true;
+		}
+	}
+
+	if (static_checked) {
+		return new PhysTypeEmpty();
+	} else {
+		cout << "GENERATING FCALL" << endl;
+		return new PhysTypeFunc(
+			new FCall(
+				new Id("assert_eq"), 
+				args->copy()));
+	}
+}
+
+PhysicalType* TypeFunc::resolve(const Expr* off, const ptype_map& tm) const
+{
+	PhysicalType	*ret;
 	string		func_name;
-	const ExprList	*args;
+	ExprList	*args, *args_tmp;
 
 	func_name = fcall->getName();
-	args = fcall->getExprs();
+
+	/* rewrite arguments */
+	args = (fcall->getExprs())->simplify();
+	args->rewrite(&from_base_fc, off);
+	args_tmp = args->simplify();
+	delete args;
+	args = args_tmp;
 
 	if (func_name == "align") {
-		SymbolTable	*st;
-		sym_binding	sb;
-		bool		found;
-
 		if (args->size() != 1) {
-			cerr << "align takes exactly one argument" << endl;
-			return NULL;
+			cerr 	<< getLineNo() << 
+				": align takes exactly one argument" << endl;
+			ret = NULL;
+		} else {
+			/* have a proper offset in the binding, align it.. */
+			/* note: aligning is (align_v - offset) % align_v */
+			ret = new PhysTypeArray(
+				new U1(),
+				new AOPMod(
+					new AOPSub(
+						new AOPMul(
+						(args->front())->simplify(),
+						new Number(8)),
+						off->simplify()),
+					new AOPMul(
+						(args->front())->simplify(),
+						new Number(8)))
+				);
 		}
-
-		st = getOwner()->getSyms(tm);
-		assert (st != NULL);
-
-		found = st->lookup(getName(), sb);
-		delete st;
-
-		if (found == false) {
-			/* first round of recursion, return typefunc */
-			/* XXX this has potential for an O(n^2) algorithm!
-			 * oh fucking well */
-			return new PhysTypeFunc(fcall->copy());
-		}
-
-
-		/* have a proper offset in the binding, align it.. */
-		/* note: aligning is (align_v - offset) % align_v */
-		return new PhysTypeArray(
-			new U8(),
-			new AOPMod(
-				new AOPSub(
-					(args->front())->simplify(),
-					symbind_off(sb)->simplify()),
-				(args->front())->simplify())
-			);
 	} else if (func_name == "skip") {
 		if (args->size() != 1) {
 			cerr << "skip takes exactly one argument" << endl;
-			return NULL;
+			ret = NULL;
+		} else {
+			ret = new PhysTypeArray(
+				new U8(), (args->front())->simplify());
 		}
-		return new PhysTypeArray(new U8(), (args->front())->simplify());
 	} else if(func_name == "assert_eq") {
-		/* XXX STUB STUB STUB */
-		assert (0 == 1);
-	}
-	
-	/* don't know what to do with it! */
-	return new PhysTypeFunc(fcall->copy());
-}
-
-
-static PhysicalType* cond_cmpop_resolve(
-	const CmpOp*		cmpop,
-	const ptype_map&	tm,
-	PhysicalType		*t,
-	PhysicalType		*f)
-{
-	Expr		*lhs, *rhs;
-
-	assert (cmpop != NULL);
-
-	lhs = (cmpop->getLHS())->simplify();
-	rhs = (cmpop->getRHS())->simplify();
-
-	switch (cmpop->getOp()) {
-	case CmpOp::EQ: return new PhysTypeCondEQ(lhs, rhs, t, f);
-	case CmpOp::NE: return new PhysTypeCondNE(lhs, rhs, t, f);
-	case CmpOp::LE: return new PhysTypeCondLE(lhs, rhs, t, f);
-	case CmpOp::LT: return new PhysTypeCondLT(lhs, rhs, t, f);
-	case CmpOp::GT: return new PhysTypeCondGT(lhs, rhs, t, f);
-	case CmpOp::GE: return new PhysTypeCondGE(lhs, rhs, t, f);
-	default:
-		assert (0 == 1);
-	}
-
-	return NULL;
-}
-
-static PhysicalType* cond_bop_resolve(
-	const BinBoolOp*	bop,
-	const ptype_map& 	tm,
-	PhysicalType*		t,
-	PhysicalType*		f)
-{
-	const CondExpr*	cond_lhs;
-	const CondExpr*	cond_rhs;
-
-	cond_lhs = bop->getLHS();
-	cond_rhs = bop->getRHS();
-
-	assert (bop != NULL);
-
-	if ((dynamic_cast<const BOPAnd*>(bop)) != NULL) {
-		/* if LHS evaluates to true, do RHS */
-
-		return cond_resolve(
-			cond_lhs,
-			tm,
-			cond_resolve(cond_rhs, tm, t, f), 
-			f);
+		ret = genAssertEq(args, getLineNo());
 	} else {
-		/* must be an OR */
-		assert (dynamic_cast<const BOPOr*>(bop) != NULL);
-
-		return cond_resolve(
-			cond_lhs,
-			tm,
-			t,
-			cond_resolve(cond_rhs, tm, t, f));
+		/* don't know what to do with it! */
+		ret = new PhysTypeFunc(
+			new FCall(
+				new Id(fcall->getName()), 
+				args->copy()));
 	}
 
-	/* should not happen */
-	assert (0 == 1);
-	return NULL;
+done:
+	delete args;
+	return ret;
 }
 
-static PhysicalType* cond_resolve(
-	const CondExpr* cond, 
-	const ptype_map& tm,
-	PhysicalType* t, PhysicalType* f)
-{
-	const CmpOp	*cmpop;
-	const BinBoolOp	*bop;
-
-	cmpop = dynamic_cast<const CmpOp*>(cond);
-	if (cmpop != NULL) {
-		return cond_cmpop_resolve(cmpop, tm, t, f);
-	}
-
-	bop = dynamic_cast<const BinBoolOp*>(cond);
-	assert (bop != NULL);
-
-	return cond_bop_resolve(bop, tm, t, f);
-
-}
 
 /* build up cond phys type by drilling down 
  * compound condition expressions into single condition expressions.. */
-PhysicalType* TypeCond::resolve(const ptype_map& tm) const
+PhysicalType* TypeCond::resolve(const Expr* off, const ptype_map& tm) const
 {
 	PhysicalType	*t, *f;
 
-	t = is_true->resolve(tm);
-	f = (is_false == NULL) ? NULL : is_false->resolve(tm);
+	t = is_true->resolve(off, tm);
+	f = (is_false == NULL) ? NULL : is_false->resolve(off, tm);
 
 	return cond_resolve(cond, tm, t, f);
 }
 
-PhysicalType* Type::resolve(const ptype_map& tm) const
+PhysicalType* Type::resolve(const Expr* off, const ptype_map& tm) const
 {
 	PhysicalType	*pt_block;
 
-	pt_block = block->resolve(tm);
+	pt_block = block->resolve(off, tm);
 
 	return new PhysTypeUser(this, pt_block);
 }
 
-PhysicalType* TypeUnion::resolve(const ptype_map& tm) const
+PhysicalType* TypeUnion::resolve(const Expr* off, const ptype_map& tm) const
 {
 	TypeBlock::const_iterator		it;
 	PhysTypeUnion				*ret;
@@ -337,7 +266,7 @@ PhysicalType* TypeUnion::resolve(const ptype_map& tm) const
 	for (it = block->begin(); it != block->end(); it++) {
 		PhysicalType	*resolved;
 
-		resolved = (*it)->resolve(tm);
+		resolved = (*it)->resolve(off, tm);
 		if (resolved == NULL) {
 			delete ret;
 			return NULL;
@@ -349,24 +278,36 @@ PhysicalType* TypeUnion::resolve(const ptype_map& tm) const
 	return ret;
 }
 
-PhysicalType* TypeBlock::resolve(const ptype_map& tm) const
+PhysicalType* TypeBlock::resolve(const Expr* off, const ptype_map& tm) const
 {
 	const_iterator		it;
 	PhysTypeAggregate	*ret;
+	Expr			*cur_off;
 
 	ret = new PhysTypeAggregate("__block");
+	cur_off = off->simplify();
+
 	for (it = begin(); it != end(); it++) {
 		PhysicalType	*resolved;
+		Expr		*next_off;
 
-		resolved = (*it)->resolve(tm);
+		resolved = (*it)->resolve(cur_off, tm);
 		if (resolved == NULL) {
 			delete ret;
-			return NULL;
+			break;
 		}
 
 		ret->add(resolved);
+
+		cur_off = new AOPAdd(
+				cur_off,
+				resolved->getBits());
+		next_off = cur_off->simplify();
+		delete cur_off;
+		cur_off = next_off;
 	}
 
+	delete cur_off;
 	return ret;
 }
 
@@ -377,7 +318,7 @@ SymbolTable* Type::getSyms(const ptype_map& tm) const
 	bool		success;
 	
 	cur_expr = new Number(0);	/* start it off */
-	symtab = new SymbolTable(NULL, resolve(tm));
+	symtab = new SymbolTable(NULL, resolve(cur_expr, tm));
 
 	/* load symbols defined in argument list */
 	success = symtab->loadArgs(tm, args);

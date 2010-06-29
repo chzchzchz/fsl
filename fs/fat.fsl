@@ -113,7 +113,7 @@ know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb))
 	u16		num_heads;
 	u32		hidden_sec;
 	u32		total_sec32;
-	assert_eq (from_base(), 36);
+	assert_eq (from_base(), 36*8);
 	if (get_fat_type(bpb) == FAT_TYPE_FAT32) {
 		bpb_32	priv32;
 	} else {
