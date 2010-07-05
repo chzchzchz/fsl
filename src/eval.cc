@@ -12,164 +12,176 @@
 
 using namespace std;
 
-static Expr* expr_resolve_ids(const EvalCtx& ectx, Expr* expr);
+static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
+bool xxx_debug_eval = false;
+extern ptype_map ptypes_map;
+static Expr* evalReplace(const EvalCtx& ectx, Expr* expr);
+static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc);
 
-/* return non-null if new expr is allocated to replace cur_expr */
-Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
+static const Type* PT2Type(const PhysicalType* pt)
 {
-	ExprParens*	ep;
-	Id*		id;
-	IdArray*	ida;
-	BinArithOp*	bop;
-	FCall*		fc;
+	const PhysTypeUser	*ptu;
+	const PhysTypeThunk	*ptthunk;
 
-	ep = dynamic_cast<ExprParens*>(cur_expr);
-	id = dynamic_cast<Id*>(cur_expr);
-	ida = dynamic_cast<IdArray*>(cur_expr);
-	bop = dynamic_cast<BinArithOp*>(cur_expr);
-	fc = dynamic_cast<FCall*>(cur_expr);
+	ptu = dynamic_cast<const PhysTypeUser*>(pt);
+	if (ptu != NULL) {
+		return ptu->getType();
+	}
 
-	if (ep != NULL) {
-		Expr	*inner_expr;
-		Expr	*ret;
+	ptthunk = dynamic_cast<const PhysTypeThunk*>(pt);
+	if (ptthunk != NULL)
+		return ptthunk->getType();
 
-		inner_expr = ep->getExpr();
-		ret = expr_resolve_consts(consts, inner_expr);
-		if (ret != NULL) {
-			ep->setExpr(ret);
-		}
-
-		return NULL;
-	} else if (id != NULL) {
-		Expr*	const_expr;
-		
-		const_expr = (*(consts.find(id->getName()))).second;
-		if (const_expr == NULL) {
-			return NULL;
-		}
-
-		return const_expr->copy();
-	} else if (ida != NULL) {
-		Expr*	idx_expr;
-		
-		idx_expr = expr_resolve_consts(consts, ida->getIdx());
-		if (idx_expr != NULL) {
-			ida->setIdx(idx_expr);
-		}
-
-		return NULL;
-	} else if (bop != NULL) {
-		Expr	*ret;
-
-		ret = expr_resolve_consts(consts, bop->getLHS());
-		if (ret != NULL) {
-			bop->setLHS(ret);
-		}
-
-		ret = expr_resolve_consts(consts, bop->getRHS());
-		if (ret != NULL) {
-			bop->setRHS(ret);
-		}
-
-		return bop->simplify();
-	} else if (fc != NULL) {
-		Expr*		ret;
-		ExprList	*new_el;
-		const ExprList	*old_el;
-
-		old_el = fc->getExprs();
-		new_el = new ExprList();
-		for (	ExprList::const_iterator it = old_el->begin(); 
-			it != old_el->end();
-			it++)
-		{
-			Expr*	new_expr;
-			
-			new_expr = expr_resolve_consts(consts, *it);
-			if (new_expr == NULL) {
-				new_el->add((*it)->copy());
-			} else {
-				new_el->add(new_expr);
-			}
-		}
-
-		/* TODO add support here to that we can change from function
-		 * call to static value? */
-
-		fc->setExprs(new_el);
-
-		return NULL;
-	} 
-
-	/* don't know what to do with it, so don't touch it */
 	return NULL;
 }
 
 
-/**
- * convert ids into functions that go back to the run-time
- */
-static Expr* expr_resolve_ids(const EvalCtx& ectx, Expr* expr)
+class ExprRewriteConsts : public ExprRewriteAll
 {
-	Id		*id;
-	IdStruct	*ids;
-	IdArray		*ida;
-	BinArithOp	*bop;
-	FCall		*fc;
+public:
+	ExprRewriteConsts(const const_map& consts)
+	: constants(consts) {}
 
-	id = dynamic_cast<Id*>(expr);
-	ids = dynamic_cast<IdStruct*>(expr);
-	ida = dynamic_cast<IdArray*>(expr);
-	bop = dynamic_cast<BinArithOp*>(expr);
-	fc = dynamic_cast<FCall*>(expr);
+	virtual Expr* visit(const Id* id) 
+	{
+		Expr	*new_expr;
+		new_expr = getNewExpr(id);
+		if (new_expr == NULL)
+			return id->copy();
+		return new_expr;
+	}
 
-	if (id != NULL) {
-		return ectx.resolve(id);
-	} else if (ids != NULL) {
-		return ectx.resolve(ids);
-	} else if (ida != NULL) {
-		return ectx.resolve(ida);
-	} else if (bop != NULL) {
-		Expr	*lhs, *rhs;
-		Expr	*new_lhs, *new_rhs;
+private:
+	Expr* getNewExpr(const Id* id)
+	{
+		const_map::const_iterator	it;
+		
+		it = constants.find(id->getName());
+		if (it == constants.end())
+			return NULL;
 
-		lhs = bop->getLHS();
-		rhs = bop->getRHS();
+		return ((*it).second)->copy();
+	}
+	
+	const const_map& constants;
 
-		new_lhs = expr_resolve_ids(ectx, lhs);
-		new_rhs = expr_resolve_ids(ectx, rhs);
+};
 
-		if (new_lhs != NULL) bop->setLHS(new_lhs);
-		if (new_rhs != NULL) bop->setRHS(new_rhs);
+class ExprResolveIds : public ExprRewriteAll
+{
+public:
+	ExprResolveIds(const EvalCtx& evalctx)
+		: ectx(evalctx) {}
+	
+	virtual Expr* visit(const Id* id)
+	{
+		Expr	*result;
+		result = ectx.resolve(id);
+		if (result == NULL) 
+			return id->copy();
+		return result;
+	}
 
-		return NULL;
-	} else if (fc != NULL) {
-		Expr*		ret;
-		ExprList	*new_el;
-		const ExprList	*old_el;
+	virtual Expr* visit(const IdStruct* ids)
+	{	
+		Expr	*result;
 
-		old_el = fc->getExprs();
-		new_el = new ExprList();
-		for (	ExprList::const_iterator it = old_el->begin(); 
-			it != old_el->end();
-			it++)
-		{
-			Expr*	new_expr;
-			
-			new_expr = eval(ectx, *it);
-			if (new_expr == NULL) {
-				new_el->add((*it)->copy());
-			} else {
-				new_el->add(new_expr);
-			}
+		result = ectx.resolve(ids);
+		if (result == NULL)
+			return ids->copy();
+
+		return result;
+	}
+
+	virtual Expr* visit(const IdArray* ida)
+	{
+		Expr	*result;
+
+		result = ectx.resolve(ida);
+		if (result == NULL)
+			return ida->copy();
+
+		return result;
+	}
+	
+	virtual Expr* visit(const FCall* fc)
+	{
+		Expr	*new_expr;
+		FCall	*new_fc;
+		
+		if (fc->getName() == "sizeof") {
+			return eval_rewrite_sizeof(ectx, fc);
 		}
 
-		fc->setExprs(new_el);
+		return ExprRewriteAll::visit(fc);
+	}
 
+private:
+	const EvalCtx& ectx;
+};
+
+static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr)
+{
+	ExprResolveIds	eri(ectx);
+	return eri.apply(expr);
+}
+
+
+/* return non-null if new expr is allocated to replace cur_expr */
+Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
+{
+	ExprRewriteConsts	erc(consts);
+	return erc.apply(cur_expr);
+}
+
+
+static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc)
+{
+	const ExprList	*exprs;
+	Expr		*front;
+	Id		*front_id;
+	PhysicalType	*pt;
+
+	exprs = fc->getExprs();
+	if (exprs->size() != 1) {
+		cerr <<  "sizeof expects 1 argument. Got: ";
+		fc->print(cerr);
+		cerr << endl;
 		return NULL;
 	}
 
-	return NULL;
+	front = exprs->front();
+	front_id = dynamic_cast<Id*>(front);
+	if (front_id == NULL) {
+		cerr << "sizeof expects id for argument. Got: ";
+		fc->print(cerr);
+		cerr << endl;
+		return NULL;
+	}
+
+	pt = ptypes_map[front_id->getName()];
+	if (pt == NULL) {
+		cerr	<< "Could not find type for " << front_id->getName() 
+			<< endl;
+		return NULL;
+	}
+
+	return pt->getBytes();
+}
+
+llvm::Value* evalAndGen(const EvalCtx& ectx, const Expr* expr)
+{
+	Expr		*ret;
+	llvm::Value	*v;
+
+	ret = eval(ectx, expr);
+	if (ret == NULL)
+		return NULL;
+
+	v = ret->codeGen();
+	delete ret;
+
+	return v;
 }
 
 Expr* eval(const EvalCtx& ectx, const Expr* expr)
@@ -195,6 +207,10 @@ Expr* eval(const EvalCtx& ectx, const Expr* expr)
 		our_expr = tmp_expr;
 	}
 
+	if (*our_expr != expr) {
+		return evalReplace(ectx, our_expr);
+	}
+
 	return our_expr;
 }
 
@@ -202,6 +218,7 @@ Expr* EvalCtx::resolve(const Id* id) const
 {
 	const_map::const_iterator	const_it;
 	sym_binding			symbind;
+	const Type			*t;
 
 	assert (id != NULL);
 
@@ -212,8 +229,9 @@ Expr* EvalCtx::resolve(const Id* id) const
 	}
 	
 	
-	/* is it in the current scope? */
+	/* is is in the current scope? */
 	if (cur_scope.lookup(id->getName(), symbind) == true) {
+	#if 0
 		ExprList	*elist;
 
 		elist = new ExprList();
@@ -221,14 +239,95 @@ Expr* EvalCtx::resolve(const Id* id) const
 		elist->add(symbind_phys(symbind)->getBits());
 
 		return new FCall(new Id("__getLocal"), elist);
+	#endif
+		return symbind_off(symbind)->simplify();
 	}
-	
+
+	/* support for access of dynamic types.. gets base bits for type */
+	if ((t = typeByName(id->getName())) != NULL) {
+		ExprList	*exprs;
+
+		exprs = new ExprList();
+		exprs->add(new Number(t->getTypeNum()));
+		return new FCall(new Id("__getDyn"), exprs);
+	}
 
 	/* could not resolve */
 	return NULL;
 }
 
+Expr* EvalCtx::getStructExprBase(
+	const SymbolTable		*first_symtab,
+	const IdStruct::const_iterator	it_begin,
+	const SymbolTable*		&next_symtab) const
+{
+	const Expr		*first_ids_expr;
+	string			first_name;
+	Expr			*first_idx;
+	sym_binding		sb;
+	PhysicalType		*pt;
+	PhysTypeArray		*pta;
+	const PhysTypeUser	*ptu;
+	const Type		*cur_type;
+	Expr			*ret;
+
+	first_ids_expr = *it_begin;
+	first_idx = NULL;
+
+	if (toName(first_ids_expr, first_name, first_idx) == false) {
+		return NULL;
+	}
+
+	if (first_symtab->lookup(first_name, sb) == false) {
+		if (first_idx != NULL) delete first_idx;
+		return NULL;
+	}
+
+	ret = new Id(first_name);
+
+	pt = symbind_phys(sb);
+	pta = dynamic_cast<PhysTypeArray*>(pt);
+	if (pta != NULL) {
+		Expr	*tmp_idx;
+
+		/* it's an array */
+		if (first_idx == NULL) {
+			cerr << "Array type but no index?" << endl;
+			delete ret;
+			return NULL;
+		}
+
+		tmp_idx = new AOPSub(first_idx, new Number(1));
+		ret = new AOPAdd(ret, pta->getBits(tmp_idx));
+		delete tmp_idx;
+
+		cur_type = PT2Type(pta->getBase());
+		ptu = dynamic_cast<const PhysTypeUser*>(pta->getBase());
+	} else {
+		/* it's a scalar */
+		if (first_idx != NULL) {
+			cerr << "Tried to index a scalar?" << endl;
+			delete first_idx;
+			delete ret;
+			return NULL;
+		}
+		cur_type = PT2Type(pt);
+	}
+
+	if (cur_type == NULL) {
+		cout << "NULL PTU ON ";
+		first_ids_expr->print(cout);
+		cout << endl;
+	}
+
+	assert (cur_type != NULL);
+	next_symtab = symtabByName(cur_type->getName());
+
+	return ret;
+}
+
 Expr* EvalCtx::getStructExpr(
+	const Expr			*base,
 	const SymbolTable		*first_symtab,
 	const IdStruct::const_iterator	ids_first,
 	const IdStruct::const_iterator	ids_end,
@@ -238,34 +337,48 @@ Expr* EvalCtx::getStructExpr(
 	Expr				*ret;
 	const SymbolTable		*cur_symtab;
 
+	it = ids_first;
+	if (base == NULL) {
+		ret = getStructExprBase(first_symtab, it, cur_symtab);
+		if (ret == NULL) {
+			return NULL;
+		}
+		it++;
+	} else {
+		ret = base->simplify();
+		cur_symtab = first_symtab;
+	}
 
-	ret = new Number(0);
-	cur_symtab = first_symtab;
 
-	for (it = ids_first; it != ids_end; it++) {
+	for (; it != ids_end; it++) {
 		const Expr		*cur_expr = *it;
 		std::string		cur_name;
 		Expr			*cur_idx;
 		PhysicalType		*cur_pt;
 		PhysTypeArray		*pta;
 		sym_binding		sb;
-		const PhysTypeUser	*cur_ptu;
+		Expr			*ret_begin;
+		const Type		*cur_type;
 
+		ret_begin = ret->simplify();
 		if (cur_symtab == NULL) {
 			/* no way we could possibly resolve the current 
 			 * element. */
 			delete ret;
+			delete ret_begin;
 			return NULL;
 		}
 
 		if (toName(cur_expr, cur_name, cur_idx) == false) {
 			delete ret;
+			delete ret_begin;
 			return NULL;
 		}
 
 		if (cur_symtab->lookup(cur_name, sb) == false) {
 			if (cur_idx != NULL) delete cur_idx;
 			delete ret;
+			delete ret_begin;
 			return NULL;
 
 		}
@@ -277,31 +390,43 @@ Expr* EvalCtx::getStructExpr(
 			if (cur_idx == NULL) {
 				cerr << "Array type but no index?" << endl;
 				delete ret;
+				delete ret_begin;
 				return NULL;
 			}
 
+			ret = new AOPAdd(ret, symbind_off(sb)->simplify());
 			ret = new AOPAdd(ret, pta->getBits(cur_idx));
 			delete cur_idx;
 
-			cur_ptu = dynamic_cast<const PhysTypeUser*>(
-				pta->getBase());
+			cur_type = PT2Type(pta->getBase());
 		} else {
 			/* it's a scalar */
 			if (cur_idx != NULL) {
 				cerr << "Tried to index a scalar?" << endl;
 				delete cur_idx;
 				delete ret;
+				delete ret_begin;
 				return NULL;
 			}
-			ret = new AOPAdd(ret, cur_pt->getBits());
-			cur_ptu = dynamic_cast<const PhysTypeUser*>(cur_pt);
+			ret = new AOPAdd(ret, symbind_off(sb)->simplify());
+			cur_type = PT2Type(cur_pt);
 		}
 
-		if (cur_ptu == NULL) {
+		if (cur_type == NULL) {
 			cur_symtab = NULL;
+			delete ret_begin;
 		} else {
-			cur_symtab = symtabByName(
-				(cur_ptu->getType())->getName());
+			/* don't forget to replace any instances of the 
+			 * used type with the name of the field being accessed!
+			 * (where did we come from and where are we going?)
+			 */
+
+			ret = Expr::rewriteReplace(
+				ret, 
+				new Id(cur_type->getName()),
+				ret_begin);
+
+			cur_symtab = symtabByName(cur_type->getName());
 		}
 
 		final_type = cur_pt;
@@ -323,7 +448,9 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	assert (it != ids->end());
 
 	/* in current scope? */
-	offset = getStructExpr(&cur_scope, ids->begin(), ids->end(), ids_pt);
+	offset = getStructExpr(
+		NULL,
+		&cur_scope, ids->begin(), ids->end(), ids_pt);
 	if (offset != NULL) {
 		ExprList		*exprs;
 		const PhysTypeArray	*pta;
@@ -349,14 +476,23 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	if (front_id != NULL) {
 		const SymbolTable	*top_symtab;
 		const Type		*top_type;
+		Expr			*base;
+		ExprList		*base_exprs;
+
 
 		top_type = typeByName(front_id->getName());
 		top_symtab = symtabByName(front_id->getName());
 		if (top_symtab == NULL || top_type == NULL)
 			goto err;
 
+		base_exprs = new ExprList();
+		base_exprs->add(new Number(top_type->getTypeNum()));
+		base = new FCall(new Id("__getDyn"), base_exprs);
+
 		it++;
-		offset = getStructExpr(top_symtab, it, ids->end(), ids_pt);
+		offset = getStructExpr(
+			base, top_symtab, it, ids->end(), ids_pt);
+		delete base;
 		if (offset != NULL) {
 			ExprList		*exprs;
 			const PhysTypeArray	*pta;
@@ -364,16 +500,14 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 			pta = dynamic_cast<const PhysTypeArray*>(ids_pt);
 
 			exprs = new ExprList();
-			exprs->add(new Number(top_type->getTypeNum()));
 			exprs->add(offset->simplify());
-
 			if (pta != NULL)
 				exprs->add((pta->getBase())->getBits());
 			else
 				exprs->add(ids_pt->getBits());
 
 			delete offset;
-			return new FCall(new Id("__getDyn"), exprs);
+			return new FCall(new Id("__getLocal"), exprs);
 		}
 	}
 
@@ -400,7 +534,6 @@ Expr* EvalCtx::resolve(const IdArray* ida) const
 		ExprList	*elist;
 		Expr		*evaled_idx;
 
-		cout << "Evaluating array index: ";
 		ida->getIdx()->print(cout);
 		cout << endl;
 
@@ -499,3 +632,15 @@ const Type* EvalCtx::typeByName(const std::string& s) const
 
 	return ptu->getType();
 }
+
+static Expr* evalReplace(const EvalCtx& ectx, Expr* expr)
+{
+	Expr	*new_expr;
+
+	if (expr == NULL) return NULL;
+
+	new_expr = eval(ectx, expr);
+	delete expr;
+	return new_expr;
+}
+

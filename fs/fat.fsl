@@ -23,7 +23,7 @@ type disk
 	align(d_bpb.bytes_per_sector);
 	skip(d_bpb.bytes_per_sector * (d_bpb.reserved_sector_c - 1));
 	
-	fat(d_bpb)	fats[d_bpb.fat_count];
+	fat		fats[d_bpb.fat_count];
 	
 	align(d_bpb.bytes_per_sector);
 	
@@ -37,7 +37,7 @@ type disk
 type cluster
 aligned(512)
 {
-	u8	data[d_bpb.sectors_per_cluster*d_bpb.bytes_per_sector];
+	u8	data[bpb.sectors_per_cluster*bpb.bytes_per_sector];
 }
 
 type fat_de
@@ -121,7 +121,7 @@ know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb))
 	}
 }
 
-type fat(bpb b) 
+type fat 
 points(ent12, disk.clusters)
 free(ent12, disk.clusters, 0)
 points(ent16, disk.clusters)
@@ -129,16 +129,16 @@ free(ent16, disk.clusters, 0)
 points(ent32, disk.clusters)
 free(ent32, disk.clusters, 0)
 { 
-	if (is_fat12(b)) {
-		u12	ent12[get_cluster_count(b)];
-	} else if (is_fat16(b)) {
-		u16	ent16[get_cluster_count(b)];
-	} else if (is_fat32(b)) {
-		u32	ent32[get_cluster_count(b)];
+	if (is_fat12(bpb)) {
+		u12	ent12[get_cluster_count(bpb)];
+	} else if (is_fat16(bpb)) {
+		u16	ent16[get_cluster_count(bpb)];
+	} else if (is_fat32(bpb)) {
+		u32	ent32[get_cluster_count(bpb)];
 	} else {
-		fail();
+		fsl_fail();
 	}
-	align(b.bytes_per_sector);
+	align(bpb.bytes_per_sector);
 }
 
 
@@ -153,9 +153,8 @@ uint get_fat_sectors(bpb b)
 
 uint get_total_sectors(bpb b)
 {
-	if (b.total_sect16 != 0) {
+	if (b.total_sect16 != 0) 
 		return b.total_sect16;
-	}
 	return b.total_sec32;
 }
 
@@ -177,20 +176,19 @@ uint get_cluster_count(bpb b)
 	return data_sectors / b.sectors_per_cluster;
 }
 
-fat_type get_fat_type(bpb b)
+/* XXX make this 'fat_type' when we can treat enums as types */
+int get_fat_type(bpb b)
 {
 	uint cluster_count;
 
 	cluster_count = get_cluster_count(b);
-	if (countofclusters < 4085) {
+	if (cluster_count < 4085) {
 		return FAT_TYPE_FAT12;
-	} else if (countofclusters < 65525) {
+	} else if (cluster_count < 65525) {
 		return FAT_TYPE_FAT16;
 	} 
 	return FAT_TYPE_FAT32;
 }
-
-
 
 bool is_fat12(bpb b){ 
 	if (get_fat_type(b) == FAT_TYPE_FAT12) 

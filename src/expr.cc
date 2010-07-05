@@ -6,6 +6,7 @@
 #include <llvm/Support/IRBuilder.h>
 #include <iostream>
 
+#include "func.h"
 #include "expr.h"
 
 using namespace std;
@@ -13,12 +14,17 @@ using namespace llvm;
 
 extern IRBuilder<>	*builder;
 extern Module		*mod;
+extern const Func	*gen_func;
+extern const FuncBlock	*gen_func_block;
+extern llvm_var_map	thunk_var_map;
 
-Value* Expr::ErrorV(const char* s) const
+Value* Expr::ErrorV(const string& s) const
 {
-	cerr << "expr error: " << s << " in ";
-	print(cerr);
 	cerr << endl;
+	cerr << "expr error: " << s << " in the expression \"";
+	print(cerr);
+	cerr << "\"" << endl;
+	assert (0 == 1);
 	return NULL;
 }
 
@@ -89,8 +95,12 @@ Value* FCall::codeGen() const
 
 	/* TODO: make this cleaner */
 	if (call_name == "cond_eq") {
+		print(cerr);
+		cerr << endl << endl;
 		return createCond(CmpInst::ICMP_EQ, this);
 	} else if (call_name == "cond_ne") {
+		print(cerr);
+		cerr << endl << endl;
 		return createCond(CmpInst::ICMP_NE, this);
 	}
 
@@ -118,7 +128,27 @@ Value* FCall::codeGen() const
 
 Value* Id::codeGen() const 
 {
-	return ErrorV("XXX: STUB: Id");
+	AllocaInst	*ai;
+
+	/* load.. */
+	if (gen_func_block == NULL && thunk_var_map.size() == 0) {
+		return ErrorV(
+			string("Loading ") + getName() + 
+			string(" with no gen_func set"));
+	}
+
+	if (gen_func_block != NULL)
+		ai = gen_func_block->getVar(getName());
+	else
+		ai = thunk_var_map[getName()];
+
+	if (ai == NULL) {
+		return ErrorV(
+			string("Could not find variable ") + 
+			getName());
+	}
+
+	return builder->CreateLoad(ai, getName());
 }
 
 Value* IdStruct::codeGen() const 

@@ -27,7 +27,7 @@ public:
 			delete (*it);
 		}
 	}
-	void add(T* t) { assert (t != NULL); push_back(t); }
+	virtual void add(T* t) { assert (t != NULL); push_back(t); }
 };
 
 #endif

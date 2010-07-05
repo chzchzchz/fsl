@@ -87,6 +87,8 @@ PhysicalType* TypeParamDecl::resolve(const Expr* off, const ptype_map& tm) const
 	thunk = dynamic_cast<PhysTypeThunk*>(pt);
 	assert (thunk != NULL);
 
+	cout << "THUNK FOR " << type_name << endl;
+
 	/* set the args */
 	/* XXX add support for from_base in args */
 	arg_copy = (type->getExprs())->copy();
@@ -110,20 +112,50 @@ PhysicalType* TypeParamDecl::resolve(const Expr* off, const ptype_map& tm) const
 PhysicalType* TypeDecl::resolve(const Expr* off, const ptype_map& tm) const
 {
 	if (name != NULL) {
-		return resolve_by_id(tm, type);
+		PhysicalType	*pt;
+		PhysTypeThunk	*ptt;
+		ExprList	*exprs;
+		bool		set_success;
+
+		pt = resolve_by_id_thunk(tm, type);
+		if (pt == NULL || 
+		   ((ptt = dynamic_cast<PhysTypeThunk*>(pt)) == NULL)) {
+			return pt;
+		}
+
+
+		exprs = new ExprList();
+		exprs->add(new AOPAdd(new Id("__thunk_off_arg"), off->copy()));
+
+		set_success = ptt->setArgs(exprs);
+		assert (set_success);
+
+		return pt;
 	} else if (array != NULL) {
 		PhysicalType	*base;
+		PhysTypeThunk	*thunk_base;
 		Expr		*e, *e_tmp;
 
-		base = resolve_by_id(tm, type);
+		base = resolve_by_id_thunk(tm, type);
 		if (base == NULL) return NULL;
-
 
 		e = (array->getIdx())->simplify();
 		e_tmp = e->rewrite(&from_base_fc, off);
 		if (e_tmp != NULL) {
 			delete e;
 			e = e_tmp;
+		}
+
+		if ((thunk_base = dynamic_cast<PhysTypeThunk*>(base)) != NULL) {
+			ExprList	*exprs;
+			bool		set_success;
+
+			exprs = new ExprList();
+			exprs->add(
+				new AOPAdd(
+					new Id("__thunk_off_arg"),
+					off->copy()));
+			set_success = thunk_base->setArgs(exprs);
 		}
 
 		return new PhysTypeArray(base, e);
@@ -168,11 +200,8 @@ static PhysicalType* genAssertEq(const ExprList* args, unsigned int lineno)
 	if (static_checked) {
 		return new PhysTypeEmpty();
 	} else {
-		cout << "GENERATING FCALL" << endl;
 		return new PhysTypeFunc(
-			new FCall(
-				new Id("assert_eq"), 
-				args->copy()));
+			new FCall(new Id("assert_eq"), args->copy()));
 	}
 }
 
@@ -357,4 +386,10 @@ list<const FCall*> Type::getPreambles(const std::string& name) const
 	}
 
 	return ret;
+}
+
+std::ostream& operator<<(std::ostream& in, const Type& t)
+{
+	t.print(in);
+	return in;
 }

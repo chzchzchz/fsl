@@ -173,6 +173,10 @@ private:
 
 };
 
-std::ostream& operator<<(std::ostream& in, const GlobalStmt& gs);
+static inline std::ostream& operator<<(std::ostream& in, const GlobalStmt& gs)
+{
+	gs.print(in);
+	return in;
+}
 
 #endif

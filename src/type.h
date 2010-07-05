@@ -355,22 +355,6 @@ private:
 	
 };
 
-class TypeCtx 
-{
-public:
-	TypeCtx(Expr* in_offset) : offset(in_offset)
-	{
-		assert (offset != NULL);
-	}
-
-	virtual ~TypeCtx() { delete offset; }
-
-
-private:
-	Expr	*offset;
-};
-
-
 std::ostream& operator<<(std::ostream& in, const Type& t);
 
 static unsigned int tstmt_count_conds(const TypeStmt* t)
@@ -394,5 +378,8 @@ static unsigned int tstmt_count_conds(const TypeStmt* t)
 
 	return 0;
 }
+
+
+std::ostream& operator<<(std::ostream& in, const Type& t);
 
 #endif

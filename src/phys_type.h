@@ -34,6 +34,8 @@ public:
 
 	virtual PhysicalType* copy(void) const = 0;
 
+	virtual const llvm::Type* getLLVMType(void) const { return NULL; }
+
 private:
 	std::string name;
 };
@@ -261,30 +263,17 @@ public:
 
 	bool setArgs(ExprList* args)
 	{
-		const ArgsList*	type_args;
-
-		type_args = type->getArgs();
-
 		if (args == NULL) {
-			if (type_args != NULL)
-				return false;
-			
 			if (exprs != NULL) delete exprs;
 
 			exprs = new ExprList();
 			return true;
 		}
 
-		if (type_args == NULL || 
-		    args->size() != type_args->size()) {
-			/* thunk arg mismatch */
-			return false;
-		}
-
 		if (exprs != NULL) delete exprs;
 
 		exprs = args;
-		exprs->insert(exprs->begin(), new Id(type->getName()));
+		//exprs->insert(exprs->begin(), new Id(type->getName()));
 
 		return true;
 	}
@@ -384,6 +373,7 @@ public:
 		return t;
 	}
 
+	virtual const llvm::Type* getLLVMType(void) const;
 private:
 	const Type*		t;
 	PhysicalType*		resolved;
@@ -407,6 +397,7 @@ class I16 : public PhysTypePrimitive<int16_t>
 public:
 	I16() : PhysTypePrimitive<int16_t>("i16") {}
 	virtual ~I16() {}
+	virtual const llvm::Type* getLLVMType(void) const;
 private:
 };
 
@@ -415,6 +406,7 @@ class I32 : public PhysTypePrimitive<int32_t>
 public:
 	I32 () : PhysTypePrimitive<int32_t>("i32") {}
 	virtual ~I32() {}
+	virtual const llvm::Type* getLLVMType(void) const;
 private:
 };
 
@@ -423,6 +415,7 @@ class I64 : public PhysTypePrimitive<int64_t>
 public:
 	I64 () : PhysTypePrimitive<int64_t>("i64") {}
 	virtual ~I64() {}
+	virtual const llvm::Type* getLLVMType(void) const;
 private:
 };
 
@@ -433,6 +426,7 @@ class U64 : public PhysTypePrimitive<uint64_t>
 public:
 	U64 () : PhysTypePrimitive<uint64_t>("u64") {}
 	virtual ~U64() {}
+	virtual const llvm::Type* getLLVMType(void) const;
 private:
 };
 
@@ -441,6 +435,7 @@ class U32 : public PhysTypePrimitive<uint32_t>
 public:
 	U32 () : PhysTypePrimitive<uint32_t>("u32") {}
 	virtual ~U32() {}
+	virtual const llvm::Type* getLLVMType(void) const;
 private:
 };
 
@@ -449,6 +444,7 @@ class U16 : public PhysTypePrimitive<uint16_t>
 public:
 	U16() : PhysTypePrimitive<uint16_t>("u16") {}
 	virtual ~U16() {}
+	virtual const llvm::Type* getLLVMType(void) const;
 private:
 };
 
@@ -458,6 +454,7 @@ class U8 : public PhysTypePrimitive<uint8_t>
 public:
 	U8() : PhysTypePrimitive<uint8_t>("u8") {}
 	virtual ~U8() {}
+	virtual const llvm::Type* getLLVMType(void) const;
 private:
 };
 
@@ -487,6 +484,7 @@ class U1 : public PhysTypeBits<1>
 public:
 	U1() : PhysTypeBits<1>("u1") {}
 	virtual ~U1() {}
+	virtual const llvm::Type* getLLVMType(void) const;
 private:
 };
 
@@ -640,7 +638,31 @@ public:
 	}
 };
 
-static inline  PhysicalType* resolve_by_id(const ptype_map& tm, const Id* id);
+
+static inline PhysicalType* resolve_by_id_thunk(
+	const ptype_map& tm, const Id* id)
+{
+	const std::string&		id_name(id->getName());
+	ptype_map::const_iterator	it;
+
+	/* type does not resolve directly, may have a thunk available */
+	it = tm.find(std::string("thunk_") + id_name);
+	if (it != tm.end()) {
+		return ((*it).second)->copy();
+
+	}	
+
+	/* try to resovle type directly */
+	it = tm.find(id_name);
+	if (it == tm.end()) {
+		std::cerr << "Could not resolve type: ";
+		std::cerr << id_name << std::endl;
+		return NULL;
+	}
+
+	return ((*it).second)->copy();
+}
+
 static inline PhysicalType* resolve_by_id(const ptype_map& tm, const Id* id)
 {
 	const std::string&		id_name(id->getName());

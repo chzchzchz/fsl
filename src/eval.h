@@ -50,18 +50,22 @@ private:
 	const SymbolTable*	symtabByName(const std::string& s) const;
 	const Type*		typeByName(const std::string& s) const;
 
-	Expr* 			getStructExpr(
+	Expr* getStructExpr(
+		const Expr			*base,
 		const SymbolTable		*first_symtab,
 		const IdStruct::const_iterator	ids_first,
 		const IdStruct::const_iterator	ids_end,
 		const PhysicalType*		&final_type) const;
 
-	
+	Expr* getStructExprBase(
+		const SymbolTable		*first_symtab,
+		const IdStruct::const_iterator	it_begin,
+		const SymbolTable*		&next_symtab) const;
 };
 
 Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr);
 Expr* eval(const EvalCtx& ec, const Expr*);
-
+llvm::Value* evalAndGen(const EvalCtx& ectx, const Expr* expr);
 
 
 

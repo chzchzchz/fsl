@@ -8,6 +8,32 @@
 typedef std::map<std::string, class Expr*>		const_map;
 typedef std::map<const class Expr, const class Expr*>	rewrite_map;
 
+class Id;
+class IdArray;
+class FCall;
+class BinArithOp;
+class IdStruct;
+class ExprParens;
+
+class ExprVisitor 
+{
+public:
+	virtual Expr* apply(const Expr* e) = 0;
+	virtual Expr* applyReplace(Expr* &e) = 0;
+
+	virtual Expr* visit(const Expr* a) = 0;
+	virtual Expr* visit(const Id* a)  = 0;
+	virtual Expr* visit(const IdArray* a) = 0;
+	virtual Expr* visit(const FCall* a) = 0;
+	virtual Expr* visit(const BinArithOp* a) = 0;
+	virtual Expr* visit(const IdStruct* a) = 0;
+	virtual Expr* visit(const ExprParens* a) = 0;
+
+	virtual ~ExprVisitor() {}
+protected:
+	ExprVisitor() {}
+};
+
 class Expr
 {
 public:
@@ -21,22 +47,6 @@ public:
 		return ((*this == e) == false);
 	}
 
-#if 0
-	virtual bool operator<(const Expr* e) const
-	{
-		if (this == e) {
-			return false;
-		}
-
-		if (typeid(this) == typeid(e)) 
-			return (*this < e);
-		else if (typeid(this) < typeid(e))
-			return true;
-		else
-			return false;
-	}
-#endif
-
 	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
 	{
 		if (*this == to_rewrite) {
@@ -46,9 +56,28 @@ public:
 		return NULL;
 	}
 
+	static Expr* rewriteReplace(
+		Expr* e,
+		Expr* to_rewrite, 
+		Expr* new_expr)
+	{
+		Expr	*rewritten_expr;
+		
+		rewritten_expr = e->rewrite(to_rewrite, new_expr);
+		delete to_rewrite;
+		delete new_expr;
+		if (rewritten_expr == NULL)
+			return e;
+
+		delete e;
+		return rewritten_expr;;
+	}
+
 	virtual llvm::Value* codeGen() const = 0;
 
-	llvm::Value* ErrorV(const char* s) const;
+	llvm::Value* ErrorV(const std::string& s) const;
+
+	virtual Expr* accept(ExprVisitor* ev) const = 0;
 protected:
 	Expr() {}
 };
@@ -126,6 +155,7 @@ public:
 			}
 		}
 	}
+
 private:
 };
 
@@ -146,6 +176,8 @@ public:
 	}
 
 	llvm::Value* codeGen(void) const;
+
+	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 	const std::string id_name;
 };
@@ -175,6 +207,8 @@ public:
 	{
 		assert (new_exprs != NULL);
 		assert (new_exprs->size() == exprs->size());
+
+		if (new_exprs == exprs) return;
 
 		delete exprs;
 		exprs = new_exprs->simplify();
@@ -210,26 +244,9 @@ public:
 		return Expr::rewrite(to_rewrite, new_expr);
 	}
 
-#if 0
-	bool operator<(const Expr* e) const
-	{
-		FCall *fc;
-
-		fc = dynamic_cast<const FCalL*>(e);
-		if (fc == NULL) {
-			return Expr::operator<(e);
-		}
-
-		if (*id != fc->id) {
-			return (*id < fc->id);
-		}
-
-
-		assert (0 == 1);
-		return id_name < cmp_id.id_name
-	}
-#endif
 	llvm::Value*  codeGen() const;
+
+	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 	Id*		id;
 	ExprList*	exprs;
@@ -290,6 +307,8 @@ public:
 	}
 
 	llvm::Value* codeGen() const;
+
+	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 };
 
@@ -330,6 +349,7 @@ public:
 	{
 		assert (in_idx != NULL);
 		assert (idx != NULL);
+		if (in_idx == idx) return;
 		delete idx;
 		idx = in_idx;
 	}
@@ -364,6 +384,8 @@ public:
 	}
 
 	llvm::Value* codeGen() const;
+
+	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 	Id		*id;
 	Expr		*idx;
@@ -404,6 +426,7 @@ public:
 	void setExpr(Expr* e) 
 	{
 		assert (e != NULL);
+		if (e == expr) return;
 		delete expr;
 		expr = e;
 	}
@@ -431,6 +454,8 @@ public:
 	}
 
 	llvm::Value* codeGen() const;
+
+	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 	Expr	*expr;
 };
@@ -459,11 +484,124 @@ public:
 	}
 
 	llvm::Value* codeGen() const;
+
+
+	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 	unsigned long n;
 };
 
+
 #include "binarithop.h"
 #include "cond_expr.h"
+
+class ExprRewriteVisitor : public ExprVisitor
+{
+public:
+	virtual Expr* applyReplace(Expr* &e)
+	{
+		Expr	*new_expr;
+
+		new_expr = apply(e);
+		delete e;
+
+		return new_expr;
+	}
+
+	virtual Expr* apply(const Expr* e)
+	{
+		Expr	*new_expr;
+
+		new_expr = e->accept(this);
+		if (new_expr == NULL) {
+			return e->simplify();
+		}
+
+		return new_expr;
+	}
+
+	virtual Expr* visit(const Expr* a) {return a->simplify();}
+	virtual Expr* visit(const Id* a)  {return a->simplify();}
+	virtual Expr* visit(const IdArray* a) {return a->simplify();}
+	virtual Expr* visit(const FCall* a) {return a->simplify();}
+	virtual Expr* visit(const BinArithOp* a) {return a->simplify();}
+	virtual Expr* visit(const IdStruct* a) {return a->simplify();}
+	virtual Expr* visit(const ExprParens* a) {return a->simplify();}
+
+
+	virtual ~ExprRewriteVisitor() {}
+
+protected:
+	ExprRewriteVisitor() {}
+};
+
+class ExprRewriteAll : public ExprRewriteVisitor
+{
+public:
+	virtual Expr* visit(const BinArithOp* a)
+	{
+		const Expr	*lhs, *rhs;
+		BinArithOp	*new_bop;
+		Expr		*new_lhs, *new_rhs;
+
+		lhs = a->getLHS();
+		rhs = a->getRHS();
+
+		new_lhs = apply(lhs);
+		new_rhs = apply(rhs);
+
+		new_bop = dynamic_cast<BinArithOp*>(a->copy());
+		assert(new_bop != NULL);
+
+		if (new_lhs == lhs && new_rhs == rhs) {
+			delete new_lhs;
+			delete new_rhs;
+			return new_bop;
+		}
+
+		if (new_lhs != NULL) new_bop->setLHS(new_lhs);
+		if (new_rhs != NULL) new_bop->setRHS(new_rhs);
+
+		return new_bop;
+	}
+
+	virtual Expr* visit(const FCall* fc)
+	{
+		ExprList        *new_el;
+		const ExprList  *old_el;
+
+		old_el = fc->getExprs();
+		new_el = new ExprList();
+		for (   ExprList::const_iterator it = old_el->begin();
+			it != old_el->end();
+			it++)
+		{
+			Expr*		new_expr;
+			const Expr*	arg_expr;
+
+			arg_expr = *it;
+			new_expr = apply(arg_expr);
+			new_el->add(new_expr);
+		}
+
+		return new FCall(new Id(fc->getName()), new_el);
+	}
+
+
+	virtual Expr* visit(const IdArray* ida)
+	{
+		const Expr	*idx;
+		idx = ida->getIdx();
+		return new IdArray(new Id(ida->getName()), apply(idx));
+	}
+
+	virtual Expr* visit(const ExprParens* epa)
+	{
+		return new ExprParens(apply(epa->getExpr()));
+	}
+};
+
+
+
 
 #endif
