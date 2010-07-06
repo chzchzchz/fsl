@@ -152,18 +152,36 @@ func_stmts	: func_stmts func_stmt { $1->add($2); }
 		}
 		;
 
-func_stmt	: ident ident TOKEN_SEMI { } 
-		| ident array TOKEN_SEMI {}
-		| ident TOKEN_ASSIGN expr TOKEN_SEMI {}
-		| ident TOKEN_ASSIGNPLUS expr TOKEN_SEMI {}
-		| ident TOKEN_ASSIGNMINUS expr TOKEN_SEMI {}
-		| array TOKEN_ASSIGN expr TOKEN_SEMI {}
-		| array TOKEN_ASSIGNPLUS expr TOKEN_SEMI {}
-		| array TOKEN_ASSIGNMINUS expr TOKEN_SEMI {}
-		| TOKEN_RETURN expr TOKEN_SEMI {}
+func_stmt	: ident ident TOKEN_SEMI { $$ = new FuncDecl($1, (Id*)$2); } 
+		| ident array TOKEN_SEMI { $$ = new FuncDecl($1, (IdArray*)$2); }
+		| ident TOKEN_ASSIGN expr TOKEN_SEMI 
+		{
+			$$ = new FuncAssign((Id*)$1, $3);
+		}
+		| ident TOKEN_ASSIGNPLUS expr TOKEN_SEMI 
+		{
+			$$ = new FuncAssign((Id*)$1, new AOPAdd((Id*)$1, $3));
+		}
+		| ident TOKEN_ASSIGNMINUS expr TOKEN_SEMI 
+		{
+			$$ = new FuncAssign((Id*)$1, new AOPSub((Id*)$1, $3));
+		}
+		| array TOKEN_ASSIGN expr TOKEN_SEMI 
+		{
+			$$ = new FuncAssign((IdArray*)$1, $3);
+		}
+		| array TOKEN_ASSIGNPLUS expr TOKEN_SEMI 
+		{
+			$$ = new FuncAssign((IdArray*)$1, new AOPAdd((IdArray*)$1, $3));
+		}
+		| array TOKEN_ASSIGNMINUS expr TOKEN_SEMI 
+		{
+			$$ = new FuncAssign((IdArray*)$1, new AOPSub((IdArray*)$1, $3));
+		}
+		| TOKEN_RETURN expr TOKEN_SEMI { $$ = new FuncRet($2); }
 		| TOKEN_IF TOKEN_LPAREN cond_expr TOKEN_RPAREN func_stmt
 		{
-			
+			$$ = new FuncCondStmt($3, $5, NULL);
 		}
 		| TOKEN_IF TOKEN_LPAREN cond_expr TOKEN_RPAREN func_stmt TOKEN_ELSE func_stmt
 		{

@@ -218,9 +218,9 @@ public:
 	const std::string& getName(void) const { return id->getName(); }
 	void print(std::ostream& out) const
 	{
-		out << "fcall " << getName() << "("; 
+		out << "[ fcall " << getName() << "("; 
 		exprs->print(out);
-		out << ")";
+		out << ") ]";
 	}
 
 	FCall* copy(void) const 

@@ -5,24 +5,24 @@ const EXT2_INO_ROOT = 2;
 const EXT2_INO_LOADER = 5;
 const EXT2_INO_FIRST = 11;
 
-u32 get_block_size(ext2_sb sb)
+int get_block_size(ext2_sb sb)
 {
 	return (1024 << sb.s_log_block_sz);
 }
 
-u32 get_group_count(ext2_sb sb)
+int get_group_count(ext2_sb sb)
 {
-	return 1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/sb.blks_per_grp);
+	return 1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/sb.s_blks_per_grp);
 }
 
-u32 blocks_off(ext2_sb sb)
+int blocks_off(ext2_sb sb)
 {
 	return 1 + sb.s_first_data_block +
 		(get_group_count(sb)*sizeof(ext2_group_desc)+
 			get_block_size(sb)-1)/get_block_size(sb);
 }
 
-u32 inode_table_block_count(ext2_sb sb)
+int inode_table_block_count(ext2_sb sb)
 {
 	return (sizeof(ext2_inode)*sb.s_inos_per_grp + get_block_size(sb)-1)/ 
 		get_block_size(sb);
@@ -81,7 +81,7 @@ sum(used_dir_c)
 	u16	used_dir_c;
 	u16	pad;
 	u32	reserved[3];
-	assert_eq(from_base(), 32);
+	assert_eq(from_base(), 8*32);
 }
 
 type ext2_sb
@@ -117,7 +117,7 @@ type ext2_sb
 
 	/* finally, padding */
 	align(1024);
-	assert_eq(from_base(), 1024);
+	assert_eq(from_base(), 8*1024);
 }
 
 /* XXX add points-to here */
@@ -148,11 +148,12 @@ type ext2_inode
 
 ext2_inode ino_by_num(u32 ino_num)
 {
-	u32	ino_grp;
-	u32	ino_grp_idx;
-	u32	ino_grp_blk;
-	u32	table_base;
-	u32	blk_sz;
+	int	ino_grp;
+	int	ino_grp_idx;
+	int	ino_grp_blk;
+	int	ino_grp_blk_idx;
+	int	table_base;
+	int	blk_sz;
 
 	blk_sz = get_block_size(disk.sb);
 	ino_grp = ino_num / disk.sb.s_inos_per_grp;
@@ -163,7 +164,7 @@ ext2_inode ino_by_num(u32 ino_num)
 	table_base = disk.grp_desc_table[ino_grp].inode_table;
 	return disk.blocks[
 		table_base + ino_grp_blk - blocks_off(disk.sb)].ino_blk.ino[
-			ino_grp_blk_idx];
+			ino_grp_blk_idx].ino_blk;
 }
 
 type ext2_dir_entry

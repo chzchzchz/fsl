@@ -33,7 +33,25 @@ public:
 		freeData();
 	}
 
+	void setOwner(PhysicalType* new_owner) 
+	{
+		assert (owner == NULL);
+		owner = new_owner;
+	}
+
 	const PhysicalType* getOwner(void) const { return owner; }
+
+	const Type* getOwnerType(void) const 
+	{ 
+		const PhysTypeUser	*ptu;
+
+		ptu = dynamic_cast<const PhysTypeUser*>(getOwner());
+		if (ptu != NULL) {
+			return ptu->getType();
+		}
+
+		return NULL;
+	}
 
 	bool add(const std::string& name, PhysicalType* pt, Expr* offset_bits)
 	{
@@ -118,6 +136,10 @@ public:
 		const Expr* base_expr,
 		const TypeBlock* tb);
 
+	const SymbolTable* getBackRef(void) const { return backref; }
+
+	sym_map::const_iterator	begin(void) const { return sm.begin(); }
+	sym_map::const_iterator end(void) const { return sm.end(); }
 private:
 	bool loadTypeStmt(
 		const ptype_map&	tm,
@@ -153,7 +175,36 @@ private:
 	const SymbolTable*	backref;
 	PhysicalType*		owner;
 	sym_map			sm;
-
 };
+
+class SymTabBuilder : public TypeVisitAll
+{
+public:
+	SymTabBuilder(const ptype_map& ptypes) 
+	: cur_symtab(NULL),
+	  tm(ptypes),
+	  off(NULL),
+	  union_c(0),
+	  ret_pt(NULL) {}
+
+	virtual ~SymTabBuilder() {}
+	SymbolTable* getSymTab(const Type*, PhysTypeUser* &ptt);
+	virtual void visit(const TypeDecl* td);
+	virtual void visit(const TypeUnion* tu);
+	virtual void visit(const TypeParamDecl*);
+	virtual void visit(const TypeBlock* tb);
+	virtual void visit(const TypeCond* tb);
+	virtual void visit(const TypeFunc* tf);
+private:
+	void updateOffset(Expr* e);
+	void retType(PhysicalType* pt);
+
+	SymbolTable		*cur_symtab;
+	const ptype_map		&tm;
+	Expr			*off;
+	unsigned int		union_c;
+	PhysicalType		*ret_pt;
+};
+
 
 #endif

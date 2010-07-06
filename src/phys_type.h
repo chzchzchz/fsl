@@ -686,5 +686,39 @@ static inline PhysicalType* resolve_by_id(const ptype_map& tm, const Id* id)
 }
 
 
+/* return true if PT has a user-defined base type */
+inline static bool isPTaUserType(const PhysicalType* pt)
+{
+	const PhysTypeArray	*pta;
+
+	if (dynamic_cast<const PhysTypeUser*>(pt) != NULL)
+		return true;
+	if (dynamic_cast<const PhysTypeThunk*>(pt) != NULL) 	
+		return true;
+
+	pta = dynamic_cast<const PhysTypeArray*>(pt);
+	if (pta == NULL)
+		return false;
+
+	return isPTaUserType(pta->getBase());
+}
+
+/* convert a user-defined physical type into the proper type, if possible */
+inline static const Type* PT2Type(const PhysicalType* pt)
+{
+	const PhysTypeUser	*ptu;
+	const PhysTypeThunk	*ptthunk;
+
+	ptu = dynamic_cast<const PhysTypeUser*>(pt);
+	if (ptu != NULL) {
+		return ptu->getType();
+	}
+
+	ptthunk = dynamic_cast<const PhysTypeThunk*>(pt);
+	if (ptthunk != NULL)
+		return ptthunk->getType();
+
+	return NULL;
+}
 
 #endif

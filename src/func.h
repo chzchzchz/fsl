@@ -199,5 +199,6 @@ private:
 	FuncBlock	*block;
 };
 
+void gen_func_code(Func* f);
 
 #endif

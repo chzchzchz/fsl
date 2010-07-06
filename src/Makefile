@@ -6,9 +6,14 @@ OBJS=	parser.o	\
 	symtab.o	\
 	expr.o		\
 	cond.o		\
-	func.o
+	func.o		\
+	phys_type.o	\
+	evalctx.o	\
+	funcevalctx.o	\
+	thunk.o
 
-LLVM_FLAGS:=$(shell llvm-config --cxxflags --ldflags --libs core)
+LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core)
+LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual//")
 LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
 CFLAGS= -g $(LLVM_FLAGS) 
 

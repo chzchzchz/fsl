@@ -167,6 +167,19 @@ public:
 	{
 		return std::pair<Id*, Id*>(types[i], names[i]);
 	}
+
+	const Id* findType(const std::string& param_name) const
+	{
+		for (int i = 0; i < size(); i++) {
+			std::pair<Id*, Id*>	p(get(i));
+
+			if (param_name == (p.second)->getName()) {
+				return p.first;
+			}
+		}
+
+		return NULL;
+	}
 private:
 	std::vector<Id*>	types;
 	std::vector<Id*>	names;

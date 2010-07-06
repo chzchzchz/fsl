@@ -18,6 +18,28 @@ typedef std::map<std::string, class Type*>		type_map;
 
 extern int yylineno;
 
+class TypeDecl;
+class TypeUnion;
+class TypeParamDecl;
+class TypeBlock;
+class TypeCond;
+class TypeFunc;
+
+class TypeVisitor
+{
+public:
+	virtual ~TypeVisitor() {}
+
+	virtual void visit(const TypeDecl* td) = 0;
+	virtual void visit(const TypeUnion* tu) = 0;
+	virtual void visit(const TypeParamDecl* tpd) = 0;
+	virtual void visit(const TypeBlock* tb) = 0;
+	virtual void visit(const TypeCond* tb) = 0;
+	virtual void visit(const TypeFunc* tf) = 0;
+protected:
+	TypeVisitor() {}
+};
+
 class TypeStmt
 {
 public:
@@ -25,8 +47,6 @@ public:
 	virtual void print(std::ostream& out) const = 0;
 	unsigned int getLineNo() const { return lineno; }
 	void setLineNo(unsigned int l) { lineno = l; }
-
-	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const = 0;
 
 	const Type* getOwner() const
 	{
@@ -45,6 +65,7 @@ public:
 	}
 
 
+	virtual void accept(TypeVisitor* tv) const = 0;
 protected:
 	TypeStmt() : lineno(yylineno), owner(NULL) {}
 	const Type*	owner;
@@ -81,14 +102,18 @@ public:
 
 	void print(std::ostream& out) const;
 	
-	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
-
 	const std::string getName() const 
 	{
 		if (name != NULL)
 			return name->getName();
 		return array->getName();
 	}
+
+	virtual void accept(TypeVisitor* tv) const { tv->visit(this); }
+
+	const Id* getType(void) const { return type; }
+	const Id* getScalar(void) const { return name; }
+	const IdArray* getArray(void) const { return array; }
 private:
 	Id*		type;
 	Id*		name;
@@ -121,8 +146,6 @@ public:
 
 	void print(std::ostream& out) const;
 
-	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
-
 	const std::string getName() const 
 	{
 		if (name != NULL)
@@ -130,6 +153,11 @@ public:
 		return array->getName();
 	}
 
+	virtual void accept(TypeVisitor* tv) const { tv->visit(this); }
+
+	const FCall* getType(void) const { return type; }
+	const Id* getScalar(void) const { return name; }
+	const IdArray* getArray(void) const { return array; }
 private:
 	Id*		name;
 	IdArray*	array;
@@ -158,8 +186,7 @@ public:
 
 	const TypeStmt* getTrueStmt() const { return is_true; }
 	const TypeStmt* getFalseStmt() const { return is_false; }
-
-	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
+	const CondExpr* getCond() const { return cond; }
 
 	void setOwner(const Type* t) 
 	{
@@ -167,6 +194,8 @@ public:
 		is_true->setOwner(t);
 		if (is_false != NULL) is_false->setOwner(t);
 	}	
+
+	virtual void accept(TypeVisitor* tv) const { tv->visit(this); }
 private:
 	CondExpr	*cond;
 	TypeStmt	*is_true;
@@ -203,14 +232,14 @@ public:
 		return ret;
 	}
 
-	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
-
 	virtual void setOwner(const Type* t)
 	{
 		for (iterator it = begin(); it != end(); it++) {
 			(*it)->setOwner(t);
 		}
 	}
+
+	virtual void accept(TypeVisitor* tv) const { tv->visit(this); }
 };
 
 class TypeUnion : public TypeStmt
@@ -246,13 +275,15 @@ public:
 		block->print(out);
 	}
 
-	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
-
 	virtual void setOwner(const Type* t) 
 	{
 		TypeStmt::setOwner(t);
 		block->setOwner(t);
 	}
+
+	const TypeBlock* getBlock(void) const { return block; }
+
+	virtual void accept(TypeVisitor* tv) const { tv->visit(this); }
 private:
 	TypeBlock	*block;
 	Id		*name;
@@ -287,7 +318,9 @@ public:
 		return std::string(tmp_str);
 	}
 
-	virtual PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
+	virtual void accept(TypeVisitor* tv) const { tv->visit(this); }
+
+	const FCall* getFCall(void) const { return fcall; }
 private:
 	FCall*	fcall;
 };
@@ -316,11 +349,10 @@ public:
 
 	const std::string& getName(void) const { return name->getName(); }
 
-	PhysicalType* resolve(const Expr* base, const ptype_map& tm) const;
-
+	PhysicalType* resolve(const ptype_map& tm) const;
 	const ArgsList* getArgs(void) const { return args; }
-
 	class SymbolTable* getSyms(const ptype_map& tm) const;
+
 
 	std::list<const FCall*> getPreambles(const std::string& name) const;
 
@@ -345,6 +377,8 @@ public:
 		if (args == NULL) return 0;
 		return args->size();
 	}
+
+	const TypeBlock* getBlock() const { return block; }
 
 private:
 	Id		*name;
@@ -380,6 +414,68 @@ static unsigned int tstmt_count_conds(const TypeStmt* t)
 }
 
 
+class TypeVisitAll : public TypeVisitor
+{
+public:
+	virtual ~TypeVisitAll() {}
+
+	virtual void apply(const Type* t) 
+	{
+		visit(t->getBlock());
+	}
+
+	virtual void visit(const TypeDecl* td) { return; }
+
+	virtual void visit(const TypeUnion* tu)
+	{
+		const TypeBlock	*tb = tu->getBlock();
+		for (	TypeBlock::const_iterator it = tb->begin();
+			it != tb->end();
+			it++)
+		{
+			(*it)->accept(this);
+		}
+	}
+	virtual void visit(const TypeParamDecl* tpd) { return; }
+
+
+	virtual void visit(const TypeBlock* tb)
+	{	
+		for (	TypeBlock::const_iterator it = tb->begin();
+			it != tb->end();
+			it++)
+		{
+			(*it)->accept(this);
+		}
+	}
+
+	virtual void visit(const TypeCond* tc) 
+	{
+		tc->getTrueStmt()->accept(this);
+		if (tc->getFalseStmt() != NULL) {
+			tc->getFalseStmt()->accept(this);
+		}
+	}
+
+	virtual void visit(const TypeFunc* tf) { return; }
+
+protected:
+	TypeVisitAll() {}
+};
+
+
 std::ostream& operator<<(std::ostream& in, const Type& t);
+
+inline static std::string typeThunkName(const Type* t)
+{
+	return (std::string("__thunk_") + t->getName()) + "_bits";
+}
+
+inline static std::string typeOffThunkName(
+	const Type* t, const std::string& varname)
+{
+	return std::string("__thunkoff_")+t->getName()+"_"+varname+"_bits";
+}
+
 
 #endif
