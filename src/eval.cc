@@ -17,7 +17,6 @@ bool xxx_debug_eval = false;
 extern ptype_map	ptypes_map;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
-static Expr* evalReplace(const EvalCtx& ectx, Expr* expr);
 static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc);
 
 class ExprRewriteConsts : public ExprRewriteAll
@@ -91,11 +90,12 @@ public:
 	virtual Expr* visit(const FCall* fc)
 	{
 		Expr	*new_expr;
-		FCall	*new_fc;
 		
 		if (fc->getName() == "sizeof") {
-			return eval_rewrite_sizeof(ectx, fc);
-		}
+			Expr	*ret;
+			ret = eval_rewrite_sizeof(ectx, fc);
+			return ret;
+		} 
 
 		return ExprRewriteAll::visit(fc);
 	}
@@ -121,10 +121,11 @@ Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 
 static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc)
 {
-	const ExprList	*exprs;
-	Expr		*front;
-	Id		*front_id;
-	PhysicalType	*pt;
+	const ExprList			*exprs;
+	Expr				*front;
+	Id				*front_id;
+	PhysicalType			*pt;
+	ptype_map::const_iterator	it;
 
 	exprs = fc->getExprs();
 	if (exprs->size() != 1) {
@@ -143,13 +144,20 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc)
 		return NULL;
 	}
 
-	pt = ptypes_map[front_id->getName()];
+	it = ptypes_map.find(front_id->getName());
+	pt = (it == ptypes_map.end()) ? NULL : (*it).second;
+	if (pt != NULL)
+		return pt->getBytes();
+
+	it = ptypes_map.find(string("thunk_")+front_id->getName()) ;
+	pt = (it == ptypes_map.end()) ? NULL : (*it).second;
 	if (pt == NULL) {
 		cerr	<< "Could not find type for " << front_id->getName() 
 			<< endl;
 		return NULL;
 	}
 
+	/* XXX this is a thunk now, be smarter here */
 	return pt->getBytes();
 }
 
@@ -201,14 +209,10 @@ Expr* eval(const EvalCtx& ectx, const Expr* expr)
 		our_expr = evalReplace(ectx, our_expr);
 	}
 
-	cerr << "NEW EXPR: ";
-	our_expr->print(cerr);
-	cerr << endl;
-
 	return our_expr;
 }
 
-static Expr* evalReplace(const EvalCtx& ectx, Expr* expr)
+Expr* evalReplace(const EvalCtx& ectx, Expr* expr)
 {
 	Expr	*new_expr;
 

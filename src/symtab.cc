@@ -7,6 +7,9 @@
 
 using namespace std;
 
+extern const_map		constants;
+extern symtab_map		symtabs_thunked;
+
 static FCall	from_base_fc(new Id("from_base"), new ExprList());
 
 static PhysicalType* genAssertEq(const ExprList* args, unsigned int lineno)
@@ -92,23 +95,32 @@ SymbolTable* SymTabBuilder::getSymTab(const Type* t, PhysTypeUser* &ptu)
 	SymbolTable	*ret;
 
 	assert (cur_symtab == NULL);
-	assert (off == NULL);
+	assert (off_thunked == NULL);
+	assert (off_pure == NULL);
 	assert (ret_pt == NULL);
+
 	union_c = 0;
-	off = new Number(0);
+	off_thunked = new Id("__thunk_off_arg");
+	off_pure = new Number(0);
+
 	cur_symtab = new SymbolTable(NULL, NULL);
+	cur_type = t;
 
 	apply(t);
 
-	delete off;
-	off = NULL;
-	assert (union_c == 0);
+	cur_type = NULL;
 
-	ptu = new PhysTypeUser(t, ret_pt);
-	ret_pt = NULL;
+	delete off_thunked;
+	delete off_pure;
+	off_pure = NULL;
+	off_thunked = NULL;
+	assert (union_c == 0);
 
 	ret = cur_symtab;
 	cur_symtab = NULL;
+
+	ptu = new PhysTypeUser(t, ret_pt);
+	ret_pt = NULL;
 
 	return ret;
 }
@@ -120,7 +132,12 @@ void SymTabBuilder::updateOffset(Expr* length)
 		return;
 	}
 
-	off = new AOPAdd(off, length);
+	const EvalCtx	ectx(*cur_symtab, symtabs_thunked, constants);
+	off_pure = new AOPAdd(off_pure, length->simplify());
+	off_pure = evalReplace(ectx, off_pure);
+
+	off_thunked = new AOPAdd(off_thunked, length);
+	off_thunked = evalReplace(ectx, off_thunked);
 }
 
 void SymTabBuilder::visit(const TypeDecl* td)
@@ -141,10 +158,7 @@ void SymTabBuilder::visit(const TypeDecl* td)
 			bool		set_success;
 
 			exprs = new ExprList();
-			exprs->add(
-				new AOPAdd(
-					new Id("__thunk_off_arg"), 
-					off->copy()));
+			exprs->add(off_thunked->copy());
 
 			set_success = ptt->setArgs(exprs);
 			assert (set_success);
@@ -154,35 +168,25 @@ void SymTabBuilder::visit(const TypeDecl* td)
 		PhysicalType	*base;
 		PhysTypeThunk	*thunk_base;
 		Expr		*e, *e_tmp;
+		EvalCtx		ectx(*cur_symtab, symtabs_thunked, constants);
 
 		base = resolve_by_id_thunk(tm, td->getType());
 		if (base == NULL) return;
 
 		e = (array->getIdx())->simplify();
-		e_tmp = e->rewrite(&from_base_fc, off);
+		e_tmp = e->rewrite(&from_base_fc, off_pure);
 		if (e_tmp != NULL) {
 			delete e;
 			e = e_tmp;
 		}
-
-		/* We need to do a back resolution here.. */
-		/* XXX */
-		/* problem occurs if I have 
-		 * t1	abc;
-		 * t2	xyz[some_func(abc)];
-		 *
-		 * resulting index expression is some_func(abc)!!!
-		 */
+		e = evalReplace(ectx, e);
 
 		if ((thunk_base = dynamic_cast<PhysTypeThunk*>(base)) != NULL) {
 			ExprList	*exprs;
 			bool		set_success;
 
 			exprs = new ExprList();
-			exprs->add(
-				new AOPAdd(
-					new Id("__thunk_off_arg"),
-					off->copy()));
+			exprs->add(off_thunked->copy());
 			set_success = thunk_base->setArgs(exprs);
 		}
 
@@ -192,7 +196,7 @@ void SymTabBuilder::visit(const TypeDecl* td)
 		assert (0 == 1);
 	}
 
-	cur_symtab->add(td->getName(), pt, off->simplify());
+	cur_symtab->add(td->getName(), pt, off_thunked->simplify());
 	retType(pt->copy());
 	updateOffset(pt->getBits());
 }
@@ -210,24 +214,59 @@ void SymTabBuilder::visit(const TypeUnion* tu)
 {
 	TypeBlock::const_iterator		it;
 	const TypeBlock				*block;
-	PhysTypeUnion				*ret;
+	PhysTypeUnion				*pt_union;
+	PhysicalType				*ret;
+	string					symname;
 
 	union_c++;
 	block = tu->getBlock();
-	ret = new PhysTypeUnion("__union");
+	pt_union = new PhysTypeUnion("__union");
 	for (it = block->begin(); it != block->end(); it++) {
 		(*it)->accept(this);
 		if (ret_pt == NULL) {
 			continue;
 		}
 
-		ret->add(ret_pt->copy());
+		pt_union->add(ret_pt->copy());
 	}
 
 	union_c--;
 
+	if (tu->isArray()) {
+		EvalCtx	ectx(*cur_symtab, symtabs_thunked, constants);
+		Expr	*len, *len_tmp;
+
+		len = tu->getArray()->getIdx()->simplify();
+		len_tmp = len->rewrite(&from_base_fc, off_pure);
+		if (len_tmp != NULL) {
+			delete len;
+			len = len_tmp;
+		}
+
+		cerr << "DOING EVALREPLACE" << endl;
+		len = evalReplace(ectx, len);
+
+		cerr << "I HAVE OUR LEN = ";
+		len->print(cerr);
+		cerr << endl;
+
+		ret = new PhysTypeArray(pt_union, len);
+		symname = tu->getArray()->getName();
+	} else {
+		ret = pt_union;
+		symname = tu->getScalar()->getName();
+	}
+
+	cur_symtab->add(symname, ret->copy(), off_thunked->simplify());
 	updateOffset(ret->getBits());
 	retType(ret);
+
+	cerr << "TELL ME ABOUT THE UNION! " << symname << endl;
+	Expr	*tmp_expr;
+	tmp_expr = ret->getBits();
+	tmp_expr->print(cerr);
+	cerr << endl;
+	delete tmp_expr;
 }
 
 void SymTabBuilder::visit(const TypeParamDecl* tp)
@@ -270,7 +309,7 @@ void SymTabBuilder::visit(const TypeParamDecl* tp)
 		pt = new PhysTypeArray(pt, (tp->getArray()->getIdx())->copy());
 	}
 
-	cur_symtab->add(tp->getName(), pt, off->simplify());
+	cur_symtab->add(tp->getName(), pt, off_thunked->simplify());
 	updateOffset(pt->getBits());
 	retType(pt->copy());
 }
@@ -279,7 +318,6 @@ void SymTabBuilder::visit(const TypeBlock* tb)
 {
 	TypeBlock::const_iterator	it;
 	PhysTypeAggregate		*ret;
-	Expr				*cur_off;
 
 	ret = new PhysTypeAggregate("__block");
 
@@ -297,7 +335,6 @@ void SymTabBuilder::visit(const TypeBlock* tb)
 
 	/* no need to updateOffset-- internal fields should have done it.. */
 
-
 	/* but we should return the ptype.. */
 	retType(ret);
 }
@@ -305,16 +342,22 @@ void SymTabBuilder::visit(const TypeBlock* tb)
 void SymTabBuilder::visit(const TypeCond* tc)
 {
 	PhysicalType	*t, *f;
-	Expr		*old_off;
+	Expr		*old_off_pure, *old_off_thunked;
 
-	old_off = off->simplify();
+	old_off_pure = off_pure->simplify();
+	old_off_thunked = off_thunked->simplify();
+
 	(tc->getTrueStmt())->accept(this);
 	t = ret_pt->copy();
 
-	delete off;
-	off = old_off;
+	delete off_pure;
+	delete off_thunked;
 
-	old_off = off->simplify();
+	off_pure = old_off_pure;
+	off_thunked = old_off_thunked;
+
+	old_off_pure = off_pure->simplify();
+	old_off_thunked = off_thunked->simplify();
 	if (tc->getFalseStmt() != NULL) {
 		tc->getFalseStmt()->accept(this);
 		f = ret_pt->copy();
@@ -322,8 +365,8 @@ void SymTabBuilder::visit(const TypeCond* tc)
 		f = NULL;
 	}
 
-	delete off;
-	off = old_off;
+	delete off_pure;
+	delete off_thunked;
 
 	retType(cond_resolve(tc->getCond(), tm, t, f));
 	
@@ -331,7 +374,6 @@ void SymTabBuilder::visit(const TypeCond* tc)
 		return;
 
 	updateOffset(ret_pt->getBits());
-	
 }
 
 void SymTabBuilder::visit(const TypeFunc* tf)
@@ -346,31 +388,31 @@ void SymTabBuilder::visit(const TypeFunc* tf)
 
 	/* rewrite arguments */
 	args = (fcall->getExprs())->simplify();
-	args->rewrite(&from_base_fc, off);
+	args->rewrite(&from_base_fc, off_pure);
 	args_tmp = args->simplify();
 	delete args;
 	args = args_tmp;
-
 	if (func_name == "align") {
 		if (args->size() != 1) {
 			cerr 	<< tf->getLineNo() << 
 				": align takes exactly one argument" << endl;
 			ret = NULL;
 		} else {
+			Expr	*align_pad_bits;
+
+			align_pad_bits = new AOPMod(
+				new AOPSub(
+					new AOPMul(
+					(args->front())->simplify(),
+					new Number(8)),
+					off_pure->simplify()),
+				new AOPMul(
+					(args->front())->simplify(),
+					new Number(8)));
+
 			/* have a proper offset in the binding, align it.. */
 			/* note: aligning is (align_v - offset) % align_v */
-			ret = new PhysTypeArray(
-				new U1(),
-				new AOPMod(
-					new AOPSub(
-						new AOPMul(
-						(args->front())->simplify(),
-						new Number(8)),
-						off->simplify()),
-					new AOPMul(
-						(args->front())->simplify(),
-						new Number(8)))
-				);
+			ret = new PhysTypeArray(new U1(), align_pad_bits);
 		}
 	} else if (func_name == "skip") {
 		if (args->size() != 1) {
@@ -427,4 +469,209 @@ bool SymbolTable::loadArgs(const ptype_map& tm, const ArgsList *args)
 	return true;
 }
 
+SymbolTable* SymTabThunkBuilder::getSymTab(const Type* t, PhysicalType* &ptt)
+{
+	SymbolTable	*ret;
+
+	assert (cur_symtab == NULL);
+	assert (ret_pt == NULL);
+
+	cur_symtab = new SymbolTable(NULL, NULL);
+	cur_type = t;
+
+	apply(t);
+
+	ret = cur_symtab;
+	cur_symtab = NULL;
+	if (ret_pt != NULL) {
+		delete ret_pt;
+		ret_pt = NULL;
+	}
+
+	ptt = new PhysTypeThunk(cur_type, NULL);
+	cur_type = NULL;
+
+	return ret;
+}
+
+void SymTabThunkBuilder::retType(PhysicalType* pt)
+{
+	if (ret_pt != NULL)
+		delete ret_pt;
+	ret_pt = pt;
+}
+
+extern void dump_ptypes();
+
+void SymTabThunkBuilder::addToCurrentSymTab(
+	const std::string& 	type_str,
+	const std::string&	field_name,
+	const Id*		scalar,
+	const IdArray*		array,
+	ExprList*		type_args)
+{
+	const Type		*t;
+	PhysicalType		*passed_pt;
+	FCall			*passed_offset_fcall;
+	ExprList		*exprs;
+	const PhysicalType	*pt;
+
+
+	t = tm.getUserType(type_str);
+	pt = tm.getPT(type_str);
+
+	if (t = tm.getUserType(type_str)) {
+		passed_pt = new PhysTypeThunk(t, type_args);
+		if (array != NULL) { 
+			passed_pt = new PhysTypeArray(passed_pt, array->getIdx()->copy());
+		}
+	} else if (pt = tm.getPT(type_str)) {
+		passed_pt = pt->copy();
+		if (array != NULL) { 
+			passed_pt = new PhysTypeArray(passed_pt, array->getIdx()->copy());
+		}
+
+		if (type_args != NULL) {
+			cerr << "type args for a primitive type?? OOps" << endl;
+			delete type_args;
+		}
+	} else {
+		cout << "Couldn't resolve type string: " << type_str << endl;
+		dump_ptypes();
+		assert (0 == 1);
+	}
+	
+	exprs = new ExprList();
+	exprs->add(new Id("B_THIS_IS_THUNK_ARG"));
+	for (int i = 0; i < cur_type->getNumArgs(); i++) {
+		exprs->add(new Id("B_FILL_IN_THIS_ARG_ANTHONY"));
+	}
+
+	passed_offset_fcall = new FCall(
+		new Id(typeOffThunkName(cur_type, field_name)),
+		exprs);
+
+	retType(passed_pt->copy());
+
+	cur_symtab->add(field_name, passed_pt, passed_offset_fcall);
+}
+
+void SymTabThunkBuilder::addToCurrentSymTabAnonType(
+	const PhysicalType*	pt,
+	const std::string&	field_name,
+	const Id*		scalar,
+	const IdArray*		array)
+{
+	PhysicalType		*passed_pt;
+	FCall			*passed_offset_fcall;
+	ExprList		*exprs;
+
+	assert (pt != NULL);
+
+
+	passed_pt = pt->copy();
+	if (array != NULL) { 
+		passed_pt = new PhysTypeArray(passed_pt, array->getIdx()->copy());
+	}
+	
+	exprs = new ExprList();
+	exprs->add(new Id("A_THIS_IS_THUNK_ARG"));
+	for (int i = 0; i < cur_type->getNumArgs(); i++) {
+		exprs->add(new Id("A_FILL_IN_THIS_ARG_ANTHONY"));
+	}
+
+	passed_offset_fcall = new FCall(
+		new Id(typeOffThunkName(cur_type, field_name)),
+		exprs);
+
+	retType(passed_pt->copy());
+
+	cur_symtab->add(field_name, passed_pt, passed_offset_fcall);
+}
+
+
+
+void SymTabThunkBuilder::visit(const TypeDecl* td)
+{
+	addToCurrentSymTab(
+		td->getType()->getName(),
+		td->getName(), td->getScalar(), td->getArray(),
+		NULL);
+}
+
+void SymTabThunkBuilder::visit(const TypeBlock* tb)
+{
+	TypeBlock::const_iterator	it;
+	PhysTypeAggregate		*ret;
+
+	ret = new PhysTypeAggregate("__block" + cur_type->getName());
+
+	for (	TypeBlock::const_iterator it = tb->begin(); 
+		it != tb->end(); 
+		it++) 
+	{
+		(*it)->accept(this);
+		if (ret_pt == NULL) {
+			continue;
+		}
+
+		ret->add(ret_pt->copy());
+	}
+
+	/* but we should return the ptype.. */
+	retType(ret);
+}
+
+void SymTabThunkBuilder::visit(const TypeCond* tc)
+{
+	PhysicalType	*pt_t, *pt_f;
+
+	(tc->getTrueStmt())->accept(this);
+	pt_t = ret_pt->copy();
+
+	if (tc->getFalseStmt() != NULL) {
+		tc->getFalseStmt()->accept(this);
+		pt_f = ret_pt->copy();
+	} else {
+		pt_f = NULL;
+	}
+
+	retType(cond_resolve(tc->getCond(), tm, pt_t, pt_f));
+}
+
+
+void SymTabThunkBuilder::visit(const TypeUnion* tu)
+{
+	TypeBlock::const_iterator	it;
+	const TypeBlock			*block;
+	PhysTypeUnion			*pt_anon_union;
+
+	block = tu->getBlock();
+	pt_anon_union = new PhysTypeUnion("__union" + tu->getName());
+
+	for (it = block->begin(); it != block->end(); it++) {
+		(*it)->accept(this);
+		if (ret_pt != NULL)
+			continue;
+		pt_anon_union->add(ret_pt);
+	}
+
+	addToCurrentSymTabAnonType(
+		pt_anon_union, 
+		tu->getName(),
+		tu->getScalar(),
+		tu->getArray());
+
+	delete pt_anon_union;
+}
+
+
+
+void SymTabThunkBuilder::visit(const TypeParamDecl* tp)
+{
+	addToCurrentSymTab(
+		tp->getType()->getName(),
+		tp->getName(), tp->getScalar(), tp->getArray(),
+		(tp->getType()->getExprs())->copy());
+}
 

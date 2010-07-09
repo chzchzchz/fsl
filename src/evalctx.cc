@@ -66,10 +66,12 @@ Expr* EvalCtx::getStructExprBase(
 	first_idx = NULL;
 
 	if (toName(first_ids_expr, first_name, first_idx) == false) {
+		cerr << "FAILED TONAME" << endl;
 		return NULL;
 	}
 
 	if (first_symtab->lookup(first_name, sb) == false) {
+		cerr << "FAILED LOOKUP..." << first_name << endl;
 		if (first_idx != NULL) delete first_idx;
 		return NULL;
 	}
@@ -90,6 +92,7 @@ Expr* EvalCtx::getStructExprBase(
 
 		tmp_idx = new AOPSub(first_idx, new Number(1));
 		ret = new AOPAdd(ret, pta->getBits(tmp_idx));
+
 		delete tmp_idx;
 
 		cur_type = PT2Type(pta->getBase());
@@ -210,6 +213,7 @@ Expr* EvalCtx::getStructExpr(
 			 * (where did we come from and where are we going?)
 			 */
 
+			cerr << "REPLACING " << cur_type->getName() << endl;
 			ret = Expr::rewriteReplace(
 				ret, 
 				new Id(cur_type->getName()),
@@ -278,13 +282,28 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 
 	it = ids->begin();
 	front_id = dynamic_cast<const Id*>(*it);
-	if (front_id == NULL)
+	if (front_id == NULL) {
+		cerr << "NOT AN ID ON GLOBALSCOPE" << endl;
 		return NULL;
+	}
 
 	top_type = typeByName(front_id->getName());
 	top_symtab = symtabByName(front_id->getName());
 	if (top_symtab == NULL || top_type == NULL) {
-		/* coult not find in global scope.. */
+		/* could not find in global scope.. */
+		cerr << "FRONT_ID->GETNAME() = " << front_id->getName() << endl;
+		if (top_type == NULL) cerr << "COULD NOT FIND TOP_TYPE" << endl;
+		if (top_symtab == NULL) cerr << "COULD NOT FIND TOP_ST" << endl;
+	{
+	cout << "(dumping symtabs_thunked)" << endl;
+	for (	symtab_map::const_iterator it = all_types.begin();
+		it != all_types.end();
+		it++) 
+	{
+		cout << (*it).first << endl;	
+	}
+	}
+
 		return NULL;
 	}
 
@@ -298,8 +317,10 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 	offset = getStructExpr(base, top_symtab, it, ids->end(), ids_pt);
 	delete base;
 
-	if (offset == NULL)
+	if (offset == NULL) {
+		cerr << "NULLOFFSET" << endl;
 		return NULL;
+	}
 
 	if (isPTaUserType(ids_pt) == true) {
 		/* pointer.. */
@@ -395,6 +416,7 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 {	
 	Expr	*ret;
 
+	cerr << "Trying to resolve by curscope" << endl;
 	ret = resolveCurrentScope(ids);
 	if (ret != NULL)
 		return ret;
@@ -514,18 +536,11 @@ const Type* EvalCtx::typeByName(const std::string& s) const
 	const SymbolTable	*st;
 	const Type		*t;
 	const PhysicalType	*pt;
-	const PhysTypeUser	*ptu;
+
 
 	st = symtabByName(s);
 	if (st == NULL)
 		return NULL;
 
-	pt = st->getOwner();
-	assert (pt != NULL);
-
-	ptu = dynamic_cast<const PhysTypeUser*>(pt);
-	if (ptu == NULL)
-		return NULL;
-
-	return ptu->getType();
+	return st->getOwnerType();
 }

@@ -31,19 +31,22 @@ const FuncBlock		*gen_func_block;
 static type_map		types_map;
 type_list		types_list;
 const_map		constants;
-symtab_map		symtabs;
+symtab_map		symtabs_inlined;
+symtab_map		symtabs_thunked;
 
 llvm::Module		*mod;
 llvm::IRBuilder<> 	*builder;
 
 
-static void	load_user_types(const GlobalBlock* gb);
+static void	load_user_types_list(const GlobalBlock* gb);
 static bool	load_user_ptypes_thunk(void);
 static bool	load_user_ptypes_resolved(void);
 static void	load_primitive_ptypes(void);
-static void	build_sym_tables(void);
+static void	build_inline_symtabs(void);
 static bool	apply_consts_to_consts(void);
 static void	simplify_constants(void);
+static void	build_thunk_symtabs(void);
+
 
 static void load_primitive_ptypes(void)
 {
@@ -68,7 +71,7 @@ static void load_primitive_ptypes(void)
 	ptypes_map["uint"] = new U64();
 }
 
-static void load_user_types(const GlobalBlock* gb)
+static void load_user_types_list(const GlobalBlock* gb)
 {
 	GlobalBlock::const_iterator	it;
 	int				type_num;
@@ -133,6 +136,17 @@ static bool load_user_ptypes_thunk(void)
 	return success;
 }
 
+void dump_ptypes(void)
+{
+	for (	ptype_map::const_iterator p_it = ptypes_map.begin();
+		p_it != ptypes_map.end();
+		p_it++)
+	{
+		cerr << (*p_it).first << endl;
+	}
+
+}
+
 static bool load_user_ptypes_resolved(void)
 {
 	type_list::iterator	it;
@@ -144,12 +158,12 @@ static bool load_user_ptypes_resolved(void)
 		Type	*t;
 
 		t = *it;
+		cout << "adding.. " << t->getName() << endl;
 		if (ptypes_map.count(t->getName()) != 0) {
 			cerr << t->getName() << " already declared!" << endl;
 			success = false;
 			continue;
 		}
-
 
 		ptypes_map[t->getName()] = new PhysTypeUser(
 			t, t->resolve(ptypes_map));
@@ -182,10 +196,23 @@ static bool load_user_ptypes_resolved(void)
 	return success;
 }
 
+
+static void build_thunk_symtabs(void)
+{
+	type_list::iterator it;
+	for (it = types_list.begin(); it != types_list.end(); it++) {
+		Type		*t;
+		t = *it;
+		cout << "Building thunk symtab for " << t->getName() << endl;
+		symtabs_thunked[t->getName()] = t->getSymsThunked(ptypes_map);
+	}
+}
+
+
 /**
  * build up symbol tables, disambiguate if possible
  */
-static void build_sym_tables(void)
+static void build_inline_symtabs(void)
 {
 	type_list::iterator	it;
 
@@ -199,7 +226,7 @@ static void build_sym_tables(void)
 		cout << "Building symtab for " << t->getName() << endl;
 
 		syms = t->getSyms(ptypes_map);
-		symtabs[t->getName()] = syms;
+		symtabs_inlined[t->getName()] = syms;
 	}
 }
 
@@ -360,21 +387,12 @@ int main(int argc, char *argv[])
 
 	yyparse();
 
+	/* create prototypes for functions provided by the run-time */
 	load_runtime_funcs();
 
 	/* load ptypes in */
 	cout << "Loading ptypes" << endl;
 	load_primitive_ptypes();
-	cout << "Loading user types" << endl;
-	load_user_types(global_scope);
-	cout << "Loading ptype thunks" << endl;
-	load_user_ptypes_thunk();
-	cout << "Resolving user types" << endl;
-	load_user_ptypes_resolved();
-
-	/* next, build up symbol tables on types.. this is our type checking */
-	cout << "Building symbol tables" << endl;
-	build_sym_tables();
 
 	/* make consts resolve to numbers */
 	cout << "Setting up constants" << endl;
@@ -383,9 +401,26 @@ int main(int argc, char *argv[])
 	cout << "Simplifying constants" << endl;
 	simplify_constants();
 
+	cout << "Loading user types list" << endl;
+	load_user_types_list(global_scope);
+
+	cout << "Creating user type sym thunks" << endl;
+	load_user_ptypes_thunk();
+
+	cout << "Building thunk symbol tables" << endl;
+	build_thunk_symtabs();
+	
+	cout << "Resolving user types into expressions" << endl;
+	load_user_ptypes_resolved();
+
+	/* next, build up symbol tables on types.. this is our type checking */
+	cout << "Building inlined symbol tables" << endl;
+	build_inline_symtabs();
+
+
 	cout << "Generating thunk prototypes" << endl;
 	gen_thunk_proto();
-	gen_thunkoff_proto();
+	gen_thunkfield_proto();
 
 	/* generate function prototyes so that we can resolve thunks within
 	 * functions */
@@ -394,7 +429,7 @@ int main(int argc, char *argv[])
 
 	cout << "Loading thunks" << endl;
 	gen_thunk_code();
-	gen_thunkoff_code();
+	gen_thunkfield_code();
 
 	return 0;
 }

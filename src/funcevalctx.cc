@@ -10,123 +10,109 @@ Expr* FuncEvalCtx::getStructExpr(
 	const PhysicalType*		&final_type) const
 {
 	IdStruct::const_iterator	it;
-	Expr				*ret;
+	Expr				*ret = NULL;
+	Expr				*cur_idx = NULL;
 	const SymbolTable		*cur_symtab;
 
 
-	it = ids_first;
-	cerr << "OH, HELLO. \"";
-	(*it)->print(cerr);
-	cerr << "\"" << endl;
+	cerr << "YOU AND ME." << endl;
 
+	it = ids_first;
 	if (base == NULL) {
-		cerr << "NO BASE!" << endl;
 		ret = getStructExprBase(first_symtab, it, cur_symtab);
 		if (ret == NULL) {
-			cerr << "OOPS. BYE" << endl;
+			cerr << "COULD NOT FIND BASE" << endl;
 			return NULL;
 		}
 		it++;
 	} else {
-		cerr << "HAS BASE! ";
-		base->print(cerr);
-		cerr << endl;
-
+		cerr << "BASE IS PROVIDED." << endl;
 		ret = base->simplify();
 		cur_symtab = first_symtab;
 	}
 
 
+	cerr << "FOLLOW YOUR STUPID IDSTRUCT: ";
+	(*it)->print(cerr);
+	cerr << endl;
+
 	for (; it != ids_end; it++) {
 		const Expr		*cur_expr = *it;
 		std::string		cur_name;
-		Expr			*cur_idx;
 		PhysicalType		*cur_pt;
+		const PhysicalType	*pt_base;
+		const PhysTypeUnion	*ptunion;
 		PhysTypeArray		*pta;
 		sym_binding		sb;
-		Expr			*ret_begin;
 		const Type		*cur_type;
 
-		ret_begin = ret->simplify();
 		if (cur_symtab == NULL) {
 			/* no way we could possibly resolve the current 
 			 * element. */
-			delete ret;
-			delete ret_begin;
-			return NULL;
+			goto err_cleanup;
 		}
 
-		if (toName(cur_expr, cur_name, cur_idx) == false) {
-			delete ret;
-			delete ret_begin;
-			return NULL;
-		}
+		if (toName(cur_expr, cur_name, cur_idx) == false)
+			goto err_cleanup;
 
-		if (cur_symtab->lookup(cur_name, sb) == false) {
-			if (cur_idx != NULL) delete cur_idx;
-			delete ret;
-			delete ret_begin;
-			return NULL;
-		}
-
-		cerr << "THE NAME IS " << cur_name << endl;
+		if (cur_symtab->lookup(cur_name, sb) == false)
+			goto err_cleanup;
 
 		cur_pt = symbind_phys(sb);
 		pta = dynamic_cast<PhysTypeArray*>(cur_pt);
 		if (pta != NULL) {
-			ExprList	*exprs;
 			/* it's an array */
+
+			ExprList	*exprs;
+
 			if (cur_idx == NULL) {
 				cerr << "Array type but no index?" << endl;
-				delete ret;
-				delete ret_begin;
-				return NULL;
+				goto err_cleanup;
 			}
+
+			cur_type = PT2Type(pta->getBase());
 
 			exprs = new ExprList();
 			exprs->add(ret);
-
-			cerr << "CHECK THIS ARRAY EXPR: ";
-			ret->print(cerr);
-			cerr << endl;
 
 			ret = new FCall(
 				new Id(typeOffThunkName(
 					cur_symtab->getOwnerType(),
 					cur_name)),
 				exprs);
-			ret = new AOPAdd(ret, pta->getBits(cur_idx));
 
-			cerr << "OUR CUR IDX WAS ";
-			cur_idx->print(cerr);
-			cerr << endl;
-
-			Expr	*tmp_e;
-			tmp_e = pta->getBits(cur_idx);
-			cerr << "THE PTA->GETBITS() = ";
-			tmp_e->print(cerr);
-			cerr << endl;
-
-
-			delete cur_idx;
-
-			cerr << "UPDATED TO: ";
-			ret->print(cerr);
-			cerr << endl;
-
-			cur_type = PT2Type(pta->getBase());
-		} else {
-			ExprList	*exprs;
-
-			/* it's a scalar */
-			if (cur_idx != NULL) {
-				cerr << "Tried to index a scalar?" << endl;
-				delete cur_idx;
-				delete ret;
-				delete ret_begin;
-				return NULL;
+			if (cur_type == NULL) {
+				ret = new AOPAdd(ret, pta->getBits(cur_idx));
+			} else {
+				/* force thunk when calculating length  */
+				exprs = new ExprList();
+				exprs->add(ret->simplify());
+				ret = new AOPAdd(
+					ret,
+					new AOPMul(
+						cur_idx->simplify(),
+						new FCall(
+						new Id(typeThunkName(cur_type)),
+						exprs)
+					)
+				);
 			}
 
+			delete cur_idx;
+			cur_idx = NULL;
+
+			pt_base = pta->getBase();
+		} else {
+			/* it's a scalar */
+
+			ExprList	*exprs;
+
+			if (cur_idx != NULL) {
+				cerr << "Tried to index a scalar. Bail" << endl;
+				goto err_cleanup;
+			}
+
+			pt_base = cur_pt;
 			exprs = new ExprList();
 			exprs->add(ret);
 			ret = new FCall(
@@ -136,27 +122,32 @@ Expr* FuncEvalCtx::getStructExpr(
 				exprs);
 			cur_type = PT2Type(cur_pt);
 		}
+		assert (cur_idx == NULL);
+
+		ptunion = dynamic_cast<const PhysTypeUnion*>(pt_base);
+		if (ptunion != NULL) {
+			/* ... hit a union.. what to do here?? */
+			assert (0 == 1);
+		}
 
 		if (cur_type == NULL) {
 			cur_symtab = NULL;
-			delete ret_begin;
 		} else {
-			/* don't forget to replace any instances of the 
-			 * used type with the name of the field being accessed!
-			 * (where did we come from and where are we going?)
-			 */
-
-			ret = Expr::rewriteReplace(
-				ret, 
-				new Id(cur_type->getName()),
-				ret_begin);
-
+			/* move to next symtab */
+			cerr << "WHATTTTT." << endl;
 			cur_symtab = symtabByName(cur_type->getName());
 		}
 
 		final_type = cur_pt;
 	}
 
+	assert (cur_idx == NULL);
 	return ret;
+
+err_cleanup:
+	cerr << "FUNCRESOLVE ERROR!" << endl;
+	if (ret != NULL) delete ret;
+	if (cur_idx != NULL) delete cur_idx;
+	return NULL;
 }
 

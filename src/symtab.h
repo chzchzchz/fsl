@@ -44,10 +44,16 @@ public:
 	const Type* getOwnerType(void) const 
 	{ 
 		const PhysTypeUser	*ptu;
+		const PhysTypeThunk	*ptt;
 
 		ptu = dynamic_cast<const PhysTypeUser*>(getOwner());
 		if (ptu != NULL) {
 			return ptu->getType();
+		}
+
+		ptt = dynamic_cast<const PhysTypeThunk*>(getOwner());
+		if (ptt != NULL ) {
+			return ptt->getType();
 		}
 
 		return NULL;
@@ -177,13 +183,52 @@ private:
 	sym_map			sm;
 };
 
+class SymTabThunkBuilder : public TypeVisitAll
+{
+public:
+	SymTabThunkBuilder(const ptype_map& ptypes) 
+	: cur_symtab(NULL),
+	  cur_type(NULL),
+	  tm(ptypes),
+	  ret_pt(NULL) {}
+
+	virtual ~SymTabThunkBuilder() {}
+	SymbolTable* getSymTab(const Type*, PhysicalType * &ptt);
+	virtual void visit(const TypeDecl* td);
+	virtual void visit(const TypeUnion* tu);
+	virtual void visit(const TypeParamDecl*);
+	virtual void visit(const TypeBlock* tb);
+	virtual void visit(const TypeCond* tb);
+
+private:
+	void retType(PhysicalType* pt);
+	void addToCurrentSymTabAnonType(
+		const PhysicalType*	pt,
+		const std::string&	field_name,
+		const Id*		scalar,
+		const IdArray*		array);
+
+	void addToCurrentSymTab(
+		const std::string& 	type_str,
+		const std::string&	field_name,
+		const Id*		scalar,
+		const IdArray*		array,
+		ExprList*		type_args);
+
+	SymbolTable		*cur_symtab;
+	const Type		*cur_type;
+	const ptype_map		&tm;
+	PhysicalType		*ret_pt;
+};
+
 class SymTabBuilder : public TypeVisitAll
 {
 public:
 	SymTabBuilder(const ptype_map& ptypes) 
 	: cur_symtab(NULL),
 	  tm(ptypes),
-	  off(NULL),
+	  off_thunked(NULL),
+	  off_pure(NULL),
 	  union_c(0),
 	  ret_pt(NULL) {}
 
@@ -195,13 +240,16 @@ public:
 	virtual void visit(const TypeBlock* tb);
 	virtual void visit(const TypeCond* tb);
 	virtual void visit(const TypeFunc* tf);
+
 private:
 	void updateOffset(Expr* e);
 	void retType(PhysicalType* pt);
 
 	SymbolTable		*cur_symtab;
+	const Type		*cur_type;
 	const ptype_map		&tm;
-	Expr			*off;
+	Expr			*off_thunked;	/* uses thunk_off_arg */
+	Expr			*off_pure;	/* does not use off_arg */
 	unsigned int		union_c;
 	PhysicalType		*ret_pt;
 };

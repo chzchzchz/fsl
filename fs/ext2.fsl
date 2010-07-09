@@ -43,20 +43,20 @@ type disk
 	align(get_block_size(sb));
 	
 	union {
-		ext2_inode_block(sb)	ino_blk;
+		ext2_inode_block	ino_blk;
 		ext2_bmp_blk		blk_bmp;
 		ext2_bmp_ino		ino_bmp;
-		ext2_data_block(sb)	data;
+		ext2_data_block		data;
 	}blocks[sb.s_blocks_c - from_base()/get_block_size(sb)];
 	
 }
 
-type ext2_inode_block(ext2_sb sb)
+type ext2_inode_block
 {
 	ext2_inode	ino[get_block_size(sb)/sizeof(ext2_inode)];
 }
 
-type ext2_data_block(ext2_sb sb)
+type ext2_data_block
 {
 	u8	data[get_block_size(sb)];
 }

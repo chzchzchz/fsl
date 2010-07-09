@@ -25,7 +25,7 @@ llvm_var_map			thunk_var_map;
 extern type_list		types_list;
 extern ptype_map		ptypes_map;	/* XXX add to evalctx? */
 extern const_map		constants;
-extern symtab_map		symtabs;
+extern symtab_map		symtabs_inlined;
 
 extern llvm::Module		*mod;
 extern llvm::IRBuilder<> 	*builder;
@@ -38,10 +38,10 @@ static void gen_thunk_code_from_type(
 	const Type* t,
 	llvm::Function* &thunk_bytes, llvm::Function* &thunk_bits);
 static void gen_thunk_proto_from_type(Type* t);
-static void gen_thunkoff_proto_from_type(const Type* t);
+static void gen_thunkfield_proto_from_type(const Type* t);
 
-static void gen_thunkoff_code_from_type(const Type* t);
-static void gen_thunkoff_code_from_typefield(
+static void gen_thunkfield_code_from_type(const Type* t);
+static void gen_thunkfield_code_from_typefield(
 	const Type* t, 
 	const string& var_name,
 	const SymbolTable* local_syms,
@@ -66,14 +66,14 @@ void gen_thunk_proto(void)
 	}
 }
 
-void gen_thunkoff_proto(void)
+void gen_thunkfield_proto(void)
 {
 	for (	type_list::iterator it = types_list.begin(); 
 		it != types_list.end();
 		it++)
 	{
 		cout << "GEN THUNKOFF PROTO " << (*it)->getName() << endl;
-		gen_thunkoff_proto_from_type(*it);
+		gen_thunkfield_proto_from_type(*it);
 	}
 }
 
@@ -97,14 +97,14 @@ void gen_thunk_code(void)
 	}
 }
 
-void gen_thunkoff_code(void)
+void gen_thunkfield_code(void)
 {
 	for (	type_list::iterator it = types_list.begin(); 
 		it != types_list.end();
 		it++)
 	{
 		cout << "GEN THUNKOFF PROTO " << (*it)->getName() << endl;
-		gen_thunkoff_code_from_type(*it);
+		gen_thunkfield_code_from_type(*it);
 	}
 }
 
@@ -139,15 +139,15 @@ static void gen_thunk_code_from_type(
 
 	local_syms = new SymbolTable(NULL, NULL);
 	Id	*off_name = new Id("__thunk_off_arg");
-	local_syms->copyInto(*(symtabs[t->getName()]), off_name);
+	local_syms->copyInto(*(symtabs_inlined[t->getName()]), off_name);
 	delete off_name;
 
 	expr_eval_bits = eval(
-		EvalCtx(*local_syms, symtabs, constants),
+		EvalCtx(*local_syms, symtabs_inlined, constants),
 		expr_bits);
 
 	expr_eval_bytes = eval(
-		EvalCtx(*local_syms, symtabs, constants),
+		EvalCtx(*local_syms, symtabs_inlined, constants),
 		expr_bytes);
 
 
@@ -213,7 +213,7 @@ static void gen_thunk_proto_from_type(Type* t)
 }
 
 
-static void gen_thunkoff_code_from_typefield(
+static void gen_thunkfield_code_from_typefield(
 	const Type* t, 
 	const string& var_name,
 	const SymbolTable* local_syms,
@@ -232,7 +232,7 @@ static void gen_thunkoff_code_from_typefield(
 	f_bits = mod->getFunction(fcall_bits);
 	assert (f_bits != NULL);
 
-	if ((symtabs[t->getName()])->lookup(var_name, sb) == false) {
+	if ((symtabs_inlined[t->getName()])->lookup(var_name, sb) == false) {
 		/* should always exist */
 		assert (0 == 1);
 	}
@@ -240,7 +240,7 @@ static void gen_thunkoff_code_from_typefield(
 	expr_bits = symbind_off(sb);
 
 	expr_eval_bits = eval(
-		EvalCtx(*local_syms, symtabs, constants),
+		EvalCtx(*local_syms, symtabs_inlined, constants),
 		expr_bits);
 
 	cerr << "GENERATED OFFTHUNK FOR " << var_name << endl;
@@ -266,14 +266,14 @@ static void gen_thunkoff_code_from_typefield(
 /**
  * generate *code* for all offsets in type
  */
-static void gen_thunkoff_code_from_type(const Type* t)
+static void gen_thunkfield_code_from_type(const Type* t)
 {
 	SymbolTable		*st;
 	SymbolTable		*local_syms;
 	string			type_name(t->getName());
 	sym_map::const_iterator	it;
 
-	st = symtabs[t->getName()];
+	st = symtabs_inlined[t->getName()];
 	assert (st != NULL);
 
 	/* protos should have already been generated. */
@@ -289,30 +289,36 @@ static void gen_thunkoff_code_from_type(const Type* t)
 		llvm::Function	*f_bits;
 
 		cerr << "GENERATING THUNK OFF CODE FOR " << field_name << endl;
-		gen_thunkoff_code_from_typefield(
+		gen_thunkfield_code_from_typefield(
 			t, field_name, local_syms, f_bits);
 	}
 
 	delete local_syms;
 }
 
-static void gen_thunkoff_proto_from_type(const Type* t)
+static void gen_thunkfield_proto_from_type(const Type* t)
 {
 	SymbolTable		*st;
-	SymbolTable		*local_syms;
 	string			type_name(t->getName());
 	sym_map::const_iterator	it;
 
-	st = symtabs[t->getName()];
+	st = symtabs_inlined[t->getName()];
 	assert (st != NULL);
 
 	for (it = st->begin(); it != st->end(); it++) {
-		string		name((*it).first);
-		sym_binding	sb((*it).second);
+		string			name((*it).first);
+		sym_binding		sb((*it).second);
+		const PhysicalType	*pta;
 
 		gen_proto_by_name(
 			t, 
 			typeOffThunkName(t, name));
+
+		pta = dynamic_cast<const PhysTypeArray*>(symbind_phys(sb));
+		if (pta != NULL) {
+			/* generate thunkfield length */
+
+		}
 	}
 }
 

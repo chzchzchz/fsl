@@ -117,3 +117,49 @@ PhysicalType* Type::resolve(const ptype_map& tm) const
 
 	return ptu;
 }
+
+SymbolTable* Type::getSymsThunked(const ptype_map& tm) const
+{
+	SymTabThunkBuilder	*sbuilder;
+	SymbolTable		*st;
+	PhysicalType		*ptt;
+
+	sbuilder = new SymTabThunkBuilder(tm);
+	st = sbuilder->getSymTab(this, ptt);
+	st->setOwner(ptt);
+	delete sbuilder;
+
+	return st;
+}
+
+const Type* ptype_map::getUserType(const std::string& name) const
+{
+	const PhysicalType	*pt;
+
+	pt = getPT(name);
+	if (pt == NULL)
+		return NULL;
+
+
+	return PT2Type(pt);
+}
+
+const PhysicalType* ptype_map::getPT(const std::string& name) const
+{
+	const PhysicalType		*pt;
+	const_iterator			it;
+
+	/* try to resovle type directly */
+	it = find(name);
+	if (it != end()) {
+		return (*it).second;
+	}
+
+	/* type does not resolve directly, may have a thunk available */
+	it = find(std::string("thunk_") + name);
+	if (it == end()) {
+		return NULL;
+	}	
+
+	return ((*it).second);
+}

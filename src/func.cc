@@ -18,7 +18,7 @@ extern ptype_map	ptypes_map;
 extern const FuncBlock	*gen_func_block;
 extern const Func	*gen_func;
 extern const_map	constants;
-extern symtab_map	symtabs;
+extern symtab_map	symtabs_thunked;
 
 static bool gen_func_code_args(
 		const Func* f,
@@ -101,11 +101,11 @@ Value* FuncAssign::codeGen(const EvalCtx* ectx) const
 {
 	Value	*e_v;
 
-	cerr << "ASSIGN!: ";
+	cerr << "FuncAssign: ";
 	expr->print(cerr);
 	cerr << endl;
 	e_v = evalAndGen(*ectx, expr);
-	cerr << "ASSIGN SUCCESSSSSSSSSS!" << endl;
+	cerr << "FuncAssign: evalAndGen done." << endl;
 
 	if (e_v == NULL) {
 		cerr << getLineNo() << ": Could not eval ";
@@ -136,9 +136,8 @@ Value* FuncRet::codeGen(const EvalCtx* ectx) const
 	cerr << endl;
 
 	e_v = evalAndGen(*ectx, expr);
-	cerr << "SUCCESSFUL GENERATION! YES!" << endl;
 	if (e_v == NULL) {
-		cerr << getLineNo() << ": Could not eval ";
+		cerr << getLineNo() << ": FuncRet could not eval ";
 		expr->print(cerr);
 		cerr << endl;
 	}
@@ -325,7 +324,7 @@ void gen_func_code(Func* f)
 	cur_scope->loadArgs(ptypes_map, f->getArgs());
 
 	/* scope takes args */
-	ectx = new FuncEvalCtx(*cur_scope, symtabs, constants);
+	ectx = new FuncEvalCtx(*cur_scope, symtabs_thunked, constants);
 	
 	f_bb = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", llvm_f);

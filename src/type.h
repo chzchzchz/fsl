@@ -12,7 +12,14 @@
 #include "collection.h"
 #include "expr.h"
 
-typedef std::map<std::string, class PhysicalType*>	ptype_map;
+class ptype_map : public std::map<std::string, class PhysicalType*>
+{
+public:
+	virtual ~ptype_map() {}
+	const class Type* getUserType(const std::string& name) const;
+	const PhysicalType* getPT(const std::string& name) const;
+};
+
 typedef std::list<class Type*>				type_list;
 typedef std::map<std::string, class Type*>		type_map;
 
@@ -283,6 +290,14 @@ public:
 
 	const TypeBlock* getBlock(void) const { return block; }
 
+	const Id* getScalar(void) const { return name; }
+	const IdArray* getArray(void) const { return array; }
+	bool isArray(void) const { return (array != NULL); }
+	const std::string& getName(void) const
+	{
+		return ((name != NULL) ? name->getName() : array->getName());
+	}
+
 	virtual void accept(TypeVisitor* tv) const { tv->visit(this); }
 private:
 	TypeBlock	*block;
@@ -352,6 +367,7 @@ public:
 	PhysicalType* resolve(const ptype_map& tm) const;
 	const ArgsList* getArgs(void) const { return args; }
 	class SymbolTable* getSyms(const ptype_map& tm) const;
+	class SymbolTable* getSymsThunked(const ptype_map& tm) const;
 
 
 	std::list<const FCall*> getPreambles(const std::string& name) const;
@@ -477,5 +493,9 @@ inline static std::string typeOffThunkName(
 	return std::string("__thunkoff_")+t->getName()+"_"+varname+"_bits";
 }
 
+inline static std::string typeThunkNameBytes(const Type* t)
+{
+	return (std::string("__thunk_") + t->getName()) + "_bytes";
+}
 
 #endif

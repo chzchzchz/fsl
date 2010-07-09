@@ -40,28 +40,6 @@ private:
 	std::string name;
 };
 
-#if 0
-class PhysTypeDisk : public PhysicalType
-{
-public:
-	PhysTypeDisk(void) : PhysicalType(disk) {}
-
-	virtual ~PhysTypeDisk() {}
-
-	virtual Expr* getBits(void) const
-	{
-		return new FCall(new Id("__disk_bits"), new ExprList());
-	}
-
-	virtual Expr* getBytes(void) const
-	{
-		return new FCall(new Id("__disk_bits"), new ExprList());
-	}
-
-	virtual PhysicalType* copy(void) const { return new PhysTypeDisk(); }
-};
-#endif
-
 class PhysTypeFunc : public PhysicalType
 {
 public:
@@ -241,18 +219,16 @@ public:
 	virtual Expr* getBytes(void) const
 	{
 		assert (exprs != NULL);
-		return new FCall(new Id(
-			std::string("__thunk_")	
-			+ type->getName() + std::string("_bytes")), 
+		return new FCall(
+			new Id(typeThunkNameBytes(type)),
 			exprs->simplify());
 	}
 
 	virtual Expr* getBits(void) const
 	{
 		assert (exprs != NULL);
-		return new FCall(new Id(
-			std::string("__thunk_")	
-			+ type->getName() + std::string("_bytes")), 
+		return new FCall(
+			new Id(typeThunkName(type)), 
 			exprs->simplify());
 	}
 
@@ -273,7 +249,6 @@ public:
 		if (exprs != NULL) delete exprs;
 
 		exprs = args;
-		//exprs->insert(exprs->begin(), new Id(type->getName()));
 
 		return true;
 	}
@@ -282,6 +257,7 @@ private:
 	const Type	*type;
 	ExprList	*exprs;
 };
+
 
 class PhysTypeArray : public PhysicalType
 {
@@ -329,7 +305,7 @@ public:
 	}
 
 	const PhysicalType* getBase() const { return base; }
-
+	const Expr* getLength(void) const { return len; }
 private:
 	PhysicalType	*base;
 	Expr		*len;
@@ -663,62 +639,14 @@ static inline PhysicalType* resolve_by_id_thunk(
 	return ((*it).second)->copy();
 }
 
-static inline PhysicalType* resolve_by_id(const ptype_map& tm, const Id* id)
-{
-	const std::string&		id_name(id->getName());
-	ptype_map::const_iterator	it;
-
-	/* try to resovle type directly */
-	it = tm.find(id_name);
-	if (it != tm.end()) {
-		return ((*it).second)->copy();
-	}
-
-	/* type does not resolve directly, may have a thunk available */
-	it = tm.find(std::string("thunk_") + id_name);
-	if (it == tm.end()) {
-		std::cerr << "Could not resolve type: ";
-		std::cerr << id_name << std::endl;
-		return NULL;
-	}	
-
-	return ((*it).second)->copy();
-}
-
+PhysicalType* resolve_by_id(const ptype_map& tm, const Id* id);
 
 /* return true if PT has a user-defined base type */
-inline static bool isPTaUserType(const PhysicalType* pt)
-{
-	const PhysTypeArray	*pta;
-
-	if (dynamic_cast<const PhysTypeUser*>(pt) != NULL)
-		return true;
-	if (dynamic_cast<const PhysTypeThunk*>(pt) != NULL) 	
-		return true;
-
-	pta = dynamic_cast<const PhysTypeArray*>(pt);
-	if (pta == NULL)
-		return false;
-
-	return isPTaUserType(pta->getBase());
-}
+bool isPTaUserType(const PhysicalType* pt);
 
 /* convert a user-defined physical type into the proper type, if possible */
-inline static const Type* PT2Type(const PhysicalType* pt)
-{
-	const PhysTypeUser	*ptu;
-	const PhysTypeThunk	*ptthunk;
+const Type* PT2Type(const PhysicalType* pt);
 
-	ptu = dynamic_cast<const PhysTypeUser*>(pt);
-	if (ptu != NULL) {
-		return ptu->getType();
-	}
-
-	ptthunk = dynamic_cast<const PhysTypeThunk*>(pt);
-	if (ptthunk != NULL)
-		return ptthunk->getType();
-
-	return NULL;
-}
+PhysicalType* thunkify(const PhysicalType* pt, ExprList* thunk_exprs);
 
 #endif

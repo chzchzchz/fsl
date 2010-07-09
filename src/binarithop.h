@@ -28,11 +28,10 @@ public:
 		if (simplified == true)
 			return;
 
-			
 		new_lhs = e_lhs->simplify();
 		new_rhs = e_rhs->simplify();
-		delete e_lhs;
-		delete e_rhs;
+		if (new_lhs != e_lhs) delete e_lhs;
+		if (new_rhs != e_rhs) delete e_rhs;
 		e_lhs = new_lhs;
 		e_rhs = new_rhs;
 		simplified = true;
