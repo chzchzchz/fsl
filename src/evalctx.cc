@@ -62,6 +62,8 @@ Expr* EvalCtx::getStructExprBase(
 	const Type		*cur_type;
 	Expr			*ret;
 
+	cerr << "FINDING THE BASE" << endl;
+
 	first_ids_expr = *it_begin;
 	first_idx = NULL;
 
@@ -115,7 +117,11 @@ Expr* EvalCtx::getStructExprBase(
 	}
 
 	assert (cur_type != NULL);
+
+	cerr << "WHAT LUCK: TYPENAME = " << cur_type->getName() << endl;
 	next_symtab = symtabByName(cur_type->getName());
+
+	cerr << "getStructExprBase DONE" << endl;
 
 	return ret;
 }
@@ -311,7 +317,8 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 	base_exprs->add(new Number(top_type->getTypeNum()));
 	base = new FCall(new Id("__getDyn"), base_exprs);
 
-	cerr<< "Found " << top_type->getName() << " in global scope." << endl;
+	cerr<< "**Found " << top_type->getName() << " in global scope." << endl;
+	cerr << endl;
 
 	it++;
 	offset = getStructExpr(base, top_symtab, it, ids->end(), ids_pt);
@@ -380,6 +387,10 @@ Expr* EvalCtx::resolveFuncArg(const IdStruct* ids) const
 	}
 
 	top_type = typeByName(type_name->getName());
+	if (top_type == NULL) {
+		/* id struct should only be referencing user types-- no primitives!  */
+	}
+
 	top_symtab = symtabByName(type_name->getName());
 	if (top_symtab == NULL || top_type == NULL) {
 		/* could not find type given by argslist */
@@ -394,6 +405,7 @@ Expr* EvalCtx::resolveFuncArg(const IdStruct* ids) const
 	if (offset == NULL) {
 		return NULL;
 	}
+	
 
 	if (isPTaUserType(ids_pt) == true)
 		return offset;

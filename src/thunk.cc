@@ -204,12 +204,61 @@ static void gen_proto_by_name(const Type* t, string fcall_name)
 	assert (f->getName() == fcall_name);
 }
 
+class UnionThunkProtoGen :  protected TypeVisitAll
+{
+public:
+	UnionThunkProtoGen() : cur_type (NULL) {}
+
+	virtual void genUnionProtos(const Type* t) 
+	{
+		assert (cur_type == NULL);
+		cout << "WOOOOOOOOOO" << endl;
+		cur_type = t;
+		apply(t);
+		cur_type = NULL;
+	}
+
+	virtual void visit(const TypeUnion* tu)
+	{
+		cerr << "GENERATING: " << 
+			(string("__thunk___union_")
+				+ cur_type->getName()
+				+ "_" + tu->getName()
+				+ "_bits") << endl;
+		gen_proto_by_name(
+			cur_type, 
+			string("__thunk___union_")
+				+ cur_type->getName()
+				+ "_" + tu->getName()
+				+ "_bits");
+		gen_proto_by_name(
+			cur_type, 
+			string("__thunk___union_")
+				+ cur_type->getName()
+				+ "_" + tu->getName()
+				+ "_bytes");
+
+		TypeVisitAll::visit(tu);
+	}
+
+	virtual ~UnionThunkProtoGen() { assert (cur_type == NULL); }
+protected:
+private:
+	const Type* cur_type;
+};
+
 static void gen_thunk_proto_from_type(Type* t)
 {
+	UnionThunkProtoGen	*union_thunk_gen;
+
 	gen_proto_by_name(
 		t, string("__thunk_") + t->getName() + "_bits");
 	gen_proto_by_name(
 		t, string("__thunk_") + t->getName() + "_bytes");
+
+	union_thunk_gen = new UnionThunkProtoGen();
+	union_thunk_gen->genUnionProtos(t);
+	delete union_thunk_gen;
 }
 
 

@@ -469,6 +469,30 @@ bool SymbolTable::loadArgs(const ptype_map& tm, const ArgsList *args)
 	return true;
 }
 
+
+SymbolTable* SymTabThunkBuilder::getSymTab(const TypeBlock* tb, PhysicalType* &ptt)
+{
+	SymbolTable	*ret;
+
+	assert (cur_symtab == NULL);
+	assert (ret_pt == NULL);
+
+	cur_symtab = new SymbolTable(NULL, NULL);
+	cerr << "OH HELLO" << endl;
+	cur_type = tb->getOwner();
+	cerr << "WE GOT IT! YOU GOT IT!" << endl;
+
+	visit(tb);
+
+	ret = cur_symtab;
+	cur_symtab = NULL;
+
+	ptt = ret_pt;
+	cur_type = NULL;
+
+	return ret;
+}
+
 SymbolTable* SymTabThunkBuilder::getSymTab(const Type* t, PhysicalType* &ptt)
 {
 	SymbolTable	*ret;
@@ -647,7 +671,8 @@ void SymTabThunkBuilder::visit(const TypeUnion* tu)
 	PhysTypeUnion			*pt_anon_union;
 
 	block = tu->getBlock();
-	pt_anon_union = new PhysTypeUnion("__union" + tu->getName());
+	pt_anon_union = new PhysTypeUnion(
+		"__union_"+cur_type->getName()+"_"+tu->getName());
 
 	for (it = block->begin(); it != block->end(); it++) {
 		(*it)->accept(this);
@@ -655,6 +680,16 @@ void SymTabThunkBuilder::visit(const TypeUnion* tu)
 			continue;
 		pt_anon_union->add(ret_pt);
 	}
+
+	SymTabThunkBuilder	*stb = new SymTabThunkBuilder(tm);
+	SymbolTable		*union_symtab = NULL;
+	PhysicalType		*union_ptt = NULL;
+
+	union_symtab = stb->getSymTab(block, union_ptt);
+	union_symtab->setOwner(new PhysTypeThunk(cur_type, NULL));
+	symtabs_thunked[pt_anon_union->getName()] = union_symtab;
+	delete union_ptt;
+	delete stb;
 
 	addToCurrentSymTabAnonType(
 		pt_anon_union, 

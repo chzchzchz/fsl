@@ -194,6 +194,7 @@ public:
 
 	virtual ~SymTabThunkBuilder() {}
 	SymbolTable* getSymTab(const Type*, PhysicalType * &ptt);
+	SymbolTable* getSymTab(const TypeBlock*, PhysicalType * &ptt);
 	virtual void visit(const TypeDecl* td);
 	virtual void visit(const TypeUnion* tu);
 	virtual void visit(const TypeParamDecl*);

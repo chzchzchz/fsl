@@ -110,4 +110,31 @@ const Type* PT2Type(const PhysicalType* pt)
 	return NULL;
 }
 
+const PhysicalType* PT2Base(const PhysicalType* pt)
+{
+	const PhysTypeArray	*pta;
 
+	if (pta = dynamic_cast<const PhysTypeArray*>(pt)) {
+		return pta->getBase();
+	}
+	
+	return pt;
+}
+
+const Type* PT2UserTypeDrill(const PhysicalType* pt)
+{
+	const PhysTypeArray	*pta;
+	const Type		*t;
+
+	assert (pt != NULL);
+
+	t = PT2Type(pt);
+	if (t != NULL)
+		return t;
+
+	if (pta = dynamic_cast<const PhysTypeArray*>(pt)) {
+		return PT2Type(pta->getBase());	
+	}
+
+	return NULL;
+}

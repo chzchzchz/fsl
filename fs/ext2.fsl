@@ -164,7 +164,7 @@ ext2_inode ino_by_num(u32 ino_num)
 	table_base = disk.grp_desc_table[ino_grp].inode_table;
 	return disk.blocks[
 		table_base + ino_grp_blk - blocks_off(disk.sb)].ino_blk.ino[
-			ino_grp_blk_idx].ino_blk;
+			ino_grp_blk_idx];
 }
 
 type ext2_dir_entry

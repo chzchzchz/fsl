@@ -58,9 +58,7 @@ public:
 	const Type* getOwner() const
 	{
 		/* do not try to get the owner when still anonymous */
-		if (owner == NULL)
-			assert (0 == 1);
-
+		assert (owner != NULL);
 		return owner;
 	}
 
@@ -241,6 +239,7 @@ public:
 
 	virtual void setOwner(const Type* t)
 	{
+		TypeStmt::setOwner(t);
 		for (iterator it = begin(); it != end(); it++) {
 			(*it)->setOwner(t);
 		}
@@ -482,9 +481,14 @@ protected:
 
 std::ostream& operator<<(std::ostream& in, const Type& t);
 
+inline static std::string typeThunkName(const std::string& tname)
+{
+	return (std::string("__thunk_") + tname + "_bits");
+}
+
 inline static std::string typeThunkName(const Type* t)
 {
-	return (std::string("__thunk_") + t->getName()) + "_bits";
+	return typeThunkName(t->getName());
 }
 
 inline static std::string typeOffThunkName(

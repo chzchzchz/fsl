@@ -202,7 +202,7 @@ class PhysTypeThunk : public PhysicalType
 {
 public:
 	PhysTypeThunk(const Type* t, ExprList* in_exprs = NULL) 
-	: PhysicalType(std::string("thunk_") + t->getName()),
+	: PhysicalType(/* std::string("thunk_") + */ t->getName()),
 	  type(t), exprs(in_exprs)
 	{
 		if (exprs == NULL) 
@@ -647,6 +647,7 @@ bool isPTaUserType(const PhysicalType* pt);
 /* convert a user-defined physical type into the proper type, if possible */
 const Type* PT2Type(const PhysicalType* pt);
 
-PhysicalType* thunkify(const PhysicalType* pt, ExprList* thunk_exprs);
+const Type* PT2UserTypeDrill(const PhysicalType* pt);
+const PhysicalType* PT2Base(const PhysicalType* pt);
 
 #endif
