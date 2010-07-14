@@ -8,6 +8,7 @@
 
 #include "func.h"
 #include "expr.h"
+#include "util.h"
 
 using namespace std;
 using namespace llvm;
@@ -113,8 +114,11 @@ Value* FCall::codeGen() const
 
 	if (callee->arg_size() != exprs->size()) {
 		return ErrorV(
-			(string("wrong number of function arguments ") + 
-			id->getName()).c_str());		
+			(string("wrong number of function arguments in ") + 
+			id->getName() + 
+			string(". Expected ") + 
+			int_to_string(callee->size()) + 
+			" got " + int_to_string(exprs->size())).c_str());
 	}
 
 	for (it = exprs->begin(); it != exprs->end(); it++) {

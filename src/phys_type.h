@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include "collection.h"
+#include "util.h"
 
 class PhysicalType
 {
@@ -100,7 +101,10 @@ public:
 			exprs->add((*it)->getBytes());
 		}
 
-		return new FCall(new Id("__max"), exprs);
+		return new FCall(
+			new Id("__max" + int_to_string(exprs->size())), 
+			exprs);
+
 	}
 
 	virtual Expr* getBits(void) const
@@ -121,7 +125,9 @@ public:
 			exprs->add((*it)->getBits());
 		}
 
-		return new FCall(new Id("__max"), exprs);
+		return new FCall(
+			new Id("__max" + int_to_string(exprs->size())), 
+			exprs);
 
 	}
 
@@ -205,6 +211,7 @@ public:
 	: PhysicalType(/* std::string("thunk_") + */ t->getName()),
 	  type(t), exprs(in_exprs)
 	{
+		assert (in_exprs != NULL);
 		if (exprs == NULL) 
 			exprs = new ExprList();
 	}

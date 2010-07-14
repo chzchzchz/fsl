@@ -62,18 +62,14 @@ Expr* EvalCtx::getStructExprBase(
 	const Type		*cur_type;
 	Expr			*ret;
 
-	cerr << "FINDING THE BASE" << endl;
-
 	first_ids_expr = *it_begin;
 	first_idx = NULL;
 
 	if (toName(first_ids_expr, first_name, first_idx) == false) {
-		cerr << "FAILED TONAME" << endl;
 		return NULL;
 	}
 
 	if (first_symtab->lookup(first_name, sb) == false) {
-		cerr << "FAILED LOOKUP..." << first_name << endl;
 		if (first_idx != NULL) delete first_idx;
 		return NULL;
 	}
@@ -149,90 +145,135 @@ Expr* EvalCtx::getStructExpr(
 		cur_symtab = first_symtab;
 	}
 
-	for (; it != ids_end; it++) {
-		const Expr		*cur_expr = *it;
-		std::string		cur_name;
-		Expr			*cur_idx;
-		PhysicalType		*cur_pt;
-		PhysTypeArray		*pta;
-		sym_binding		sb;
-		Expr			*ret_begin;
-		const Type		*cur_type;
+	return buildTail(it, ids_end, ret, cur_symtab, final_type);
+}
 
-		ret_begin = ret->simplify();
-		if (cur_symtab == NULL) {
-			/* no way we could possibly resolve the current 
-			 * element. */
-			delete ret;
-			delete ret_begin;
-			return NULL;
-		}
+Expr* EvalCtx::buildTail(
+	IdStruct::const_iterator	it,
+	IdStruct::const_iterator	ids_end,
+	Expr*				ret,
+	const SymbolTable*		parent_symtab,
+	const PhysicalType*		&final_type) const
+{
+	const Expr		*cur_ids_expr;
+	std::string		cur_name;
+	PhysicalType		*cur_pt;
+	PhysTypeArray		*pta;
+	sym_binding		sb;
+	Expr			*ret_begin;
+	const Type		*cur_type;
+	Expr			*cur_idx = NULL;
+	const PhysicalType	*pt_base;
+	const SymbolTable	*cur_symtab;
 
-		if (toName(cur_expr, cur_name, cur_idx) == false) {
-			delete ret;
-			delete ret_begin;
-			return NULL;
-		}
+	assert (ret != NULL);
+	
+	if (it == ids_end)
+		return ret;
 
-		if (cur_symtab->lookup(cur_name, sb) == false) {
-			if (cur_idx != NULL) delete cur_idx;
-			delete ret;
-			delete ret_begin;
-			return NULL;
-		}
+	ret_begin = ret->simplify();
 
-		cur_pt = symbind_phys(sb);
-		pta = dynamic_cast<PhysTypeArray*>(cur_pt);
-		if (pta != NULL) {
-			/* it's an array */
-			if (cur_idx == NULL) {
-				cerr << "Array type but no index?" << endl;
-				delete ret;
-				delete ret_begin;
-				return NULL;
-			}
-
-			ret = new AOPAdd(ret, symbind_off(sb)->simplify());
-			ret = new AOPAdd(ret, pta->getBits(cur_idx));
-			delete cur_idx;
-
-			cur_type = PT2Type(pta->getBase());
-		} else {
-			/* it's a scalar */
-			if (cur_idx != NULL) {
-				cerr << "Tried to index a scalar?" << endl;
-				delete cur_idx;
-				delete ret;
-				delete ret_begin;
-				return NULL;
-			}
-			ret = new AOPAdd(ret, symbind_off(sb)->simplify());
-			cur_type = PT2Type(cur_pt);
-		}
-
-		if (cur_type == NULL) {
-			cur_symtab = NULL;
-			delete ret_begin;
-		} else {
-			/* don't forget to replace any instances of the 
-			 * used type with the name of the field being accessed!
-			 * (where did we come from and where are we going?)
-			 */
-
-			cerr << "REPLACING " << cur_type->getName() << endl;
-			ret = Expr::rewriteReplace(
-				ret, 
-				new Id(cur_type->getName()),
-				ret_begin);
-
-			cur_symtab = symtabByName(cur_type->getName());
-		}
-
-		final_type = cur_pt;
+	if (parent_symtab == NULL) {
+		/* no way we could possibly resolve the current 
+		 * element. */
+		goto err_cleanup;
 	}
 
-	return ret;
+	cur_ids_expr = *it;
+
+	/* get current name of id/idarray in struct and its index (if any) */
+	if (toName(cur_ids_expr, cur_name, cur_idx) == false) {
+		goto err_cleanup;
+	}
+
+	if (parent_symtab->lookup(cur_name, sb) == false) {
+		goto err_cleanup;
+	}
+
+	cur_pt = symbind_phys(sb);
+	cur_type = PT2UserTypeDrill(cur_pt);
+	pt_base = PT2Base(cur_pt);
+
+	/* for (REST OF IDS).(parent).(it) we want to compute 
+	 * &(REST OF IDS) + offset(REST OF IDS, parent) + offset(parent, it)
+	 * currently we only have
+	 * ret = &(REST OF IDS) + offset(REST OF IDS, parent) 
+	 * so we do
+	 * ret += offset(parent, it)
+	 * in this stage
+	 */
+	pta = dynamic_cast<PhysTypeArray*>(cur_pt);
+	if (pta != NULL) {
+		/* it's an array */
+		if (cur_idx == NULL) {
+			cerr << "Array type but no index?" << endl;
+			goto err_cleanup;
+		}
+
+		cerr << "IN AN ARRAY!!!!" << endl;
+		ret = new AOPAdd(ret, symbind_off(sb)->simplify());
+		ret = new AOPAdd(ret, pta->getBits(cur_idx));
+		delete cur_idx;
+		cur_idx = NULL;
+	} else {
+		/* it's a scalar */
+		if (cur_idx != NULL) {
+			cerr << "Tried to index a scalar?" << endl;
+			goto err_cleanup;
+		}
+
+		cerr <<"SCALAR: ";
+		symbind_off(sb)->print(cerr);
+		cerr << endl;
+
+		/* right now we are generating the total size of some type...
+		 * if the size relies on a thunked symbol, then that thunked symbol must
+		 * know where its base is, hence we have B_THIS_IS_THUNK_ARG, which will
+		 * take the expression up until now as the base. */
+		cerr << "REWRITING SCALAR. " << endl;
+		ret = new AOPAdd(
+			ret, 
+			Expr::rewriteReplace(
+				symbind_off(sb)->simplify(),
+				new Id("PT_THUNK_ARG"),
+				ret->simplify()));
+		cerr << "DONE REWRITING SCALAR. " << endl;
+
+	}
+
+	if (cur_type == NULL) {
+		cur_symtab = NULL;
+		delete ret_begin;
+	} else {
+		/* don't forget to replace any instances of the 
+		 * used type with the name of the field being accessed!
+		 * (where did we come from and where are we going?)
+		 */
+
+		cerr << "REPLACING " << cur_type->getName() << endl;
+		ret = Expr::rewriteReplace(
+			ret, 
+			new Id(cur_type->getName()),
+			ret_begin);
+		ret_begin = NULL;
+
+		cur_symtab = symtabByName(pt_base->getName());
+	}
+
+	final_type = cur_pt;
+
+done:
+	assert (cur_idx == NULL);
+	return buildTail(++it, ids_end, ret, cur_symtab, final_type);
+
+err_cleanup:
+	if (cur_idx != NULL) delete cur_idx;
+	if (ret_begin != NULL) delete ret_begin;
+	delete ret;
+
+	return NULL;
 }
+
 
 Expr* EvalCtx::resolveCurrentScope(const IdStruct* ids) const
 {
@@ -297,28 +338,14 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 	top_symtab = symtabByName(front_id->getName());
 	if (top_symtab == NULL || top_type == NULL) {
 		/* could not find in global scope.. */
-		cerr << "FRONT_ID->GETNAME() = " << front_id->getName() << endl;
 		if (top_type == NULL) cerr << "COULD NOT FIND TOP_TYPE" << endl;
 		if (top_symtab == NULL) cerr << "COULD NOT FIND TOP_ST" << endl;
-	{
-	cout << "(dumping symtabs_thunked)" << endl;
-	for (	symtab_map::const_iterator it = all_types.begin();
-		it != all_types.end();
-		it++) 
-	{
-		cout << (*it).first << endl;	
-	}
-	}
-
 		return NULL;
 	}
 
 	base_exprs = new ExprList();
 	base_exprs->add(new Number(top_type->getTypeNum()));
 	base = new FCall(new Id("__getDyn"), base_exprs);
-
-	cerr<< "**Found " << top_type->getName() << " in global scope." << endl;
-	cerr << endl;
 
 	it++;
 	offset = getStructExpr(base, top_symtab, it, ids->end(), ids_pt);

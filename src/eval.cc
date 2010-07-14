@@ -122,7 +122,9 @@ Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc)
 {
 	const ExprList			*exprs;
+	const Type			*t;
 	Expr				*front;
+	Expr				*ret_size;
 	Id				*front_id;
 	PhysicalType			*pt;
 	ptype_map::const_iterator	it;
@@ -157,8 +159,23 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc)
 		return NULL;
 	}
 
-	/* XXX this is a thunk now, be smarter here */
-	return pt->getBytes();
+	t = PT2Type(pt);
+	ret_size = pt->getBytes();
+	if (t != NULL) {
+		if (t->getNumArgs() != 0) {
+			cerr << "Calling sizeof on paramterized type!" << endl;
+			delete ret_size;
+			return NULL;
+		}
+
+		/* no parameters, so thunk is meaningless.. */
+		ret_size = Expr::rewriteReplace(
+			ret_size,
+			new Id("PT_THUNK_ARG"),
+			new Number(-1));
+	}
+
+	return ret_size;
 }
 
 llvm::Value* evalAndGen(const EvalCtx& ectx, const Expr* expr)
@@ -169,6 +186,9 @@ llvm::Value* evalAndGen(const EvalCtx& ectx, const Expr* expr)
 	ret = eval(ectx, expr);
 	if (ret == NULL)
 		return NULL;
+
+	cout << "GENERATING CODE FOR: " << endl;
+	expr->print(cerr);
 
 	v = ret->codeGen();
 	delete ret;

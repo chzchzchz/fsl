@@ -130,7 +130,7 @@ static bool load_user_ptypes_thunk(void)
 		}
 
 		ptypes_map[string("thunk_") + t->getName()] = 
-			new PhysTypeThunk(t);
+			new PhysTypeThunk(t, new ExprList(new Id("PT_THUNK_ARG")));
 	}
 
 	return success;
@@ -342,13 +342,14 @@ static bool apply_consts_to_consts(void)
 	return updated;
 }
 
-extern bool xxx_debug_eval;
-
-#define NUM_RUNTIME_FUNCS	6
+#define NUM_RUNTIME_FUNCS	9
+/* TODO: __max should be a proper vararg function */
 const char*	f_names[] = {	
-	"__getLocal", "__getLocalArray", "__arg", "__getDyn", "fsl_fail_bits",
-	"fsl_fail_bytes"};
-int	f_arg_c[] = {2, 4, 1, 1, 0, 0};
+	"__getLocal", "__getLocalArray", "__getDyn", "fsl_fail_bits", 
+	"__max2", "__max3", "__max4", "__max5", "fsl_fail_bytes"};
+int	f_arg_c[] = {
+	2,4,1,0, 
+	2,3,4,5,0 };
 
 /**
  * insert run-time functions into the llvm module so that they resolve

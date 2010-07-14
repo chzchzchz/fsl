@@ -90,7 +90,6 @@ Expr* FuncEvalCtx::buildTail(
 	std::string			cur_name;
 	PhysicalType			*cur_pt;
 	const PhysicalType		*pt_base;
-	const PhysTypeUnion		*ptunion;
 	PhysTypeArray			*pta;
 	sym_binding			sb;
 	const Type			*cur_type;
@@ -146,7 +145,7 @@ Expr* FuncEvalCtx::buildTail(
 	} else {
 		if (addTailScalar(
 			cur_pt, parent_symtab, cur_name, cur_idx, ret) == false) {
-			cerr << "COULD NOT ADD TAIL SCALA" << endl;
+			cerr << "COULD NOT ADD TAIL SCALAR" << endl;
 			goto err_cleanup;
 		}
 	}
@@ -168,34 +167,3 @@ err_cleanup:
 	if (cur_idx != NULL) delete cur_idx;
 	return NULL;
 }
-
-
-Expr* FuncEvalCtx::getStructExpr(
-	const Expr			*base,
-	const SymbolTable		*first_symtab,
-	const IdStruct::const_iterator	ids_first,
-	const IdStruct::const_iterator	ids_end,
-	const PhysicalType*		&final_type) const
-{
-	IdStruct::const_iterator	it;
-	Expr				*ret = NULL;
-	const SymbolTable		*cur_symtab;
-
-
-	it = ids_first;
-	if (base == NULL) {
-		ret = getStructExprBase(first_symtab, it, cur_symtab);
-		if (ret == NULL) {
-			return NULL;
-		}
-
-		it++;
-	} else {
-		ret = base->simplify();
-		cur_symtab = first_symtab;
-	}
-
-	/* have the base, continue on. */
-	return buildTail(it, ids_end, ret, cur_symtab, final_type);
-}
-

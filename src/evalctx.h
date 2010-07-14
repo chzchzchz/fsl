@@ -56,12 +56,20 @@ protected:
 	Expr* resolveGlobalScope(const IdStruct* ids) const;
 	Expr* resolveFuncArg(const IdStruct* ids) const;
 
-	virtual Expr* getStructExpr(
+	Expr* getStructExpr(
 		const Expr			*base,
 		const SymbolTable		*first_symtab,
 		const IdStruct::const_iterator	ids_first,
 		const IdStruct::const_iterator	ids_end,
 		const PhysicalType*		&final_type) const;
+
+	virtual Expr* buildTail(
+		IdStruct::const_iterator	it,
+		IdStruct::const_iterator	ids_end,
+		Expr*				ret,
+		const SymbolTable*		parent_symtab,
+		const PhysicalType*		&final_type) const;
+
 
 	Expr* getStructExprBase(
 		const SymbolTable		*first_symtab,

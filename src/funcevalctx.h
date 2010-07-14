@@ -23,7 +23,7 @@ private:
 	FuncEvalCtx();
 
 protected:
-	Expr* buildTail(
+	virtual Expr* buildTail(
 		IdStruct::const_iterator	it,
 		IdStruct::const_iterator	ids_end,
 		Expr*				ret,
@@ -38,21 +38,13 @@ protected:
 		Expr*			&cur_idx,
 		Expr*			&ret) const;
 
-		/* true = successfully processed */
+	/* true = successfully processed */
 	bool addTailArray(
 		const PhysTypeArray*	pta,
 		const SymbolTable*	cur_symtab,
 		const std::string	&cur_name,
 		Expr*			&cur_idx,
 		Expr*			&ret) const;
-
-	virtual Expr* getStructExpr(
-		const Expr			*base,
-		const SymbolTable		*first_symtab,
-		const IdStruct::const_iterator	ids_first,
-		const IdStruct::const_iterator	ids_end,
-		const PhysicalType*		&final_type) const;
-
 };
 
 #endif

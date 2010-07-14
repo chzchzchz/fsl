@@ -56,6 +56,13 @@ public:
 		return NULL;
 	}
 
+	/**
+	 *
+	 *  deletes last two expressions
+	 *  returns what 'e' should be set to
+	 *
+	 *  e = rewriteReplace(e, to_rewrite, new_expr);
+	 */
 	static Expr* rewriteReplace(
 		Expr* e,
 		Expr* to_rewrite, 
@@ -86,6 +93,8 @@ class ExprList : public PtrList<Expr>
 {
 public:
 	ExprList() {}
+	ExprList(Expr* e) { assert (e != NULL); add(e); }
+
 	ExprList(const PtrList<Expr>& p) : PtrList<Expr>(p) {}
 	virtual ~ExprList()  {}
 	void print(std::ostream& out) const
@@ -148,11 +157,12 @@ public:
 			cur_expr = *it;
 
 			tmp_expr = cur_expr->rewrite(to_rewrite, new_expr);
-			if (tmp_expr != NULL) {
-				(*it) = tmp_expr;
-				delete cur_expr;
-				cur_expr = tmp_expr;
-			}
+			if (tmp_expr == NULL)
+				continue;
+
+
+			(*it) = tmp_expr;
+			delete cur_expr;
 		}
 	}
 

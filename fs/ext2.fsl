@@ -53,18 +53,18 @@ type disk
 
 type ext2_inode_block
 {
-	ext2_inode	ino[get_block_size(sb)/sizeof(ext2_inode)];
+	ext2_inode	ino[get_block_size(ext2_sb)/sizeof(ext2_inode)];
 }
 
 type ext2_data_block
 {
-	u8	data[get_block_size(sb)];
+	u8	data[get_block_size(ext2_sb)];
 }
 
 type ext2_group_desc
 points(disk.blocks[block_bmp - blocks_off(disk.sb)].blk_bmp)
 points(disk.blocks[inode_bmp - blocks_off(disk.sb)].ino_bmp)
-points_range(
+points(
 	disk.blocks[inode_table - blocks_off(disk.sb)].ino_blk,
 	disk.blocks[inode_table 
 			+ (inode_table_block_count(disk.sb)-1)
@@ -85,6 +85,8 @@ sum(used_dir_c)
 }
 
 type ext2_sb
+sum(s_free_blocks_c)
+sum(s_free_inodes_c)
 {
 	u32	s_inodes_c;
 	u32	s_blocks_c;
@@ -122,6 +124,12 @@ type ext2_sb
 
 /* XXX add points-to here */
 type ext2_inode
+points_range(
+	i, 
+	EXT2_NDIR_BLOCKS_I,
+	disk.blocks[i_block_direct[i] - blocks_off(disk.sb)].data_block)
+points(disk.blocks[block_bmp - blocks_off(disk.sb)].blk_bmp)
+points(disk.blocks[block_bmp - blocks_off(disk.sb)].blk_bmp)
 {
 	u16	i_mode;	/* file mode */
 	u16	i_uid;	/* low 16 bits of owner uid */
@@ -175,7 +183,7 @@ points(ino_by_num(inode))
 	u8	name_len;
 	u8	file_type;
 	u8	name[name_len];
-	pad(rec_len);
+	align(rec_len);
 }
 
 
@@ -185,7 +193,7 @@ type ext2_bmp_blk
 	u1	data[get_block_size(disk.sb)*8];
 }
 
-type ext2_bmp_ino(ext2_sb sb)
+type ext2_bmp_ino
 {
 	u1	data[get_block_size(disk.sb)*8];
 }

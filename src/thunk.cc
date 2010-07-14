@@ -23,7 +23,7 @@ using namespace std;
 llvm_var_map			thunk_var_map;
 
 extern type_list		types_list;
-extern ptype_map		ptypes_map;	/* XXX add to evalctx? */
+extern ptype_map		ptypes_map;
 extern const_map		constants;
 extern symtab_map		symtabs_inlined;
 
@@ -76,8 +76,6 @@ void gen_thunkfield_proto(void)
 		gen_thunkfield_proto_from_type(*it);
 	}
 }
-
-
 
 void gen_thunk_code(void)
 {
@@ -142,6 +140,8 @@ static void gen_thunk_code_from_type(
 	local_syms->copyInto(*(symtabs_inlined[t->getName()]), off_name);
 	delete off_name;
 
+	cout << "EVALUATING A THUNK!" << endl;
+
 	expr_eval_bits = eval(
 		EvalCtx(*local_syms, symtabs_inlined, constants),
 		expr_bits);
@@ -150,6 +150,9 @@ static void gen_thunk_code_from_type(
 		EvalCtx(*local_syms, symtabs_inlined, constants),
 		expr_bytes);
 
+	cout << "UGH! BYTESS = " << endl;
+	expr_eval_bytes->print(cout);
+	cout << endl << "----------__" << endl;
 
 
 	bb_bytes = llvm::BasicBlock::Create(
@@ -202,6 +205,7 @@ static void gen_proto_by_name(const Type* t, string fcall_name)
 
 	/* should not be redefinitions.. */
 	assert (f->getName() == fcall_name);
+	assert (f->arg_size() == args.size());
 }
 
 class UnionThunkProtoGen :  protected TypeVisitAll
@@ -212,7 +216,6 @@ public:
 	virtual void genUnionProtos(const Type* t) 
 	{
 		assert (cur_type == NULL);
-		cout << "WOOOOOOOOOO" << endl;
 		cur_type = t;
 		apply(t);
 		cur_type = NULL;
@@ -220,11 +223,6 @@ public:
 
 	virtual void visit(const TypeUnion* tu)
 	{
-		cerr << "GENERATING: " << 
-			(string("__thunk___union_")
-				+ cur_type->getName()
-				+ "_" + tu->getName()
-				+ "_bits") << endl;
 		gen_proto_by_name(
 			cur_type, 
 			string("__thunk___union_")
@@ -308,6 +306,8 @@ static void gen_thunkfield_code_from_typefield(
 	delete expr_eval_bits;
 
 	thunk_bits = f_bits;
+
+	f_bits->dump();
 
 	thunk_var_map.clear();
 }
