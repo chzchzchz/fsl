@@ -91,7 +91,6 @@ void gen_thunk_code(void)
 
 		gen_thunk_code_from_type(
 			t, type_thunk_bits_f, type_thunk_bytes_f);
-		type_thunk_bytes_f->dump();
 	}
 }
 
@@ -269,22 +268,22 @@ static void gen_thunkfield_code_from_typefield(
 	llvm::Function		*f_bits;
 	llvm::BasicBlock	*bb_bits;
 	string			fcall_bits;
-	Expr			*expr_bits;
 	Expr			*expr_eval_bits;
-	PhysicalType		*pt;
-	sym_binding		sb;
+	const Expr		*expr_bits;
+	const PhysicalType	*pt;
+	const SymbolTableEnt	*st_ent;
 
 	
 	fcall_bits = typeOffThunkName(t, var_name);
 	f_bits = mod->getFunction(fcall_bits);
 	assert (f_bits != NULL);
 
-	if ((symtabs_inlined[t->getName()])->lookup(var_name, sb) == false) {
+	if ((st_ent = (symtabs_inlined[t->getName()])->lookup(var_name)) == NULL) {
 		/* should always exist */
 		assert (0 == 1);
 	}
 
-	expr_bits = symbind_off(sb);
+	expr_bits = st_ent->getOffset();
 
 	expr_eval_bits = eval(
 		EvalCtx(*local_syms, symtabs_inlined, constants),
@@ -302,12 +301,9 @@ static void gen_thunkfield_code_from_typefield(
 	gen_header_args(t, f_bits);
 	builder->CreateRet(expr_eval_bits->codeGen());
 
-	delete expr_bits;
 	delete expr_eval_bits;
 
 	thunk_bits = f_bits;
-
-	f_bits->dump();
 
 	thunk_var_map.clear();
 }
@@ -356,17 +352,16 @@ static void gen_thunkfield_proto_from_type(const Type* t)
 
 	for (it = st->begin(); it != st->end(); it++) {
 		string			name((*it).first);
-		sym_binding		sb((*it).second);
+		const SymbolTableEnt	*st_ent = (*it).second;
 		const PhysicalType	*pta;
 
 		gen_proto_by_name(
 			t, 
 			typeOffThunkName(t, name));
 
-		pta = dynamic_cast<const PhysTypeArray*>(symbind_phys(sb));
+		pta = dynamic_cast<const PhysTypeArray*>(st_ent->getPhysType());
 		if (pta != NULL) {
-			/* generate thunkfield length */
-
+			/* XXX  generate thunkfield length? */
 		}
 	}
 }

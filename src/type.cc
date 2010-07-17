@@ -1,6 +1,8 @@
 #include "phys_type.h"
 #include "type.h"
 #include "symtab.h"
+#include "symtab_builder.h"
+#include "symtab_thunkbuilder.h"
 
 using namespace std;
 
@@ -23,6 +25,8 @@ Type::~Type(void)
 	delete name;
 	if (args != NULL) delete args;
 	if (preamble != NULL) delete preamble;
+	if (cached_symtab != NULL) delete cached_symtab;
+	if (cached_symtab_thunked != NULL) delete cached_symtab_thunked;
 	delete block;
 }
 
@@ -61,19 +65,44 @@ void TypeParamDecl::print(std::ostream& out) const
 	type->print(out);
 }
 
-SymbolTable* Type::getSyms(const ptype_map& tm) const
+void Type::buildSyms(const ptype_map& tm)
 {
-	SymTabBuilder	*sbuilder;
-	SymbolTable	*st;
 	PhysTypeUser	*ptu;
+	SymTabBuilder	*sbuilder;
+
+	assert (cached_symtab == NULL);
 
 	sbuilder = new SymTabBuilder(tm);
-	st = sbuilder->getSymTab(this, ptu);
-	st->setOwner(ptu);
+	cached_symtab = sbuilder->getSymTab(this, ptu);
+	cached_symtab->setOwner(ptu);
 	delete sbuilder;
-
-	return st;
 }
+
+void Type::buildSymsThunked(const ptype_map& tm)
+{
+	SymTabThunkBuilder	*sbuilder;
+	PhysicalType		*ptt;
+
+	assert (cached_symtab_thunked == NULL);
+
+	sbuilder = new SymTabThunkBuilder(tm);
+	cached_symtab_thunked = sbuilder->getSymTab(this, ptt);
+	cached_symtab_thunked->setOwner(ptt);
+	delete sbuilder;
+}
+
+SymbolTable* Type::getSyms(const ptype_map& tm) const
+{
+	assert (cached_symtab == NULL);
+	return cached_symtab->copy();
+}
+
+SymbolTable* Type::getSymsThunked(const ptype_map& tm) const
+{
+	assert (cached_symtab == NULL);
+	return cached_symtab_thunked->copy();
+}
+
 
 
 /* find all preamble entries that match given name */
@@ -118,19 +147,6 @@ PhysicalType* Type::resolve(const ptype_map& tm) const
 	return ptu;
 }
 
-SymbolTable* Type::getSymsThunked(const ptype_map& tm) const
-{
-	SymTabThunkBuilder	*sbuilder;
-	SymbolTable		*st;
-	PhysicalType		*ptt;
-
-	sbuilder = new SymTabThunkBuilder(tm);
-	st = sbuilder->getSymTab(this, ptt);
-	st->setOwner(ptt);
-	delete sbuilder;
-
-	return st;
-}
 
 const Type* ptype_map::getUserType(const std::string& name) const
 {

@@ -340,8 +340,6 @@ void gen_func_code(Func* f)
 
 	delete ectx;
 	delete cur_scope;
-
-	llvm_f->dump();
 }
 
 

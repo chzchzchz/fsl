@@ -8,7 +8,7 @@ using namespace std;
 Expr* EvalCtx::resolve(const Id* id) const
 {
 	const_map::const_iterator	const_it;
-	sym_binding			symbind;
+	const SymbolTableEnt		*st_ent;
 	const Type			*t;
 
 	assert (id != NULL);
@@ -21,7 +21,7 @@ Expr* EvalCtx::resolve(const Id* id) const
 	
 	
 	/* is is in the current scope? */
-	if (cur_scope.lookup(id->getName(), symbind) == true) {
+	if ((st_ent = cur_scope.lookup(id->getName())) != NULL) {
 	#if 0
 		ExprList	*elist;
 
@@ -31,7 +31,7 @@ Expr* EvalCtx::resolve(const Id* id) const
 
 		return new FCall(new Id("__getLocal"), elist);
 	#endif
-		return symbind_off(symbind)->simplify();
+		return st_ent->getOffset()->simplify();
 	}
 
 	/* support for access of dynamic types.. gets base bits for type */
@@ -55,9 +55,9 @@ Expr* EvalCtx::getStructExprBase(
 	const Expr		*first_ids_expr;
 	string			first_name;
 	Expr			*first_idx;
-	sym_binding		sb;
-	PhysicalType		*pt;
-	PhysTypeArray		*pta;
+	const SymbolTableEnt	*st_ent;
+	const PhysicalType	*pt;
+	const PhysTypeArray	*pta;
 	const PhysTypeUser	*ptu;
 	const Type		*cur_type;
 	Expr			*ret;
@@ -69,15 +69,15 @@ Expr* EvalCtx::getStructExprBase(
 		return NULL;
 	}
 
-	if (first_symtab->lookup(first_name, sb) == false) {
+	if ((st_ent = first_symtab->lookup(first_name)) == NULL) {
 		if (first_idx != NULL) delete first_idx;
 		return NULL;
 	}
 
 	ret = new Id(first_name);
 
-	pt = symbind_phys(sb);
-	pta = dynamic_cast<PhysTypeArray*>(pt);
+	pt = st_ent->getPhysType();
+	pta = dynamic_cast<const PhysTypeArray*>(pt);
 	if (pta != NULL) {
 		Expr	*tmp_idx;
 
@@ -157,9 +157,9 @@ Expr* EvalCtx::buildTail(
 {
 	const Expr		*cur_ids_expr;
 	std::string		cur_name;
-	PhysicalType		*cur_pt;
-	PhysTypeArray		*pta;
-	sym_binding		sb;
+	const PhysicalType	*cur_pt;
+	const PhysTypeArray	*pta;
+	const SymbolTableEnt	*st_ent;
 	Expr			*ret_begin;
 	const Type		*cur_type;
 	Expr			*cur_idx = NULL;
@@ -186,11 +186,11 @@ Expr* EvalCtx::buildTail(
 		goto err_cleanup;
 	}
 
-	if (parent_symtab->lookup(cur_name, sb) == false) {
+	if ((st_ent = parent_symtab->lookup(cur_name)) == NULL) {
 		goto err_cleanup;
 	}
 
-	cur_pt = symbind_phys(sb);
+	cur_pt = st_ent->getPhysType();
 	cur_type = PT2UserTypeDrill(cur_pt);
 	pt_base = PT2Base(cur_pt);
 
@@ -202,7 +202,7 @@ Expr* EvalCtx::buildTail(
 	 * ret += offset(parent, it)
 	 * in this stage
 	 */
-	pta = dynamic_cast<PhysTypeArray*>(cur_pt);
+	pta = dynamic_cast<const PhysTypeArray*>(cur_pt);
 	if (pta != NULL) {
 		/* it's an array */
 		if (cur_idx == NULL) {
@@ -211,7 +211,7 @@ Expr* EvalCtx::buildTail(
 		}
 
 		cerr << "IN AN ARRAY!!!!" << endl;
-		ret = new AOPAdd(ret, symbind_off(sb)->simplify());
+		ret = new AOPAdd(ret, st_ent->getOffset()->simplify());
 		ret = new AOPAdd(ret, pta->getBits(cur_idx));
 		delete cur_idx;
 		cur_idx = NULL;
@@ -222,10 +222,6 @@ Expr* EvalCtx::buildTail(
 			goto err_cleanup;
 		}
 
-		cerr <<"SCALAR: ";
-		symbind_off(sb)->print(cerr);
-		cerr << endl;
-
 		/* right now we are generating the total size of some type...
 		 * if the size relies on a thunked symbol, then that thunked symbol must
 		 * know where its base is, hence we have B_THIS_IS_THUNK_ARG, which will
@@ -234,7 +230,7 @@ Expr* EvalCtx::buildTail(
 		ret = new AOPAdd(
 			ret, 
 			Expr::rewriteReplace(
-				symbind_off(sb)->simplify(),
+				st_ent->getOffset()->simplify(),
 				new Id("PT_THUNK_ARG"),
 				ret->simplify()));
 		cerr << "DONE REWRITING SCALAR. " << endl;
@@ -481,13 +477,13 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 Expr* EvalCtx::resolve(const IdArray* ida) const
 {
 	const_map::const_iterator	const_it;
-	sym_binding			symbind;
+	const SymbolTableEnt		*st_ent;
 	const PhysicalType		*pt;
 	const PhysTypeArray		*pta;
 
 	assert (ida != NULL);
 
-	if (cur_scope.lookup(ida->getName(), symbind) == true) {
+	if ((st_ent = cur_scope.lookup(ida->getName())) != NULL) {
 		/* array is in current scope */
 		ExprList	*elist;
 		Expr		*evaled_idx;
@@ -504,7 +500,7 @@ Expr* EvalCtx::resolve(const IdArray* ida) const
 			return NULL;
 		}
 
-		pt = symbind_phys(symbind);
+		pt = st_ent->getPhysType();
 		assert (pt != NULL);
 
 		pta = dynamic_cast<const PhysTypeArray*>(pt);
@@ -515,8 +511,8 @@ Expr* EvalCtx::resolve(const IdArray* ida) const
 		elist = new ExprList();
 		elist->add(evaled_idx->simplify());
 		elist->add((pta->getBase())->getBits());
-		elist->add(symbind_off(symbind)->simplify());
-		elist->add(symbind_phys(symbind)->getBits());
+		elist->add(st_ent->getOffset()->simplify());
+		elist->add(st_ent->getPhysType()->getBits());
 
 		delete evaled_idx;
 

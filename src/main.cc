@@ -11,11 +11,14 @@
 #include "thunk.h"
 
 #include <stdint.h>
+#include <fstream>
+
 #include <llvm/DerivedTypes.h>
 #include <llvm/LLVMContext.h>
 #include <llvm/Module.h>
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Support/IRBuilder.h>
+#include <llvm/Support/raw_os_ostream.h>
 
 extern int yyparse();
 
@@ -46,7 +49,26 @@ static void	build_inline_symtabs(void);
 static bool	apply_consts_to_consts(void);
 static void	simplify_constants(void);
 static void	build_thunk_symtabs(void);
+static void	create_global(const char* str, uint64_t v);
 
+
+#define create_global_const(x, y) create_global(x, y, true)
+#define create_global_mutable(x, y) create_global(x, y, false)
+
+static void create_global(const char* str, uint64_t v, bool is_const)
+{
+	llvm::GlobalVariable	*gv;
+
+	gv = new llvm::GlobalVariable(
+		*mod,
+		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
+		is_const,
+		llvm::GlobalVariable::ExternalLinkage,
+		llvm::ConstantInt::get(
+			llvm::getGlobalContext(), 
+			llvm::APInt(64, v, false)),
+		str);
+}
 
 static void load_primitive_ptypes(void)
 {
@@ -88,7 +110,14 @@ static void load_user_types_list(const GlobalBlock* gb)
 
 		t->setTypeNum(type_num);
 		type_num++;
-	}	
+	}
+
+	create_global_const("fsl_num_types", type_num);
+
+	/* remember to set these in the run-time */
+	create_global_mutable("__FROM_OS_BDEV_BYTES", 0);
+	create_global_mutable("__FROM_OS_BDEV_BLOCK_BYTES", 0);
+
 }
 
 static void load_user_funcs(const GlobalBlock* gb)
@@ -204,6 +233,7 @@ static void build_thunk_symtabs(void)
 		Type		*t;
 		t = *it;
 		cout << "Building thunk symtab for " << t->getName() << endl;
+		t->buildSymsThunked(ptypes_map);
 		symtabs_thunked[t->getName()] = t->getSymsThunked(ptypes_map);
 	}
 }
@@ -225,6 +255,7 @@ static void build_inline_symtabs(void)
 
 		cout << "Building symtab for " << t->getName() << endl;
 
+		t->buildSyms(ptypes_map);
 		syms = t->getSyms(ptypes_map);
 		symtabs_inlined[t->getName()] = syms;
 	}
@@ -382,6 +413,8 @@ static void load_runtime_funcs(void)
 int main(int argc, char *argv[])
 {
 	llvm::LLVMContext&	ctx = llvm::getGlobalContext();
+	ofstream		os("fsl.types.out");
+	llvm::raw_os_ostream	llvm_out(os);
 
 	builder = new llvm::IRBuilder<>(ctx);
 	mod = new llvm::Module("mod", ctx);
@@ -431,6 +464,8 @@ int main(int argc, char *argv[])
 	cout << "Loading thunks" << endl;
 	gen_thunk_code();
 	gen_thunkfield_code();
+
+	mod->print(llvm_out, NULL);
 
 	return 0;
 }

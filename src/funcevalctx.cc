@@ -88,10 +88,10 @@ Expr* FuncEvalCtx::buildTail(
 {
 	const Expr			*cur_ids_expr;
 	std::string			cur_name;
-	PhysicalType			*cur_pt;
+	const PhysicalType		*cur_pt;
 	const PhysicalType		*pt_base;
-	PhysTypeArray			*pta;
-	sym_binding			sb;
+	const PhysTypeArray		*pta;
+	const SymbolTableEnt		*st_ent;
 	const Type			*cur_type;
 	Expr				*cur_idx = NULL;
 	const SymbolTable		*cur_symtab;
@@ -118,13 +118,13 @@ Expr* FuncEvalCtx::buildTail(
 
 	/* verify whether the parent struct contains the field given by
 	 * the current idstruct entry (and find out the type) */
-	if (parent_symtab->lookup(cur_name, sb) == false) {
+	if ((st_ent = parent_symtab->lookup(cur_name)) == NULL) {
 		cerr	<< "COULD NOT FIND " << cur_name << " IN PARENT SYMTAB "
 			<< parent_symtab->getOwner()->getName() << endl;
 		goto err_cleanup;
 	}
 
-	cur_pt = symbind_phys(sb);
+	cur_pt = st_ent->getPhysType();
 	cur_type = PT2UserTypeDrill(cur_pt);
 	pt_base = PT2Base(cur_pt);
 
@@ -136,7 +136,7 @@ Expr* FuncEvalCtx::buildTail(
 	 * ret += offset(parent, it)
 	 * in this stage
 	 */
-	pta = dynamic_cast<PhysTypeArray*>(cur_pt);
+	pta = dynamic_cast<const PhysTypeArray*>(cur_pt);
 	if (pta != NULL) {
 		if (addTailArray(pta, parent_symtab, cur_name, cur_idx, ret) == false) {
 			cerr << "COULD NOT ADD TAIL ARRAY" << endl;

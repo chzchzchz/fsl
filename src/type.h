@@ -350,7 +350,9 @@ public:
 	  args(in_args),
 	  preamble(in_preamble),
 	  block(in_block),
-	  type_num(-1)
+	  type_num(-1),
+	  cached_symtab(NULL),
+	  cached_symtab_thunked(NULL)
 	{
 		assert (in_name != NULL);
 		assert (in_block != NULL);
@@ -367,6 +369,9 @@ public:
 	const ArgsList* getArgs(void) const { return args; }
 	class SymbolTable* getSyms(const ptype_map& tm) const;
 	class SymbolTable* getSymsThunked(const ptype_map& tm) const;
+	class SymbolTable* getSymsByUserType(const ptype_map& tm) const;
+	void buildSyms(const ptype_map& tm);
+	void buildSymsThunked(const ptype_map& tm);
 
 
 	std::list<const FCall*> getPreambles(const std::string& name) const;
@@ -401,7 +406,8 @@ private:
 	TypePreamble	*preamble;
 	TypeBlock	*block;
 	int		type_num;
-	
+	SymbolTable	*cached_symtab;
+	SymbolTable	*cached_symtab_thunked;
 };
 
 std::ostream& operator<<(std::ostream& in, const Type& t);
