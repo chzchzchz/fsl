@@ -15,11 +15,13 @@ public:
 		const std::string	&in_typename,
 		const std::string	&in_fieldname,
 		PhysicalType		*in_pt,
-		class Expr		*in_offset) 
+		class Expr		*in_offset,
+		bool			in_is_weak) 
 	: type_name(in_typename),
 	fieldname(in_fieldname),
 	pt(in_pt),
-	offset(in_offset)
+	offset(in_offset),
+	is_weak(in_is_weak)
 	{
 		assert (pt != NULL);
 		assert (offset != NULL);
@@ -28,6 +30,8 @@ public:
 	const Expr* getOffset(void) const { return offset; }
 	const PhysicalType* getPhysType(void) const { return pt; }
 	const std::string& getTypeName(void) const { return type_name; }
+	const std::string& getFieldName(void) const { return fieldname; }
+	bool isWeak(void) const { return is_weak; }
 
 	virtual ~SymbolTableEnt(void) 
 	{ 
@@ -40,6 +44,7 @@ private:
 	std::string		fieldname;
 	PhysicalType		*pt;
 	Expr			*offset;
+	bool			is_weak;
 };
 
 /**
@@ -64,7 +69,10 @@ public:
 
 	const Type* getOwnerType(void) const;
 
-	bool add(const std::string& name, PhysicalType* pt, Expr* offset_bits);
+	bool add(
+		const std::string& name, PhysicalType* pt, Expr* offset_bits, 
+		bool weak_binding = false);
+	bool add(const std::string& name, const SymbolTableEnt* st_ent);
 	const SymbolTableEnt* lookup(const std::string& name) const;
 
 	void print(std::ostream& out) const;

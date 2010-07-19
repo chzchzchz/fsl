@@ -373,7 +373,6 @@ public:
 	void buildSyms(const ptype_map& tm);
 	void buildSymsThunked(const ptype_map& tm);
 
-
 	std::list<const FCall*> getPreambles(const std::string& name) const;
 
 	void setTypeNum(int new_type_num)

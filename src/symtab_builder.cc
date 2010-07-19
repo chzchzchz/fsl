@@ -114,6 +114,7 @@ SymbolTable* SymTabBuilder::getSymTab(const Type* t, PhysTypeUser* &ptu)
 	off_pure = NULL;
 	off_thunked = NULL;
 	assert (union_c == 0);
+	assert (weak_c == 0);
 
 	ret = cur_symtab;
 	cur_symtab = NULL;
@@ -196,7 +197,7 @@ void SymTabBuilder::visit(const TypeDecl* td)
 		assert (0 == 1);
 	}
 
-	cur_symtab->add(td->getName(), pt, off_thunked->simplify());
+	cur_symtab->add(td->getName(), pt, off_thunked->simplify(), (weak_c > 0));
 	retType(pt->copy());
 	updateOffset(pt->getBits());
 }
@@ -219,6 +220,7 @@ void SymTabBuilder::visit(const TypeUnion* tu)
 	string					symname;
 
 	union_c++;
+	weak_c++;
 	block = tu->getBlock();
 	pt_union = new PhysTypeUnion("__union");
 	for (it = block->begin(); it != block->end(); it++) {
@@ -231,6 +233,7 @@ void SymTabBuilder::visit(const TypeUnion* tu)
 	}
 
 	union_c--;
+	weak_c--;
 
 	if (tu->isArray()) {
 		EvalCtx	ectx(*cur_symtab, symtabs_thunked, constants);
@@ -243,12 +246,7 @@ void SymTabBuilder::visit(const TypeUnion* tu)
 			len = len_tmp;
 		}
 
-		cerr << "DOING EVALREPLACE" << endl;
 		len = evalReplace(ectx, len);
-
-		cerr << "I HAVE OUR LEN = ";
-		len->print(cerr);
-		cerr << endl;
 
 		ret = new PhysTypeArray(pt_union, len);
 		symname = tu->getArray()->getName();
@@ -257,7 +255,7 @@ void SymTabBuilder::visit(const TypeUnion* tu)
 		symname = tu->getScalar()->getName();
 	}
 
-	cur_symtab->add(symname, ret->copy(), off_thunked->simplify());
+	cur_symtab->add(symname, ret->copy(), off_thunked->simplify(), (weak_c > 0));
 	updateOffset(ret->getBits());
 	retType(ret);
 }
@@ -302,7 +300,7 @@ void SymTabBuilder::visit(const TypeParamDecl* tp)
 		pt = new PhysTypeArray(pt, (tp->getArray()->getIdx())->copy());
 	}
 
-	cur_symtab->add(tp->getName(), pt, off_thunked->simplify());
+	cur_symtab->add(tp->getName(), pt, off_thunked->simplify(), (weak_c > 0));
 	updateOffset(pt->getBits());
 	retType(pt->copy());
 }
@@ -337,6 +335,8 @@ void SymTabBuilder::visit(const TypeCond* tc)
 	PhysicalType	*t, *f;
 	Expr		*old_off_pure, *old_off_thunked;
 
+	weak_c++;
+
 	old_off_pure = off_pure->simplify();
 	old_off_thunked = off_thunked->simplify();
 
@@ -362,6 +362,7 @@ void SymTabBuilder::visit(const TypeCond* tc)
 	off_pure = old_off_pure;
 	off_thunked = old_off_thunked;
 
+	weak_c--;
 
 	retType(cond_resolve(tc->getCond(), tm, t, f));
 	

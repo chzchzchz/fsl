@@ -101,12 +101,7 @@ Value* FuncAssign::codeGen(const EvalCtx* ectx) const
 {
 	Value	*e_v;
 
-	cerr << "FuncAssign: ";
-	expr->print(cerr);
-	cerr << endl;
 	e_v = evalAndGen(*ectx, expr);
-	cerr << "FuncAssign: evalAndGen done." << endl;
-
 	if (e_v == NULL) {
 		cerr << getLineNo() << ": Could not eval ";
 		expr->print(cerr);
@@ -118,11 +113,7 @@ Value* FuncAssign::codeGen(const EvalCtx* ectx) const
 	/* XXX no support for arrays just yet */
 	assert (array == NULL);
 
-	cerr << "Creating the store.." << endl;
-	cerr << "Assigning to: " << scalar->getName() << endl;
-
 	builder->CreateStore(e_v, getOwner()->getVar(scalar->getName()));
-
 
 	return e_v;
 }
@@ -130,10 +121,6 @@ Value* FuncAssign::codeGen(const EvalCtx* ectx) const
 Value* FuncRet::codeGen(const EvalCtx* ectx) const
 {
 	Value	*e_v;	
-
-	cerr << "RET!: ";
-	expr->print(cerr);
-	cerr << endl;
 
 	e_v = evalAndGen(*ectx, expr);
 	if (e_v == NULL) {

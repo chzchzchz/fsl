@@ -12,6 +12,7 @@ public:
 	  off_thunked(NULL),
 	  off_pure(NULL),
 	  union_c(0),
+	  weak_c(0),
 	  ret_pt(NULL) {}
 
 	virtual ~SymTabBuilder() {}
@@ -33,6 +34,7 @@ private:
 	Expr			*off_thunked;	/* uses thunk_off_arg */
 	Expr			*off_pure;	/* does not use off_arg */
 	unsigned int		union_c;
+	unsigned int		weak_c;
 	PhysicalType		*ret_pt;
 };
 

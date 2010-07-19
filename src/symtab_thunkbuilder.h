@@ -10,6 +10,7 @@ public:
 	: cur_symtab(NULL),
 	  cur_type(NULL),
 	  tm(ptypes),
+	  weak_c(0),
 	  ret_pt(NULL) {}
 
 	virtual ~SymTabThunkBuilder() {}
@@ -39,6 +40,7 @@ private:
 	SymbolTable		*cur_symtab;
 	const Type		*cur_type;
 	const ptype_map		&tm;
+	unsigned int		weak_c;
 	PhysicalType		*ret_pt;
 };
 

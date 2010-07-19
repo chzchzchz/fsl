@@ -114,10 +114,7 @@ Expr* EvalCtx::getStructExprBase(
 
 	assert (cur_type != NULL);
 
-	cerr << "WHAT LUCK: TYPENAME = " << cur_type->getName() << endl;
 	next_symtab = symtabByName(cur_type->getName());
-
-	cerr << "getStructExprBase DONE" << endl;
 
 	return ret;
 }
@@ -210,7 +207,6 @@ Expr* EvalCtx::buildTail(
 			goto err_cleanup;
 		}
 
-		cerr << "IN AN ARRAY!!!!" << endl;
 		ret = new AOPAdd(ret, st_ent->getOffset()->simplify());
 		ret = new AOPAdd(ret, pta->getBits(cur_idx));
 		delete cur_idx;
@@ -226,15 +222,12 @@ Expr* EvalCtx::buildTail(
 		 * if the size relies on a thunked symbol, then that thunked symbol must
 		 * know where its base is, hence we have B_THIS_IS_THUNK_ARG, which will
 		 * take the expression up until now as the base. */
-		cerr << "REWRITING SCALAR. " << endl;
 		ret = new AOPAdd(
 			ret, 
 			Expr::rewriteReplace(
 				st_ent->getOffset()->simplify(),
 				new Id("PT_THUNK_ARG"),
 				ret->simplify()));
-		cerr << "DONE REWRITING SCALAR. " << endl;
-
 	}
 
 	if (cur_type == NULL) {
@@ -246,7 +239,6 @@ Expr* EvalCtx::buildTail(
 		 * (where did we come from and where are we going?)
 		 */
 
-		cerr << "REPLACING " << cur_type->getName() << endl;
 		ret = Expr::rewriteReplace(
 			ret, 
 			new Id(cur_type->getName()),
@@ -451,17 +443,14 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 {	
 	Expr	*ret;
 
-	cerr << "Trying to resolve by curscope" << endl;
 	ret = resolveCurrentScope(ids);
 	if (ret != NULL)
 		return ret;
 
-	cerr << "Resolve global scope" << endl;
 	ret = resolveGlobalScope(ids);
 	if (ret != NULL)
 		return ret;
 
-	cerr << "Resolve Func Arg" << endl;
 	ret = resolveFuncArg(ids);
 	if (ret != NULL)
 		return ret;
@@ -487,9 +476,6 @@ Expr* EvalCtx::resolve(const IdArray* ida) const
 		/* array is in current scope */
 		ExprList	*elist;
 		Expr		*evaled_idx;
-
-		ida->getIdx()->print(cout);
-		cout << endl;
 
 		evaled_idx = eval(*this, ida->getIdx());
 

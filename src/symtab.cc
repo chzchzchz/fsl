@@ -121,8 +121,18 @@ const SymbolTableEnt* SymbolTable::lookup(const std::string& name) const
 	return ((*it).second);
 }
 
+bool SymbolTable::add(const std::string& name, const SymbolTableEnt* st_ent)
+{
+	return add(
+		name, 
+		st_ent->getPhysType()->copy(),
+		st_ent->getOffset()->copy(),
+		st_ent->isWeak());
+}
+
 bool SymbolTable::add(
-	const std::string& name, PhysicalType* pt, Expr* offset_bits)
+	const std::string& name, PhysicalType* pt, Expr* offset_bits,
+	bool weak_binding)
 {
 	if (sm.count(name) != 0) {
 		/* exists */
@@ -133,7 +143,8 @@ bool SymbolTable::add(
 		"__XXX_ANTHONY_NEEDS_TYPENAME", 
 		name,
 		pt,
-		offset_bits);
+		offset_bits,
+		weak_binding);
 	return true;
 }
 

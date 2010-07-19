@@ -19,6 +19,8 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 
 	visit(tb);
 
+	assert (weak_c == 0);
+
 	ret = cur_symtab;
 	cur_symtab = NULL;
 
@@ -39,6 +41,8 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const Type* t, PhysicalType* &ptt)
 	cur_type = t;
 
 	apply(t);
+
+	assert (weak_c == 0);
 
 	ret = cur_symtab;
 	cur_symtab = NULL;
@@ -118,7 +122,7 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 
 	retType(passed_pt->copy());
 
-	cur_symtab->add(field_name, passed_pt, passed_offset_fcall);
+	cur_symtab->add(field_name, passed_pt, passed_offset_fcall, (weak_c > 0));
 }
 
 void SymTabThunkBuilder::addToCurrentSymTabAnonType(
@@ -132,7 +136,6 @@ void SymTabThunkBuilder::addToCurrentSymTabAnonType(
 	ExprList		*exprs;
 
 	assert (pt != NULL);
-
 
 	passed_pt = pt->copy();
 	if (array != NULL) { 
@@ -151,7 +154,7 @@ void SymTabThunkBuilder::addToCurrentSymTabAnonType(
 
 	retType(passed_pt->copy());
 
-	cur_symtab->add(field_name, passed_pt, passed_offset_fcall);
+	cur_symtab->add(field_name, passed_pt, passed_offset_fcall, (weak_c > 0));
 }
 
 
@@ -191,6 +194,8 @@ void SymTabThunkBuilder::visit(const TypeCond* tc)
 {
 	PhysicalType	*pt_t, *pt_f;
 
+	weak_c++;
+
 	(tc->getTrueStmt())->accept(this);
 	pt_t = ret_pt->copy();
 
@@ -200,6 +205,8 @@ void SymTabThunkBuilder::visit(const TypeCond* tc)
 	} else {
 		pt_f = NULL;
 	}
+
+	weak_c--;
 
 	retType(cond_resolve(tc->getCond(), tm, pt_t, pt_f));
 }
@@ -215,12 +222,16 @@ void SymTabThunkBuilder::visit(const TypeUnion* tu)
 	pt_anon_union = new PhysTypeUnion(
 		"__union_"+cur_type->getName()+"_"+tu->getName());
 
+	weak_c++;
+
 	for (it = block->begin(); it != block->end(); it++) {
 		(*it)->accept(this);
 		if (ret_pt != NULL)
 			continue;
 		pt_anon_union->add(ret_pt);
 	}
+
+	weak_c--;
 
 	SymTabThunkBuilder	*stb = new SymTabThunkBuilder(tm);
 	SymbolTable		*union_symtab = NULL;

@@ -58,10 +58,7 @@ void gen_thunk_proto(void)
 	for (type_list::const_iterator it = types_list.begin(); 
 	     it != types_list.end(); 
 	     it++) {
-		Type	*t;
-
-		t = *it;
-		cout << "Generating thunk proto: " << t->getName() << endl;
+		Type	*t = *it;
 		gen_thunk_proto_from_type(t);
 	}
 }
@@ -72,7 +69,6 @@ void gen_thunkfield_proto(void)
 		it != types_list.end();
 		it++)
 	{
-		cout << "GEN THUNKOFF PROTO " << (*it)->getName() << endl;
 		gen_thunkfield_proto_from_type(*it);
 	}
 }
@@ -87,10 +83,7 @@ void gen_thunk_code(void)
 		llvm::Function	*type_thunk_bits_f, *type_thunk_bytes_f;
 
 		t = *it;
-		cerr << "Generating thunk: " << t->getName() << endl;
-
-		gen_thunk_code_from_type(
-			t, type_thunk_bits_f, type_thunk_bytes_f);
+		gen_thunk_code_from_type(t, type_thunk_bits_f, type_thunk_bytes_f);
 	}
 }
 
@@ -100,7 +93,6 @@ void gen_thunkfield_code(void)
 		it != types_list.end();
 		it++)
 	{
-		cout << "GEN THUNKOFF PROTO " << (*it)->getName() << endl;
 		gen_thunkfield_code_from_type(*it);
 	}
 }
@@ -139,8 +131,6 @@ static void gen_thunk_code_from_type(
 	local_syms->copyInto(*(symtabs_inlined[t->getName()]), off_name);
 	delete off_name;
 
-	cout << "EVALUATING A THUNK!" << endl;
-
 	expr_eval_bits = eval(
 		EvalCtx(*local_syms, symtabs_inlined, constants),
 		expr_bits);
@@ -148,11 +138,6 @@ static void gen_thunk_code_from_type(
 	expr_eval_bytes = eval(
 		EvalCtx(*local_syms, symtabs_inlined, constants),
 		expr_bytes);
-
-	cout << "UGH! BYTESS = " << endl;
-	expr_eval_bytes->print(cout);
-	cout << endl << "----------__" << endl;
-
 
 	bb_bytes = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f_bytes);
@@ -289,10 +274,6 @@ static void gen_thunkfield_code_from_typefield(
 		EvalCtx(*local_syms, symtabs_inlined, constants),
 		expr_bits);
 
-	cerr << "GENERATED OFFTHUNK FOR " << var_name << endl;
-	expr_bits->print(cerr);
-	cerr << endl << endl;
-
 	bb_bits = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f_bits);
 
@@ -333,7 +314,6 @@ static void gen_thunkfield_code_from_type(const Type* t)
 		string		field_name((*it).first);
 		llvm::Function	*f_bits;
 
-		cerr << "GENERATING THUNK OFF CODE FOR " << field_name << endl;
 		gen_thunkfield_code_from_typefield(
 			t, field_name, local_syms, f_bits);
 	}

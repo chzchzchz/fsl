@@ -93,14 +93,38 @@ void Type::buildSymsThunked(const ptype_map& tm)
 
 SymbolTable* Type::getSyms(const ptype_map& tm) const
 {
-	assert (cached_symtab == NULL);
+	assert (cached_symtab != NULL);
 	return cached_symtab->copy();
 }
 
 SymbolTable* Type::getSymsThunked(const ptype_map& tm) const
 {
-	assert (cached_symtab == NULL);
+	assert (cached_symtab_thunked != NULL);
 	return cached_symtab_thunked->copy();
+}
+
+SymbolTable* Type::getSymsByUserType(const ptype_map& tm) const
+{
+	SymbolTable	*ret;
+
+	assert (cached_symtab != NULL);
+
+	ret = new SymbolTable(NULL, cached_symtab->getOwner()->copy());
+	for (	sym_map::const_iterator it = cached_symtab->begin();
+		it != cached_symtab->end();
+		it++) 
+	{
+		const std::string	name = (*it).first;
+		const SymbolTableEnt*	st_ent = (*it).second;
+
+		if (isPTaUserType(st_ent->getPhysType()) == false)
+			continue;
+
+		ret->add(name, st_ent);
+			
+	}
+
+	return ret;
 }
 
 
@@ -165,7 +189,7 @@ const PhysicalType* ptype_map::getPT(const std::string& name) const
 	const PhysicalType		*pt;
 	const_iterator			it;
 
-	/* try to resovle type directly */
+	/* try to resolve type directly */
 	it = find(name);
 	if (it != end()) {
 		return (*it).second;

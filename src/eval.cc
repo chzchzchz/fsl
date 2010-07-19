@@ -187,9 +187,6 @@ llvm::Value* evalAndGen(const EvalCtx& ectx, const Expr* expr)
 	if (ret == NULL)
 		return NULL;
 
-	cout << "GENERATING CODE FOR: " << endl;
-	expr->print(cerr);
-
 	v = ret->codeGen();
 	delete ret;
 
