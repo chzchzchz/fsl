@@ -13,8 +13,9 @@
 
 using namespace std;
 
+extern symtab_map	symtabs;
+
 bool xxx_debug_eval = false;
-extern ptype_map	ptypes_map;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
 static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc);
@@ -122,12 +123,11 @@ Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc)
 {
 	const ExprList			*exprs;
-	const Type			*t;
+	const SymbolTable		*st;
 	Expr				*front;
 	Expr				*ret_size;
 	Id				*front_id;
-	PhysicalType			*pt;
-	ptype_map::const_iterator	it;
+	symtab_map::const_iterator	it;
 
 	exprs = fc->getExprs();
 	if (exprs->size() != 1) {
@@ -140,40 +140,35 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc)
 	front = exprs->front();
 	front_id = dynamic_cast<Id*>(front);
 	if (front_id == NULL) {
+		/* TODO: should take parameterized types and funcs too.. */
 		cerr << "sizeof expects id for argument. Got: ";
 		fc->print(cerr);
 		cerr << endl;
 		return NULL;
 	}
 
-	it = ptypes_map.find(front_id->getName());
-	pt = (it == ptypes_map.end()) ? NULL : (*it).second;
-	if (pt != NULL)
-		return pt->getBytes();
-
-	it = ptypes_map.find(string("thunk_")+front_id->getName()) ;
-	pt = (it == ptypes_map.end()) ? NULL : (*it).second;
-	if (pt == NULL) {
-		cerr	<< "Could not find type for " << front_id->getName() 
+	it = symtabs.find(front_id->getName());
+	if (it == symtabs.end()) {
+		cerr	<< "Could not find type for " 
+			<< front_id->getName() 
 			<< endl;
 		return NULL;
 	}
 
-	t = PT2Type(pt);
-	ret_size = pt->getBytes();
-	if (t != NULL) {
-		if (t->getNumArgs() != 0) {
-			cerr << "Calling sizeof on paramterized type!" << endl;
-			delete ret_size;
-			return NULL;
-		}
+	st = (*it).second;
 
-		/* no parameters, so thunk is meaningless.. */
-		ret_size = Expr::rewriteReplace(
-			ret_size,
-			new Id("PT_THUNK_ARG"),
-			new Number(-1));
-	}
+	/* in the future, this should use the proper function call
+	 * when we finally support parameterized types / materialized types
+	 * in sizeof()
+	 */
+
+	//ret_size = st->getThunkType()->getSize()->copyConstValue();
+	/* XXX HACK HACK HACK -- needs proper checking to ensure thunk_arg_off is safe */
+	ret_size = st->getThunkType()->getSize()->copyFCall();
+	ret_size = Expr::rewriteReplace(
+		ret_size,
+		new Id("__thunk_arg_off"),
+		new Number(0));
 
 	return ret_size;
 }

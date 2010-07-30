@@ -1,6 +1,7 @@
 #ifndef EXPR_H
 #define EXPR_H
 
+#include <iostream>
 #include <map>
 #include "llvm/DerivedTypes.h"
 #include "collection.h"

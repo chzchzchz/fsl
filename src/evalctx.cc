@@ -20,18 +20,15 @@ Expr* EvalCtx::resolve(const Id* id) const
 	}
 	
 	
-	/* is is in the current scope? */
-	if ((st_ent = cur_scope.lookup(id->getName())) != NULL) {
-	#if 0
-		ExprList	*elist;
-
-		elist = new ExprList();
-		elist->add(symbind_off(symbind)->simplify());
-		elist->add(symbind_phys(symbind)->getBits());
-
-		return new FCall(new Id("__getLocal"), elist);
-	#endif
-		return st_ent->getOffset()->simplify();
+	if (cur_scope != NULL) {
+		/* is is in the current scope? */
+		if ((st_ent = cur_scope->lookup(id->getName())) != NULL) {
+			return st_ent->getFieldThunk()->getOffset()->copyFCall();
+		}
+	} else if (func_args != NULL) {
+		if (func_args->hasField(id->getName())) {
+			return id->copy();
+		}
 	}
 
 	/* support for access of dynamic types.. gets base bits for type */
@@ -56,10 +53,8 @@ Expr* EvalCtx::getStructExprBase(
 	string			first_name;
 	Expr			*first_idx;
 	const SymbolTableEnt	*st_ent;
-	const PhysicalType	*pt;
-	const PhysTypeArray	*pta;
-	const PhysTypeUser	*ptu;
 	const Type		*cur_type;
+	const ThunkField	*thunk_field;
 	Expr			*ret;
 
 	first_ids_expr = *it_begin;
@@ -74,13 +69,12 @@ Expr* EvalCtx::getStructExprBase(
 		return NULL;
 	}
 
+	/* XXX this isn't quite right.. need a fully qualified type. */
 	ret = new Id(first_name);
 
-	pt = st_ent->getPhysType();
-	pta = dynamic_cast<const PhysTypeArray*>(pt);
-	if (pta != NULL) {
-		Expr	*tmp_idx;
-
+	thunk_field = st_ent->getFieldThunk();
+	cur_type = thunk_field->getType();
+	if (thunk_field->getElems()->isSingleton() == false) {
 		/* it's an array */
 		if (first_idx == NULL) {
 			cerr << "Array type but no index?" << endl;
@@ -88,22 +82,18 @@ Expr* EvalCtx::getStructExprBase(
 			return NULL;
 		}
 
-		tmp_idx = new AOPSub(first_idx, new Number(1));
-		ret = new AOPAdd(ret, pta->getBits(tmp_idx));
-
-		delete tmp_idx;
-
-		cur_type = PT2Type(pta->getBase());
-		ptu = dynamic_cast<const PhysTypeUser*>(pta->getBase());
+		ret = new AOPAdd(ret, 
+			new AOPMul(
+				thunk_field->getSize()->copyFCall(),
+				first_idx));
 	} else {
-		/* it's a scalar */
+		/* it's a scalar, no need to update base */
 		if (first_idx != NULL) {
 			cerr << "Tried to index a scalar?" << endl;
 			delete first_idx;
 			delete ret;
 			return NULL;
 		}
-		cur_type = PT2Type(pt);
 	}
 
 	if (cur_type == NULL) {
@@ -124,7 +114,7 @@ Expr* EvalCtx::getStructExpr(
 	const SymbolTable		*first_symtab,
 	const IdStruct::const_iterator	ids_first,
 	const IdStruct::const_iterator	ids_end,
-	const PhysicalType*		&final_type) const
+	const SymbolTableEnt*		&last_sym) const
 {
 	IdStruct::const_iterator	it;
 	Expr				*ret;
@@ -142,7 +132,7 @@ Expr* EvalCtx::getStructExpr(
 		cur_symtab = first_symtab;
 	}
 
-	return buildTail(it, ids_end, ret, cur_symtab, final_type);
+	return buildTail(it, ids_end, ret, cur_symtab, last_sym);
 }
 
 Expr* EvalCtx::buildTail(
@@ -150,18 +140,16 @@ Expr* EvalCtx::buildTail(
 	IdStruct::const_iterator	ids_end,
 	Expr*				ret,
 	const SymbolTable*		parent_symtab,
-	const PhysicalType*		&final_type) const
+	const SymbolTableEnt*		&last_sym) const
 {
 	const Expr		*cur_ids_expr;
 	std::string		cur_name;
-	const PhysicalType	*cur_pt;
-	const PhysTypeArray	*pta;
 	const SymbolTableEnt	*st_ent;
 	Expr			*ret_begin;
 	const Type		*cur_type;
 	Expr			*cur_idx = NULL;
-	const PhysicalType	*pt_base;
 	const SymbolTable	*cur_symtab;
+	const ThunkField	*thunk_field;
 
 	assert (ret != NULL);
 	
@@ -184,12 +172,14 @@ Expr* EvalCtx::buildTail(
 	}
 
 	if ((st_ent = parent_symtab->lookup(cur_name)) == NULL) {
+		cerr 	<< "Whoops! couldn't find " << cur_name 
+			<< " in symtab" << endl;
 		goto err_cleanup;
 	}
 
-	cur_pt = st_ent->getPhysType();
-	cur_type = PT2UserTypeDrill(cur_pt);
-	pt_base = PT2Base(cur_pt);
+	last_sym = st_ent;
+	thunk_field = st_ent->getFieldThunk();
+	cur_type = thunk_field->getType();
 
 	/* for (REST OF IDS).(parent).(it) we want to compute 
 	 * &(REST OF IDS) + offset(REST OF IDS, parent) + offset(parent, it)
@@ -199,35 +189,50 @@ Expr* EvalCtx::buildTail(
 	 * ret += offset(parent, it)
 	 * in this stage
 	 */
-	pta = dynamic_cast<const PhysTypeArray*>(cur_pt);
-	if (pta != NULL) {
+	if (thunk_field->getElems()->isSingleton() == false) {
+		Expr	*new_base;
+
 		/* it's an array */
 		if (cur_idx == NULL) {
 			cerr << "Array type but no index?" << endl;
 			goto err_cleanup;
 		}
 
-		ret = new AOPAdd(ret, st_ent->getOffset()->simplify());
-		ret = new AOPAdd(ret, pta->getBits(cur_idx));
+		new_base = Expr::rewriteReplace(
+				thunk_field->getOffset()->copyFCall(),
+				new Id("__thunk_arg_off"),
+				ret->simplify());
+
+		new_base = new AOPAdd(
+			new_base, 
+			new AOPMul(
+				Expr::rewriteReplace(
+					thunk_field->getSize()->copyFCall(),
+					new Id("__thunk_arg_off"),
+					ret->simplify()),
+				cur_idx->simplify()));
+
+		delete ret;
+		ret = new_base;
+
 		delete cur_idx;
 		cur_idx = NULL;
 	} else {
+		Expr	*new_base;
+
 		/* it's a scalar */
 		if (cur_idx != NULL) {
 			cerr << "Tried to index a scalar?" << endl;
 			goto err_cleanup;
 		}
 
-		/* right now we are generating the total size of some type...
-		 * if the size relies on a thunked symbol, then that thunked symbol must
-		 * know where its base is, hence we have B_THIS_IS_THUNK_ARG, which will
-		 * take the expression up until now as the base. */
-		ret = new AOPAdd(
-			ret, 
-			Expr::rewriteReplace(
-				st_ent->getOffset()->simplify(),
-				new Id("PT_THUNK_ARG"),
-				ret->simplify()));
+		new_base = Expr::rewriteReplace(
+			thunk_field->getOffset()->copyFCall(),
+			new Id("__thunk_arg_off"),
+			ret->simplify());
+
+		delete ret;
+		ret = new_base;
 	}
 
 	if (cur_type == NULL) {
@@ -238,21 +243,18 @@ Expr* EvalCtx::buildTail(
 		 * used type with the name of the field being accessed!
 		 * (where did we come from and where are we going?)
 		 */
-
 		ret = Expr::rewriteReplace(
 			ret, 
 			new Id(cur_type->getName()),
 			ret_begin);
 		ret_begin = NULL;
 
-		cur_symtab = symtabByName(pt_base->getName());
+		cur_symtab = symtabByName(cur_type->getName());
 	}
-
-	final_type = cur_pt;
 
 done:
 	assert (cur_idx == NULL);
-	return buildTail(++it, ids_end, ret, cur_symtab, final_type);
+	return buildTail(++it, ids_end, ret, cur_symtab, last_sym);
 
 err_cleanup:
 	if (cur_idx != NULL) delete cur_idx;
@@ -266,36 +268,33 @@ err_cleanup:
 Expr* EvalCtx::resolveCurrentScope(const IdStruct* ids) const
 {
 	Expr				*offset;
-	const PhysicalType		*ids_pt;
 	const Id			*front_id;
 	ExprList			*exprs;
-	const PhysTypeArray		*pta;
+	const SymbolTableEnt		*last_sym; 
+	const ThunkField		*thunk_field;
 	IdStruct::const_iterator	it;
 
+	assert (cur_scope != NULL);
 	assert (ids != NULL);
 
 	it = ids->begin();
 	assert (it != ids->end());
 
 	/* in current scope? */
-	offset = getStructExpr(
-		NULL,
-		&cur_scope, ids->begin(), ids->end(), ids_pt);
+	offset = getStructExpr(NULL, cur_scope, ids->begin(), ids->end(), last_sym);
 	if (offset == NULL)
 		return NULL;
 
-	if (isPTaUserType(ids_pt) == true)
+	/* talking about a user type.. just return the offset */
+	/* XXX this should return a fully-qualified type */
+	thunk_field = last_sym->getFieldThunk();
+	if (thunk_field->getType() != NULL) {
 		return offset;
-
-	pta = dynamic_cast<const PhysTypeArray*>(ids_pt);
+	}
 
 	exprs = new ExprList();
 	exprs->add(offset->simplify());
-
-	if (pta != NULL)
-		exprs->add((pta->getBase())->getBits());
-	else
-		exprs->add(ids_pt->getBits());
+	exprs->add(thunk_field->getSize()->copyFCall());
 
 	delete offset;
 
@@ -305,12 +304,12 @@ Expr* EvalCtx::resolveCurrentScope(const IdStruct* ids) const
 Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 {
 	Expr				*offset;
-	const PhysicalType		*ids_pt;
 	const Id			*front_id;
 	ExprList			*exprs;
-	const PhysTypeArray		*pta;
 	IdStruct::const_iterator	it;
 	const SymbolTable		*top_symtab;
+	const SymbolTableEnt		*last_ste;
+	const ThunkField		*thunk_field;
 	const Type			*top_type;
 	Expr				*base;
 	ExprList			*base_exprs;
@@ -318,7 +317,7 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 	it = ids->begin();
 	front_id = dynamic_cast<const Id*>(*it);
 	if (front_id == NULL) {
-		cerr << "NOT AN ID ON GLOBALSCOPE" << endl;
+		cerr << "Expected ID ON GLOBALSCOPE" << endl;
 		return NULL;
 	}
 
@@ -336,28 +335,22 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 	base = new FCall(new Id("__getDyn"), base_exprs);
 
 	it++;
-	offset = getStructExpr(base, top_symtab, it, ids->end(), ids_pt);
+	offset = getStructExpr(base, top_symtab, it, ids->end(), last_ste);
 	delete base;
 
 	if (offset == NULL) {
-		cerr << "NULLOFFSET" << endl;
 		return NULL;
 	}
 
-	if (isPTaUserType(ids_pt) == true) {
+	thunk_field = last_ste->getFieldThunk();
+	if (thunk_field->getType() != NULL) {
 		/* pointer.. */
 		return offset;
 	}
 
-
-	pta = dynamic_cast<const PhysTypeArray*>(ids_pt);
-
 	exprs = new ExprList();
 	exprs->add(offset->simplify());
-	if (pta != NULL)
-		exprs->add((pta->getBase())->getBits());
-	else
-		exprs->add(ids_pt->getBits());
+	exprs->add(thunk_field->getSize()->copyConstValue());
 
 	delete offset;
 
@@ -366,23 +359,18 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 
 Expr* EvalCtx::resolveFuncArg(const IdStruct* ids) const
 {
-	const ArgsList			*args;
 	Expr				*base;
 	Expr				*offset;
 	ExprList			*exprs;
-	const Id*			type_name;
+	string				type_name;
 	const Id*			first_id;
 	const Type			*top_type;
 	const SymbolTable		*top_symtab;
-	const PhysicalType		*ids_pt;
-	const PhysTypeArray		*pta;
+	const SymbolTableEnt		*last_ste;
+	const ThunkField		*thunk_field;
 	IdStruct::const_iterator	it;
 	
-	if (gen_func == NULL)
-		return NULL;
-
-	if ((args = gen_func->getArgs()) == NULL)
-		return NULL;
+	assert (func_args != NULL);
 
 	it = ids->begin();
 	if (dynamic_cast<const IdArray*>(*it) != NULL) {
@@ -396,43 +384,41 @@ Expr* EvalCtx::resolveFuncArg(const IdStruct* ids) const
 	if (first_id == NULL)
 		return NULL;
 
-	if ((type_name = args->findType(first_id->getName())) == NULL) {
+	if (func_args->lookupType(first_id->getName(), type_name) == false) {
 		/* given argument name is not in argument list. */
 		return NULL;
 	}
 
-	top_type = typeByName(type_name->getName());
-	if (top_type == NULL) {
-		/* id struct should only be referencing user types-- no primitives!  */
-	}
-
-	top_symtab = symtabByName(type_name->getName());
+	top_type = typeByName(type_name);
+	top_symtab = symtabByName(type_name);
 	if (top_symtab == NULL || top_type == NULL) {
+		/* top_type == NULL => 
+		* id struct should only be referencing user types-- no primitives!  */
+
 		/* could not find type given by argslist */
 		return NULL;
 	}
 
 	base = first_id->copy();
 	it++;
-	offset = getStructExpr(base, top_symtab, it, ids->end(), ids_pt);
+	offset = getStructExpr(base, top_symtab, it, ids->end(), last_ste);
 	delete base;
 
-	if (offset == NULL) {
+	if (offset == NULL) 
 		return NULL;
-	}
-	
 
-	if (isPTaUserType(ids_pt) == true)
+	thunk_field = last_ste->getFieldThunk();
+
+	/* only return offset if we are returning a user type */
+	if (thunk_field->getType() != NULL)
 		return offset;
 
-	pta = dynamic_cast<const PhysTypeArray*>(ids_pt);
-
+	/* since we're not returning a user type, we know that the size to 
+	 * read is going to be constant. don't need to bother with computing
+	 * parameters for the size function-- inline it! */
 	exprs = new ExprList();
 	exprs->add(offset->simplify());
-	if (pta != NULL)
-		exprs->add((pta->getBase())->getBits());
-	else
-		exprs->add(ids_pt->getBits());
+	exprs->add(thunk_field->getSize()->copyConstValue());
 
 	delete offset;
 
@@ -443,15 +429,20 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 {	
 	Expr	*ret;
 
-	ret = resolveCurrentScope(ids);
-	if (ret != NULL)
-		return ret;
+	if (cur_scope != NULL) {
+		ret = resolveCurrentScope(ids);
+		if (ret != NULL)
+			return ret;
+	}
+
+	if (func_args != NULL) {
+		ret = resolveFuncArg(ids);
+		if (ret != NULL) {
+			return ret;
+		}
+	}
 
 	ret = resolveGlobalScope(ids);
-	if (ret != NULL)
-		return ret;
-
-	ret = resolveFuncArg(ids);
 	if (ret != NULL)
 		return ret;
 
@@ -467,53 +458,45 @@ Expr* EvalCtx::resolve(const IdArray* ida) const
 {
 	const_map::const_iterator	const_it;
 	const SymbolTableEnt		*st_ent;
-	const PhysicalType		*pt;
-	const PhysTypeArray		*pta;
 
 	assert (ida != NULL);
 
-	if ((st_ent = cur_scope.lookup(ida->getName())) != NULL) {
-		/* array is in current scope */
-		ExprList	*elist;
-		Expr		*evaled_idx;
+	if (cur_scope != NULL) {
+		if ((st_ent = cur_scope->lookup(ida->getName())) != NULL) {
+			/* array is in current scope */
+			ExprList		*elist;
+			Expr			*evaled_idx;
+			const ThunkField	*thunk_field;
 
-		evaled_idx = eval(*this, ida->getIdx());
+			evaled_idx = eval(*this, ida->getIdx());
 
-		if (evaled_idx == NULL) {
-			cerr << "Could not resolve ";
-			(ida->getIdx())->print(cerr);
-			cerr << endl;
-			return NULL;
+			if (evaled_idx == NULL) {
+				cerr << "Could not resolve ";
+				(ida->getIdx())->print(cerr);
+				cerr << endl;
+				return NULL;
+			}
+
+			thunk_field = st_ent->getFieldThunk();
+
+			/* convert into __getLocalArray call */
+			elist = new ExprList();
+			elist->add(evaled_idx->simplify());
+			elist->add(thunk_field->getSize()->copyFCall());
+			elist->add(thunk_field->getOffset()->copyFCall());
+			elist->add(
+				new AOPMul(
+					thunk_field->getSize()->copyFCall(),
+					thunk_field->getElems()->copyFCall()));
+
+			delete evaled_idx;
+
+			return new FCall(new Id("__getLocalArray"), elist);
 		}
-
-		pt = st_ent->getPhysType();
-		assert (pt != NULL);
-
-		pta = dynamic_cast<const PhysTypeArray*>(pt);
-		assert (pta != NULL);
-
-
-		/* convert into __getLocalArray call */
-		elist = new ExprList();
-		elist->add(evaled_idx->simplify());
-		elist->add((pta->getBase())->getBits());
-		elist->add(st_ent->getOffset()->simplify());
-		elist->add(st_ent->getPhysType()->getBits());
-
-		delete evaled_idx;
-
-		return new FCall(new Id("__getLocalArray"), elist);
 	}
 	
 /* TODO -- add support for constant arrays */
 	assert (0 == 1);
-#if 0
-	const_it = constants.find(id->getName());
-	if (const_it != constants.end()) {
-		return (const_it.second)->simplify();
-	}
-#endif
-	
 	
 	/* could not resolve */
 	return NULL;
@@ -556,8 +539,6 @@ const Type* EvalCtx::typeByName(const std::string& s) const
 {
 	const SymbolTable	*st;
 	const Type		*t;
-	const PhysicalType	*pt;
-
 
 	st = symtabByName(s);
 	if (st == NULL)

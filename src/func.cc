@@ -7,18 +7,19 @@
 #include "cond.h"
 #include "func.h"
 #include "eval.h"
-#include "funcevalctx.h"
+#include "evalctx.h"
+#include "code_builder.h"
 
 using namespace std;
 using namespace llvm;
 
-extern IRBuilder<>	*builder;
-extern Module		*mod;
+extern CodeBuilder	*code_builder;
 extern ptype_map	ptypes_map;
+extern type_map		types_map;
 extern const FuncBlock	*gen_func_block;
 extern const Func	*gen_func;
 extern const_map	constants;
-extern symtab_map	symtabs_thunked;
+extern symtab_map	symtabs;
 
 static bool gen_func_code_args(
 		const Func* f,
@@ -51,16 +52,15 @@ Value* Func::codeGen(const EvalCtx* ectx) const
 
 	for (unsigned int i = 0; i < arg_c; i++, ai++) {
 		AllocaInst		*allocai;
-		PhysicalType		*pt;
 		const llvm::Type	*t;
 		string			arg_name;
 
 		arg_name = (args->get(i).second)->getName();
-		pt = ptypes_map[(args->get(i).first)->getName()];
-		t = pt->getLLVMType();
+		t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+
 		allocai = tmpB.CreateAlloca(t, 0, arg_name);
 		block->addVar(arg_name, allocai);
-		builder->CreateStore(ai, allocai);
+		code_builder->getBuilder()->CreateStore(ai, allocai);
 	}
 
 	/* gen rest of code */
@@ -113,7 +113,8 @@ Value* FuncAssign::codeGen(const EvalCtx* ectx) const
 	/* XXX no support for arrays just yet */
 	assert (array == NULL);
 
-	builder->CreateStore(e_v, getOwner()->getVar(scalar->getName()));
+	code_builder->getBuilder()->CreateStore(
+		e_v, getOwner()->getVar(scalar->getName()));
 
 	return e_v;
 }
@@ -129,7 +130,7 @@ Value* FuncRet::codeGen(const EvalCtx* ectx) const
 		cerr << endl;
 	}
 
-	builder->CreateRet(e_v);
+	code_builder->getBuilder()->CreateRet(e_v);
 
 	return e_v;
 }
@@ -139,6 +140,9 @@ Value* FuncCondStmt::codeGen(const EvalCtx* ectx) const
 	Function	*f;
 	BasicBlock	*bb_then, *bb_else, *bb_merge;
 	Value		*cond_v;
+	IRBuilder<>	*builder;
+
+	builder = code_builder->getBuilder();
 
 	f = getFunction();
 	bb_then = BasicBlock::Create(getGlobalContext(), "then", f);
@@ -218,7 +222,7 @@ bool FuncBlock::addVar(const std::string& name, llvm::AllocaInst* ai)
 
 Function* Func::getFunction(void) const
 {
-	return mod->getFunction(getName());
+	return code_builder->getModule()->getFunction(getName());
 }
 
 Function* FuncStmt::getFunction() const
@@ -232,26 +236,40 @@ static llvm::Function* gen_func_code_proto(const Func* f)
 	llvm::Type			*ret_type;
 	llvm::Function			*llvm_f;
 	llvm::FunctionType		*llvm_ft;
-	PhysicalType			*pt_ret;
 	const llvm::Type		*t_ret;
+	bool				is_user_type;
 
-	pt_ret = ptypes_map[f->getRet()];
-	if (pt_ret == NULL) {
+	if (types_map.count(f->getRet()) != 0) {
+		is_user_type = true;
+	} else if (ptypes_map.count(f->getRet()) != 0) {
+		is_user_type = false;	
+	} else {
 		cerr	<< "Bad return type (" << f->getRet() << ") for "
 			<< f->getName() << endl;
 		return NULL;
 	}
-	t_ret = pt_ret->getLLVMType();
+
+	/* XXX need to do this better.. */
+	if (f->getRet() == "bool") {
+		t_ret = llvm::Type::getInt1Ty(llvm::getGlobalContext());
+	} else
+		t_ret = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+		
+	if (is_user_type)
+		cerr << "XXX: be smarter about returning user types" << endl;
 
 	if (gen_func_code_args(f, f_args) == false) {
 		cerr << "Bailing on generating " << f->getName() << endl;
 		return NULL;
 	}
 
-	/* llvm stuff..*/
+	/* finally, create the proto */
 	llvm_ft = llvm::FunctionType::get(t_ret, f_args, false);
 	llvm_f = llvm::Function::Create(
-		llvm_ft, llvm::Function::ExternalLinkage, f->getName(), mod);
+		llvm_ft,
+		llvm::Function::ExternalLinkage,
+		f->getName(),
+		code_builder->getModule());
 	if (llvm_f->getName() != f->getName()) {
 		cerr << f->getName() << " already declared!" << endl;
 		return NULL;
@@ -271,19 +289,23 @@ static bool gen_func_code_args(
 	llvm_args.clear();
 
 	for (unsigned int i = 0; i < args->size(); i++) {
-		string		cur_type(((args->get(i)).first)->getName());
-		PhysicalType		*pt;
+		string			cur_type(((args->get(i)).first)->getName());
 		const llvm::Type	*t;
+		bool			is_user_type;
 
-		pt = ptypes_map[cur_type];
-		if (pt == NULL) {
+		if (types_map.count(cur_type) != 0) {
+			cerr << "XXX : be smarter about type args" << endl;
+			is_user_type = true;
+		} else if (ptypes_map.count(cur_type) != 0) {
+			is_user_type = false;
+		} else {
 			cerr << f->getName() << 
 				": Could not resolve argument type for \"" <<
 				cur_type << '"' << endl;
 			return false;
 		}
 
-		t = pt->getLLVMType();
+		t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 		if (t == NULL) {
 			cerr << f->getName() << ": bad func arg type \"" << 
 			cur_type << "\"." << endl;
@@ -299,24 +321,23 @@ static bool gen_func_code_args(
 void gen_func_code(Func* f)
 {
 	EvalCtx*			ectx;
-	SymbolTable*			cur_scope;
 	llvm::Function			*llvm_f;
 	llvm::BasicBlock		*f_bb;
+	FuncArgs			*fargs;
 
 	llvm_f = gen_func_code_proto(f);
 	if (llvm_f == NULL)
 		return;
 
-	cur_scope = new SymbolTable(NULL, NULL);
-	cur_scope->loadArgs(ptypes_map, f->getArgs());
+	fargs = new FuncArgs(f->getArgs());
 
 	/* scope takes args */
-	ectx = new FuncEvalCtx(*cur_scope, symtabs_thunked, constants);
+	ectx = new EvalCtx(fargs, symtabs, constants);
 	
 	f_bb = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", llvm_f);
 
-	builder->SetInsertPoint(f_bb);
+	code_builder->getBuilder()->SetInsertPoint(f_bb);
 
 	/* set gen_func so that expr id resolution will get the right
 	 * alloca variable */
@@ -326,7 +347,7 @@ void gen_func_code(Func* f)
 	gen_func_block = NULL;
 
 	delete ectx;
-	delete cur_scope;
+	delete fargs;
 }
 
 

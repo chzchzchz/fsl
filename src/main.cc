@@ -8,21 +8,15 @@
 #include "phys_type.h"
 #include "symtab.h"
 #include "eval.h"
-#include "thunk.h"
+#include "code_builder.h"
 
 #include <stdint.h>
 #include <fstream>
 
-#include <llvm/DerivedTypes.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
-#include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/IRBuilder.h>
-#include <llvm/Support/raw_os_ostream.h>
-
 extern int yyparse();
 
 extern GlobalBlock* global_scope;
+extern void gen_rt_tables(void);
 
 using namespace std;
 
@@ -31,44 +25,24 @@ static func_list	funcs_list;
 ptype_map		ptypes_map;	/* XXX add to evalctx? */
 const Func		*gen_func;
 const FuncBlock		*gen_func_block;
-static type_map		types_map;
+ctype_map		ctypes_map;
+type_map		types_map;
 type_list		types_list;
 const_map		constants;
-symtab_map		symtabs_inlined;
-symtab_map		symtabs_thunked;
+symtab_map		symtabs;
+llvm_var_map		thunk_var_map;
 
-llvm::Module		*mod;
-llvm::IRBuilder<> 	*builder;
+CodeBuilder		*code_builder;
 
 
 static void	load_user_types_list(const GlobalBlock* gb);
 static bool	load_user_ptypes_thunk(void);
-static bool	load_user_ptypes_resolved(void);
 static void	load_primitive_ptypes(void);
 static void	build_inline_symtabs(void);
 static bool	apply_consts_to_consts(void);
 static void	simplify_constants(void);
 static void	build_thunk_symtabs(void);
 static void	create_global(const char* str, uint64_t v);
-
-
-#define create_global_const(x, y) create_global(x, y, true)
-#define create_global_mutable(x, y) create_global(x, y, false)
-
-static void create_global(const char* str, uint64_t v, bool is_const)
-{
-	llvm::GlobalVariable	*gv;
-
-	gv = new llvm::GlobalVariable(
-		*mod,
-		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
-		is_const,
-		llvm::GlobalVariable::ExternalLinkage,
-		llvm::ConstantInt::get(
-			llvm::getGlobalContext(), 
-			llvm::APInt(64, v, false)),
-		str);
-}
 
 static void load_primitive_ptypes(void)
 {
@@ -88,9 +62,32 @@ static void load_primitive_ptypes(void)
 		ptypes_map[pt[i]->getName()] = pt[i];
 	}
 
-	ptypes_map["bool"] = new U64(); 
+	ptypes_map["bool"] = new U1(); 
 	ptypes_map["int"] = new I64();
 	ptypes_map["uint"] = new U64();
+
+	for (	ptype_map::const_iterator it = ptypes_map.begin();
+		it != ptypes_map.end();
+		it++)
+	{
+		PhysicalType	*pt;
+		Expr		*bits, *bits2;
+		Number		*n;
+
+		pt = (*it).second;
+
+		bits = pt->getBits();
+		bits2 = bits->simplify();
+		delete bits;
+		bits = bits2;
+
+		n = dynamic_cast<Number*>(bits);
+		assert (n != NULL);
+
+		ctypes_map[(*it).first] = n->getValue();
+
+		delete bits;
+	}
 }
 
 static void load_user_types_list(const GlobalBlock* gb)
@@ -112,12 +109,10 @@ static void load_user_types_list(const GlobalBlock* gb)
 		type_num++;
 	}
 
-	create_global_const("fsl_num_types", type_num);
-
+	code_builder->createGlobalConst("fsl_num_types", type_num);
 	/* remember to set these in the run-time */
-	create_global_mutable("__FROM_OS_BDEV_BYTES", 0);
-	create_global_mutable("__FROM_OS_BDEV_BLOCK_BYTES", 0);
-
+	code_builder->createGlobalMutable("__FROM_OS_BDEV_BYTES", 0);
+	code_builder->createGlobalMutable("__FROM_OS_BDEV_BLOCK_BYTES", 0);
 }
 
 static void load_user_funcs(const GlobalBlock* gb)
@@ -134,34 +129,9 @@ static void load_user_funcs(const GlobalBlock* gb)
 		funcs_list.push_back(f);
 		funcs_map[f->getName()] = f;
 
+		cout << "LOADING FUNC: " << f->getName() << endl;
 		gen_func_code(f);
 	}
-}
-
-static bool load_user_ptypes_thunk(void)
-{
-	type_list::iterator	it;
-	bool			success;
-
-	success = true;
-	for (it = types_list.begin(); it != types_list.end(); it++) {
-		Type		*t;
-		string		thunk_str;
-
-		t = *it;
-		thunk_str = string("thunk_") + t->getName();
-		if (ptypes_map.count(thunk_str) != 0) {
-			cerr << "Type \"" << t->getName() <<
-				"\" already declared!" << endl;
-			success = false;
-			continue;
-		}
-
-		ptypes_map[string("thunk_") + t->getName()] = 
-			new PhysTypeThunk(t, new ExprList(new Id("PT_THUNK_ARG")));
-	}
-
-	return success;
 }
 
 void dump_ptypes(void)
@@ -175,73 +145,10 @@ void dump_ptypes(void)
 
 }
 
-static bool load_user_ptypes_resolved(void)
-{
-	type_list::iterator	it;
-	bool			success;
-	Expr			*base = new Number(0);
-
-	success = true;
-	for (it = types_list.begin(); it != types_list.end(); it++) {
-		Type	*t;
-
-		t = *it;
-		cout << "adding.. " << t->getName() << endl;
-		if (ptypes_map.count(t->getName()) != 0) {
-			cerr << t->getName() << " already declared!" << endl;
-			success = false;
-			continue;
-		}
-
-		ptypes_map[t->getName()] = new PhysTypeUser(
-			t, t->resolve(ptypes_map));
-	}
-
-
-	/* now, do it again to get the non-parameterized thunks */
-	/* XXX we don't want to inline parameterized thunks because otherwise
-	 * we run into some horrific scoping issues. 
-	 * On that note, we still run into issues even *without* non-param
-	 * thunks because if we have align() then that will cause conflicts
-	 * on the offset... */
-#if 0
-	for (it = types_list.begin(); it != types_list.end(); it++) {
-		Type	*t;
-
-		t = *it;
-
-		delete ptypes_map[t->getName()];
-
-		cout << "resolving " << t->getName() << endl;
-
-		ptypes_map[t->getName()] = new PhysTypeUser(
-			t, t->resolve(base, ptypes_map));
-
-	}
-#endif
-	delete base;
-
-	return success;
-}
-
-
-static void build_thunk_symtabs(void)
-{
-	type_list::iterator it;
-	for (it = types_list.begin(); it != types_list.end(); it++) {
-		Type		*t;
-		t = *it;
-		cout << "Building thunk symtab for " << t->getName() << endl;
-		t->buildSymsThunked(ptypes_map);
-		symtabs_thunked[t->getName()] = t->getSymsThunked(ptypes_map);
-	}
-}
-
-
 /**
  * build up symbol tables, disambiguate if possible
  */
-static void build_inline_symtabs(void)
+static void build_symtabs(void)
 {
 	type_list::iterator	it;
 
@@ -254,9 +161,9 @@ static void build_inline_symtabs(void)
 
 		cout << "Building symtab for " << t->getName() << endl;
 
-		t->buildSyms(ptypes_map);
-		syms = t->getSyms(ptypes_map);
-		symtabs_inlined[t->getName()] = syms;
+		t->buildSyms();
+		syms = t->getSyms();
+		symtabs[t->getName()] = syms;
 	}
 }
 
@@ -372,14 +279,14 @@ static bool apply_consts_to_consts(void)
 	return updated;
 }
 
-#define NUM_RUNTIME_FUNCS	9
+#define NUM_RUNTIME_FUNCS	8
 /* TODO: __max should be a proper vararg function */
 const char*	f_names[] = {	
-	"__getLocal", "__getLocalArray", "__getDyn", "fsl_fail_bits", 
-	"__max2", "__max3", "__max4", "__max5", "fsl_fail_bytes"};
+	"__getLocal", "__getLocalArray", "__getDyn", "fsl_fail", 
+	"__max2", "__max3", "__max4", "__max5"};
 int	f_arg_c[] = {
 	2,4,1,0, 
-	2,3,4,5,0 };
+	2,3,4,5};
 
 /**
  * insert run-time functions into the llvm module so that they resolve
@@ -405,7 +312,7 @@ static void load_runtime_funcs(void)
 			ft,
 			llvm::Function::ExternalLinkage, 
 			f_names[i],
-			mod);
+			code_builder->getModule());
 	}
 }
 
@@ -418,7 +325,7 @@ static void dump_usertype_fields(const Type* t)
 
 	cout << "Getting Syms By User Type.." << endl;
 
-	st = t->getSymsByUserType(ptypes_map);
+	st = t->getSymsByUserType();
 	assert (st != NULL);
 
 	cout << "DUMPING: " << t->getName() << endl;
@@ -452,14 +359,43 @@ static void dump_usertypes(void)
 	}
 }
 
+static void gen_thunk_code(void)
+{
+	for (	symtab_map::const_iterator it = symtabs.begin();
+		it != symtabs.end();
+		it++)
+	{
+		const SymbolTable	*st;
+		const ThunkType		*thunk_type;
+
+		st = (*it).second;
+
+		thunk_type = st->getThunkType();
+		thunk_type->genCode();
+	}
+}
+
+static void gen_thunk_proto(void)
+{
+	for (	symtab_map::const_iterator it = symtabs.begin();
+		it != symtabs.end();
+		it++)
+	{
+		const SymbolTable	*st;
+		const ThunkType		*thunk_type;
+
+		st = (*it).second;
+		thunk_type = st->getThunkType();
+		thunk_type->genProtos();
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	llvm::LLVMContext&	ctx = llvm::getGlobalContext();
-	ofstream		os("fsl.types.out");
-	llvm::raw_os_ostream	llvm_out(os);
+	ofstream		os("fsl.types.ll");
 
-	builder = new llvm::IRBuilder<>(ctx);
-	mod = new llvm::Module("mod", ctx);
+	code_builder = new CodeBuilder("fsl.types.mod");
 
 	yyparse();
 
@@ -480,23 +416,13 @@ int main(int argc, char *argv[])
 	cout << "Loading user types list" << endl;
 	load_user_types_list(global_scope);
 
-	cout << "Creating user type sym thunks" << endl;
-	load_user_ptypes_thunk();
-
-	cout << "Building thunk symbol tables" << endl;
-	build_thunk_symtabs();
-	
-	cout << "Resolving user types into expressions" << endl;
-	load_user_ptypes_resolved();
-
 	/* next, build up symbol tables on types.. this is our type checking */
-	cout << "Building inlined symbol tables" << endl;
-	build_inline_symtabs();
+	cout << "Building symbol tables" << endl;
+	build_symtabs();
 
 
 	cout << "Generating thunk prototypes" << endl;
 	gen_thunk_proto();
-	gen_thunkfield_proto();
 
 	/* generate function prototyes so that we can resolve thunks within
 	 * functions */
@@ -505,12 +431,14 @@ int main(int argc, char *argv[])
 
 	cout << "Loading thunks" << endl;
 	gen_thunk_code();
-	gen_thunkfield_code();
 
-	mod->print(llvm_out, NULL);
+	code_builder->write(os);
 
 	cout << "OK. Dumping user types: " << endl;
 	dump_usertypes();
+
+	cout << "Generating fsl.table.c" << endl;
+	gen_rt_tables();
 
 	return 0;
 }

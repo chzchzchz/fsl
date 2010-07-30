@@ -3,7 +3,8 @@
 
 #include <iostream>
 #include <map>
-#include "phys_type.h"
+#include "thunk_type.h"
+#include "thunk_field.h"
 
 typedef std::map<std::string, class SymbolTableEnt*>		sym_map;
 typedef std::map<std::string, SymbolTable*>		symtab_map;
@@ -14,82 +15,70 @@ public:
 	SymbolTableEnt(
 		const std::string	&in_typename,
 		const std::string	&in_fieldname,
-		PhysicalType		*in_pt,
-		class Expr		*in_offset,
-		bool			in_is_weak) 
+		ThunkField		*in_thunk_field,
+		bool			in_is_weak,
+		bool			in_is_conditional) 
 	: type_name(in_typename),
 	fieldname(in_fieldname),
-	pt(in_pt),
-	offset(in_offset),
-	is_weak(in_is_weak)
+	thunk_field(in_thunk_field),
+	is_weak(in_is_weak),
+	is_conditional(in_is_conditional)
 	{
-		assert (pt != NULL);
-		assert (offset != NULL);
+		assert (thunk_field != NULL);
 	}
 
-	const Expr* getOffset(void) const { return offset; }
-	const PhysicalType* getPhysType(void) const { return pt; }
 	const std::string& getTypeName(void) const { return type_name; }
 	const std::string& getFieldName(void) const { return fieldname; }
+	const ThunkField* getFieldThunk(void) const { return thunk_field; }
 	bool isWeak(void) const { return is_weak; }
+	bool isConditional(void) const { return is_conditional; }
 
 	virtual ~SymbolTableEnt(void) 
 	{ 
-		delete pt;
-		delete offset;
+		delete thunk_field;
 	}
 
 private:
 	std::string		type_name;
 	std::string		fieldname;
-	PhysicalType		*pt;
-	Expr			*offset;
+	ThunkField		*thunk_field;
 	bool			is_weak;
+	bool			is_conditional;
 };
 
-/**
- * TODO: GENERATE TABLE THAT CAN BE USED AT RUN-TIME TO RESOLVE TYPE 
- * NAMES!
- */
 class SymbolTable
 {
 public:
-	SymbolTable(
-		const SymbolTable*	in_backref, 
-		PhysicalType*		in_owner)
-	: backref(in_backref),
-	  owner(in_owner) 
-	{}
+	SymbolTable(ThunkType* in_owner)
+	: owner(in_owner) 
+	{ assert (owner != NULL); } 
 
 	virtual ~SymbolTable() { freeData(); }
 
-	void setOwner(PhysicalType* new_owner);
-
-	const PhysicalType* getOwner(void) const { return owner; }
-
 	const Type* getOwnerType(void) const;
-
+	const ThunkType* getThunkType(void) const;
+	
 	bool add(
-		const std::string& name, PhysicalType* pt, Expr* offset_bits, 
-		bool weak_binding = false);
-	bool add(const std::string& name, const SymbolTableEnt* st_ent);
+		const std::string& 	name, 
+		const std::string&	type_name,
+		ThunkField		*thunk_field,
+		bool weak_binding = false,
+		bool cond_binding = false);
+	bool add(const SymbolTableEnt* st_ent);
 	const SymbolTableEnt* lookup(const std::string& name) const;
 
 	void print(std::ostream& out) const;
 	SymbolTable& operator=(const SymbolTable& st);
 	SymbolTable* copy(void);
-	void copyInto(const SymbolTable& st, Expr* new_base = NULL);
-
-	bool loadArgs(const ptype_map& tm, const ArgsList* args);
-	const SymbolTable* getBackRef(void) const { return backref; }
+	void copyInto(const SymbolTable& st);
 
 	sym_map::const_iterator	begin(void) const { return sm.begin(); }
 	sym_map::const_iterator end(void) const { return sm.end(); }
-private:
 
+	unsigned int size(void) const { return sm.size(); }
+private:
 	void freeData(void);
-	const SymbolTable*	backref;
-	PhysicalType*		owner;
+	ThunkType*		owner;
 	sym_map			sm;
 };
 

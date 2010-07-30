@@ -7,50 +7,19 @@
 using namespace std;
 
 extern const_map		constants;
-extern symtab_map		symtabs_thunked;
 
 FCall	from_base_fc(new Id("from_base"), new ExprList());
-
-bool SymbolTable::loadArgs(const ptype_map& tm, const ArgsList *args)
-{
-	if (args == NULL) return true;
-
-	for (unsigned int i = 0; i < args->size(); i++) {
-		pair<Id*, Id*>  p;
-		PhysicalType    *pt;
-		bool            rc;
-
-		p = args->get(i);
-		pt = resolve_by_id(tm, p.first);
-		if (pt == NULL) return false;
-
-
-//		rc = add(
-//			(p.second)->getName(),
-//			pt,
-//			new FCall(new Id("__arg"), exprs));
-//
-		rc = add((p.second)->getName(), pt, (p.second)->copy());
-
-
-		if (rc == false) return false;
-	}
-
-	return true;
-}
 
 void SymbolTable::print(ostream& out) const
 {
 	sym_map::const_iterator	it;
 
-	out << "SymTable for " << owner->getName() << std::endl;
+	out << "SymTable for " << owner->getType()->getName() << std::endl;
 	for (it = sm.begin(); it != sm.end(); it++) {
 		const SymbolTableEnt	*st_ent = (*it).second;
 
 		out 	<< "Symbol: \"" <<  (*it).first << "\" = ";
-		out << (st_ent->getPhysType())->getName();
-		out << '@';
-		st_ent->getOffset()->print(out);
+		out << st_ent->getTypeName();
 		out << std::endl;
 	}
 }
@@ -59,9 +28,7 @@ SymbolTable* SymbolTable::copy(void)
 {
 	SymbolTable	*new_st;
 
-	new_st = new SymbolTable(
-		backref, 
-		(owner) ? owner->copy() : NULL);
+	new_st = new SymbolTable(owner->copy());
 
 	new_st->copyInto(*this);
 
@@ -74,7 +41,7 @@ SymbolTable& SymbolTable::operator=(const SymbolTable& st)
 	return *this;
 }
 
-void SymbolTable::copyInto(const SymbolTable& st, Expr* new_base)
+void SymbolTable::copyInto(const SymbolTable& st)
 {
 	sym_map::const_iterator	it;
 
@@ -84,23 +51,15 @@ void SymbolTable::copyInto(const SymbolTable& st, Expr* new_base)
 	freeData();
 
 	owner = (st.owner)->copy();
-	backref = st.backref;
 
 	for (it = st.sm.begin(); it != st.sm.end(); it++) {
 		const SymbolTableEnt	*st_ent;
 
 		st_ent = (*it).second;
-		if (new_base == NULL) {
-			add(	(*it).first,
-				st_ent->getPhysType()->copy(),
-				st_ent->getOffset()->copy());
-		} else {
-			add(	(*it).first,
-				st_ent->getPhysType()->copy(),
-				new AOPAdd(
-				new_base->copy(), 
-				st_ent->getOffset()->copy()));
-		}
+		add(	(*it).first, 
+			st_ent->getTypeName(),
+			st_ent->getFieldThunk()->copy(*owner),
+			st_ent->isWeak());
 	}
 }
 
@@ -109,10 +68,7 @@ const SymbolTableEnt* SymbolTable::lookup(const std::string& name) const
 	sym_map::const_iterator	it;
 	
 	if (sm.count(name) == 0) {
-		if (backref == NULL)
-			return false;
-
-		return backref->lookup(name);
+		return false;
 	}
 
 	it = sm.find(name);
@@ -121,57 +77,44 @@ const SymbolTableEnt* SymbolTable::lookup(const std::string& name) const
 	return ((*it).second);
 }
 
-bool SymbolTable::add(const std::string& name, const SymbolTableEnt* st_ent)
+bool SymbolTable::add(const SymbolTableEnt* st_ent)
 {
 	return add(
-		name, 
-		st_ent->getPhysType()->copy(),
-		st_ent->getOffset()->copy(),
-		st_ent->isWeak());
+		st_ent->getFieldName(),
+		st_ent->getTypeName(),
+		st_ent->getFieldThunk()->copy(*owner),
+		st_ent->isWeak(),
+		st_ent->isConditional());
 }
 
 bool SymbolTable::add(
-	const std::string& name, PhysicalType* pt, Expr* offset_bits,
-	bool weak_binding)
+	const std::string&	name, 
+	const std::string&	type_name,
+	ThunkField*		thunk_field,
+	bool			weak_binding,
+	bool			cond_binding)
 {
 	if (sm.count(name) != 0) {
 		/* exists */
 		return false;
 	}
 
+	assert (!(weak_binding == false && cond_binding));
+
 	sm[name] = new SymbolTableEnt(
-		"__XXX_ANTHONY_NEEDS_TYPENAME", 
+		type_name,
 		name,
-		pt,
-		offset_bits,
-		weak_binding);
+		thunk_field,
+		weak_binding,
+		cond_binding);
+
 	return true;
 }
 
 const Type* SymbolTable::getOwnerType(void) const
 { 
-	const PhysTypeUser	*ptu;
-	const PhysTypeThunk	*ptt;
-
-	ptu = dynamic_cast<const PhysTypeUser*>(getOwner());
-	if (ptu != NULL) {
-		return ptu->getType();
-	}
-
-	ptt = dynamic_cast<const PhysTypeThunk*>(getOwner());
-	if (ptt != NULL ) {
-		return ptt->getType();
-	}
-
-	return NULL;
+	return owner->getType();
 }
-
-void SymbolTable::setOwner(PhysicalType* new_owner)
-{
-	assert (owner == NULL);
-	owner = new_owner;
-}
-
 
 void SymbolTable::freeData(void)
 {
@@ -189,3 +132,9 @@ void SymbolTable::freeData(void)
 		owner = NULL;
 	}
 }
+
+const ThunkType* SymbolTable::getThunkType(void) const
+{
+	return owner->copy();
+}
+

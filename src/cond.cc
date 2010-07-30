@@ -5,120 +5,12 @@
 #include <llvm/Support/IRBuilder.h>
 #include <assert.h>
 
-#include "phys_type.h"
 #include "expr.h"
 #include "cond.h"
+#include "code_builder.h"
 
-extern llvm::IRBuilder<>	*builder;
+extern CodeBuilder*		code_builder;
 
-
-static PhysicalType* cond_cmpop_resolve(
-	const CmpOp*		cmpop,
-	const ptype_map&	tm,
-	PhysicalType		*t,
-	PhysicalType		*f);
-
-static PhysicalType* cond_bop_resolve(
-	const BinBoolOp*	bop,
-	const ptype_map& 	tm,
-	PhysicalType*		t,
-	PhysicalType*		f);
-
-static PhysicalType* cond_cmpop_resolve(
-	const CmpOp*		cmpop,
-	const ptype_map&	tm,
-	PhysicalType		*t,
-	PhysicalType		*f)
-{
-	Expr		*lhs, *rhs;
-
-	assert (cmpop != NULL);
-
-	lhs = (cmpop->getLHS())->simplify();
-	rhs = (cmpop->getRHS())->simplify();
-
-	switch (cmpop->getOp()) {
-	case CmpOp::EQ: return new PhysTypeCondEQ(lhs, rhs, t, f);
-	case CmpOp::NE: return new PhysTypeCondNE(lhs, rhs, t, f);
-	case CmpOp::LE: return new PhysTypeCondLE(lhs, rhs, t, f);
-	case CmpOp::LT: return new PhysTypeCondLT(lhs, rhs, t, f);
-	case CmpOp::GT: return new PhysTypeCondGT(lhs, rhs, t, f);
-	case CmpOp::GE: return new PhysTypeCondGE(lhs, rhs, t, f);
-	default:
-		assert (0 == 1);
-	}
-
-	return NULL;
-}
-
-static PhysicalType* cond_bop_resolve(
-	const BinBoolOp*	bop,
-	const ptype_map& 	tm,
-	PhysicalType*		t,
-	PhysicalType*		f)
-{
-	const CondExpr*	cond_lhs;
-	const CondExpr*	cond_rhs;
-
-	cond_lhs = bop->getLHS();
-	cond_rhs = bop->getRHS();
-
-	assert (bop != NULL);
-
-	if ((dynamic_cast<const BOPAnd*>(bop)) != NULL) {
-		/* if LHS evaluates to true, do RHS */
-
-		return cond_resolve(
-			cond_lhs,
-			tm,
-			cond_resolve(cond_rhs, tm, t, f), 
-			f);
-	} else {
-		/* must be an OR */
-		assert (dynamic_cast<const BOPOr*>(bop) != NULL);
-
-		return cond_resolve(
-			cond_lhs,
-			tm,
-			t,
-			cond_resolve(cond_rhs, tm, t, f));
-	}
-
-	/* should not happen */
-	assert (0 == 1);
-	return NULL;
-}
-
-/**
- * convert a condition into a physical type.
- */
-PhysicalType* cond_resolve(
-	const CondExpr* cond, 
-	const ptype_map& tm,
-	PhysicalType* t, PhysicalType* f)
-{
-	const CmpOp	*cmpop;
-	const BinBoolOp	*bop;
-	const FuncCond	*fcond;
-
-	cmpop = dynamic_cast<const CmpOp*>(cond);
-	if (cmpop != NULL) {
-		return cond_cmpop_resolve(cmpop, tm, t, f);
-	}
-
-	bop = dynamic_cast<const BinBoolOp*>(cond);
-	if (bop != NULL) 
-		return cond_bop_resolve(bop, tm, t, f);
-
-	fcond = dynamic_cast<const FuncCond*>(cond);
-	assert (fcond != NULL);
-
-	return new PhysTypeCondEQ(
-		(fcond->getFC())->simplify(),
-		new Number(1),
-		t,
-		f);
-}
 
 using namespace std;
 
@@ -144,16 +36,19 @@ llvm::Value* cond_cmpop_codeGen(const EvalCtx* ctx, const CmpOp* cmpop)
 		assert (0 == 1);
 	}
 
-	return builder->CreateICmp(pred, lhs, rhs);
+	return code_builder->getBuilder()->CreateICmp(pred, lhs, rhs);
 }
 
 llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 {
 	const CondExpr		*lhs, *rhs;
-	llvm::Value		*lhs_v;
+	llvm::Value		*lhs_v, *rhs_v;
 	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge;
 	llvm::PHINode		*pn;
 	llvm::Function		*f;
+	llvm::IRBuilder<>	*builder;
+
+	builder = code_builder->getBuilder();
 
 	f = builder->GetInsertBlock()->getParent();
 
@@ -183,13 +78,16 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 	builder->CreateBr(bb_merge);
 	builder->SetInsertPoint(bb_else);
 	builder->CreateBr(bb_merge);
-	builder->SetInsertPoint(bb_merge);
 
-	f->getBasicBlockList().push_back(bb_then);
 	f->getBasicBlockList().push_back(bb_else);
 	f->getBasicBlockList().push_back(bb_merge);
 
-	pn->addIncoming(cond_codeGen(ctx, rhs), bb_then);
+	rhs_v = cond_codeGen(ctx, rhs);
+
+	pn = builder->CreatePHI(
+		llvm::Type::getInt1Ty(
+			llvm::getGlobalContext()), "iftmp");
+	pn->addIncoming(rhs_v, bb_then);
 	pn->addIncoming(
 		llvm::ConstantInt::get(
 			llvm::Type::getInt1Ty(llvm::getGlobalContext()), 0), 
@@ -205,6 +103,9 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge;
 	llvm::PHINode		*pn;
 	llvm::Function		*f;
+	llvm::IRBuilder<>	*builder;
+	
+	builder = code_builder->getBuilder();
 
 	f = builder->GetInsertBlock()->getParent();
 
@@ -236,11 +137,13 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	builder->CreateBr(bb_merge);
 	builder->SetInsertPoint(bb_merge);
 
-	f->getBasicBlockList().push_back(bb_then);
+//	f->getBasicBlockList().push_back(bb_then);
 	f->getBasicBlockList().push_back(bb_else);
 	f->getBasicBlockList().push_back(bb_merge);
 
 	/* short-circuit */
+	pn = builder->CreatePHI(
+		llvm::Type::getInt1Ty(llvm::getGlobalContext()), "iftmp");
 	pn->addIncoming(
 		llvm::ConstantInt::get(
 			llvm::Type::getInt1Ty(llvm::getGlobalContext()), 1), 
@@ -250,7 +153,6 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	pn->addIncoming(cond_codeGen(ctx, rhs), bb_else);
 
 	return pn;
-
 }
 
 
@@ -270,7 +172,7 @@ llvm::Value* cond_bop_codeGen(const EvalCtx* ctx, const BinBoolOp* bop)
 
 	bop_and = dynamic_cast<const BOPAnd*>(bop);
 	if (bop_and != NULL) {
-		/* if LHS evaluates to true, do RHS */
+		/* if LHS evaluates to true, go ahead and do RHS */
 		return cond_bop_and_codeGen(ctx, bop_and);
 	}
 	
@@ -284,24 +186,39 @@ llvm::Value* cond_bop_codeGen(const EvalCtx* ctx, const BinBoolOp* bop)
 	return NULL;
 }
 
+/**
+ * generates boolean value for given condition
+ */
 llvm::Value* cond_codeGen(const EvalCtx* ctx, const CondExpr* cond)
 {
 	const CmpOp	*cmpop;
+	const CondNot	*cnot;
 	const BinBoolOp	*bop;
 	const FuncCond	*fcond;
+	llvm::Value	*ret;
 
-	cmpop = dynamic_cast<const CmpOp*>(cond);
-	if (cmpop != NULL) {
-		return cond_cmpop_codeGen(ctx, cmpop);
+	cnot = dynamic_cast<const CondNot*>(cond);
+	if (cnot != NULL) {
+		const CondExpr	*inner_cond;
+
+		inner_cond = cnot->getExpr();
+		ret = cond_codeGen(ctx, inner_cond);
+		if (ret == NULL)
+			return ret;
+		return code_builder->getBuilder()->CreateNot(ret);
+	}
+	
+
+	if ((cmpop = dynamic_cast<const CmpOp*>(cond)) != NULL) {
+		ret = cond_cmpop_codeGen(ctx, cmpop);
+	} else if ((bop = dynamic_cast<const BinBoolOp*>(cond)) != NULL) {
+		ret = cond_bop_codeGen(ctx, bop);
+	} else if ((fcond = dynamic_cast<const FuncCond*>(cond)) != NULL) {
+		ret = evalAndGen(*ctx, fcond->getFC());
+	} else {
+		assert (0 == 1);
 	}
 
-	bop = dynamic_cast<const BinBoolOp*>(cond);
-	if (bop != NULL) 
-		return cond_bop_codeGen(ctx, bop);
-
-	fcond = dynamic_cast<const FuncCond*>(cond);
-	assert (fcond != NULL);
-
-	return evalAndGen(*ctx, fcond->getFC());
+	return ret;
 }
 

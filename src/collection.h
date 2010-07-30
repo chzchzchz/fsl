@@ -28,6 +28,14 @@ public:
 		}
 	}
 	virtual void add(T* t) { assert (t != NULL); push_back(t); }
+	virtual void clear(void)
+	{
+		typename std::list<T*>::iterator	it;
+		for (it = this->begin(); it != this->end(); it++) {
+			delete (*it);
+		}
+		std::list<T*>::clear();
+	}
 };
 
 #endif

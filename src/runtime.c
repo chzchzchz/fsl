@@ -120,16 +120,10 @@ uint64_t __max5(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4)
 }
 
 /* TODO FSL_FAILED should have some unique number so we know why we failed */
-uint64_t fsl_fail_bits(void)
+uint64_t fsl_fail(void)
 {
 	fprintf(stderr, "Failed for some reason...\n");
 	exit(-1);
-}
-
-uint64_t fsl_fail_bytes(void)
-{
-	fprintf(stderr, "Failed for some reason...\n");
-	exit(-2);
 }
 
 /* not exposed to llvm */
@@ -177,14 +171,12 @@ int main(int argc, char* argv[])
 
 	fsl_vars_from_env(env);
 
-	/* some magic goes here */
-	assert (0 == 1);
+	tool_entry();
 
 	fsl_rt_uninit(env);
 
 	return 0;
 }
-
 
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 {

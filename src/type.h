@@ -20,6 +20,8 @@ public:
 	const PhysicalType* getPT(const std::string& name) const;
 };
 
+/* constant type map */
+typedef std::map<std::string, unsigned int>		ctype_map;
 typedef std::list<class Type*>				type_list;
 typedef std::map<std::string, class Type*>		type_map;
 
@@ -78,8 +80,6 @@ protected:
 private:
 	unsigned int	lineno;
 };
-
-static inline unsigned int tstmt_count_conds(const TypeStmt* t);
 
 /* declaration */
 class TypeDecl : public TypeStmt
@@ -224,19 +224,6 @@ public:
 
 	void print(std::ostream& out) const;
 
-	/* get number of conditions */
-	unsigned int getNumConds(void) const
-	{
-		unsigned int	ret;
-
-		ret = 0;
-		for (const_iterator it = begin(); it != end(); it++) {
-			ret += tstmt_count_conds(*it);
-		}
-
-		return ret;
-	}
-
 	virtual void setOwner(const Type* t)
 	{
 		TypeStmt::setOwner(t);
@@ -319,7 +306,7 @@ public:
 		delete fcall;
 	}
 
-	void print(std::ostream& out) const { out << "TYPEFUNC"; }
+	void print(std::ostream& out) const { fcall->print(out); }
 
 	const std::string getName(void) const 
 	{
@@ -351,8 +338,7 @@ public:
 	  preamble(in_preamble),
 	  block(in_block),
 	  type_num(-1),
-	  cached_symtab(NULL),
-	  cached_symtab_thunked(NULL)
+	  cached_symtab(NULL)
 	{
 		assert (in_name != NULL);
 		assert (in_block != NULL);
@@ -365,13 +351,10 @@ public:
 
 	const std::string& getName(void) const { return name->getName(); }
 
-	PhysicalType* resolve(const ptype_map& tm) const;
 	const ArgsList* getArgs(void) const { return args; }
-	class SymbolTable* getSyms(const ptype_map& tm) const;
-	class SymbolTable* getSymsThunked(const ptype_map& tm) const;
-	class SymbolTable* getSymsByUserType(const ptype_map& tm) const;
-	void buildSyms(const ptype_map& tm);
-	void buildSymsThunked(const ptype_map& tm);
+	class SymbolTable* getSyms() const;
+	class SymbolTable* getSymsByUserType() const;
+	void buildSyms();
 
 	std::list<const FCall*> getPreambles(const std::string& name) const;
 
@@ -406,33 +389,9 @@ private:
 	TypeBlock	*block;
 	int		type_num;
 	SymbolTable	*cached_symtab;
-	SymbolTable	*cached_symtab_thunked;
 };
 
 std::ostream& operator<<(std::ostream& in, const Type& t);
-
-static unsigned int tstmt_count_conds(const TypeStmt* t)
-{
-	const TypeBlock	*b;
-	const TypeCond	*c;
-
-	if (t == NULL) return 0;
-
-	b = dynamic_cast<const TypeBlock*>(t);
-	if (b != NULL)
-		return b->getNumConds();
-
-	c = dynamic_cast<const TypeCond*>(t);
-	if (c != NULL) {
-		return	1 + 
-			tstmt_count_conds(c->getTrueStmt()) + 
-			tstmt_count_conds(c->getFalseStmt());
-	}
-
-
-	return 0;
-}
-
 
 class TypeVisitAll : public TypeVisitor
 {
@@ -485,26 +444,5 @@ protected:
 
 
 std::ostream& operator<<(std::ostream& in, const Type& t);
-
-inline static std::string typeThunkName(const std::string& tname)
-{
-	return (std::string("__thunk_") + tname + "_bits");
-}
-
-inline static std::string typeThunkName(const Type* t)
-{
-	return typeThunkName(t->getName());
-}
-
-inline static std::string typeOffThunkName(
-	const Type* t, const std::string& varname)
-{
-	return std::string("__thunkoff_")+t->getName()+"_"+varname+"_bits";
-}
-
-inline static std::string typeThunkNameBytes(const Type* t)
-{
-	return (std::string("__thunk_") + t->getName()) + "_bytes";
-}
 
 #endif

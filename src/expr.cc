@@ -6,6 +6,7 @@
 #include <llvm/Support/IRBuilder.h>
 #include <iostream>
 
+#include "code_builder.h"
 #include "func.h"
 #include "expr.h"
 #include "util.h"
@@ -13,8 +14,7 @@
 using namespace std;
 using namespace llvm;
 
-extern IRBuilder<>	*builder;
-extern Module		*mod;
+extern CodeBuilder	*code_builder;
 extern const Func	*gen_func;
 extern const FuncBlock	*gen_func_block;
 extern llvm_var_map	thunk_var_map;
@@ -40,6 +40,9 @@ static Value* createCond(CmpInst::Predicate cmp, const FCall* fc)
 	BasicBlock			*bb_if, *bb_else, *bb_merge;
 	Function			*llvm_f;
 	PHINode				*phi;
+	llvm::IRBuilder<>		*builder;
+
+	builder = code_builder->getBuilder();
 
 	exprs = fc->getExprs();
 	it = exprs->begin();
@@ -78,7 +81,7 @@ static Value* createCond(CmpInst::Predicate cmp, const FCall* fc)
 
 	llvm_f->getBasicBlockList().push_back(bb_merge);
 	builder->SetInsertPoint(bb_merge);
-	phi = builder->CreatePHI(Type::getInt64Ty(getGlobalContext()), "iftmp");
+	phi = builder->CreatePHI(llvm::Type::getInt64Ty(getGlobalContext()), "iftmp");
 
 	phi->addIncoming(is_true_v, bb_if);
 	phi->addIncoming(is_false_v, bb_else);
@@ -105,7 +108,7 @@ Value* FCall::codeGen() const
 		return createCond(CmpInst::ICMP_NE, this);
 	}
 
-	callee = mod->getFunction(call_name);
+	callee = code_builder->getModule()->getFunction(call_name);
 	if (callee == NULL) {
 		return ErrorV(
 			(string("could not find function ") + 
@@ -127,12 +130,13 @@ Value* FCall::codeGen() const
 		args.push_back(cur_expr->codeGen());
 	}
 
-	return builder->CreateCall(callee, args.begin(), args.end(), "calltmp");
+	return code_builder->getBuilder()->CreateCall(
+		callee, args.begin(), args.end(), "calltmp");
 }
 
 Value* Id::codeGen() const 
 {
-	AllocaInst	*ai;
+	AllocaInst		*ai;
 
 	/* load.. */
 	if (gen_func_block == NULL && thunk_var_map.size() == 0) {
@@ -152,7 +156,7 @@ Value* Id::codeGen() const
 			getName());
 	}
 
-	return builder->CreateLoad(ai, getName());
+	return code_builder->getBuilder()->CreateLoad(ai, getName());
 }
 
 Value* IdStruct::codeGen() const 
@@ -179,45 +183,54 @@ Value* Number::codeGen() const
 
 Value* AOPOr::codeGen() const
 {
-	return builder->CreateOr(e_lhs->codeGen(), e_rhs->codeGen());
+	return code_builder->getBuilder()->CreateOr(
+		e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPAnd::codeGen() const
 {
-	return builder->CreateAnd(e_lhs->codeGen(), e_rhs->codeGen());
+	return code_builder->getBuilder()->CreateAnd(
+		e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPAdd::codeGen() const
 {
-	return builder->CreateAdd(e_lhs->codeGen(), e_rhs->codeGen());
+	return code_builder->getBuilder()->CreateAdd(
+		e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPSub::codeGen() const
 {
-	return builder->CreateSub(e_lhs->codeGen(), e_rhs->codeGen());
+	return code_builder->getBuilder()->CreateSub(
+		e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPDiv::codeGen() const
 {
-	return builder->CreateUDiv(e_lhs->codeGen(), e_rhs->codeGen());
+	return code_builder->getBuilder()->CreateUDiv(
+		e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPMul::codeGen() const
 {
-	return builder->CreateMul(e_lhs->codeGen(), e_rhs->codeGen());
+	return code_builder->getBuilder()->CreateMul(
+		e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPLShift::codeGen() const
 {
-	return builder->CreateShl(e_lhs->codeGen(), e_rhs->codeGen());
+	return code_builder->getBuilder()->CreateShl(
+		e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPRShift::codeGen() const
 {
-	return builder->CreateLShr(e_lhs->codeGen(), e_rhs->codeGen());
+	return code_builder->getBuilder()->CreateLShr(
+		e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPMod::codeGen() const
 {
-	return builder->CreateURem(e_lhs->codeGen(), e_rhs->codeGen());
+	return code_builder->getBuilder()->CreateURem(
+		e_lhs->codeGen(), e_rhs->codeGen());
 }

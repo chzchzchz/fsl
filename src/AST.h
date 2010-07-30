@@ -180,6 +180,18 @@ public:
 
 		return NULL;
 	}
+
+	ArgsList* copy(void) const
+	{
+		ArgsList*	ret = new ArgsList();
+
+		for (int i = 0; i < size(); i++) {
+			std::pair<Id*, Id*>	p(get(i));
+			ret->add(p.first->copy(), p.second->copy());
+		}
+
+		return ret;
+	}
 private:
 	std::vector<Id*>	types;
 	std::vector<Id*>	names;

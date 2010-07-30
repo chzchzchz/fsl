@@ -9,12 +9,21 @@ OBJS=	parser.o		\
 	func.o			\
 	phys_type.o		\
 	evalctx.o		\
-	funcevalctx.o		\
-	thunk.o			\
 	symtab_thunkbuilder.o	\
-	symtab_builder.o	
+	code_builder.o		\
+	table_gen.o		\
+	thunk_type.o		\
+	thunk_fieldoffset.o	\
+	thunk_elems.o		\
+	thunk_field.o		\
+	thunk_fieldsize.o	\
+	thunk_size.o		\
+	thunk_func.o		\
+	thunk_fieldoffset_cond.o\
+	func_args.o
 
 RTOBJS= runtime.o
+TOOLOBJS= scantool.o
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core)
@@ -27,9 +36,8 @@ all: lang
 
 
  
-lang:  $(OBJS) $(RTOBJS)
-	g++ $(DEBUG_FLAG) -O3 $(OBJS) $(LLVM_FLAGS) -o $@	
-
+lang:  $(OBJS) $(RTOBJS) $(TOOLOBJS)
+	g++ $(DEBUG_FLAG) -O3 $(OBJS) $(LLVM_FLAGS) -o $@
 
 parser.hh: parser.cc
 
@@ -46,4 +54,4 @@ lex.yy.cc: lang.lex parser.hh
 	gcc $(DEFINE_FLAGS) $(DEBUG_FLAG) -O3 -c $< -o $@
 
 clean: 
-	rm -f *.o lang lex.yy.cc y.tab.h parser.cc parser.hh
+	rm -f  lang lex.yy.cc y.tab.h parser.cc parser.hh *.o fsl.table.c *.ll
