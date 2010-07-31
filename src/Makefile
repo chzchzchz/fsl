@@ -7,7 +7,6 @@ OBJS=	parser.o		\
 	expr.o			\
 	cond.o			\
 	func.o			\
-	phys_type.o		\
 	evalctx.o		\
 	symtab_thunkbuilder.o	\
 	code_builder.o		\

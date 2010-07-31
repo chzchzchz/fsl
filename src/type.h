@@ -12,14 +12,6 @@
 #include "collection.h"
 #include "expr.h"
 
-class ptype_map : public std::map<std::string, class PhysicalType*>
-{
-public:
-	virtual ~ptype_map() {}
-	const class Type* getUserType(const std::string& name) const;
-	const PhysicalType* getPT(const std::string& name) const;
-};
-
 /* constant type map */
 typedef std::map<std::string, unsigned int>		ctype_map;
 typedef std::list<class Type*>				type_list;
@@ -212,8 +204,18 @@ class TypePreamble : public PtrList<FCall>
 public:
 	TypePreamble() {}
 	virtual ~TypePreamble() {}
-
 	void print(std::ostream& out) const { out << "PREAMBLE"; }
+	std::list<const FCall*> findByName(const std::string& n) const
+	{
+		std::list<const FCall*>	ret;
+
+		for (const_iterator it = begin(); it != end(); it++) {
+			FCall	*fc = *it;
+			if (fc->getName() == n)
+				ret.push_back(fc);
+		}
+		return ret;
+	}
 };
 
 class TypeBlock : public TypeStmt, public PtrList<TypeStmt>
@@ -356,8 +358,6 @@ public:
 	class SymbolTable* getSymsByUserType() const;
 	void buildSyms();
 
-	std::list<const FCall*> getPreambles(const std::string& name) const;
-
 	void setTypeNum(int new_type_num)
 	{
 		/* do not set type number more than once since we may happen
@@ -381,6 +381,8 @@ public:
 	}
 
 	const TypeBlock* getBlock() const { return block; }
+
+	std::list<const FCall*> getPreambles(const std::string& name) const;
 
 private:
 	Id		*name;

@@ -14,7 +14,7 @@ using namespace std;
 using namespace llvm;
 
 extern CodeBuilder	*code_builder;
-extern ptype_map	ptypes_map;
+extern ctype_map	ctypes_map;
 extern type_map		types_map;
 extern const FuncBlock	*gen_func_block;
 extern const Func	*gen_func;
@@ -71,7 +71,6 @@ Value* FuncDecl::codeGen(const EvalCtx* ectx) const
 {
 	FuncBlock		*scope;
 	Function		*f = getFunc()->getFunction();
-	PhysicalType		*pt;
 	const llvm::Type	*t;
 	AllocaInst		*ai;
 	IRBuilder<>	tmpB(&f->getEntryBlock(), f->getEntryBlock().begin());
@@ -79,11 +78,13 @@ Value* FuncDecl::codeGen(const EvalCtx* ectx) const
 	/* XXX no support for arrays yet */
 	assert (array == NULL);
 
-	pt = ptypes_map[type->getName()];
-	if (pt == NULL || (t = pt->getLLVMType()) == NULL) {
+	if (ctypes_map.count(type->getName()) == 0) {
 		cerr << getLineNo() << ": could not resolve type for "
 			<< type->getName();
 		return NULL;
+	} else {
+		/* lazy about widths right now */
+		t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 	}
 
 	ai = tmpB.CreateAlloca(t, 0, scalar->getName());
@@ -241,7 +242,7 @@ static llvm::Function* gen_func_code_proto(const Func* f)
 
 	if (types_map.count(f->getRet()) != 0) {
 		is_user_type = true;
-	} else if (ptypes_map.count(f->getRet()) != 0) {
+	} else if (ctypes_map.count(f->getRet()) != 0) {
 		is_user_type = false;	
 	} else {
 		cerr	<< "Bad return type (" << f->getRet() << ") for "
@@ -296,7 +297,7 @@ static bool gen_func_code_args(
 		if (types_map.count(cur_type) != 0) {
 			cerr << "XXX : be smarter about type args" << endl;
 			is_user_type = true;
-		} else if (ptypes_map.count(cur_type) != 0) {
+		} else if (ctypes_map.count(cur_type) != 0) {
 			is_user_type = false;
 		} else {
 			cerr << f->getName() << 

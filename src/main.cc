@@ -5,7 +5,6 @@
 #include "AST.h"
 #include "type.h"
 #include "func.h"
-#include "phys_type.h"
 #include "symtab.h"
 #include "eval.h"
 #include "code_builder.h"
@@ -22,7 +21,6 @@ using namespace std;
 
 static func_map		funcs_map;
 static func_list	funcs_list;
-ptype_map		ptypes_map;	/* XXX add to evalctx? */
 const Func		*gen_func;
 const FuncBlock		*gen_func_block;
 ctype_map		ctypes_map;
@@ -36,7 +34,6 @@ CodeBuilder		*code_builder;
 
 
 static void	load_user_types_list(const GlobalBlock* gb);
-static bool	load_user_ptypes_thunk(void);
 static void	load_primitive_ptypes(void);
 static void	build_inline_symtabs(void);
 static bool	apply_consts_to_consts(void);
@@ -46,47 +43,16 @@ static void	create_global(const char* str, uint64_t v);
 
 static void load_primitive_ptypes(void)
 {
-	PhysicalType	*pt[] = {
-		new U1(),
-		new U8(),
-		new U16(),
-		new U32(),
-		new U64(),
-		new I16(),
-		new I32(),
-		new I64(),
-		new U12()};
-	
-	for (unsigned int i = 0; i < (sizeof(pt)/sizeof(PhysicalType*)); i++) {
-		assert (ptypes_map.count(pt[i]->getName()) == 0);
-		ptypes_map[pt[i]->getName()] = pt[i];
-	}
+#define PRIM_NUM	9
+	const char *prim_name[] = {
+			"u1", "u8", "u12", "u16", "u32", "u64",
+			"bool", "int", "uint"};
+	int	prim_bits[] = {
+			1, 8, 12, 16, 32, 64,
+			1, 64, 64};
 
-	ptypes_map["bool"] = new U1(); 
-	ptypes_map["int"] = new I64();
-	ptypes_map["uint"] = new U64();
-
-	for (	ptype_map::const_iterator it = ptypes_map.begin();
-		it != ptypes_map.end();
-		it++)
-	{
-		PhysicalType	*pt;
-		Expr		*bits, *bits2;
-		Number		*n;
-
-		pt = (*it).second;
-
-		bits = pt->getBits();
-		bits2 = bits->simplify();
-		delete bits;
-		bits = bits2;
-
-		n = dynamic_cast<Number*>(bits);
-		assert (n != NULL);
-
-		ctypes_map[(*it).first] = n->getValue();
-
-		delete bits;
+	for (unsigned int i = 0; i < PRIM_NUM; i++) {
+		ctypes_map[prim_name[i]] = prim_bits[i];
 	}
 }
 
@@ -134,16 +100,6 @@ static void load_user_funcs(const GlobalBlock* gb)
 	}
 }
 
-void dump_ptypes(void)
-{
-	for (	ptype_map::const_iterator p_it = ptypes_map.begin();
-		p_it != ptypes_map.end();
-		p_it++)
-	{
-		cerr << (*p_it).first << endl;
-	}
-
-}
 
 /**
  * build up symbol tables, disambiguate if possible

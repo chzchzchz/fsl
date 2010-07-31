@@ -2,7 +2,6 @@
 #define EVAL_H
 
 #include "symtab.h"
-#include "phys_type.h"
 #include "type.h"
 #include "expr.h"
 #include "evalctx.h"
