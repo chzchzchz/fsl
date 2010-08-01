@@ -5,17 +5,15 @@
 #include <map>
 #include <list>
 
-#include <llvm/Instructions.h>
-
 #include "AST.h"
 #include "collection.h"
 #include "expr.h"
+#include "code_builder.h"
 
 extern int yylineno;
 
 typedef std::map<std::string, class Func*>		func_map;
 typedef std::list<class Func*>				func_list;
-typedef std::map<std::string, llvm::AllocaInst*>	llvm_var_map;
 
 class FuncStmt 
 {

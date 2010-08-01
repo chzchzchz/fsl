@@ -76,7 +76,8 @@ void CodeBuilder::genProto(const string& name, uint64_t num_args)
 void CodeBuilder::genCode(
 	const Type* type,
 	const string& fname,
-	const Expr* raw_expr)
+	const Expr* raw_expr,
+	const FuncArgs* extra_args)
 {
 	llvm::Function		*f_bits;
 	llvm::BasicBlock	*bb_bits;
@@ -97,19 +98,18 @@ void CodeBuilder::genCode(
 	bb_bits = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f_bits);
 	builder->SetInsertPoint(bb_bits);
-	genHeaderArgs(type, f_bits);
+	genHeaderArgs(f_bits, type);
 	builder->CreateRet(expr_eval_bits->codeGen());
 
 	delete expr_eval_bits;
 }
 
 void CodeBuilder::genHeaderArgs(
+	llvm::Function* f, 
 	const Type* t,
-	llvm::Function* f)
+	const FuncArgs* extra_args)
 {
-	unsigned int			arg_c;
 	const llvm::Type		*l_t;
-	const ArgsList			*args;
 	llvm::AllocaInst		*allocai;
 	llvm::Function::arg_iterator	ai;
 	llvm::IRBuilder<>		tmpB(
@@ -117,8 +117,6 @@ void CodeBuilder::genHeaderArgs(
 
 	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 	ai = f->arg_begin();
-	args = t->getArgs();
-	arg_c = (args != NULL) ? args->size() : 0;
 
 	thunk_var_map.clear();
 
@@ -127,18 +125,39 @@ void CodeBuilder::genHeaderArgs(
 	thunk_var_map["__thunk_arg_off"] = allocai;
 	thunk_var_map[t->getName()] = allocai;	/* alias for typename */
 	builder->CreateStore(ai, allocai);
+	
+	/* skip over the first function argument (already used) */
+	ai++;
 
 	/* create the rest of the arguments */
-	ai++;
+	genArgs(ai, &tmpB, t->getArgs());
+	genArgs(ai, &tmpB, extra_args->getArgsList());
+}
+
+void CodeBuilder::genArgs(
+	llvm::Function::arg_iterator	&ai,
+	llvm::IRBuilder<>		*tmpB,
+	const ArgsList			*args)
+{
+	unsigned int			arg_c;
+	const llvm::Type		*l_t;
+
+	if (args == NULL)
+		return;
+
+	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+	arg_c = args->size();
+
 	for (unsigned int i = 0; i < arg_c; i++, ai++) {
-		string			arg_name;
+		string				arg_name;
+		llvm::AllocaInst		*allocai;
+
 		arg_name = (args->get(i).second)->getName();
-		allocai = tmpB.CreateAlloca(l_t, 0, arg_name);
+		allocai = tmpB->CreateAlloca(l_t, 0, arg_name);
 		builder->CreateStore(ai, allocai);
 		thunk_var_map[arg_name] = allocai;
 	}
 }
-
 
 void CodeBuilder::write(ostream& os)
 {
@@ -167,7 +186,7 @@ void CodeBuilder::genCodeCond(
 	bb_entry = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f);
 	builder->SetInsertPoint(bb_entry);
-	genHeaderArgs(t, f);
+	genHeaderArgs(f, t);
 
 	bb_then = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "then", f);

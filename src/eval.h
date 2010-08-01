@@ -12,6 +12,4 @@ Expr* evalReplace(const EvalCtx& ectx, Expr* expr);
 Expr* eval(const EvalCtx& ec, const Expr*);
 llvm::Value* evalAndGen(const EvalCtx& ectx, const Expr* expr);
 
-
-
 #endif

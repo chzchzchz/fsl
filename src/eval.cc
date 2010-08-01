@@ -14,8 +14,7 @@
 using namespace std;
 
 extern symtab_map	symtabs;
-
-bool xxx_debug_eval = false;
+extern func_map		funcs_map;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
 static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc);

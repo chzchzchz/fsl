@@ -89,12 +89,6 @@ private:
 };
 
 
-class UnArithOp {
-};
-
-class UnBoolOp {
-};
-
 class EnumEnt 
 {
 public:
@@ -122,7 +116,7 @@ private:
 class Enum : public GlobalStmt, public PtrList<EnumEnt>
 {
 public:
-	Enum() : name(NULL) {}
+	Enum() : name(NULL), type(NULL) {}
 	Enum(Id* id) : name(id)  { assert (name != NULL); }
 	void setName(Id* id)
 	{
@@ -131,14 +125,26 @@ public:
 		name = id;
 	}
 
+	void setType(Id* id)
+	{
+		assert (id != NULL);
+		if (type != NULL) delete type;
+		type = id;
+	}
+
 	virtual ~Enum() 
 	{
 		if (name != NULL) delete name;
+		if (type != NULL) delete type;
 	} 
 
 	void print(std::ostream& out) const { out << "ENUM"; }
+
+	const std::string getName(void) const { return name->getName(); }
+	const std::string getTypeName(void) const { return type->getName(); }
 private:
 	Id	*name;
+	Id	*type;
 };
 
 

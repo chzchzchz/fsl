@@ -128,9 +128,10 @@ program_stmt	: TOKEN_CONST ident TOKEN_ASSIGN expr TOKEN_SEMI
 		{
 			$$ = new Type($2, $3, NULL, $4);
 		}
-		| TOKEN_ENUM ident TOKEN_ASSIGN TOKEN_LBRACE enum_ents TOKEN_RBRACE TOKEN_SEMI
+		| TOKEN_ENUM ident TOKEN_ASSIGN TOKEN_LBRACE enum_ents TOKEN_RBRACE ident TOKEN_SEMI
 		{
 			$5->setName($2);
+			$5->setType($7);
 			$$ = $5;
 		}
 		| ident ident type_args func_block

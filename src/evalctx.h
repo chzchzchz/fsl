@@ -44,7 +44,7 @@ public:
 	const SymbolTable*	getCurrentScope() const { return cur_scope; }
 	const symtab_map&	getGlobalScope() const { return all_types; }
 	const const_map&	getConstants() const { return constants; }
-
+	const FuncArgs*		getFuncArgs(void) const { return func_args; }
 
 	/* given an expression that is either a scalar id or an array id,
 	 * return the name and (if applicable) the index into the type
@@ -54,6 +54,10 @@ public:
 	Expr* resolve(const Id* id) const;
 	Expr* resolve(const IdArray* ida) const;
 	Expr* resolve(const IdStruct* ids) const;
+
+	const Type* getType(const Expr* e) const;
+	const Type* getTypeId(const Id* id) const;
+	const Type* getTypeIdStruct(const IdStruct* id) const;
 
 private:
 	EvalCtx(void);

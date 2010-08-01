@@ -2,6 +2,8 @@
 #include "func.h"
 
 extern const Func	*gen_func;
+extern func_map		funcs_map;
+extern type_map		types_map;
 
 using namespace std;
 
@@ -546,3 +548,71 @@ const Type* EvalCtx::typeByName(const std::string& s) const
 
 	return st->getOwnerType();
 }
+
+const Type* EvalCtx::getTypeId(const Id* id) const
+{	
+	assert (id != NULL);
+
+	if (cur_scope != NULL) {
+		const SymbolTableEnt*	st_ent;
+		st_ent = cur_scope->lookup(id->getName());
+		if (st_ent != NULL) {
+			return types_map[st_ent->getTypeName()];
+		}
+	}
+
+	if (func_args != NULL) {
+		string	type_name;
+		if (func_args->lookupType(id->getName(), type_name)) {
+			return types_map[type_name];
+		}
+	}
+
+	return types_map[id->getName()];
+}
+
+const Type* EvalCtx::getTypeIdStruct(const IdStruct* id) const
+{
+	assert (0 == 1);
+}
+
+/* returns the type given by an expression */
+const Type* EvalCtx::getType(const Expr* e) const
+{
+	const FCall	*fc;
+	const Id	*id;
+	const IdArray	*ida;
+	const IdStruct	*ids;
+
+	assert (e != NULL);
+
+	fc = dynamic_cast<const FCall*>(e);
+	if (fc != NULL) {
+		const Func*	f;
+
+		f = funcs_map[fc->getName()];
+		if (f == NULL) {
+			return NULL;
+		}
+
+		return types_map[f->getName()];
+	}
+
+	id = dynamic_cast<const Id*>(e);
+	if (id != NULL)
+		return getTypeId(id);
+
+	ida = dynamic_cast<const IdArray*>(e);
+	if (ida != NULL) {
+		Id	tmp_id(ida->getName());
+		return getTypeId(&tmp_id);
+	}
+
+	ids = dynamic_cast<const IdStruct*>(ids);
+	if (ids != NULL) 
+		getTypeIdStruct(ids);
+
+	/* arith expression */
+	return NULL;
+}
+

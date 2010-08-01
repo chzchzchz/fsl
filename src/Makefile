@@ -19,7 +19,8 @@ OBJS=	parser.o		\
 	thunk_size.o		\
 	thunk_func.o		\
 	thunk_fieldoffset_cond.o\
-	func_args.o
+	func_args.o		\
+	points.o
 
 RTOBJS= runtime.o
 TOOLOBJS= scantool.o

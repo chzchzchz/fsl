@@ -17,7 +17,6 @@ using namespace llvm;
 extern CodeBuilder	*code_builder;
 extern const Func	*gen_func;
 extern const FuncBlock	*gen_func_block;
-extern llvm_var_map	thunk_var_map;
 
 Value* Expr::ErrorV(const string& s) const
 {
@@ -29,66 +28,6 @@ Value* Expr::ErrorV(const string& s) const
 	return NULL;
 }
 
-static Value* createCond(CmpInst::Predicate cmp, const FCall* fc)
-{
-	const ExprList			*exprs;
-	ExprList::const_iterator	it;
-	Expr				*lhs, *rhs;
-	Expr				*is_true, *is_false;
-	Value				*condV;
-	Value				*is_true_v, *is_false_v;
-	BasicBlock			*bb_if, *bb_else, *bb_merge;
-	Function			*llvm_f;
-	PHINode				*phi;
-	llvm::IRBuilder<>		*builder;
-
-	builder = code_builder->getBuilder();
-
-	exprs = fc->getExprs();
-	it = exprs->begin();
-
-	lhs = *(it++);
-	rhs = *(it++);
-	is_true = *(it++);
-	is_false = *(it++);
-
-	/* UGH. */
-
-	condV = builder->CreateICmp(
-		cmp,
-		lhs->codeGen(),
-		rhs->codeGen());
-
-	llvm_f = builder->GetInsertBlock()->getParent();
-	
-	bb_if = BasicBlock::Create(getGlobalContext(), "then");
-	bb_else = BasicBlock::Create(getGlobalContext(), "else");
-	bb_merge = BasicBlock::Create(getGlobalContext(), "ifcont");
-
-	builder->CreateCondBr(condV, bb_if, bb_else);
-	
-	builder->SetInsertPoint(bb_if);
-	is_true_v = is_true->codeGen();
-	builder->CreateBr(bb_merge);
-	bb_if = builder->GetInsertBlock();
-
-	llvm_f->getBasicBlockList().push_back(bb_else);
-	builder->SetInsertPoint(bb_else);
-	is_false_v = is_false->codeGen();
-
-	builder->CreateBr(bb_merge);
-	bb_else = builder->GetInsertBlock();
-
-	llvm_f->getBasicBlockList().push_back(bb_merge);
-	builder->SetInsertPoint(bb_merge);
-	phi = builder->CreatePHI(llvm::Type::getInt64Ty(getGlobalContext()), "iftmp");
-
-	phi->addIncoming(is_true_v, bb_if);
-	phi->addIncoming(is_false_v, bb_else);
-
-	return phi;
-}
-
 /** TODO: This should be able to catch user-defined functions! */
 Value* FCall::codeGen() const
 {
@@ -96,17 +35,6 @@ Value* FCall::codeGen() const
 	ExprList::const_iterator	it;
 	vector<Value*>			args;
 	string				call_name(id->getName());
-
-	/* TODO: make this cleaner */
-	if (call_name == "cond_eq") {
-		print(cerr);
-		cerr << endl << endl;
-		return createCond(CmpInst::ICMP_EQ, this);
-	} else if (call_name == "cond_ne") {
-		print(cerr);
-		cerr << endl << endl;
-		return createCond(CmpInst::ICMP_NE, this);
-	}
 
 	callee = code_builder->getModule()->getFunction(call_name);
 	if (callee == NULL) {
@@ -139,7 +67,7 @@ Value* Id::codeGen() const
 	AllocaInst		*ai;
 
 	/* load.. */
-	if (gen_func_block == NULL && thunk_var_map.size() == 0) {
+	if (gen_func_block == NULL && code_builder->getThunkVarCount() == 0) {
 		return ErrorV(
 			string("Loading ") + getName() + 
 			string(" with no gen_func set"));
@@ -148,7 +76,7 @@ Value* Id::codeGen() const
 	if (gen_func_block != NULL)
 		ai = gen_func_block->getVar(getName());
 	else
-		ai = thunk_var_map[getName()];
+		ai = code_builder->getThunkAllocInst(getName());
 
 	if (ai == NULL) {
 		return ErrorV(

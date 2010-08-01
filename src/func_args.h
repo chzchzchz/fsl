@@ -13,6 +13,7 @@ public:
 	virtual ~FuncArgs();
 	bool lookupType(const std::string& name, std::string& field) const;
 	bool hasField(const std::string& name) const;
+	const ArgsList* getArgsList(void) const { return args; }
 private:
 	ArgsList	*args;
 	funcarg_map	args_map;

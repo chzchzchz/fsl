@@ -19,8 +19,8 @@ extern void gen_rt_tables(void);
 
 using namespace std;
 
-static func_map		funcs_map;
-static func_list	funcs_list;
+func_map		funcs_map;
+func_list		funcs_list;
 const Func		*gen_func;
 const FuncBlock		*gen_func_block;
 ctype_map		ctypes_map;
@@ -28,8 +28,6 @@ type_map		types_map;
 type_list		types_list;
 const_map		constants;
 symtab_map		symtabs;
-llvm_var_map		thunk_var_map;
-
 CodeBuilder		*code_builder;
 
 
@@ -154,6 +152,7 @@ static void load_enums(const GlobalBlock* gb)
 		if (e == NULL)
 			continue;
 
+		/* map values to enum */
 		n = 0;
 		for (eit = e->begin(); eit != e->end(); eit++) {
 			const EnumEnt		*ent;
@@ -171,6 +170,15 @@ static void load_enums(const GlobalBlock* gb)
 			constants[ent->getName()] = num;
 			n++;
 		}
+
+		/* alias enum's type into fixed-width type */
+		if (ctypes_map.count(e->getTypeName()) == 0) {
+			cerr	<< "Could not resolve enum physical type \""
+				<< e->getTypeName() << '"' << endl;
+			continue;
+		}
+
+		ctypes_map[e->getName()] = ctypes_map[e->getTypeName()];
 	}
 }
 
