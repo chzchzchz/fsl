@@ -19,6 +19,7 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
 /* exported variables.. */
 uint64_t __FROM_OS_BDEV_BYTES;
 uint64_t __FROM_OS_BDEV_BLOCK_BYTES;
+uint64_t __FROM_OS_SB_BLOCKSIZE_BYTES;
 
 uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 {
@@ -119,6 +120,23 @@ uint64_t __max5(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4)
 	return (m > a4) ? m : a4;
 }
 
+uint64_t __max6(
+	uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
+	uint64_t a5)
+{
+	uint64_t m = __max5(a0,a1,a2,a3,a4);
+	return (m > a5) ? m : a5;
+}
+
+
+uint64_t __max7(
+	uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
+	uint64_t a5, uint64_t a6)
+{
+	uint64_t m = __max6(a0,a1,a2,a3,a4,a5);
+	return (m > a6) ? m : a6;
+}
+
 /* TODO FSL_FAILED should have some unique number so we know why we failed */
 uint64_t fsl_fail(void)
 {
@@ -185,4 +203,5 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	fseeko(fctx->fctx_backing, 0, SEEK_END);
 	__FROM_OS_BDEV_BYTES = ftello(fctx->fctx_backing);
 	__FROM_OS_BDEV_BLOCK_BYTES = 512;
+	assert (0 == 1 && "NEED TO SET SB_BLOCKSIZE_BYTES");
 }

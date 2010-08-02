@@ -59,6 +59,10 @@ uint64_t __max2(
 uint64_t __max3(uint64_t a0, uint64_t a1, uint64_t a2);
 uint64_t __max4(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3);
 uint64_t __max5(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4);
+uint64_t __max6(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
+		uint64_t a5);
+uint64_t __max7(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
+		uint64_t a5, uint64_t a6);
 uint64_t fsl_fail(void);
 
 /* not exposed to llvm */

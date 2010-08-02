@@ -121,8 +121,8 @@ static void gen_rt_externs_type(ostream& out, const Type *t)
 		const SymbolTableEnt	*st_ent;
 		FCall			*fc_off;
 
-		fc_off = st_ent->getFieldThunk()->getOffset()->copyFCall();
 		st_ent = (*it).second;
+		fc_off = st_ent->getFieldThunk()->getOffset()->copyFCall();
 		out 	<< "extern uint64_t " 
 			<< fc_off->getName() 
 			<< "(uint64_t);" << endl;
@@ -186,7 +186,7 @@ void gen_rt_tables(void)
 	origin_type = types_map["disk"];
 	assert (origin_type != NULL);
 
-	out << "unsigned int fsl_origin_typenum = ";
+	out << "unsigned int fsl_rt_origin_typenum = ";
 	out << origin_type->getTypeNum() << ';' << endl;
 
 	gen_fsl_rt_tab_thunks(out);

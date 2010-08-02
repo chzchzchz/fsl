@@ -115,6 +115,8 @@ void CodeBuilder::genHeaderArgs(
 	llvm::IRBuilder<>		tmpB(
 		&f->getEntryBlock(), f->getEntryBlock().begin());
 
+	assert (t != NULL);
+
 	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 	ai = f->arg_begin();
 
@@ -131,7 +133,8 @@ void CodeBuilder::genHeaderArgs(
 
 	/* create the rest of the arguments */
 	genArgs(ai, &tmpB, t->getArgs());
-	genArgs(ai, &tmpB, extra_args->getArgsList());
+	if (extra_args != NULL)
+		genArgs(ai, &tmpB, extra_args->getArgsList());
 }
 
 void CodeBuilder::genArgs(

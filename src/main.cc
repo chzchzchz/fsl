@@ -77,6 +77,7 @@ static void load_user_types_list(const GlobalBlock* gb)
 	/* remember to set these in the run-time */
 	code_builder->createGlobalMutable("__FROM_OS_BDEV_BYTES", 0);
 	code_builder->createGlobalMutable("__FROM_OS_BDEV_BLOCK_BYTES", 0);
+	code_builder->createGlobalConst("__FROM_OS_SB_BLOCKSIZE_BYTES", 0);
 }
 
 static void load_user_funcs(const GlobalBlock* gb)
@@ -243,14 +244,16 @@ static bool apply_consts_to_consts(void)
 	return updated;
 }
 
-#define NUM_RUNTIME_FUNCS	8
+#define NUM_RUNTIME_FUNCS	10
 /* TODO: __max should be a proper vararg function */
 const char*	f_names[] = {	
 	"__getLocal", "__getLocalArray", "__getDyn", "fsl_fail", 
-	"__max2", "__max3", "__max4", "__max5"};
+	"__max2", "__max3", "__max4", "__max5",
+	"__max6", "__max7"};
 int	f_arg_c[] = {
 	2,4,1,0, 
-	2,3,4,5};
+	2,3,4,5,
+	6, 7};
 
 /**
  * insert run-time functions into the llvm module so that they resolve
