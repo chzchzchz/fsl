@@ -571,9 +571,48 @@ const Type* EvalCtx::getTypeId(const Id* id) const
 	return types_map[id->getName()];
 }
 
-const Type* EvalCtx::getTypeIdStruct(const IdStruct* id) const
+const Type* EvalCtx::getTypeIdStruct(const IdStruct* ids) const
 {
-	assert (0 == 1);
+	IdStruct::const_iterator	it;
+	const Type			*cur_type;
+
+	it = ids->begin();
+	cur_type = getType(*it);
+
+	/* walk the symbol tables */
+	for (++it; it != ids->end(); it++) {
+		const Id		*id;
+		const IdArray		*ida;
+		const SymbolTable	*cur_symtab;
+		const SymbolTableEnt	*cur_st_ent;
+		string			fieldname;
+
+		if (cur_type == NULL)
+			return NULL;
+
+		cur_symtab = symtabByName(cur_type->getName());
+		if (cur_symtab == NULL)
+			return NULL;
+
+		if ((id = dynamic_cast<const Id*>(*it)) != NULL) {
+			fieldname = id->getName();
+		} else if ((ida = dynamic_cast<const IdArray*>(*it)) != NULL) {
+			fieldname = ida->getName();
+		} else {
+			/* id or ida expected */
+			return NULL;
+		}
+
+		cur_st_ent = cur_symtab->lookup(fieldname);
+		if (cur_st_ent == NULL) {
+			/* field not found in symtab */
+			return NULL;
+		}
+
+		cur_type = cur_st_ent->getFieldThunk()->getType();
+	}
+
+	return cur_type;
 }
 
 /* returns the type given by an expression */
@@ -595,7 +634,7 @@ const Type* EvalCtx::getType(const Expr* e) const
 			return NULL;
 		}
 
-		return types_map[f->getName()];
+		return types_map[f->getRet()];
 	}
 
 	id = dynamic_cast<const Id*>(e);
@@ -608,11 +647,14 @@ const Type* EvalCtx::getType(const Expr* e) const
 		return getTypeId(&tmp_id);
 	}
 
-	ids = dynamic_cast<const IdStruct*>(ids);
-	if (ids != NULL) 
-		getTypeIdStruct(ids);
+	ids = dynamic_cast<const IdStruct*>(e);
+	if (ids != NULL) {
+		return getTypeIdStruct(ids);
+	}
+
 
 	/* arith expression */
+	cout << "WTF????????" << endl;
 	return NULL;
 }
 

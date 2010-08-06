@@ -1,10 +1,13 @@
 #ifndef POINTS_TO_H
 #define POINTS_TO_H
 
+#include <list>
+#include "collection.h"
 #include "type.h"
 
 typedef PtrList<class PointsTo>		pointsto_list;
 typedef PtrList<class PointsRange>	pointsrange_list;
+typedef std::list<class Points*>	pointing_list;
 
 class Points
 {
@@ -22,6 +25,10 @@ public:
 		return &points_range_elems;
 	}
 
+	const Type* getType(void) const { return src_type; }
+
+	void genCode(void);
+	void genProtos(void);
 
 private:
 	void loadPoints(void);
@@ -29,7 +36,7 @@ private:
 
 	void loadPointsInstance(const Expr* data_loc);
 	void loadPointsRangeInstance(
-		const Expr*	bound_var,
+		const Id*	bound_var,
 		const Expr*	first_val,
 		const Expr*	last_val,
 		const Expr*	data);

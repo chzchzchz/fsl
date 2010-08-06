@@ -98,7 +98,7 @@ void CodeBuilder::genCode(
 	bb_bits = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f_bits);
 	builder->SetInsertPoint(bb_bits);
-	genHeaderArgs(f_bits, type);
+	genHeaderArgs(f_bits, type, extra_args);
 	builder->CreateRet(expr_eval_bits->codeGen());
 
 	delete expr_eval_bits;
@@ -133,8 +133,9 @@ void CodeBuilder::genHeaderArgs(
 
 	/* create the rest of the arguments */
 	genArgs(ai, &tmpB, t->getArgs());
-	if (extra_args != NULL)
+	if (extra_args != NULL) {
 		genArgs(ai, &tmpB, extra_args->getArgsList());
+	}
 }
 
 void CodeBuilder::genArgs(

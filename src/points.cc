@@ -90,9 +90,9 @@ void Points::loadPointsInstance(const Expr* data_loc)
 	/* get the type of the expression so we know what we're pointing to */
 	dst_type = ectx.getType(data_loc);
 	if (dst_type == NULL) {
-		cerr << "Could not resolve type for points-to on expression \'";
+		cerr << "Could not resolve type for points-to: '";
 		data_loc->print(cerr);
-		cerr << '\'' << endl;
+		cerr << "' in type " << src_type->getName() << endl;
 		return;
 	}
 
@@ -101,18 +101,34 @@ void Points::loadPointsInstance(const Expr* data_loc)
 }
 
 void Points::loadPointsRangeInstance(
-	const Expr*	bound_var,
+	const Id*	bound_var,
 	const Expr*	first_val,
 	const Expr*	last_val,
-	const Expr*	data)
+	const Expr*	data_loc)
 {
+	EvalCtx		ectx(symtabs[src_type->getName()], symtabs, constants);
+	const Type	*dst_type;
+
 	assert (bound_var != NULL);
 	assert (first_val != NULL);
 	assert (last_val != NULL);
-	assert (data != NULL);
+	assert (data_loc != NULL);
 
-	assert (0 == 1);
+	dst_type = ectx.getType(data_loc);
+	if (dst_type == NULL) {
+		cerr << "Could not resolve type for points-to: '";
+		data_loc->print(cerr);
+		cerr << "' in type " << src_type->getName() << endl;
+		return;
+	}
+
+	points_range_elems.add(new PointsRange(
+		src_type, dst_type,
+		bound_var, first_val, last_val,
+		data_loc,
+		seq++));
 }
+
 
 void PointsTo::genCode(void) const
 {
@@ -157,7 +173,6 @@ void PointsRange::genProto(void) const
 		getFCallName(), tt->getThunkArgCount() + 1 /*binding sym*/);
 	code_builder->genProto(getMinFCallName(), tt->getThunkArgCount());
 	code_builder->genProto(getMaxFCallName(), tt->getThunkArgCount());
-		
 }
 
 const std::string PointsRange::getFCallName(void) const
@@ -178,3 +193,39 @@ const std::string PointsRange::getMaxFCallName(void) const
 		"_" + int_to_string(seq);
 }
 
+
+void Points::genCode(void)
+{
+
+	for (	pointsto_list::const_iterator it = points_to_elems.begin();
+		it != points_to_elems.end();
+		it++)
+	{
+		(*it)->genCode();
+	}
+
+	for (	pointsrange_list::const_iterator it = points_range_elems.begin();
+		it != points_range_elems.end();
+		it++)
+	{
+		(*it)->genCode();
+	}
+}
+
+void Points::genProtos(void)
+{
+
+	for (	pointsto_list::const_iterator it = points_to_elems.begin();
+		it != points_to_elems.end();
+		it++)
+	{
+		(*it)->genProto();
+	}
+
+	for (	pointsrange_list::const_iterator it = points_range_elems.begin();
+		it != points_range_elems.end();
+		it++)
+	{
+		(*it)->genProto();
+	}
+}

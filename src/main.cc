@@ -8,6 +8,7 @@
 #include "symtab.h"
 #include "eval.h"
 #include "code_builder.h"
+#include "points_to.h"
 
 #include <stdint.h>
 #include <fstream>
@@ -29,6 +30,7 @@ type_list		types_list;
 const_map		constants;
 symtab_map		symtabs;
 CodeBuilder		*code_builder;
+pointing_list		points_list;
 
 
 static void	load_user_types_list(const GlobalBlock* gb);
@@ -283,48 +285,7 @@ static void load_runtime_funcs(void)
 	}
 }
 
-/**
- * go through type dumping all usertype fields
- */
-static void dump_usertype_fields(const Type* t)
-{
-	SymbolTable	*st;
 
-	cout << "Getting Syms By User Type.." << endl;
-
-	st = t->getSymsByUserType();
-	assert (st != NULL);
-
-	cout << "DUMPING: " << t->getName() << endl;
-	for (	sym_map::const_iterator it = st->begin();
-		it != st->end();
-		it++)
-	{
-		string			name = (*it).first;
-		const SymbolTableEnt*	ent = (*it).second;
-
-		/* only dump strong fields */
-		if (ent->isWeak() == false) 
-			cout << "FIELD: " << name << endl;
-	}
-	cout << "------------------------" << endl;
-
-	delete st;
-}
-
-/**
- * go through all types, dumping user types
- */
-static void dump_usertypes(void)
-{
-	for (	type_list::const_iterator it = types_list.begin();
-		it != types_list.end();
-		it++)
-	{
-		const Type	*t = *it;
-		dump_usertype_fields(t);
-	}
-}
 
 static void gen_thunk_code(void)
 {
@@ -354,6 +315,20 @@ static void gen_thunk_proto(void)
 		st = (*it).second;
 		thunk_type = st->getThunkType();
 		thunk_type->genProtos();
+	}
+}
+
+static void gen_points_to(void)
+{
+	
+	for (	type_list::const_iterator it = types_list.begin();
+		it != types_list.end();
+		it++)
+	{
+		Points	*points = new Points(*it);
+		points->genProtos();
+		points->genCode();
+		points_list.push_back(points);
 	}
 }
 
@@ -387,7 +362,6 @@ int main(int argc, char *argv[])
 	cout << "Building symbol tables" << endl;
 	build_symtabs();
 
-
 	cout << "Generating thunk prototypes" << endl;
 	gen_thunk_proto();
 
@@ -399,10 +373,11 @@ int main(int argc, char *argv[])
 	cout << "Loading thunks" << endl;
 	gen_thunk_code();
 
-	code_builder->write(os);
+	cout << "Generating points-to functions" << endl;
+	gen_points_to();
 
-	cout << "OK. Dumping user types: " << endl;
-	dump_usertypes();
+	cout << "Writing out module's code" << endl;
+	code_builder->write(os);
 
 	cout << "Generating fsl.table.c" << endl;
 	gen_rt_tables();

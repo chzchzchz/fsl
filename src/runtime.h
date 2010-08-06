@@ -52,6 +52,7 @@ struct fsl_rt_table_thunk
 struct fsl_rt_table_pointsto
 {
 	typenum_t	pt_typenum;
+
 };
 
 /* these are in the generated  fsl.table.c */
