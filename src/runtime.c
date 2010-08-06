@@ -128,7 +128,6 @@ uint64_t __max6(
 	return (m > a5) ? m : a5;
 }
 
-
 uint64_t __max7(
 	uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 	uint64_t a5, uint64_t a6)
@@ -158,7 +157,7 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 	fsl_ctx->fctx_backing = f;
 	fsl_ctx->fctx_num_types = fsl_num_types;
 	fsl_ctx->fctx_type_offsets = malloc(sizeof(uint64_t) * fsl_num_types);
-	memset(	&fsl_ctx->fctx_type_offsets,
+	memset(	fsl_ctx->fctx_type_offsets,
 		0xff,
 		sizeof(uint64_t) * fsl_num_types);
 	
@@ -176,8 +175,8 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 
 int main(int argc, char* argv[])
 {
-	if (argc != 1) {
-		fprintf(stderr, "Usage: %s filename", argv[1]);
+	if (argc != 2) {
+		fprintf(stderr, "Usage: %s filename\n", argv[0]);
 		return -1;
 	}	
 
@@ -199,9 +198,10 @@ int main(int argc, char* argv[])
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 {
 	assert (fctx != NULL);
+	assert (fctx->fctx_backing != NULL);
 
 	fseeko(fctx->fctx_backing, 0, SEEK_END);
 	__FROM_OS_BDEV_BYTES = ftello(fctx->fctx_backing);
 	__FROM_OS_BDEV_BLOCK_BYTES = 512;
-	assert (0 == 1 && "NEED TO SET SB_BLOCKSIZE_BYTES");
+	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
 }

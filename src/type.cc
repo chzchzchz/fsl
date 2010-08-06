@@ -112,6 +112,32 @@ SymbolTable* Type::getSymsByUserType() const
 	return ret;
 }
 
+SymbolTable* Type::getSymsByUserTypeStrong() const
+{
+	SymbolTable	*ret;
+
+	assert (cached_symtab != NULL);
+
+	ret = new SymbolTable(cached_symtab->getThunkType()->copy());
+	for (	sym_map::const_iterator it = cached_symtab->begin();
+		it != cached_symtab->end();
+		it++) 
+	{
+		const std::string	name = (*it).first;
+		const SymbolTableEnt*	st_ent = (*it).second;
+
+		if (st_ent->getFieldThunk()->getType() == NULL)
+			continue;
+
+		if (st_ent->isWeak())
+			continue;
+
+		ret->add(st_ent);
+	}
+
+	return ret;
+}
+
 std::ostream& operator<<(std::ostream& in, const Type& t)
 {
 	t.print(in);

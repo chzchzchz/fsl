@@ -75,9 +75,9 @@ static void load_user_types_list(const GlobalBlock* gb)
 
 	code_builder->createGlobalConst("fsl_num_types", type_num);
 	/* remember to set these in the run-time */
-	code_builder->createGlobalMutable("__FROM_OS_BDEV_BYTES", 0);
-	code_builder->createGlobalMutable("__FROM_OS_BDEV_BLOCK_BYTES", 0);
-	code_builder->createGlobalConst("__FROM_OS_SB_BLOCKSIZE_BYTES", 0);
+//	code_builder->createGlobalMutable("__FROM_OS_BDEV_BYTES", 0);
+//	code_builder->createGlobalMutable("__FROM_OS_BDEV_BLOCK_BYTES", 0);
+//	code_builder->createGlobalConst("__FROM_OS_SB_BLOCKSIZE_BYTES", 0);
 }
 
 static void load_user_funcs(const GlobalBlock* gb)

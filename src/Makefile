@@ -34,7 +34,9 @@ CFLAGS= $(DEBUG_FLAG) $(LLVM_FLAGS)  $(DEFINE_FLAGS)
 
 all: lang
 
-
+scantool: lang
+	cd tool
+	make all
  
 lang:  $(OBJS) $(RTOBJS) $(TOOLOBJS)
 	g++ $(DEBUG_FLAG) -O3 $(OBJS) $(LLVM_FLAGS) -o $@
@@ -55,3 +57,4 @@ lex.yy.cc: lang.lex parser.hh
 
 clean: 
 	rm -f  lang lex.yy.cc y.tab.h parser.cc parser.hh *.o fsl.table.c *.ll
+	cd tool && make clean

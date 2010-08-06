@@ -356,6 +356,7 @@ public:
 	const ArgsList* getArgs(void) const { return args; }
 	class SymbolTable* getSyms() const;
 	class SymbolTable* getSymsByUserType() const;
+	class SymbolTable* getSymsByUserTypeStrong() const;
 	void buildSyms();
 
 	void setTypeNum(int new_type_num)
