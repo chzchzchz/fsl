@@ -25,6 +25,12 @@ typedef unsigned int	typenum_t;
 typedef diskoff_t(*thunkf_t)(diskoff_t /* thunk_off_bits */);
 typedef typesize_t(*sizef_t)(diskoff_t /* thunk_off_bits */);
 typedef uint64_t(*elemsf_t)(diskoff_t /* thunk_off_bits */);
+typedef uint64_t(*points_minf_t)(diskoff_t);
+typedef uint64_t(*points_maxf_t)(diskoff_t);
+typedef diskoff_t(*points_rangef_t)(diskoff_t, uint64_t /* idx */);
+typedef diskoff_t(*pointsf_t)(diskoff_t);
+
+
 
 struct fsl_rt_thunk_var 
 {
@@ -39,6 +45,9 @@ struct fsl_rt_table_type
 	sizef_t				tt_size;
 	unsigned int			tt_num_fields;
 	struct fsl_rt_table_thunk	*tt_field_thunkoff;
+
+	unsigned int			tt_num_pointsto;
+	struct fsl_rt_table_pointsto	*tt_pointsto;
 };
 
 struct fsl_rt_table_thunk
@@ -47,12 +56,17 @@ struct fsl_rt_table_thunk
 	thunkf_t	tt_fieldbitoff;
 	typenum_t	tt_typenum;
 	elemsf_t	tt_elemcount;
+	sizef_t		tt_typesize;
 };
 
 struct fsl_rt_table_pointsto
 {
-	typenum_t	pt_typenum;
+	typenum_t	pt_type_dst;
+	pointsf_t	pt_single;
 
+	points_rangef_t	pt_range;
+	points_minf_t	pt_min;
+	points_maxf_t	pt_max;
 };
 
 /* these are in the generated  fsl.table.c */

@@ -161,7 +161,7 @@ void PointsRange::genCode(void) const
 
 	/* function(<thunk-args>) */
 	code_builder->genCode(src_type, getMinFCallName(), min_expr);
-	code_builder->genCode(src_type, getMinFCallName(), max_expr);
+	code_builder->genCode(src_type, getMaxFCallName(), max_expr);
 }
 
 void PointsRange::genProto(void) const

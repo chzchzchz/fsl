@@ -2,12 +2,14 @@
 #define POINTS_TO_H
 
 #include <list>
+#include <map>
 #include "collection.h"
 #include "type.h"
 
 typedef PtrList<class PointsTo>		pointsto_list;
 typedef PtrList<class PointsRange>	pointsrange_list;
 typedef std::list<class Points*>	pointing_list;
+typedef std::map<std::string, Points*>	pointing_map;
 
 class Points
 {
@@ -26,6 +28,12 @@ public:
 	}
 
 	const Type* getType(void) const { return src_type; }
+
+	unsigned int getNumPointing(void) const
+	{
+		return	points_to_elems.size() +
+			points_range_elems.size();
+	}
 
 	void genCode(void);
 	void genProtos(void);
@@ -75,8 +83,9 @@ public:
 	const Type* getSrcType(void) const { return src_type; }
 	const Type* getDstType(void) const { return dst_type; }
 
-private:
 	const std::string getFCallName(void) const;
+
+private:
 	const Type*	src_type;
 	const Type*	dst_type;
 	Expr*		points_expr;
@@ -120,10 +129,10 @@ public:
 	const Type* getSrcType(void) const { return src_type; }
 	const Type* getDstType(void) const { return dst_type; }
 
-private:
 	const std::string getFCallName(void) const;
 	const std::string getMinFCallName(void) const;
 	const std::string getMaxFCallName(void) const;
+private:
 
 	const Type*	src_type;
 	const Type*	dst_type;

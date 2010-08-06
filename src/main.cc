@@ -31,6 +31,7 @@ const_map		constants;
 symtab_map		symtabs;
 CodeBuilder		*code_builder;
 pointing_list		points_list;
+pointing_map		points_map;
 
 
 static void	load_user_types_list(const GlobalBlock* gb);
@@ -325,10 +326,15 @@ static void gen_points_to(void)
 		it != types_list.end();
 		it++)
 	{
-		Points	*points = new Points(*it);
+		const Type	*t;
+		Points		*points;
+		
+		t = *it;
+		points = new Points(t);
 		points->genProtos();
 		points->genCode();
 		points_list.push_back(points);
+		points_map[t->getName()] = points;
 	}
 }
 
