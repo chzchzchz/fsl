@@ -23,7 +23,7 @@ OBJS=	parser.o		\
 	points.o
 
 RTOBJS= runtime.o
-TOOLOBJS= scantool.o
+TOOLOBJS= scantool.o browser.o
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core)

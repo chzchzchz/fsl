@@ -79,6 +79,7 @@ uint64_t __getLocalArray(
 uint64_t __getDyn(uint64_t type_num)
 {
 	assert (type_num < env->fctx_num_types);
+	assert (env->fctx_type_offsets[type_num] != ~0);
 
 	return env->fctx_type_offsets[type_num];
 }
