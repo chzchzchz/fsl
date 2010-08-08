@@ -29,7 +29,6 @@ SymbolTable* SymbolTable::copy(void)
 	SymbolTable	*new_st;
 
 	new_st = new SymbolTable(owner->copy());
-
 	new_st->copyInto(*this);
 
 	return new_st;
@@ -94,6 +93,8 @@ bool SymbolTable::add(
 	bool			weak_binding,
 	bool			cond_binding)
 {
+	SymbolTableEnt	*st_ent;
+
 	if (sm.count(name) != 0) {
 		/* exists */
 		return false;
@@ -101,12 +102,15 @@ bool SymbolTable::add(
 
 	assert (!(weak_binding == false && cond_binding));
 
-	sm[name] = new SymbolTableEnt(
+	st_ent =  new SymbolTableEnt(
 		type_name,
 		name,
 		thunk_field,
 		weak_binding,
 		cond_binding);
+
+	sm[name] = st_ent;
+	sl.push_back(st_ent);
 
 	return true;
 }
@@ -118,14 +122,14 @@ const Type* SymbolTable::getOwnerType(void) const
 
 void SymbolTable::freeData(void)
 {
-	sym_map::iterator	it;
+	sym_list::iterator	it;
 
-	for (it = sm.begin(); it != sm.end(); it++) {
-		SymbolTableEnt	*st_ent = ((*it).second);
-		delete st_ent;
+	for (it = sl.begin(); it != sl.end(); it++) {
+		delete (*it);
 	}
 
 	sm.clear();
+	sl.clear();
 
 	if (owner != NULL) {
 		delete owner;

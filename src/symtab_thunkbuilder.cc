@@ -133,11 +133,11 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 
 	{
 	ExprList	*size_args = new ExprList();
-	for (	sym_map::const_iterator it = cur_symtab->begin();
+	for (	sym_list::const_iterator it = cur_symtab->begin();
 		it != cur_symtab->end();
 		it++) 
 	{
-		const ThunkField* tf = ((*it).second)->getFieldThunk();
+		const ThunkField* tf = (*it)->getFieldThunk();
 		size_args->add(tf->getSize()->copyFCall());	
 	}
 	size_expr = new FCall(

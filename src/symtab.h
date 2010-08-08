@@ -6,7 +6,8 @@
 #include "thunk_type.h"
 #include "thunk_field.h"
 
-typedef std::map<std::string, class SymbolTableEnt*>		sym_map;
+typedef std::map<std::string, class SymbolTableEnt*>	sym_map;
+typedef std::list<SymbolTableEnt*>			sym_list;
 typedef std::map<std::string, SymbolTable*>		symtab_map;
 
 class SymbolTableEnt
@@ -72,14 +73,15 @@ public:
 	SymbolTable* copy(void);
 	void copyInto(const SymbolTable& st);
 
-	sym_map::const_iterator	begin(void) const { return sm.begin(); }
-	sym_map::const_iterator end(void) const { return sm.end(); }
+	sym_list::const_iterator begin(void) const { return sl.begin(); }
+	sym_list::const_iterator end(void) const { return sl.end(); }
 
 	unsigned int size(void) const { return sm.size(); }
 private:
 	void freeData(void);
 	ThunkType*		owner;
 	sym_map			sm;
+	sym_list		sl;
 };
 
 

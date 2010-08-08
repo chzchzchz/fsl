@@ -43,7 +43,7 @@ private:
 
 
 	void genExternsPoints(const Points* pt);
-	void genIntConstants(void);
+	void genScalarConstants(void);
 
 	std::ofstream	out;
 };

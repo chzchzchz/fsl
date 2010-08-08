@@ -15,6 +15,7 @@
 
 extern type_list		types_list;
 extern type_map			types_map;
+extern const_map		constants;
 extern pointing_list		points_list;
 extern pointing_map		points_map;
 
@@ -61,17 +62,17 @@ void TableGen::genThunksTableBySymtab(
 		table_name + "[]",
 		true);
 
-	for (	sym_map::const_iterator it = st.begin();
+	for (	sym_list::const_iterator it = st.begin();
 		it != st.end();
 		it++)
 	{
 		const SymbolTableEnt	*st_ent;
 		
-		st_ent = (*it).second;
+		st_ent = *it;
 		assert (st_ent->isWeak() == false);
 
 		sw.beginWrite();
-		genInstanceTypeField(st.getOwnerType(), (*it).second);
+		genInstanceTypeField(st.getOwnerType(), st_ent);
 	}
 
 }
@@ -146,7 +147,7 @@ void TableGen::genExternsFieldsByType(const Type *t)
 	st = t->getSyms();
 	assert (st != NULL);
 
-	for (	sym_map::const_iterator it = st->begin();
+	for (	sym_list::const_iterator it = st->begin();
 		it != st->end();
 		it++)
 	{
@@ -156,7 +157,7 @@ void TableGen::genExternsFieldsByType(const Type *t)
 		FCall			*fc_elems;
 		FCall			*fc_size;
 
-		st_ent = (*it).second;
+		st_ent = *it;
 		tf = st_ent->getFieldThunk();
 
 		fc_off = tf->getOffset()->copyFCall();
@@ -297,7 +298,7 @@ void TableGen::genPointsTables(void)
 }
 
 
-void TableGen::genIntConstants(void)
+void TableGen::genScalarConstants(void)
 {
 	const Type	*origin_type;
 
@@ -307,6 +308,16 @@ void TableGen::genIntConstants(void)
 	out << "unsigned int fsl_rt_table_entries = "<<types_list.size()<<";\n";
 	out << "unsigned int fsl_rt_origin_typenum = ";
 	out << origin_type->getTypeNum() << ';' << endl;
+
+	out << "char fsl_rt_fsname[] = \"";
+	if (constants.count("__FSL_FSNAME") == 0) 
+		out << "__FSL_FSNAME";
+	else {
+		const Id*	id;
+		id = dynamic_cast<const Id*>(constants["__FSL_FSNAME"]);
+		out << ((id != NULL) ? id->getName() : "__FSL_FSNAME");
+	}
+	out << "\";" << endl;
 }
 
 void TableGen::gen(const char* fname)
@@ -314,7 +325,7 @@ void TableGen::gen(const char* fname)
 	out.open(fname);
 
 	genTableHeaders();
-	genIntConstants();
+	genScalarConstants();
 
 	genExternsFields();
 	genUserFieldTables();

@@ -96,12 +96,11 @@ SymbolTable* Type::getSymsByUserType() const
 	assert (cached_symtab != NULL);
 
 	ret = new SymbolTable(cached_symtab->getThunkType()->copy());
-	for (	sym_map::const_iterator it = cached_symtab->begin();
+	for (	sym_list::const_iterator it = cached_symtab->begin();
 		it != cached_symtab->end();
 		it++) 
 	{
-		const std::string	name = (*it).first;
-		const SymbolTableEnt*	st_ent = (*it).second;
+		const SymbolTableEnt*	st_ent = *it;
 
 		if (st_ent->getFieldThunk()->getType() == NULL)
 			continue;
@@ -119,12 +118,11 @@ SymbolTable* Type::getSymsByUserTypeStrong() const
 	assert (cached_symtab != NULL);
 
 	ret = new SymbolTable(cached_symtab->getThunkType()->copy());
-	for (	sym_map::const_iterator it = cached_symtab->begin();
+	for (	sym_list::const_iterator it = cached_symtab->begin();
 		it != cached_symtab->end();
 		it++) 
 	{
-		const std::string	name = (*it).first;
-		const SymbolTableEnt*	st_ent = (*it).second;
+		const SymbolTableEnt*	st_ent = *it;
 
 		if (st_ent->getFieldThunk()->getType() == NULL)
 			continue;

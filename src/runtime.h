@@ -87,7 +87,7 @@ struct fsl_rt_table_pointsto
 extern struct fsl_rt_table_type		fsl_rt_table[];
 extern unsigned int			fsl_rt_table_entries;
 extern unsigned int			fsl_rt_origin_typenum;
-
+extern char				fsl_rt_fsname[];
 
 /* exposed to llvm */
 uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits);
