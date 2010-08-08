@@ -61,7 +61,7 @@ private:
 	ThunkType		*cur_thunk_type;
 
 	ThunkField		*last_tf;
-	ThunkField		*last_tf_union;
+	Expr			*last_tf_union_off;
 	PtrList<ThunkField>	union_tf_list;
 	std::list<SymbolTable*>	union_symtabs;
 	cond_list		cond_stack;

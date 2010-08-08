@@ -31,7 +31,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 	field_count = 0;
 	union_c = 0;
 	weak_c = 0;
-	last_tf_union = NULL;
+	last_tf_union_off = NULL;
 
 	/* create base thunk field.. */
 	setLastThunk(
@@ -119,7 +119,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 			new ThunkFieldSize(thunk_type, "__base", 0u),
 			new ThunkElements(thunk_type, "__base", 0u)));
 
-	last_tf_union = last_tf->copy(*cur_thunk_type);
+	last_tf_union_off = copyCurrentOffset();
 
 
 	union_c = 1;
@@ -127,7 +127,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 
 	TypeVisitAll::visit(tu->getBlock());
 
-	delete last_tf_union;
+	delete last_tf_union_off;
 
 	assert (weak_c == 1);
 
@@ -178,9 +178,12 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 	const Type		*t;
 
 	/* get field offset object */
-	if (last_tf_union != NULL) {
+	if (last_tf_union_off != NULL) {
 		assert (cond_stack.size() == 0);
-		field_offset = last_tf_union->getOffset()->copy();
+		field_offset = new ThunkFieldOffset(
+			cur_thunk_type,
+			field_name,
+			last_tf_union_off->copy());
 	} else if (cond_stack.size() == 0) {
 		field_offset = new ThunkFieldOffset(
 			cur_thunk_type, 
@@ -285,9 +288,10 @@ void SymTabThunkBuilder::addUnionToSymTab(
 	ThunkElements		*field_elems;
 	const Type		*union_t;
 
-	assert (last_tf_union != NULL);
+	assert (last_tf_union_off != NULL);
 	/* get field offset object */
-	field_offset = last_tf_union->getOffset()->copy();
+	field_offset = new ThunkFieldOffset(
+		cur_thunk_type, field_name, last_tf_union_off->copy());
 
 	/* get field size object.. */
 	union_t = getTypeFromUnionSyms(field_name);
@@ -304,7 +308,7 @@ void SymTabThunkBuilder::addUnionToSymTab(
 		num_elems = Expr::rewriteReplace(
 			array->getIdx()->simplify(),
 			from_base_fc.copy(),
-			last_tf_union->getOffset()->copyFCall());
+			last_tf_union_off->copy());
 
 
 		field_elems = new ThunkElements(
@@ -435,7 +439,7 @@ void SymTabThunkBuilder::visit(const TypeUnion* tu)
 	assert (union_c <= 1);
 
 	if (union_c == 0) {
-		last_tf_union = last_tf->copy(*cur_thunk_type);
+		last_tf_union_off = copyCurrentOffset();
 		union_tf_list.clear();
 	}
 
@@ -454,8 +458,8 @@ void SymTabThunkBuilder::visit(const TypeUnion* tu)
 	addUnionToSymTab(tu->getName(), tu->getArray());
 
 	if (union_c == 0) {
-		delete last_tf_union;
-		last_tf_union = NULL;
+		delete last_tf_union_off;
+		last_tf_union_off = NULL;
 		union_tf_list.clear();
 	}
 }
@@ -518,8 +522,8 @@ Expr* SymTabThunkBuilder::copyCurrentOffset(void) const
 {
 	Expr	*ret;
 	if (union_c > 0) {
-		assert (last_tf_union != NULL);
-		ret = last_tf_union->copyNextOffset();
+		assert (last_tf_union_off != NULL);
+		ret = last_tf_union_off;
 	} else {
 		assert (last_tf != NULL);
 		ret = last_tf->copyNextOffset();
