@@ -43,6 +43,7 @@ static void scan_type_pointsto(
 
 	if (pt->pt_single != NULL) {
 		new_ti.ti_diskoff = pt->pt_single(ti->ti_diskoff);
+		print_indent(ti->ti_depth);
 		printf("points-to-single@%"PRIx64" -> %"PRId64 " (%s)\n", 
 			ti->ti_diskoff,
 			new_ti.ti_diskoff,
@@ -81,7 +82,7 @@ static void scan_type_strong_types(const struct type_info* ti)
 	tt = tt_by_ti(ti);
 
 	for (i = 0; i < tt->tt_num_fields; i++) {
-		struct fsl_rt_table_thunk*	field;
+		struct fsl_rt_table_field*	field;
 		uint64_t			bitoff;
 		
 		field = &tt->tt_field_thunkoff[i];
@@ -120,7 +121,7 @@ static void set_dyn_on_type(const struct type_info* ti)
 
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_num_fields; i++) {
-		struct fsl_rt_table_thunk	*field;
+		struct fsl_rt_table_field	*field;
 
 		field = &tt->tt_field_thunkoff[i];
 		if (field->tt_typenum == ~0)
@@ -135,14 +136,13 @@ static void scan_type(const struct type_info* ti)
 {
 	unsigned int i;
 
-	print_indent(ti->ti_depth-1);
 	set_dyn_on_type(ti);
 
+	print_indent(ti->ti_depth-1);
 	printf("scanning: %s (%d usertypes)\n", 
 		tt_by_ti(ti)->tt_name,
 		tt_by_ti(ti)->tt_num_fields);
 	scan_type_strong_types(ti);
-	printf("doing pointsto!\n");
 	scan_type_pointsto_all(ti);
 }
 

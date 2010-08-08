@@ -357,6 +357,9 @@ public:
 	class SymbolTable* getSyms() const;
 	class SymbolTable* getSymsByUserType() const;
 	class SymbolTable* getSymsByUserTypeStrong() const;
+	class SymbolTable* getSymsStrong(void) const;
+	class SymbolTable* getSymsStrongOrConditional(void) const;
+
 	void buildSyms();
 
 	void setTypeNum(int new_type_num)

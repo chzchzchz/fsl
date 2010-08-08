@@ -51,11 +51,16 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 
 	thunk_size = new ThunkSize(
 		thunk_type,
-		new AOPAdd(
-			new AOPMul(
-				(last_tf->getSize())->copyFCall(),
-				(last_tf->getElems())->copyFCall()),
-			(last_tf->getOffset())->copyFCall()));
+		new AOPSub(
+			/* offset of last bit */
+			new AOPAdd(
+				new AOPMul(
+					(last_tf->getSize())->copyFCall(),
+					(last_tf->getElems())->copyFCall()),
+				(last_tf->getOffset())->copyFCall()),
+			/* offset of base */
+			new Id("__thunk_arg_off"))
+	);
 
 	thunk_type->setSize(thunk_size);
 

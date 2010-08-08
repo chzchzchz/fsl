@@ -29,7 +29,7 @@ static void set_dyn_on_type(const struct type_info* ti)
 
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_num_fields; i++) {
-		struct fsl_rt_table_thunk	*field;
+		struct fsl_rt_table_field	*field;
 
 		field = &tt->tt_field_thunkoff[i];
 		if (field->tt_typenum == ~0)
@@ -42,26 +42,35 @@ static void set_dyn_on_type(const struct type_info* ti)
 
 static void print_typeinfo(const struct type_info* ti)
 {
+	struct fsl_rt_table_type	*tt;
+	uint64_t			len;
+
 	assert (ti != NULL);
 
+	tt = tt_by_ti(ti);
 	if (ti->ti_prev == NULL || ti->ti_typenum != ~0) {
-		printf("%s@%"PRIu64"--%"PRIu64"\n", 
+
+		len = tt->tt_size(ti->ti_diskoff);
+		printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)\n", 
 			tt_by_ti(ti)->tt_name, 
 			ti->ti_diskoff,
-			ti->ti_diskoff + tt_by_ti(ti)->tt_size(ti->ti_diskoff));
+			ti->ti_diskoff + len,
+			len);
 		return;
 	}
 
 	assert (ti->ti_prev != NULL);
-	printf("%s.%s@%"PRIu64"--%"PRIu64"\n",
-		tt_by_ti(ti->ti_prev)->tt_name,
-		tt_by_ti(ti->ti_prev)->tt_field_thunkoff[
-			ti->ti_fieldidx].tt_fieldname,
+
+	tt = tt_by_ti(ti->ti_prev);
+	len = tt->tt_field_thunkoff[ti->ti_fieldidx].tt_typesize(
+		ti->ti_prev->ti_diskoff);
+
+	printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)\n",
+		tt->tt_name,
+		tt->tt_field_thunkoff[ti->ti_fieldidx].tt_fieldname,
 		ti->ti_diskoff,
-		ti->ti_diskoff+
-		tt_by_ti(ti->ti_prev)->tt_field_thunkoff[
-			ti->ti_fieldidx].tt_typesize(
-				ti->ti_prev->ti_diskoff));
+		ti->ti_diskoff+ len,
+		len);
 }
 
 static void print_typeinfo_fields(const struct type_info* ti)
@@ -108,7 +117,7 @@ static void menu(struct type_info* cur)
 {
 	do {
 		int				choice;
-		struct fsl_rt_table_thunk	*field;
+		struct fsl_rt_table_field	*field;
 		struct type_info		*ti_next;
 		ssize_t				br;
 

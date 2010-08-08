@@ -1,7 +1,7 @@
 all: scantool browser
 
 clean:
-	rm  -f *.s *.o *.bc *.ll fsl.table.c scantoola browser
+	rm  -f *.s *.o *.bc *.ll fsl.table.c scantool browser
 
 browser: fsl.table.o fsl.types.o
 	gcc -O3 -o browser $^ ../browser.o ../runtime.o 

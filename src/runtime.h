@@ -2,6 +2,7 @@
 #define RUNTIME_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 /* XXX TODO Needs local context for multi-threading.. */
@@ -29,7 +30,7 @@ typedef uint64_t(*points_minf_t)(diskoff_t);
 typedef uint64_t(*points_maxf_t)(diskoff_t);
 typedef diskoff_t(*points_rangef_t)(diskoff_t, uint64_t /* idx */);
 typedef diskoff_t(*pointsf_t)(diskoff_t);
-
+typedef bool(*condf_t)(diskoff_t);
 
 
 struct fsl_rt_thunk_var 
@@ -43,20 +44,31 @@ struct fsl_rt_table_type
 {
 	const char			*tt_name;
 	sizef_t				tt_size;
+
 	unsigned int			tt_num_fields;
-	struct fsl_rt_table_thunk	*tt_field_thunkoff;
+	struct fsl_rt_table_field	*tt_field_thunkoff;
 
 	unsigned int			tt_num_pointsto;
 	struct fsl_rt_table_pointsto	*tt_pointsto;
 };
 
-struct fsl_rt_table_thunk
+struct fsl_rt_table_field
 {
 	const char	*tt_fieldname;
 	thunkf_t	tt_fieldbitoff;
 	typenum_t	tt_typenum;
 	elemsf_t	tt_elemcount;
 	sizef_t		tt_typesize;
+};
+
+struct fsl_rt_table_field_cond
+{
+	const char	*tt_fieldname;
+	thunkf_t	tt_fieldbitoff;
+	typenum_t	tt_typenum;
+	elemsf_t	tt_elemcount;
+	sizef_t		tt_typesize;
+	condf_t		tt_cond;
 };
 
 struct fsl_rt_table_pointsto
@@ -68,6 +80,8 @@ struct fsl_rt_table_pointsto
 	points_minf_t	pt_min;
 	points_maxf_t	pt_max;
 };
+
+
 
 /* these are in the generated  fsl.table.c */
 extern struct fsl_rt_table_type		fsl_rt_table[];

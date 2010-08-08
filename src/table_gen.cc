@@ -1,6 +1,4 @@
-/**
- * generates tables that tools will use to work with data. 
- */
+/* generates tables that tools will use to work with data.  */
 #include <iostream>
 #include <string>
 #include <map>
@@ -11,9 +9,9 @@
 #include "symtab.h"
 #include "eval.h"
 #include "points_to.h"
+#include "table_gen.h"
 
 #include <stdint.h>
-#include <fstream>
 
 extern type_list		types_list;
 extern type_map			types_map;
@@ -22,8 +20,7 @@ extern pointing_map		points_map;
 
 using namespace std;
 
-static void gen_rt_table_typefield(
-	ostream& 		out, 
+void TableGen::genInstanceTypeField(
 	const Type*		parent_type,
 	const SymbolTableEnt*	st_ent)
 {
@@ -54,19 +51,18 @@ static void gen_rt_table_typefield(
 	delete field_size_fc;
 }
 
-static void gen_rt_tab_thunks_by_type(ostream& out, const Type *t)
+void TableGen::genThunksTableBySymtab(
+	const string&		table_name,
+	const SymbolTable&	st)
 {
-	SymbolTable	*st;
 	StructWriter	sw(
 		out, 
-		"fsl_rt_table_thunk", 
-		"__rt_tab_thunks_" + t->getName() + "[]",
+		"fsl_rt_table_field", 
+		table_name + "[]",
 		true);
 
-	st = t->getSymsByUserTypeStrong();
-
-	for (	sym_map::const_iterator it = st->begin();
-		it != st->end();
+	for (	sym_map::const_iterator it = st.begin();
+		it != st.end();
 		it++)
 	{
 		const SymbolTableEnt	*st_ent;
@@ -75,23 +71,34 @@ static void gen_rt_tab_thunks_by_type(ostream& out, const Type *t)
 		assert (st_ent->isWeak() == false);
 
 		sw.beginWrite();
-		gen_rt_table_typefield(out, t, (*it).second);
+		genInstanceTypeField(st.getOwnerType(), (*it).second);
 	}
+
+}
+
+void TableGen::genUserFieldsByType(const Type *t)
+{
+	SymbolTable	*st;
+
+	st = t->getSymsByUserTypeStrong();
+	genThunksTableBySymtab(
+		string("__rt_tab_thunks_") + t->getName(),
+		*st);
 
 	delete st;
 }
 
-static void gen_fsl_rt_tab_thunks(ostream& out)
+void TableGen::genUserFieldTables(void)
 {
 	for (	type_list::const_iterator it = types_list.begin();
 		it != types_list.end();
 		it++)
 	{
-		gen_rt_tab_thunks_by_type(out, *it);
+		genUserFieldsByType(*it);
 	}
 }
 
-static void gen_rt_table_type(ostream& out, const Type *t)
+void TableGen::genInstanceType(const Type *t)
 {
 	StructWriter	sw(out);
 	SymbolTable	*st;
@@ -115,10 +122,9 @@ static void gen_rt_table_type(ostream& out, const Type *t)
 	delete st;
 }
 
-static void print_extern_func(
-	ostream& out,
+void TableGen::printExternFunc(
 	const string& funcname,
-	unsigned int num_params = 1)
+	unsigned int num_params)
 {
 	out << "extern uint64_t " << funcname << "(";
 	
@@ -132,12 +138,12 @@ static void print_extern_func(
 	out << ");\n";
 }
 
-static void gen_rt_externs_type(ostream& out, const Type *t)
+void TableGen::genExternsFieldsByType(const Type *t)
 {
 	SymbolTable	*st;
 	FCall		*fc_type_size;
 
-	st = t->getSymsByUserType();
+	st = t->getSyms();
 	assert (st != NULL);
 
 	for (	sym_map::const_iterator it = st->begin();
@@ -157,9 +163,11 @@ static void gen_rt_externs_type(ostream& out, const Type *t)
 		fc_elems = tf->getElems()->copyFCall();
 		fc_size = tf->getSize()->copyFCall();
 
-		print_extern_func(out, fc_off->getName());
-		print_extern_func(out, fc_elems->getName());
-		print_extern_func(out, fc_size->getName());
+		printExternFunc(fc_off->getName());
+		printExternFunc(fc_elems->getName());
+		printExternFunc(fc_size->getName());
+
+		out << endl;
 
 		delete fc_off;
 		delete fc_elems;
@@ -167,23 +175,23 @@ static void gen_rt_externs_type(ostream& out, const Type *t)
 	}
 
 	fc_type_size = st->getThunkType()->getSize()->copyFCall();
-	print_extern_func(out, fc_type_size->getName());
+	printExternFunc(fc_type_size->getName());
 
 	delete fc_type_size;
 }
 
-static void gen_rt_externs(ostream& out)
+void TableGen::genExternsFields(void)
 {
 	for (	type_list::const_iterator it = types_list.begin();
 		it != types_list.end();
 		it++)
 	{
 		const Type	*t = *it;
-		gen_rt_externs_type(out, t);
+		genExternsFieldsByType(t);
 	}
 }
 
-static void gen_fsl_rt_table(ostream& out)
+void TableGen::genTable_fsl_rt_table(void)
 {
 	StructWriter	sw(out, "fsl_rt_table_type", "fsl_rt_table[]");
 
@@ -192,17 +200,17 @@ static void gen_fsl_rt_table(ostream& out)
 		it++)
 	{
 		sw.beginWrite();
-		gen_rt_table_type(out, *it);
+		genInstanceType(*it);
 	}
 }
 
-static void gen_rt_tables_headers(ostream& out)
+void TableGen::genTableHeaders(void)
 {
 	out << "#include <stdint.h>" << endl;
 	out << "#include \"../runtime.h\"" << endl;
 }
 
-static void gen_fsl_rt_pointsto(ostream& out, const PointsTo* pto)
+void TableGen::genInstancePointsTo(const PointsTo* pto)
 {
 	StructWriter	sw(out);
 
@@ -213,7 +221,7 @@ static void gen_fsl_rt_pointsto(ostream& out, const PointsTo* pto)
 	sw.write("pt_max", "NULL");
 }
 
-static void gen_fsl_rt_pointsrange(ostream& out, const PointsRange* ptr)
+void TableGen::genInstancePointsRange(const PointsRange* ptr)
 {
 	StructWriter	sw(out);
 
@@ -224,7 +232,7 @@ static void gen_fsl_rt_pointsrange(ostream& out, const PointsRange* ptr)
 	sw.write("pt_max", ptr->getMaxFCallName());
 }
 
-static void gen_rt_externs_pointsto(ostream& out, const Points* pt)
+void TableGen::genExternsPoints(const Points* pt)
 {
 	const pointsto_list*	pt_list = pt->getPointsTo();
 	const pointsrange_list*	ptr_list = pt->getPointsRange();
@@ -234,7 +242,7 @@ static void gen_rt_externs_pointsto(ostream& out, const Points* pt)
 		it != pt_list->end();
 		it++)
 	{
-		print_extern_func(out, (*it)->getFCallName());
+		printExternFunc((*it)->getFCallName());
 	}
 
 	for (	pointsrange_list::const_iterator it = ptr_list->begin();
@@ -242,14 +250,14 @@ static void gen_rt_externs_pointsto(ostream& out, const Points* pt)
 		it++)
 	{
 		const PointsRange*	ptr = *it;
-		print_extern_func(out, ptr->getFCallName(), 2);
-		print_extern_func(out, ptr->getMinFCallName(), 1);
-		print_extern_func(out, ptr->getMaxFCallName(), 1);
+		printExternFunc(ptr->getFCallName(), 2);
+		printExternFunc(ptr->getMinFCallName(), 1);
+		printExternFunc(ptr->getMaxFCallName(), 1);
 	}
 }
 
 
-static void gen_fsl_rt_tab_pointsto(ostream& out, const Points* pt)
+void TableGen::genPointsTable(const Points* pt)
 {
 	StructWriter	sw(
 		out,
@@ -265,7 +273,7 @@ static void gen_fsl_rt_tab_pointsto(ostream& out, const Points* pt)
 		it++)
 	{
 		sw.beginWrite();
-		gen_fsl_rt_pointsto(out, *it);
+		genInstancePointsTo(*it);
 	}
 
 	for (	pointsrange_list::const_iterator it = ptr_list->begin();
@@ -273,31 +281,25 @@ static void gen_fsl_rt_tab_pointsto(ostream& out, const Points* pt)
 		it++)
 	{
 		sw.beginWrite();
-		gen_fsl_rt_pointsrange(out, *it);
+		genInstancePointsRange(*it);
 	}
 }
 
-static void gen_fsl_rt_tab_pointsto_all(ostream& out)
+void TableGen::genPointsTables(void)
 {
 	for (	pointing_list::const_iterator it = points_list.begin();
 		it != points_list.end();
 		it++)
 	{
-		gen_rt_externs_pointsto(out, *it);
-		gen_fsl_rt_tab_pointsto(out, *it);
+		genExternsPoints(*it);
+		genPointsTable(*it);
 	}
 }
 
 
-
-void gen_rt_tables(void)
+void TableGen::genIntConstants(void)
 {
-	ofstream	out("fsl.table.c");
 	const Type	*origin_type;
-
-	gen_rt_tables_headers(out);
-
-	gen_rt_externs(out);
 
 	origin_type = types_map["disk"];
 	assert (origin_type != NULL);
@@ -305,11 +307,20 @@ void gen_rt_tables(void)
 	out << "unsigned int fsl_rt_table_entries = "<<types_list.size()<<";\n";
 	out << "unsigned int fsl_rt_origin_typenum = ";
 	out << origin_type->getTypeNum() << ';' << endl;
-
-	gen_fsl_rt_tab_thunks(out);
-	gen_fsl_rt_tab_pointsto_all(out);
-
-	gen_fsl_rt_table(out);
-	
 }
 
+void TableGen::gen(const char* fname)
+{
+	out.open(fname);
+
+	genTableHeaders();
+	genIntConstants();
+
+	genExternsFields();
+	genUserFieldTables();
+	genPointsTables();
+
+	genTable_fsl_rt_table();
+
+	out.close();
+}

@@ -9,6 +9,7 @@
 #include "eval.h"
 #include "code_builder.h"
 #include "points_to.h"
+#include "table_gen.h"
 
 #include <stdint.h>
 #include <fstream>
@@ -16,7 +17,6 @@
 extern int yyparse();
 
 extern GlobalBlock* global_scope;
-extern void gen_rt_tables(void);
 
 using namespace std;
 
@@ -342,6 +342,7 @@ int main(int argc, char *argv[])
 {
 	llvm::LLVMContext&	ctx = llvm::getGlobalContext();
 	ofstream		os("fsl.types.ll");
+	TableGen		table_gen;
 
 	code_builder = new CodeBuilder("fsl.types.mod");
 
@@ -386,7 +387,7 @@ int main(int argc, char *argv[])
 	code_builder->write(os);
 
 	cout << "Generating fsl.table.c" << endl;
-	gen_rt_tables();
+	table_gen.gen();
 
 	return 0;
 }

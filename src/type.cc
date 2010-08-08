@@ -138,6 +138,19 @@ SymbolTable* Type::getSymsByUserTypeStrong() const
 	return ret;
 }
 
+/* get all strong types */
+SymbolTable* Type::getSymsStrong(void) const
+{
+	assert (0 == 1);
+}
+
+/* get all strong types or those that can be verified conditionally */
+SymbolTable* Type::getSymsStrongOrConditional(void) const
+{
+	assert (0 == 1);
+}
+
+
 std::ostream& operator<<(std::ostream& in, const Type& t)
 {
 	t.print(in);
