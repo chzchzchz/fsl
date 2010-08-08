@@ -35,6 +35,7 @@ public:
 	FCall* copyFCall(void) const;
 
 	virtual ThunkFieldOffset* copy(void) const;
+
 protected:
 	ThunkFieldOffset(
 		const ThunkType* 	in_owner,

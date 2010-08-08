@@ -19,8 +19,8 @@ struct type_info
 	union {
 		unsigned int		ti_fieldidx;
 		struct {
-			unsigned int		ti_pointstoidx;
-			unsigned int		ti_pointsto_elem; /* for arrays */
+			unsigned int	ti_pointstoidx;
+			unsigned int	ti_pointsto_elem; /* for arrays */
 		};
 	};
 
@@ -63,15 +63,15 @@ static void set_dyn_on_type(const struct type_info* ti)
 	__setDyn(ti->ti_typenum, ti->ti_diskoff);
 
 	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_num_fields; i++) {
+	for (i = 0; i < tt->tt_field_c; i++) {
 		struct fsl_rt_table_field	*field;
 
 		field = &tt->tt_field_thunkoff[i];
-		if (field->tt_typenum == ~0)
+		if (field->tf_typenum == ~0)
 			continue;
 		__setDyn(
-			field->tt_typenum, 
-			field->tt_fieldbitoff(ti->ti_diskoff));
+			field->tf_typenum, 
+			field->tf_fieldbitoff(ti->ti_diskoff));
 	}
 }
 
@@ -104,10 +104,10 @@ static void print_typeinfo(const struct type_info* ti)
 		struct fsl_rt_table_field	*field;
 
 		field = &tt->tt_field_thunkoff[ti->ti_fieldidx];
-		len = field->tt_typesize(ti->ti_prev->ti_diskoff);
+		len = field->tf_typesize(ti->ti_prev->ti_diskoff);
 		printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)\n",
 			tt->tt_name,
-			field->tt_fieldname,
+			field->tf_fieldname,
 			ti->ti_diskoff,
 			ti->ti_diskoff + len,
 			len);
@@ -123,48 +123,60 @@ static void print_typeinfo_pointsto(const struct type_info* ti)
 		return;
 
 	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_num_pointsto; i++) {
+	for (i = 0; i < tt->tt_pointsto_c; i++) {
 		printf("%02d. ((%s))\n", 
-			tt->tt_num_fields + i,
+			tt->tt_field_c + i,
 			tt_by_num(tt->tt_pointsto[i].pt_type_dst)->tt_name);
 	}
 }
+
+static void print_field(
+	const struct fsl_rt_table_field* field,
+	diskoff_t ti_diskoff)
+{
+	uint64_t			num_elems;
+	typesize_t			field_sz;
+	diskoff_t			field_off;
+
+	num_elems = field->tf_elemcount(ti_diskoff);
+	printf("%s", field->tf_fieldname);
+	if (num_elems > 1) {
+		printf("[%"PRIu64"]", num_elems);
+	}
+
+	field_off = field->tf_fieldbitoff(ti_diskoff);
+	field_sz = field->tf_typesize(ti_diskoff);
+
+	if (num_elems > 1 || field_sz > 32) {
+		printf("@%"PRIu64"--%"PRIu64"\n", 
+			field_off, field_off + field_sz*num_elems);
+	} else {
+		printf(" = %"PRIu64"\n",
+			__getLocal(field_off, field_sz));
+	}
+}
+
 
 static void print_typeinfo_fields(const struct type_info* ti)
 {
 	struct fsl_rt_table_type	*tt;
 	unsigned int			i;
+	unsigned int			user_type_idx;
 
 	if (ti->ti_typenum == ~0)
 		return;
 
 	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_num_fields; i++) {
+	user_type_idx = 0;
+	for (i = 0; i < tt->tt_fieldall_c; i++) {
 		struct fsl_rt_table_field	*field;
-		uint64_t			num_elems;
-		typesize_t			field_sz;
-		diskoff_t			field_off;
 
-		field = &tt->tt_field_thunkoff[i];
-		num_elems = field->tt_elemcount(ti->ti_diskoff);
-
-		if (num_elems == 1) {
-			printf("%02d. %s", 
-				i,
-				tt->tt_field_thunkoff[i].tt_fieldname);
-		} else {
-			printf("%02d. %s[%"PRIu64"]", 
-				i,
-				tt->tt_field_thunkoff[i].tt_fieldname,
-				num_elems);
-		}
-
-		field_off = field->tt_fieldbitoff(ti->ti_diskoff);
-		field_sz = field->tt_typesize(ti->ti_diskoff);
-
-		printf("@%"PRIu64"--%"PRIu64"\n", 
-			field_off, field_off + field_sz*num_elems);
-
+		field = &tt->tt_fieldall_thunkoff[i];
+		if (field->tf_typenum != ~0 && field->tf_cond == NULL) 
+			printf("%02d. ", user_type_idx++);
+		else
+			printf("--- ");
+		print_field(field, ti->ti_diskoff);
 	}
 }
 
@@ -247,13 +259,33 @@ static void select_field(struct type_info* cur, int field_idx)
 {
 	struct fsl_rt_table_field	*field;
 	struct type_info		*ti_next;
+	uint64_t			num_elems;
+	diskoff_t			next_diskoff;
 
 	field = &(tt_by_ti(cur)->tt_field_thunkoff[field_idx]);
+	num_elems = field->tf_elemcount(cur->ti_diskoff);
+	next_diskoff = field->tf_fieldbitoff(cur->ti_diskoff);
+
+	if (num_elems > 1) {
+		typesize_t	fsz;
+		int		sel_elem;
+		ssize_t		br;
+
+		fsz = field->tf_typesize(cur->ti_diskoff);
+
+		sel_elem = num_elems + 1;
+		while (sel_elem >= num_elems) {
+			printf("Which element? (of %"PRIu64")\n", num_elems);
+			br = fscanf(stdin, "%d", &sel_elem);
+			if (br < 0 || sel_elem < 0)
+				return;
+		}
+
+		next_diskoff += sel_elem * fsz;
+	}
+
 	ti_next = typeinfo_alloc(
-		field->tt_typenum,
-		field->tt_fieldbitoff(cur->ti_diskoff),
-		field_idx,
-		cur);
+		field->tf_typenum, next_diskoff, field_idx, cur);
 		
 	menu(ti_next);
 
@@ -267,13 +299,13 @@ static void handle_menu_choice(
 	struct fsl_rt_table_type	*tt;
 
 	tt = tt_by_ti(cur);
-	if (choice < tt->tt_num_fields) {
+	if (choice < tt->tt_field_c) {
 		select_field(cur, choice);
 		return;
 	}
 
-	choice -= tt->tt_num_fields;
-	if (choice < tt->tt_num_pointsto) {
+	choice -= tt->tt_field_c;
+	if (choice < tt->tt_pointsto_c) {
 		select_pointsto(cur, choice);
 		return;
 	}
@@ -281,7 +313,6 @@ static void handle_menu_choice(
 
 	printf("Error: Bad field value.\n");
 }
-
 
 static void menu(struct type_info* cur)
 {

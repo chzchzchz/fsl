@@ -68,7 +68,7 @@ static void scan_type_pointsto_all(const struct type_info* ti)
 	unsigned int			i;
 
 	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_num_pointsto; i++) {
+	for (i = 0; i < tt->tt_pointsto_c; i++) {
 		scan_type_pointsto(ti, &tt->tt_pointsto[i]);
 	}
 }
@@ -81,29 +81,29 @@ static void scan_type_strong_types(const struct type_info* ti)
 
 	tt = tt_by_ti(ti);
 
-	for (i = 0; i < tt->tt_num_fields; i++) {
+	for (i = 0; i < tt->tt_field_c; i++) {
 		struct fsl_rt_table_field*	field;
 		uint64_t			bitoff;
 		
 		field = &tt->tt_field_thunkoff[i];
-		bitoff = field->tt_fieldbitoff(ti->ti_diskoff);
+		bitoff = field->tf_fieldbitoff(ti->ti_diskoff);
 
 		/* dump data */
 		print_indent(ti->ti_depth);
-		printf("%s::", field->tt_fieldname);
+		printf("%s::", field->tf_fieldname);
 
 		printf("%s",
-			(field->tt_typenum != ~0) ?
-				tt_by_num(field->tt_typenum)->tt_name : 
+			(field->tf_typenum != ~0) ?
+				tt_by_num(field->tf_typenum)->tt_name : 
 				"ANONYMOUS");
 
 		printf("@offset=0x%" PRIx64 " (%" PRIu64 ")\n", bitoff, bitoff);
 
-		if (field->tt_typenum != ~0) {
+		if (field->tf_typenum != ~0) {
 			/* recurse */
 			struct type_info	new_type;
 			
-			new_type.ti_typenum = field->tt_typenum;
+			new_type.ti_typenum = field->tf_typenum;
 			new_type.ti_diskoff = bitoff;
 			new_type.ti_depth = ti->ti_depth + 1;
 
@@ -120,15 +120,15 @@ static void set_dyn_on_type(const struct type_info* ti)
 	__setDyn(ti->ti_typenum, ti->ti_diskoff);
 
 	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_num_fields; i++) {
+	for (i = 0; i < tt->tt_field_c; i++) {
 		struct fsl_rt_table_field	*field;
 
 		field = &tt->tt_field_thunkoff[i];
-		if (field->tt_typenum == ~0)
+		if (field->tf_typenum == ~0)
 			continue;
 		__setDyn(
-			field->tt_typenum, 
-			field->tt_fieldbitoff(ti->ti_diskoff));
+			field->tf_typenum, 
+			field->tf_fieldbitoff(ti->ti_diskoff));
 	}
 }
 
@@ -141,7 +141,7 @@ static void scan_type(const struct type_info* ti)
 	print_indent(ti->ti_depth-1);
 	printf("scanning: %s (%d usertypes)\n", 
 		tt_by_ti(ti)->tt_name,
-		tt_by_ti(ti)->tt_num_fields);
+		tt_by_ti(ti)->tt_field_c);
 	scan_type_strong_types(ti);
 	scan_type_pointsto_all(ti);
 }

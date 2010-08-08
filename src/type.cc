@@ -145,7 +145,25 @@ SymbolTable* Type::getSymsStrong(void) const
 /* get all strong types or those that can be verified conditionally */
 SymbolTable* Type::getSymsStrongOrConditional(void) const
 {
-	assert (0 == 1);
+	SymbolTable	*ret;
+
+	assert (cached_symtab != NULL);
+
+	ret = new SymbolTable(cached_symtab->getThunkType()->copy());
+	for (	sym_list::const_iterator it = cached_symtab->begin();
+		it != cached_symtab->end();
+		it++) 
+	{
+		const SymbolTableEnt*	st_ent = *it;
+
+		/* accept everything but the super-weak */
+		if (st_ent->isWeak() && !st_ent->isConditional())
+			continue;
+
+		ret->add(st_ent);
+	}
+
+	return ret;
 }
 
 

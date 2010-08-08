@@ -2,6 +2,8 @@
 #include <iostream>
 #include <string>
 #include <map>
+#include <algorithm>
+
 #include "struct_writer.h"
 #include "AST.h"
 #include "type.h"
@@ -10,6 +12,7 @@
 #include "eval.h"
 #include "points_to.h"
 #include "table_gen.h"
+#include "thunk_fieldoffset_cond.h"
 
 #include <stdint.h>
 
@@ -25,27 +28,41 @@ void TableGen::genInstanceTypeField(
 	const Type*		parent_type,
 	const SymbolTableEnt*	st_ent)
 {
-	StructWriter	sw(out);
-	const Type		*field_type;
-	const ThunkField	*tf;
-	FCall			*field_off_fc;
-	FCall			*field_elems_fc;
-	FCall			*field_size_fc;
+	StructWriter			sw(out);
+	const Type			*field_type;
+	const ThunkField		*tf;
+	const ThunkFieldOffsetCond	*condoff;
+	FCall				*field_off_fc;
+	FCall				*field_elems_fc;
+	FCall				*field_size_fc;
 
 	tf = st_ent->getFieldThunk();
+	condoff = dynamic_cast<const ThunkFieldOffsetCond*>(tf->getOffset());
 	field_off_fc = tf->getOffset()->copyFCall();
 	field_elems_fc = tf->getElems()->copyFCall();
 	field_size_fc = tf->getSize()->copyFCall();
 	field_type = types_map[st_ent->getTypeName()];
 
-	sw.writeStr("tt_fieldname", st_ent->getFieldName());
-	sw.write("tt_fieldbitoff", field_off_fc->getName());
+	sw.writeStr("tf_fieldname", st_ent->getFieldName());
+	sw.write("tf_fieldbitoff", field_off_fc->getName());
 	if (field_type != NULL)
-		sw.write("tt_typenum", field_type->getTypeNum());
+		sw.write("tf_typenum", field_type->getTypeNum());
 	else
-		sw.write("tt_typenum", "~0");
-	sw.write("tt_elemcount", field_elems_fc->getName());
-	sw.write("tt_typesize", field_size_fc->getName());
+		sw.write("tf_typenum", "~0");
+	sw.write("tf_elemcount", field_elems_fc->getName());
+	sw.write("tf_typesize", field_size_fc->getName());
+	if (condoff != NULL) {
+		Expr	*present_expr;
+		FCall	*present_fc;
+
+		present_expr = condoff->copyFCallPresent();
+		present_fc = dynamic_cast<FCall*>(present_fc);
+		assert (present_fc != NULL);
+		sw.write("tf_cond", present_fc->getName());
+		delete present_fc;
+	} else {
+		sw.write("tf_cond", "NULL");
+	}
 
 	delete field_off_fc;
 	delete field_elems_fc;
@@ -80,13 +97,19 @@ void TableGen::genThunksTableBySymtab(
 void TableGen::genUserFieldsByType(const Type *t)
 {
 	SymbolTable	*st;
+	SymbolTable	*st_all;
 
 	st = t->getSymsByUserTypeStrong();
 	genThunksTableBySymtab(
 		string("__rt_tab_thunks_") + t->getName(),
 		*st);
-
 	delete st;
+
+	st_all = t->getSymsStrongOrConditional();
+	genThunksTableBySymtab(
+		string("__rt_tab_thunksall_") + t->getName(),
+		*st_all);
+	delete st_all;
 }
 
 void TableGen::genUserFieldTables(void)
@@ -94,19 +117,19 @@ void TableGen::genUserFieldTables(void)
 	for (	type_list::const_iterator it = types_list.begin();
 		it != types_list.end();
 		it++)
-	{
 		genUserFieldsByType(*it);
-	}
 }
 
 void TableGen::genInstanceType(const Type *t)
 {
 	StructWriter	sw(out);
-	SymbolTable	*st;
+	SymbolTable	*st, *st_all;
 	FCall		*size_fc;
 	unsigned int	pointsto_num;
 
 	st = t->getSymsByUserTypeStrong();
+	st_all = t->getSymsStrongOrConditional();
+
 	assert (st != NULL);
 
 	size_fc = st->getThunkType()->getSize()->copyFCall();
@@ -114,13 +137,16 @@ void TableGen::genInstanceType(const Type *t)
 
 	sw.writeStr("tt_name", t->getName());
 	sw.write("tt_size", size_fc->getName());
-	sw.write("tt_num_fields", st->size());
+	sw.write("tt_field_c", st->size());
 	sw.write("tt_field_thunkoff", "__rt_tab_thunks_" + t->getName());
-	sw.write("tt_num_pointsto", pointsto_num);
+	sw.write("tt_pointsto_c", pointsto_num);
 	sw.write("tt_pointsto", "__rt_tab_pointsto_" + t->getName());
+	sw.write("tt_fieldall_c", st_all->size());
+	sw.write("tt_fieldall_thunkoff", "__rt_tab_thunksall_" + t->getName());
 
 	delete size_fc;
 	delete st;
+	delete st_all;
 }
 
 void TableGen::printExternFunc(
@@ -186,10 +212,7 @@ void TableGen::genExternsFields(void)
 	for (	type_list::const_iterator it = types_list.begin();
 		it != types_list.end();
 		it++)
-	{
-		const Type	*t = *it;
-		genExternsFieldsByType(t);
-	}
+		genExternsFieldsByType(*it);
 }
 
 void TableGen::genTable_fsl_rt_table(void)
@@ -237,7 +260,6 @@ void TableGen::genExternsPoints(const Points* pt)
 {
 	const pointsto_list*	pt_list = pt->getPointsTo();
 	const pointsrange_list*	ptr_list = pt->getPointsRange();
-
 
 	for (	pointsto_list::const_iterator it = pt_list->begin();
 		it != pt_list->end();

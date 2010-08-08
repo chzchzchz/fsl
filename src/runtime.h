@@ -45,30 +45,26 @@ struct fsl_rt_table_type
 	const char			*tt_name;
 	sizef_t				tt_size;
 
-	unsigned int			tt_num_fields;
+	unsigned int			tt_field_c;
 	struct fsl_rt_table_field	*tt_field_thunkoff;
 
-	unsigned int			tt_num_pointsto;
+	unsigned int			tt_pointsto_c;
 	struct fsl_rt_table_pointsto	*tt_pointsto;
+
+	/* non-union fields */
+	unsigned int			tt_fieldall_c;
+	struct fsl_rt_table_field	*tt_fieldall_thunkoff;
+
 };
 
 struct fsl_rt_table_field
 {
-	const char	*tt_fieldname;
-	thunkf_t	tt_fieldbitoff;
-	typenum_t	tt_typenum;
-	elemsf_t	tt_elemcount;
-	sizef_t		tt_typesize;
-};
-
-struct fsl_rt_table_field_cond
-{
-	const char	*tt_fieldname;
-	thunkf_t	tt_fieldbitoff;
-	typenum_t	tt_typenum;
-	elemsf_t	tt_elemcount;
-	sizef_t		tt_typesize;
-	condf_t		tt_cond;
+	const char	*tf_fieldname;
+	thunkf_t	tf_fieldbitoff;
+	typenum_t	tf_typenum;
+	elemsf_t	tf_elemcount;
+	sizef_t		tf_typesize;
+	condf_t		tf_cond;
 };
 
 struct fsl_rt_table_pointsto
