@@ -29,8 +29,8 @@ public:
 	virtual bool genCode(void) const;
 
 	/* gets the unchecked call */
-	Expr* copyFCallUnchecked(void) const;
-	Expr* copyFCallPresent(void) const;
+	FCall* copyFCallUnchecked(void) const;
+	FCall* copyFCallPresent(void) const;
 
 	bool isAlwaysPresent(void) const 
 	{

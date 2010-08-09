@@ -30,7 +30,18 @@ private:
 
 	void printExternFunc(
 		const std::string& funcname,
+		const char* return_type = "uint64_t",
 		unsigned int num_params = 1);
+	void printExternFunc(
+		const class FCall* fc,
+		const char* return_type = "uint64_t");
+
+	void printExternFunc(
+		const std::string& funcname,
+		unsigned int num_params)
+	{
+		printExternFunc(funcname, "uint64_t", num_params);
+	}
 
 	/* these generate the struct instances ala
 	 * { .some_field = whatever, ... } */

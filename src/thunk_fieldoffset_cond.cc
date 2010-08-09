@@ -19,7 +19,7 @@ const string ThunkFieldOffsetCond::getPresentFCallName(void) const
 		+ "_" + fieldname;
 }
 
-Expr* ThunkFieldOffsetCond::copyFCallPresent(void) const
+FCall* ThunkFieldOffsetCond::copyFCallPresent(void) const
 {
 	return new FCall(
 		new Id(getPresentFCallName()),

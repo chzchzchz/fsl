@@ -2,7 +2,7 @@
 #include <iostream>
 #include <string>
 #include <map>
-#include <algorithm>
+#include <typeinfo>
 
 #include "struct_writer.h"
 #include "AST.h"
@@ -52,12 +52,9 @@ void TableGen::genInstanceTypeField(
 	sw.write("tf_elemcount", field_elems_fc->getName());
 	sw.write("tf_typesize", field_size_fc->getName());
 	if (condoff != NULL) {
-		Expr	*present_expr;
 		FCall	*present_fc;
 
-		present_expr = condoff->copyFCallPresent();
-		present_fc = dynamic_cast<FCall*>(present_fc);
-		assert (present_fc != NULL);
+		present_fc = condoff->copyFCallPresent();
 		sw.write("tf_cond", present_fc->getName());
 		delete present_fc;
 	} else {
@@ -86,8 +83,6 @@ void TableGen::genThunksTableBySymtab(
 		const SymbolTableEnt	*st_ent;
 		
 		st_ent = *it;
-		assert (st_ent->isWeak() == false);
-
 		sw.beginWrite();
 		genInstanceTypeField(st.getOwnerType(), st_ent);
 	}
@@ -147,13 +142,23 @@ void TableGen::genInstanceType(const Type *t)
 	delete size_fc;
 	delete st;
 	delete st_all;
+
+}
+
+void TableGen::printExternFunc(const FCall* fc, const char* return_type)
+{
+	const ExprList	*exprs;
+
+	exprs = fc->getExprs();
+	printExternFunc(fc->getName(), return_type, exprs->size());
 }
 
 void TableGen::printExternFunc(
 	const string& funcname,
+	const char* return_type,
 	unsigned int num_params)
 {
-	out << "extern uint64_t " << funcname << "(";
+	out << "extern " << return_type << ' ' << funcname << "(";
 	
 	for (unsigned int i = 0; i < num_params; i++) {
 		out << "uint64_t";
@@ -177,11 +182,12 @@ void TableGen::genExternsFieldsByType(const Type *t)
 		it != st->end();
 		it++)
 	{
-		const SymbolTableEnt	*st_ent;
-		const ThunkField	*tf;
-		FCall			*fc_off;
-		FCall			*fc_elems;
-		FCall			*fc_size;
+		const SymbolTableEnt		*st_ent;
+		const ThunkField		*tf;
+		const ThunkFieldOffsetCond	*fo_cond;
+		FCall				*fc_off;
+		FCall				*fc_elems;
+		FCall				*fc_size;
 
 		st_ent = *it;
 		tf = st_ent->getFieldThunk();
@@ -190,9 +196,18 @@ void TableGen::genExternsFieldsByType(const Type *t)
 		fc_elems = tf->getElems()->copyFCall();
 		fc_size = tf->getSize()->copyFCall();
 
-		printExternFunc(fc_off->getName());
-		printExternFunc(fc_elems->getName());
-		printExternFunc(fc_size->getName());
+		printExternFunc(fc_off);
+		printExternFunc(fc_elems);
+		printExternFunc(fc_size);
+
+		fo_cond = dynamic_cast<const ThunkFieldOffsetCond*>(
+			tf->getOffset());
+		if (fo_cond != NULL) {
+			FCall	*cond_fc;
+			cond_fc = fo_cond->copyFCallPresent();
+			printExternFunc(cond_fc, "bool");
+			delete cond_fc;
+		}
 
 		out << endl;
 
@@ -202,8 +217,7 @@ void TableGen::genExternsFieldsByType(const Type *t)
 	}
 
 	fc_type_size = st->getThunkType()->getSize()->copyFCall();
-	printExternFunc(fc_type_size->getName());
-
+	printExternFunc(fc_type_size);
 	delete fc_type_size;
 }
 
