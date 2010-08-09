@@ -1,3 +1,4 @@
+const __FSL_FSNAME = vfat;
 const LAST_LONG_ENTRY_MASK = 0x40;
 const ATTR_READ_ONLY = 0x1;
 const ATTR_HIDDEN = 0x02;
@@ -19,23 +20,23 @@ const ATTR_LONG_NAME = 	ATTR_READ_ONLY | ATTR_HIDDEN |
 type disk 
 {
 	bpb		d_bpb;
-	
-	align(d_bpb.bytes_per_sector);
-	skip(d_bpb.bytes_per_sector * (d_bpb.reserved_sector_c - 1));
+
+	align_bytes(d_bpb.bytes_per_sector);
+	skip_bytes(d_bpb.bytes_per_sector * (d_bpb.reserved_sector_c - 1));
 	
 	fat		fats[d_bpb.fat_count];
 	
-	align(d_bpb.bytes_per_sector);
+	align_bytes(d_bpb.bytes_per_sector);
 	
 	fat_de		root_dir[d_bpb.root_de_c];
 	
-	align(d_bpb.bytes_per_sector);
+	align_bytes(d_bpb.bytes_per_sector);
 
 	cluster		clusters[get_cluster_count(d_bpb)];
 }
 
 type cluster
-aligned(512)
+align_bits(512)
 {
 	u8	data[bpb.sectors_per_cluster*bpb.bytes_per_sector];
 }
@@ -122,11 +123,11 @@ know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb))
 }
 
 type fat 
-points(ent12, disk.clusters)
-free(ent12, disk.clusters, 0)
-points(ent16, disk.clusters)
+points_range(i, 0, get_cluster_count(bpb), disk.clusters[ent12[i]])
+points_range(i, 0, get_cluster_count(bpb), disk.clusters[ent16[i]])
+points_range(i, 0, get_cluster_count(bpb), disk.clusters[ent32[i]])
 free(ent16, disk.clusters, 0)
-points(ent32, disk.clusters)
+free(ent12, disk.clusters, 0)
 free(ent32, disk.clusters, 0)
 { 
 	if (is_fat12(bpb)) {
@@ -138,11 +139,11 @@ free(ent32, disk.clusters, 0)
 	} else {
 		fsl_fail();
 	}
-	align(bpb.bytes_per_sector);
+	align_bytes(bpb.bytes_per_sector);
 }
 
 
-enum fat_type = {FAT_TYPE_FAT12, FAT_TYPE_FAT16, FAT_TYPE_FAT32};
+enum fat_type = {FAT_TYPE_FAT12, FAT_TYPE_FAT16, FAT_TYPE_FAT32} u8;
 
 uint get_fat_sectors(bpb b)
 {
