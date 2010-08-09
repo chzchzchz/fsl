@@ -42,6 +42,7 @@ public:
 		const Expr		*false_expr);
 
 	void write(std::ostream& os);
+	void write(std::string& os);
 
 	unsigned int getThunkVarCount(void) const { return thunk_var_map.size(); }
 	llvm::AllocaInst* getThunkAllocInst(const std::string& s) const 

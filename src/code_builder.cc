@@ -4,6 +4,7 @@
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Support/IRBuilder.h>
 #include <llvm/Support/raw_os_ostream.h>
+#include <fstream>
 
 #include "eval.h"
 #include "evalctx.h"
@@ -241,5 +242,12 @@ void CodeBuilder::genCodeCond(
 	builder->CreateRet(evalAndGen(ectx, dummy_expr));
 	delete dummy_expr;
 	}
+}
+
+
+void CodeBuilder::write(std::string& os)
+{
+	ofstream	ofs(os.c_str());
+	write(ofs);
 }
 

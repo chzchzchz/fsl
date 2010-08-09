@@ -123,6 +123,8 @@ static void print_typeinfo_pointsto(const struct type_info* ti)
 		return;
 
 	tt = tt_by_ti(ti);
+	if (tt->tt_pointsto_c > 0)
+		printf("Points-To:\n");
 	for (i = 0; i < tt->tt_pointsto_c; i++) {
 		printf("%02d. ((%s))\n", 
 			tt->tt_field_c + i,
@@ -168,6 +170,10 @@ static void print_typeinfo_fields(const struct type_info* ti)
 
 	tt = tt_by_ti(ti);
 	user_type_idx = 0;
+
+	if (tt->tt_fieldall_c > 0)
+		printf("Fields:\n");
+
 	for (i = 0; i < tt->tt_fieldall_c; i++) {
 		struct fsl_rt_table_field	*field;
 
@@ -275,7 +281,7 @@ static void select_field(struct type_info* cur, int field_idx)
 
 		sel_elem = num_elems + 1;
 		while (sel_elem >= num_elems) {
-			printf("Which element? (of %"PRIu64")\n", num_elems);
+			printf("Which element? (of %"PRIu64")\n>> ", num_elems);
 			br = fscanf(stdin, "%d", &sel_elem);
 			if (br < 0 || sel_elem < 0)
 				return;
@@ -323,12 +329,11 @@ static void menu(struct type_info* cur)
 		printf("Current: ");
 		print_typeinfo(cur);
 
-		printf("Fields:\n");
 		print_typeinfo_fields(cur);
 
-		printf("Points-To:\n");
 		print_typeinfo_pointsto(cur);
 
+		printf(">> ");
 		br = fscanf(stdin, "%d", &choice);
 		if (br <= 0 || choice < 0)
 			return;

@@ -342,9 +342,9 @@ void TableGen::genScalarConstants(void)
 	out << "\";" << endl;
 }
 
-void TableGen::gen(const char* fname)
+void TableGen::gen(const string& fname)
 {
-	out.open(fname);
+	out.open(fname.c_str());
 
 	genTableHeaders();
 	genScalarConstants();

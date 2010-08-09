@@ -12,7 +12,7 @@ public:
 	TableGen() {}
 	virtual ~TableGen() {}
 
-	void gen(const char* fname = "fsl.table.c");
+	void gen(const std::string& fname = "fsl.table.c");
 private:
 	void genTableHeaders(void);
 

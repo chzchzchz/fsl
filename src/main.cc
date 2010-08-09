@@ -340,9 +340,18 @@ static void gen_points_to(void)
 
 int main(int argc, char *argv[])
 {
-	llvm::LLVMContext&	ctx = llvm::getGlobalContext();
-	ofstream		os("fsl.types.ll");
 	TableGen		table_gen;
+	char			*out_str;
+	string			table_fname;
+	string			llvm_fname;
+
+	if (argc < 2) {
+		printf("Usage: %s outputstr\n", argv[0]);
+		return 0;
+	}
+	out_str = argv[1];
+	llvm_fname = string("fsl.") + out_str + string(".types.ll"); 
+	table_fname = string("fsl.") + out_str + string(".table.c");
 
 	code_builder = new CodeBuilder("fsl.types.mod");
 
@@ -384,10 +393,10 @@ int main(int argc, char *argv[])
 	gen_points_to();
 
 	cout << "Writing out module's code" << endl;
-	code_builder->write(os);
+	code_builder->write(llvm_fname);
 
 	cout << "Generating fsl.table.c" << endl;
-	table_gen.gen();
+	table_gen.gen(table_fname);
 
 	return 0;
 }
