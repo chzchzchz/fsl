@@ -180,6 +180,7 @@ void CodeBuilder::genCodeCond(
 	llvm::Function		*f;
 	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_entry;
 	llvm::Value		*cond_v, *false_v, *true_v;
+	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
 	EvalCtx			ectx(symtabs[t->getName()], symtabs, constants);
 
 	assert (true_expr != NULL);
@@ -188,23 +189,18 @@ void CodeBuilder::genCodeCond(
 
 	f = mod->getFunction(func_name);
 
-	bb_entry = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "entry", f);
+	bb_entry = llvm::BasicBlock::Create(gctx, "entry", f);
 	builder->SetInsertPoint(bb_entry);
 	genHeaderArgs(f, t);
-
-	bb_then = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "then", f);
-	bb_else = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "else");
-	bb_merge = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "ifcont");
 
 	cond_v = cond_codeGen(&ectx, cond_expr);
 	if (cond_v == NULL) {
 		cerr << func_name << ": could not gen condition" << endl;
 		return;
 	}
+
+	bb_then = llvm::BasicBlock::Create(gctx, "then");
+	bb_else = llvm::BasicBlock::Create(gctx, "else");
 
 	/*
 	 * if (cond_v) {
@@ -221,20 +217,17 @@ void CodeBuilder::genCodeCond(
 	builder->SetInsertPoint(bb_then);
 	true_v = evalAndGen(ectx, true_expr);
 	builder->CreateRet(true_v);
-	builder->CreateBr(bb_merge);
 
 	/* else */
 	builder->SetInsertPoint(bb_else);
 	false_v = evalAndGen(ectx, false_expr);
 	builder->CreateRet(false_v);
-	builder->CreateBr(bb_merge);
 
-	builder->SetInsertPoint(bb_merge);
-
+	f->getBasicBlockList().push_back(bb_then);
 	f->getBasicBlockList().push_back(bb_else);
-	f->getBasicBlockList().push_back(bb_merge);
 
 	/* never called-- use better failure function here  */
+#if 0
 	{
 	Expr*	dummy_expr = new FCall(
 		new Id("fsl_fail"), 
@@ -242,6 +235,7 @@ void CodeBuilder::genCodeCond(
 	builder->CreateRet(evalAndGen(ectx, dummy_expr));
 	delete dummy_expr;
 	}
+#endif
 }
 
 

@@ -43,26 +43,19 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 {
 	const CondExpr		*lhs, *rhs;
 	llvm::Value		*lhs_v, *rhs_v;
-	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge;
+	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin;
 	llvm::PHINode		*pn;
 	llvm::Function		*f;
 	llvm::IRBuilder<>	*builder;
+	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
 
 	builder = code_builder->getBuilder();
-
-	f = builder->GetInsertBlock()->getParent();
+	bb_origin = builder->GetInsertBlock();
+	f = bb_origin->getParent();
 
 	lhs = bop_and->getLHS();
 	rhs = bop_and->getRHS();
 	
-	bb_then = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "then", f);
-	bb_else = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "else");
-	bb_merge = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "merge");
-
-	lhs_v = cond_codeGen(ctx, lhs);
 	/*
 	 * if (lhs_v) {
 	 * 	(bb_then)
@@ -73,24 +66,33 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 	 * }
 	 * merge:
 	 */
+
+	bb_then = llvm::BasicBlock::Create(gctx, "and_then", f);
+	bb_else = llvm::BasicBlock::Create(gctx, "and_else", f);
+	bb_merge = llvm::BasicBlock::Create(gctx, "and_merge", f);
+
+
+	builder->SetInsertPoint(bb_origin);
+	lhs_v = cond_codeGen(ctx, lhs);
 	builder->CreateCondBr(lhs_v, bb_then, bb_else);
+
 	builder->SetInsertPoint(bb_then);
+	rhs_v = cond_codeGen(ctx, rhs);
 	builder->CreateBr(bb_merge);
+
 	builder->SetInsertPoint(bb_else);
 	builder->CreateBr(bb_merge);
 
-	f->getBasicBlockList().push_back(bb_else);
-	f->getBasicBlockList().push_back(bb_merge);
+	builder->SetInsertPoint(bb_merge);
 
-	rhs_v = cond_codeGen(ctx, rhs);
+	pn = builder->CreatePHI(llvm::Type::getInt1Ty(gctx), "iftmp");
 
-	pn = builder->CreatePHI(
-		llvm::Type::getInt1Ty(
-			llvm::getGlobalContext()), "iftmp");
+	/* lhs_v true, eval rhs_v */
 	pn->addIncoming(rhs_v, bb_then);
+
+	/* lhs_v false, don't bother evaluating rhs_v */
 	pn->addIncoming(
-		llvm::ConstantInt::get(
-			llvm::Type::getInt1Ty(llvm::getGlobalContext()), 0), 
+		llvm::ConstantInt::get(llvm::Type::getInt1Ty(gctx), 0), 
 		bb_else);
 
 	return pn;
@@ -99,27 +101,25 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 {
 	const CondExpr		*lhs, *rhs;
-	llvm::Value		*lhs_v;
-	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge;
+	llvm::Value		*lhs_v, *rhs_v;
+	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin;
 	llvm::PHINode		*pn;
 	llvm::Function		*f;
 	llvm::IRBuilder<>	*builder;
+	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
 	
 	builder = code_builder->getBuilder();
+	bb_origin = builder->GetInsertBlock();
 
-	f = builder->GetInsertBlock()->getParent();
+	f = bb_origin->getParent();
 
 	lhs = bop_or->getLHS();
 	rhs = bop_or->getRHS();
 	
-	bb_then = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "then", f);
-	bb_else = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "else");
-	bb_merge = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "merge");
+	bb_then = llvm::BasicBlock::Create(gctx, "or_then", f);
+	bb_else = llvm::BasicBlock::Create(gctx, "or_else", f);
+	bb_merge = llvm::BasicBlock::Create(gctx, "or_merge", f);
 
-	lhs_v = cond_codeGen(ctx, lhs);
 	/*
 	 * if (lhs_v) {
 	 * 	(bb_then)
@@ -130,27 +130,28 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	 * }
 	 * merge:
 	 */
+	builder->SetInsertPoint(bb_origin);
+	lhs_v = cond_codeGen(ctx, lhs);
 	builder->CreateCondBr(lhs_v, bb_then, bb_else);
+
 	builder->SetInsertPoint(bb_then);
 	builder->CreateBr(bb_merge);
+
 	builder->SetInsertPoint(bb_else);
+
 	builder->CreateBr(bb_merge);
+	rhs_v = cond_codeGen(ctx, rhs);
 	builder->SetInsertPoint(bb_merge);
 
-//	f->getBasicBlockList().push_back(bb_then);
-	f->getBasicBlockList().push_back(bb_else);
-	f->getBasicBlockList().push_back(bb_merge);
-
 	/* short-circuit */
-	pn = builder->CreatePHI(
-		llvm::Type::getInt1Ty(llvm::getGlobalContext()), "iftmp");
+	pn = builder->CreatePHI(llvm::Type::getInt1Ty(gctx), "or_iftmp");
 	pn->addIncoming(
-		llvm::ConstantInt::get(
-			llvm::Type::getInt1Ty(llvm::getGlobalContext()), 1), 
+		llvm::ConstantInt::get(llvm::Type::getInt1Ty(gctx), 1), 
 		bb_then);
 	
-	/* otherwise, then next stmt.. */
-	pn->addIncoming(cond_codeGen(ctx, rhs), bb_else);
+	/* otherwise, try the next stmt, if might be true.. */
+	pn->addIncoming(rhs_v, bb_else);
+
 
 	return pn;
 }

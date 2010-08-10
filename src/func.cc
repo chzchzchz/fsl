@@ -115,14 +115,19 @@ Value* FuncAssign::codeGen(const EvalCtx* ectx) const
 	assert (array == NULL);
 
 	code_builder->getBuilder()->CreateStore(
-		e_v, getOwner()->getVar(scalar->getName()));
+		e_v,
+		getOwner()->getVar(scalar->getName()));
 
 	return e_v;
 }
 
 Value* FuncRet::codeGen(const EvalCtx* ectx) const
 {
-	Value	*e_v;	
+	Value			*e_v;
+	IRBuilder<>		*builder;
+	BasicBlock		*cur_bb;
+	const Function		*f;
+	const llvm::Type	*t;
 
 	e_v = evalAndGen(*ectx, expr);
 	if (e_v == NULL) {
@@ -131,7 +136,15 @@ Value* FuncRet::codeGen(const EvalCtx* ectx) const
 		cerr << endl;
 	}
 
-	code_builder->getBuilder()->CreateRet(e_v);
+	builder = code_builder->getBuilder();
+	cur_bb = builder->GetInsertBlock();
+	f = cur_bb->getParent();
+	t = f->getReturnType();
+	if (t == llvm::Type::getInt1Ty(llvm::getGlobalContext())) {
+		e_v = builder->CreateTrunc(e_v, t);
+	}
+
+	builder->CreateRet(e_v);
 
 	return e_v;
 }
@@ -139,48 +152,46 @@ Value* FuncRet::codeGen(const EvalCtx* ectx) const
 Value* FuncCondStmt::codeGen(const EvalCtx* ectx) const
 {
 	Function	*f;
-	BasicBlock	*bb_then, *bb_else, *bb_merge;
+	BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin, *bb_cur;
 	Value		*cond_v;
 	IRBuilder<>	*builder;
 
 	builder = code_builder->getBuilder();
-
 	f = getFunction();
-	bb_then = BasicBlock::Create(getGlobalContext(), "then", f);
-	bb_else = BasicBlock::Create(getGlobalContext(), "else");
-	bb_merge = BasicBlock::Create(getGlobalContext(), "ifcont");
+
+	bb_origin = builder->GetInsertBlock();
+
+	bb_then = BasicBlock::Create(getGlobalContext(), "func_then", f);
+	if (is_false != NULL)
+		bb_else = BasicBlock::Create(getGlobalContext(), "func_else", f);
+	bb_merge = BasicBlock::Create(getGlobalContext(), "func_merge", f);
+
+	builder->SetInsertPoint(bb_origin);
 	cond_v = cond_codeGen(ectx, cond);
 	if (cond_v == NULL) {
 		cerr << getLineNo() << ": could not gen condition" << endl;
 		return NULL;
 	}
+	builder->CreateCondBr(cond_v, bb_then, (is_false) ? bb_else : bb_merge);
 
-	/*
-	 * if (cond_v) {
-	 * 	(bb_then)
-	 * 	jmp merge
-	 * } else {
-	 * 	(bb_else)
-	 * 	jmp merge
-	 * }
-	 * merge:
-	 */
-	builder->CreateCondBr(cond_v, bb_then, bb_else);
+
 	builder->SetInsertPoint(bb_then);
 	is_true->codeGen(ectx);
-	builder->CreateBr(bb_merge);
+	if (bb_then->empty() || bb_then->back().isTerminator() == false)
+		builder->CreateBr(bb_merge);
 
-	builder->SetInsertPoint(bb_else);
-	if (is_false != NULL)
+	if (is_false) {
+		builder->SetInsertPoint(bb_else);
 		is_false->codeGen(ectx);
-	builder->CreateBr(bb_merge);
+		if (bb_else->empty() || bb_else->back().isTerminator() == false)
+			builder->CreateBr(bb_merge);
+	}
+
+	bb_cur = builder->GetInsertBlock();
+	if (bb_cur->empty())
+		builder->CreateBr(bb_merge);
 
 	builder->SetInsertPoint(bb_merge);
-
-//	f->getBasicBlockList().push_back(bb_then);
-
-	f->getBasicBlockList().push_back(bb_else);
-	f->getBasicBlockList().push_back(bb_merge);
 
 	return cond_v;
 }
