@@ -24,6 +24,7 @@ CodeBuilder::CodeBuilder(const char* mod_name)
 {
 	builder = new llvm::IRBuilder<>(llvm::getGlobalContext());
 	mod = new llvm::Module(mod_name, llvm::getGlobalContext());
+	debug_output = false;
 }
 
 CodeBuilder::~CodeBuilder(void)
@@ -95,6 +96,11 @@ void CodeBuilder::genCode(
 	expr_eval_bits = eval(
 		EvalCtx(local_syms, symtabs, constants),
 		raw_expr);
+	if (debug_output) {
+		cerr << "DEBUG: " << fname << endl;
+		expr_eval_bits->print(cerr);
+		cerr << endl;
+	}
 
 	bb_bits = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f_bits);

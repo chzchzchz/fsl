@@ -55,6 +55,8 @@ public:
 
 		return (*it).second;
 	}
+
+	void setDebug(bool b) { debug_output = b; }
 private:
 
 	void genHeaderArgs(
@@ -70,6 +72,7 @@ private:
 	llvm::Module		*mod;
 	llvm::IRBuilder<> 	*builder;
 	llvm_var_map		thunk_var_map;
+	bool			debug_output;
 };
 
 #endif

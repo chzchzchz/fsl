@@ -25,7 +25,22 @@ Expr* EvalCtx::resolve(const Id* id) const
 	if (cur_scope != NULL) {
 		/* is is in the current scope? */
 		if ((st_ent = cur_scope->lookup(id->getName())) != NULL) {
-			return st_ent->getFieldThunk()->getOffset()->copyFCall();
+			const ThunkField	*tf;
+			Expr*			offset;
+			ExprList*		exprs;
+
+			tf = st_ent->getFieldThunk();
+			offset = tf->getOffset()->copyFCall();
+			if (tf->getType() != NULL)
+				return offset;
+
+			exprs = new ExprList();
+			exprs->add(offset->simplify());
+			exprs->add(tf->getSize()->copyFCall());
+
+			delete offset;
+
+			return new FCall(new Id("__getLocal"), exprs);
 		}
 	} else if (func_args != NULL) {
 		if (func_args->hasField(id->getName())) {
@@ -212,7 +227,7 @@ Expr* EvalCtx::buildTail(
 					thunk_field->getSize()->copyFCall(),
 					new Id("__thunk_arg_off"),
 					ret->simplify()),
-				cur_idx->simplify()));
+				evalReplace(*this, cur_idx->simplify())));
 
 		delete ret;
 		ret = new_base;
@@ -456,45 +471,55 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	return NULL;
 }
 
+Expr* EvalCtx::resolveArrayInType(const IdArray* ida) const
+{
+	/* array is in current scope */
+	const SymbolTableEnt		*st_ent;
+	ExprList			*elist;
+	Expr				*evaled_idx;
+	const ThunkField		*thunk_field;
+
+	assert (cur_scope != NULL);
+
+	if ((st_ent = cur_scope->lookup(ida->getName())) == NULL)
+		return NULL;
+
+	evaled_idx = eval(*this, ida->getIdx());
+	if (evaled_idx == NULL) {
+		cerr << "Could not resolve ";
+		(ida->getIdx())->print(cerr);
+		cerr << endl;
+		return NULL;
+	}
+
+	thunk_field = st_ent->getFieldThunk();
+
+	/* convert into __getLocalArray call */
+	elist = new ExprList();
+	elist->add(evaled_idx->simplify());
+	elist->add(thunk_field->getSize()->copyFCall());
+	elist->add(thunk_field->getOffset()->copyFCall());
+	elist->add(
+		new AOPMul(
+			thunk_field->getSize()->copyFCall(),
+			thunk_field->getElems()->copyFCall()));
+
+	delete evaled_idx;
+
+	return new FCall(new Id("__getLocalArray"), elist);
+}
+
 Expr* EvalCtx::resolve(const IdArray* ida) const
 {
+	Expr				*ret;
 	const_map::const_iterator	const_it;
-	const SymbolTableEnt		*st_ent;
 
 	assert (ida != NULL);
 
 	if (cur_scope != NULL) {
-		if ((st_ent = cur_scope->lookup(ida->getName())) != NULL) {
-			/* array is in current scope */
-			ExprList		*elist;
-			Expr			*evaled_idx;
-			const ThunkField	*thunk_field;
-
-			evaled_idx = eval(*this, ida->getIdx());
-
-			if (evaled_idx == NULL) {
-				cerr << "Could not resolve ";
-				(ida->getIdx())->print(cerr);
-				cerr << endl;
-				return NULL;
-			}
-
-			thunk_field = st_ent->getFieldThunk();
-
-			/* convert into __getLocalArray call */
-			elist = new ExprList();
-			elist->add(evaled_idx->simplify());
-			elist->add(thunk_field->getSize()->copyFCall());
-			elist->add(thunk_field->getOffset()->copyFCall());
-			elist->add(
-				new AOPMul(
-					thunk_field->getSize()->copyFCall(),
-					thunk_field->getElems()->copyFCall()));
-
-			delete evaled_idx;
-
-			return new FCall(new Id("__getLocalArray"), elist);
-		}
+		ret = resolveArrayInType(ida);
+		if (ret != NULL)
+			return ret;
 	}
 	
 /* TODO -- add support for constant arrays */

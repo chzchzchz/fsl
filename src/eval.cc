@@ -17,7 +17,7 @@ extern symtab_map	symtabs;
 extern func_map		funcs_map;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
-static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc);
+static Expr* eval_rewrite_sizeof_bits(const EvalCtx& ectx, const FCall* fc);
 
 class ExprRewriteConsts : public ExprRewriteAll
 {
@@ -91,9 +91,9 @@ public:
 	{
 		Expr	*new_expr;
 		
-		if (fc->getName() == "sizeof") {
+		if (fc->getName() == "sizeof_bits") {
 			Expr	*ret;
-			ret = eval_rewrite_sizeof(ectx, fc);
+			ret = eval_rewrite_sizeof_bits(ectx, fc);
 			return ret;
 		} 
 
@@ -110,7 +110,6 @@ static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr)
 	return eri.apply(expr);
 }
 
-
 /* return non-null if new expr is allocated to replace cur_expr */
 Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 {
@@ -118,8 +117,7 @@ Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 	return erc.apply(cur_expr);
 }
 
-
-static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc)
+static Expr* eval_rewrite_sizeof_bits(const EvalCtx& ectx, const FCall* fc)
 {
 	const ExprList			*exprs;
 	const SymbolTable		*st;

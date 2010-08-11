@@ -61,6 +61,7 @@ public:
 
 private:
 	EvalCtx(void);
+	Expr* resolveArrayInType(const IdArray* ida) const;
 
 protected:
 	const FuncArgs*		func_args;
