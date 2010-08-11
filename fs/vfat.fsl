@@ -113,7 +113,7 @@ know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb))
 	u16		sec_per_track;
 	u16		num_heads;
 	u32		hidden_sec;
-	u32		total_sec32;
+	u32		total_sect32;
 	assert_eq (from_base(), 36*8);
 	if (get_fat_type(bpb) == FAT_TYPE_FAT32) {
 		bpb_32	priv32;
@@ -156,7 +156,7 @@ uint get_total_sectors(bpb b)
 {
 	if (b.total_sect16 != 0) 
 		return b.total_sect16;
-	return b.total_sec32;
+	return b.total_sect32;
 }
 
 uint get_cluster_count(bpb b)
@@ -169,8 +169,10 @@ uint get_cluster_count(bpb b)
 	fat_sectors = get_fat_sectors(b);
 	total_sectors  = get_total_sectors(b);
 
-	root_dir_sectors = (b.root_de_c * sizeof(fat_de)) + 
-		b.bytes_per_sector;
+	root_dir_sectors = (b.root_de_c * (sizeof_bits(fat_de)/8)) + 
+		(b.bytes_per_sector - 1);
+	root_dir_sectors = root_dir_sectors / b.bytes_per_sector;
+
 	data_sectors = total_sectors - (b.reserved_sector_c + 
 		(b.fat_count * fat_sectors) + root_dir_sectors);
 
