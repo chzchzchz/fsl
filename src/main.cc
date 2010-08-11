@@ -10,6 +10,7 @@
 #include "code_builder.h"
 #include "points_to.h"
 #include "table_gen.h"
+#include "runtime_interface.h"
 
 #include <stdint.h>
 #include <fstream>
@@ -32,6 +33,7 @@ symtab_map		symtabs;
 CodeBuilder		*code_builder;
 pointing_list		points_list;
 pointing_map		points_map;
+RTInterface		rt_glue;
 
 
 static void	load_user_types_list(const GlobalBlock* gb);

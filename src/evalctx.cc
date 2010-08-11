@@ -1,9 +1,11 @@
 #include "eval.h"
 #include "func.h"
+#include "runtime_interface.h"
 
 extern const Func	*gen_func;
 extern func_map		funcs_map;
 extern type_map		types_map;
+extern RTInterface	rt_glue;
 
 using namespace std;
 
@@ -34,13 +36,8 @@ Expr* EvalCtx::resolve(const Id* id) const
 			if (tf->getType() != NULL)
 				return offset;
 
-			exprs = new ExprList();
-			exprs->add(offset->simplify());
-			exprs->add(tf->getSize()->copyFCall());
-
-			delete offset;
-
-			return new FCall(new Id("__getLocal"), exprs);
+			return rt_glue.getLocal(
+				offset, tf->getSize()->copyFCall());
 		}
 	} else if (func_args != NULL) {
 		if (func_args->hasField(id->getName())) {
@@ -50,11 +47,7 @@ Expr* EvalCtx::resolve(const Id* id) const
 
 	/* support for access of dynamic types.. gets base bits for type */
 	if ((t = typeByName(id->getName())) != NULL) {
-		ExprList	*exprs;
-
-		exprs = new ExprList();
-		exprs->add(new Number(t->getTypeNum()));
-		return new FCall(new Id("__getDyn"), exprs);
+		return rt_glue.getDyn(new Number(t->getTypeNum()));
 	}
 
 	/* could not resolve */
@@ -217,7 +210,7 @@ Expr* EvalCtx::buildTail(
 
 		new_base = Expr::rewriteReplace(
 				thunk_field->getOffset()->copyFCall(),
-				new Id("__thunk_arg_off"),
+				rt_glue.getThunkArg(),
 				ret->simplify());
 
 		new_base = new AOPAdd(
@@ -225,7 +218,7 @@ Expr* EvalCtx::buildTail(
 			new AOPMul(
 				Expr::rewriteReplace(
 					thunk_field->getSize()->copyFCall(),
-					new Id("__thunk_arg_off"),
+					rt_glue.getThunkArg(),
 					ret->simplify()),
 				evalReplace(*this, cur_idx->simplify())));
 
@@ -245,7 +238,7 @@ Expr* EvalCtx::buildTail(
 
 		new_base = Expr::rewriteReplace(
 			thunk_field->getOffset()->copyFCall(),
-			new Id("__thunk_arg_off"),
+			rt_glue.getThunkArg(),
 			ret->simplify());
 
 		delete ret;
@@ -286,7 +279,6 @@ Expr* EvalCtx::resolveCurrentScope(const IdStruct* ids) const
 {
 	Expr				*offset;
 	const Id			*front_id;
-	ExprList			*exprs;
 	const SymbolTableEnt		*last_sym; 
 	const ThunkField		*thunk_field;
 	IdStruct::const_iterator	it;
@@ -298,7 +290,8 @@ Expr* EvalCtx::resolveCurrentScope(const IdStruct* ids) const
 	assert (it != ids->end());
 
 	/* in current scope? */
-	offset = getStructExpr(NULL, cur_scope, ids->begin(), ids->end(), last_sym);
+	offset = getStructExpr(
+		NULL, cur_scope, ids->begin(), ids->end(), last_sym);
 	if (offset == NULL)
 		return NULL;
 
@@ -309,13 +302,7 @@ Expr* EvalCtx::resolveCurrentScope(const IdStruct* ids) const
 		return offset;
 	}
 
-	exprs = new ExprList();
-	exprs->add(offset->simplify());
-	exprs->add(thunk_field->getSize()->copyFCall());
-
-	delete offset;
-
-	return new FCall(new Id("__getLocal"), exprs);
+	return rt_glue.getLocal(offset, thunk_field->getSize()->copyFCall());
 }
 
 Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
@@ -329,7 +316,6 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 	const ThunkField		*thunk_field;
 	const Type			*top_type;
 	Expr				*base;
-	ExprList			*base_exprs;
 
 	it = ids->begin();
 	front_id = dynamic_cast<const Id*>(*it);
@@ -347,9 +333,8 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 		return NULL;
 	}
 
-	base_exprs = new ExprList();
-	base_exprs->add(new Number(top_type->getTypeNum()));
-	base = new FCall(new Id("__getDyn"), base_exprs);
+
+	base = rt_glue.getDyn(new Number(top_type->getTypeNum()));
 
 	it++;
 	offset = getStructExpr(base, top_symtab, it, ids->end(), last_ste);
@@ -365,13 +350,8 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 		return offset;
 	}
 
-	exprs = new ExprList();
-	exprs->add(offset->simplify());
-	exprs->add(thunk_field->getSize()->copyConstValue());
-
-	delete offset;
-
-	return new FCall(new Id("__getLocal"), exprs);
+	return rt_glue.getLocal(
+		offset, thunk_field->getSize()->copyConstValue());
 }
 
 Expr* EvalCtx::resolveFuncArg(const IdStruct* ids) const
@@ -433,13 +413,9 @@ Expr* EvalCtx::resolveFuncArg(const IdStruct* ids) const
 	/* since we're not returning a user type, we know that the size to 
 	 * read is going to be constant. don't need to bother with computing
 	 * parameters for the size function-- inline it! */
-	exprs = new ExprList();
-	exprs->add(offset->simplify());
-	exprs->add(thunk_field->getSize()->copyConstValue());
 
-	delete offset;
-
-	return new FCall(new Id("__getLocal"), exprs);
+	return rt_glue.getLocal(
+		offset, thunk_field->getSize()->copyConstValue());
 }
 
 Expr* EvalCtx::resolve(const IdStruct* ids) const
@@ -475,7 +451,6 @@ Expr* EvalCtx::resolveArrayInType(const IdArray* ida) const
 {
 	/* array is in current scope */
 	const SymbolTableEnt		*st_ent;
-	ExprList			*elist;
 	Expr				*evaled_idx;
 	const ThunkField		*thunk_field;
 
@@ -495,18 +470,13 @@ Expr* EvalCtx::resolveArrayInType(const IdArray* ida) const
 	thunk_field = st_ent->getFieldThunk();
 
 	/* convert into __getLocalArray call */
-	elist = new ExprList();
-	elist->add(evaled_idx->simplify());
-	elist->add(thunk_field->getSize()->copyFCall());
-	elist->add(thunk_field->getOffset()->copyFCall());
-	elist->add(
+	return rt_glue.getLocalArray(
+		evaled_idx,
+		thunk_field->getSize()->copyFCall(),
+		thunk_field->getOffset()->copyFCall(),
 		new AOPMul(
 			thunk_field->getSize()->copyFCall(),
 			thunk_field->getElems()->copyFCall()));
-
-	delete evaled_idx;
-
-	return new FCall(new Id("__getLocalArray"), elist);
 }
 
 Expr* EvalCtx::resolve(const IdArray* ida) const

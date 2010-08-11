@@ -1,7 +1,11 @@
 #include "thunk_type.h"
+#include "runtime_interface.h"
+
 #include <iostream>
 
 using namespace std;
+
+extern RTInterface rt_glue;
 
 ThunkType::~ThunkType(void)
 {
@@ -72,7 +76,7 @@ ExprList* ThunkType::copyExprList(void) const
 	assert (t_type != NULL);
 
 	ret = new ExprList();
-	ret->add(new Id("__thunk_arg_off"));
+	ret->add(rt_glue.getThunkArg());
 
 	args = t_type->getArgs();
 	if (args != NULL) {

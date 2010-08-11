@@ -21,7 +21,8 @@ OBJS=	parser.o		\
 	thunk_fieldoffset_cond.o\
 	func_args.o		\
 	preamble.o		\
-	points.o
+	points.o		\
+	runtime_interface.o		
 
 RTOBJS= runtime.o
 TOOLOBJS= scantool.o browser.o

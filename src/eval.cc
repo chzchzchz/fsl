@@ -10,11 +10,13 @@
 
 #include "eval.h"
 #include "func.h"
+#include "runtime_interface.h"
 
 using namespace std;
 
 extern symtab_map	symtabs;
 extern func_map		funcs_map;
+extern RTInterface	rt_glue;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
 static Expr* eval_rewrite_sizeof_bits(const EvalCtx& ectx, const FCall* fc);
@@ -164,7 +166,7 @@ static Expr* eval_rewrite_sizeof_bits(const EvalCtx& ectx, const FCall* fc)
 	ret_size = st->getThunkType()->getSize()->copyFCall();
 	ret_size = Expr::rewriteReplace(
 		ret_size,
-		new Id("__thunk_arg_off"),
+		rt_glue.getThunkArg(),
 		new Number(0));
 
 	return ret_size;

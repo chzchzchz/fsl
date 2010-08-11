@@ -12,6 +12,7 @@
 #include "expr.h"
 #include "func.h"
 #include "cond.h"
+#include "runtime_interface.h"
 #include "code_builder.h"
 
 using namespace std;
@@ -19,6 +20,7 @@ using namespace std;
 extern llvm_var_map	thunk_var_map;
 extern symtab_map	symtabs;
 extern const_map	constants;
+extern RTInterface	rt_glue;
 
 CodeBuilder::CodeBuilder(const char* mod_name)
 {
@@ -130,8 +132,8 @@ void CodeBuilder::genHeaderArgs(
 	thunk_var_map.clear();
 
 	/* create the hidden argument __thunk_off_arg */
-	allocai = tmpB.CreateAlloca(l_t, 0, "__thunk_arg_off");
-	thunk_var_map["__thunk_arg_off"] = allocai;
+	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgName());
+	thunk_var_map[rt_glue.getThunkArgName()] = allocai;
 	thunk_var_map[t->getName()] = allocai;	/* alias for typename */
 	builder->CreateStore(ai, allocai);
 	

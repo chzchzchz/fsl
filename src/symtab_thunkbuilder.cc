@@ -4,6 +4,7 @@
 #include "thunk_fieldoffset_cond.h"
 #include "symtab_thunkbuilder.h"
 #include "util.h"
+#include "runtime_interface.h"
 
 using namespace std;
 extern type_map			types_map;
@@ -11,6 +12,7 @@ extern ctype_map		ctypes_map;
 extern const_map		constants;
 extern void			dump_ptypes();
 extern FCall			from_base_fc;
+extern RTInterface		rt_glue;
 
 SymbolTable* SymTabThunkBuilder::getSymTab(
 	const Type* t, list<SymbolTable*>& out_union_symtabs)
@@ -38,7 +40,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 		new ThunkField(
 			*cur_thunk_type,
 			new ThunkFieldOffset(thunk_type, "__base", 
-				new Id("__thunk_arg_off")),
+				rt_glue.getThunkArg()),
 			new ThunkFieldSize(thunk_type, "__base", 0U),
 			new ThunkElements(thunk_type, "__base", 0U)));
 
@@ -59,7 +61,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 					(last_tf->getElems())->copyFCall()),
 				(last_tf->getOffset())->copyFCall()),
 			/* offset of base */
-			new Id("__thunk_arg_off"))
+			rt_glue.getThunkArg())
 	);
 
 	thunk_type->setSize(thunk_size);
@@ -115,7 +117,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 		new ThunkField(
 			*cur_thunk_type,
 			new ThunkFieldOffset(thunk_type, "__base", 
-				new Id("__thunk_arg_off")),
+				rt_glue.getThunkArg()),
 			new ThunkFieldSize(thunk_type, "__base", 0u),
 			new ThunkElements(thunk_type, "__base", 0u)));
 
@@ -515,7 +517,7 @@ Expr* SymTabThunkBuilder::copyFromBase(void) const
 {
 	return new AOPSub(
 		copyCurrentOffset(), 
-		new Id("__thunk_arg_off"));
+		rt_glue.getThunkArg());
 }
 
 Expr* SymTabThunkBuilder::copyCurrentOffset(void) const

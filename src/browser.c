@@ -27,6 +27,9 @@ struct type_info
 	struct type_info	*ti_prev;
 };
 
+#define INPUT_BUF_SZ	1024
+static char input_buf[INPUT_BUF_SZ];
+
 static void set_dyn_on_type(const struct type_info* ti);
 static void print_typeinfo(const struct type_info* ti);
 static void print_typeinfo_fields(const struct type_info* ti);
@@ -45,7 +48,7 @@ static struct type_info* typeinfo_alloc_pointsto(
 
 static void print_typeinfo_pointsto(const struct type_info* cur);
 static void menu(struct type_info* cur);
-static void handle_menu_choice(
+static bool handle_menu_choice(
 	struct type_info* cur,
 	int choice);
 static void select_field(struct type_info* cur, int field_num);
@@ -194,6 +197,33 @@ static void print_typeinfo_fields(const struct type_info* ti)
 	}
 }
 
+
+static char hexmap[] = {"0123456789abcdef"};
+static void dump_typeinfo_data(const struct type_info* ti)
+{
+	struct fsl_rt_table_type	*tt;
+	uint64_t			type_sz;
+	unsigned int			i;
+
+	tt = tt_by_ti(ti);
+	type_sz = tt->tt_size(ti->ti_diskoff);
+
+	for (i = 0; i < type_sz / 8; i++) {
+		uint8_t	c;
+
+		if ((i % (80/3)) ==((80/3)-1))
+			printf("\n");
+
+		c = __getLocal(ti->ti_diskoff + (i*8), 8);
+		printf("%c%c ", hexmap[(c >> 4) & 0xf], hexmap[c & 0xf]);
+
+	}
+
+	printf("\n");
+	if (type_sz % 8)
+		printf("OOPS-- size is not byte-aligned\n");
+}
+
 static void typeinfo_free(struct type_info* ti)
 {
 	free(ti);
@@ -311,25 +341,41 @@ static void select_field(struct type_info* cur, int field_idx)
 	typeinfo_free(ti_next);
 }
 
-static void handle_menu_choice(
+#define MCMD_DUMP	-1
+
+/**
+ * false -> go back a level from when entered
+ * true -> stay on same level as when entered
+ */
+static bool handle_menu_choice(
 	struct type_info* cur,
 	int choice)
 {
 	struct fsl_rt_table_type	*tt;
 
+	if (choice == -1) {
+		/* dump all of current type */
+		dump_typeinfo_data(cur);
+		return true;
+	}
+
+	if (choice < 0)
+		return false;
+
 	tt = tt_by_ti(cur);
 	if (choice < tt->tt_fieldall_c) {
 		select_field(cur, choice);
-		return;
+		return true;
 	}
 
 	choice -= tt->tt_fieldall_c;
 	if (choice < tt->tt_pointsto_c) {
 		select_pointsto(cur, choice);
-		return;
+		return true;
 	}
 
 	printf("Error: Bad field value.\n");
+	return true;
 }
 
 static void menu(struct type_info* cur)
@@ -347,10 +393,8 @@ static void menu(struct type_info* cur)
 
 		printf(">> ");
 		br = fscanf(stdin, "%d", &choice);
-		if (br <= 0 || choice < 0)
+		if ((br <= 0) || !handle_menu_choice(cur, choice))
 			return;
-
-		handle_menu_choice(cur, choice);
 	} while(1);
 }
 
