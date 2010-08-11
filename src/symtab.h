@@ -31,13 +31,15 @@ public:
 	const std::string& getTypeName(void) const { return type_name; }
 	const std::string& getFieldName(void) const { return fieldname; }
 	const ThunkField* getFieldThunk(void) const { return thunk_field; }
+
+	bool isUserType(void) const;
 	bool isWeak(void) const { return is_weak; }
 	bool isConditional(void) const { return is_conditional; }
 
 	virtual ~SymbolTableEnt(void) 
 	{ 
 		delete thunk_field;
-	}
+}
 
 private:
 	std::string		type_name;

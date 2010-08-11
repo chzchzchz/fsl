@@ -93,6 +93,7 @@ void TableGen::genUserFieldsByType(const Type *t)
 {
 	SymbolTable	*st;
 	SymbolTable	*st_all;
+	SymbolTable	*st_types;
 
 	st = t->getSymsByUserTypeStrong();
 	genThunksTableBySymtab(
@@ -105,6 +106,12 @@ void TableGen::genUserFieldsByType(const Type *t)
 		string("__rt_tab_thunksall_") + t->getName(),
 		*st_all);
 	delete st_all;
+
+	st_types = t->getSymsByUserTypeStrongOrConditional();
+	genThunksTableBySymtab(
+		string("__rt_tab_thunkstypes_") + t->getName(),
+		*st_types);
+	delete st_types;
 }
 
 void TableGen::genUserFieldTables(void)
@@ -118,12 +125,13 @@ void TableGen::genUserFieldTables(void)
 void TableGen::genInstanceType(const Type *t)
 {
 	StructWriter	sw(out);
-	SymbolTable	*st, *st_all;
+	SymbolTable	*st, *st_all, *st_types;
 	FCall		*size_fc;
 	unsigned int	pointsto_num;
 
 	st = t->getSymsByUserTypeStrong();
 	st_all = t->getSymsStrongOrConditional();
+	st_types = t->getSymsByUserTypeStrongOrConditional();
 
 	assert (st != NULL);
 
@@ -139,10 +147,13 @@ void TableGen::genInstanceType(const Type *t)
 	sw.write("tt_fieldall_c", st_all->size());
 	sw.write("tt_fieldall_thunkoff", "__rt_tab_thunksall_" + t->getName());
 
-	delete size_fc;
-	delete st;
-	delete st_all;
+	sw.write("tt_fieldtypes_c", st_types->size());
+	sw.write("tt_fieldtypes_thunkoff","__rt_tab_thunkstypes_"+t->getName());
 
+	delete size_fc;
+	delete st_types;
+	delete st_all;
+	delete st;
 }
 
 void TableGen::printExternFunc(const FCall* fc, const char* return_type)

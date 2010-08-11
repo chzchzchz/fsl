@@ -225,17 +225,6 @@ void CodeBuilder::genCodeCond(
 
 	f->getBasicBlockList().push_back(bb_then);
 	f->getBasicBlockList().push_back(bb_else);
-
-	/* never called-- use better failure function here  */
-#if 0
-	{
-	Expr*	dummy_expr = new FCall(
-		new Id("fsl_fail"), 
-		new ExprList());
-	builder->CreateRet(evalAndGen(ectx, dummy_expr));
-	delete dummy_expr;
-	}
-#endif
 }
 
 

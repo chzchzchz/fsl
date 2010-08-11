@@ -166,6 +166,32 @@ SymbolTable* Type::getSymsStrongOrConditional(void) const
 	return ret;
 }
 
+SymbolTable* Type::getSymsByUserTypeStrongOrConditional(void) const
+{
+	SymbolTable	*ret;
+
+	assert (cached_symtab != NULL);
+
+	ret = new SymbolTable(cached_symtab->getThunkType()->copy());
+	for (	sym_list::const_iterator it = cached_symtab->begin();
+		it != cached_symtab->end();
+		it++) 
+	{
+		const SymbolTableEnt*	st_ent = *it;
+
+		/* no super-weaks */
+		if (st_ent->isWeak() && !st_ent->isConditional())
+			continue;
+
+		if (st_ent->isUserType() == false)
+			continue;
+
+		ret->add(st_ent);
+	}
+
+	return ret;
+}
+
 
 std::ostream& operator<<(std::ostream& in, const Type& t)
 {
@@ -173,10 +199,10 @@ std::ostream& operator<<(std::ostream& in, const Type& t)
 	return in;
 }
 
-list<const FCall*> Type::getPreambles(const string& name) const
+list<const Preamble*> Type::getPreambles(const string& name) const
 {
 	if (preamble == NULL)
-		return list<const FCall*>();
+		return list<const Preamble*>();
 
 	return preamble->findByName(name);
 }

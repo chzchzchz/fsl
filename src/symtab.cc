@@ -142,3 +142,10 @@ const ThunkType* SymbolTable::getThunkType(void) const
 	return owner->copy();
 }
 
+
+bool SymbolTableEnt::isUserType(void) const
+{
+	const ThunkField*	tf;
+	tf = getFieldThunk();
+	return (tf->getType() != NULL);
+}

@@ -8,7 +8,7 @@
 
 using namespace std;
 
-typedef list<const FCall*>	point_list;
+typedef list<const Preamble*>	point_list;
 
 extern CodeBuilder		*code_builder;
 extern symtab_map		symtabs;
@@ -35,7 +35,7 @@ void Points::loadPoints(void)
 		const FCall	*fc;
 		const Expr	*expr;
 		/* takes the form points(expr) */
-		fc = *it;
+		fc = (*it)->getFCall();
 		expr = *(fc->getExprs()->begin());
 		loadPointsInstance(expr);
 	}
@@ -59,7 +59,7 @@ void Points::loadPointsRange(void)
 		/* takes the form
 		 * points_range(bound_var, first_val, last_val, data_loc) */
 
-		fc = *it;
+		fc = (*it)->getFCall();
 		exprs = fc->getExprs();
 
 		e_it = exprs->begin();

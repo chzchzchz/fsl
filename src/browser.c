@@ -127,7 +127,7 @@ static void print_typeinfo_pointsto(const struct type_info* ti)
 		printf("Points-To:\n");
 	for (i = 0; i < tt->tt_pointsto_c; i++) {
 		printf("%02d. ((%s))\n", 
-			tt->tt_field_c + i,
+			tt->tt_fieldall_c + i,
 			tt_by_num(tt->tt_pointsto[i].pt_type_dst)->tt_name);
 	}
 }
@@ -163,25 +163,33 @@ static void print_typeinfo_fields(const struct type_info* ti)
 {
 	struct fsl_rt_table_type	*tt;
 	unsigned int			i;
-	unsigned int			user_type_idx;
 
 	if (ti->ti_typenum == ~0)
 		return;
 
 	tt = tt_by_ti(ti);
-	user_type_idx = 0;
 
 	if (tt->tt_fieldall_c > 0)
 		printf("Fields:\n");
 
 	for (i = 0; i < tt->tt_fieldall_c; i++) {
 		struct fsl_rt_table_field	*field;
+		bool				is_present;
 
-		field = &tt->tt_fieldall_thunkoff[i];
-		if (field->tf_typenum != ~0 && field->tf_cond == NULL) 
-			printf("%02d. ", user_type_idx++);
+		field = &tt->tt_fieldall_thunkoff[i]; 
+		if (field->tf_cond == NULL)
+			is_present = true;
+		else
+			is_present = field->tf_cond(ti->ti_diskoff);
+
+		if (is_present == false)
+			continue;
+
+		if (field->tf_typenum != ~0)
+			printf("%02d. ", i);
 		else
 			printf("--- ");
+
 		print_field(field, ti->ti_diskoff);
 	}
 }
@@ -268,7 +276,12 @@ static void select_field(struct type_info* cur, int field_idx)
 	uint64_t			num_elems;
 	diskoff_t			next_diskoff;
 
-	field = &(tt_by_ti(cur)->tt_field_thunkoff[field_idx]);
+	field = &(tt_by_ti(cur)->tt_fieldall_thunkoff[field_idx]);
+	if (field->tf_typenum == ~0) {
+		printf("Given field number does not point to type.\n");
+		return;
+	}
+
 	num_elems = field->tf_elemcount(cur->ti_diskoff);
 	next_diskoff = field->tf_fieldbitoff(cur->ti_diskoff);
 
@@ -305,17 +318,16 @@ static void handle_menu_choice(
 	struct fsl_rt_table_type	*tt;
 
 	tt = tt_by_ti(cur);
-	if (choice < tt->tt_field_c) {
+	if (choice < tt->tt_fieldall_c) {
 		select_field(cur, choice);
 		return;
 	}
 
-	choice -= tt->tt_field_c;
+	choice -= tt->tt_fieldall_c;
 	if (choice < tt->tt_pointsto_c) {
 		select_pointsto(cur, choice);
 		return;
 	}
-
 
 	printf("Error: Bad field value.\n");
 }

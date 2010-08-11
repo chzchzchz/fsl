@@ -20,6 +20,7 @@ OBJS=	parser.o		\
 	thunk_func.o		\
 	thunk_fieldoffset_cond.o\
 	func_args.o		\
+	preamble.o		\
 	points.o
 
 RTOBJS= runtime.o

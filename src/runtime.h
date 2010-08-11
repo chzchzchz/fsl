@@ -55,6 +55,10 @@ struct fsl_rt_table_type
 	unsigned int			tt_fieldall_c;
 	struct fsl_rt_table_field	*tt_fieldall_thunkoff;
 
+	/* all types that are not strictly weak */
+	unsigned int			tt_fieldtypes_c;
+	struct fsl_rt_table_field	*tt_fieldtypes_thunkoff;
+
 };
 
 struct fsl_rt_table_field

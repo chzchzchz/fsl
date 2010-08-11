@@ -30,11 +30,12 @@ void yyerror(const char* s)
 	Number			*number;
 	Id			*id;
 	IdStruct		*idstruct;
-	TypePreamble		*preamb_l;
+	PtrList<Id>		*id_l;
 	ArgsList		*args;
 	TypeBlock		*t_block;
 	TypePreamble		*t_preamble;
 	CondExpr		*c_expr;
+	Preamble		*p_preamble;
 }
 
 
@@ -57,6 +58,8 @@ void yyerror(const char* s)
 %token <token> TOKEN_CONST
 
 %token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS
+
+%token <token> TOKEN_WHEN
 
 %token <text> TOKEN_ID
 %token <val> TOKEN_NUM
@@ -82,6 +85,8 @@ void yyerror(const char* s)
 %type <enm_ent> enum_ent
 %type <f_stmt> func_stmt
 %type <f_block> func_block func_stmts
+%type <p_preamble> preamble
+%type <id_l> id_list
 
 %start program
 
@@ -223,16 +228,38 @@ type_args_list	: type_args_list TOKEN_COMMA ident ident
 		}
 		;
 
-type_preamble 	: type_preamble fcall
+type_preamble 	: type_preamble preamble
 		{
-			$1->add((FCall*)$2);
+			$1->add($2);
 		}
-		| fcall 
+		| preamble
 		{
 			$$ = new TypePreamble();
-			$$->add((FCall*)$1);
+			$$->add($1);
 		}
 		;
+
+id_list		: id_list ident
+		{
+			$1->add($2);
+		}
+		| ident
+		{
+			$$ = new PtrList<Id>();
+			$$->add($1);
+		}
+		;
+
+preamble	: fcall
+		{
+			$$ = new Preamble((FCall*)$1);
+		}
+		| fcall TOKEN_WHEN id_list
+		{
+			$$ = new Preamble((FCall*)$1, $3);
+		}
+		;
+
 
 type_block	: TOKEN_LBRACE type_stmts TOKEN_RBRACE
 		{
@@ -307,8 +334,6 @@ cond_expr	: TOKEN_LPAREN cond_expr TOKEN_RPAREN { $$ = $2; }
 
 expr_list	: TOKEN_LBRACE expr_list_ent TOKEN_RBRACE { $$ = $2; }
 		;
-
-
 
 expr_list_ent	: expr_list_ent TOKEN_COMMA expr
 		{

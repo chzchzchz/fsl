@@ -11,6 +11,7 @@
 #include "AST.h"
 #include "collection.h"
 #include "expr.h"
+#include "preamble.h"
 
 /* constant type map */
 typedef std::map<std::string, unsigned int>		ctype_map;
@@ -62,7 +63,6 @@ public:
 		assert (owner == NULL);
 		owner = new_owner;
 	}
-
 
 	virtual void accept(TypeVisitor* tv) const = 0;
 protected:
@@ -199,21 +199,27 @@ private:
 	TypeStmt	*is_false;
 };
 
-class TypePreamble : public PtrList<FCall>
+class TypePreamble : public PtrList<Preamble>
 {
 public:
 	TypePreamble() {}
 	virtual ~TypePreamble() {}
 	void print(std::ostream& out) const { out << "PREAMBLE"; }
-	std::list<const FCall*> findByName(const std::string& n) const
+	std::list<const Preamble*> findByName(const std::string& n) const
 	{
-		std::list<const FCall*>	ret;
+		std::list<const Preamble*>	ret;
 
 		for (const_iterator it = begin(); it != end(); it++) {
-			FCall	*fc = *it;
+			const Preamble	*p;
+			const FCall	*fc;
+			
+			p = *it;
+			fc = p->getFCall();
+
 			if (fc->getName() == n)
-				ret.push_back(fc);
+				ret.push_back(p);
 		}
+
 		return ret;
 	}
 };
@@ -356,6 +362,7 @@ public:
 	const ArgsList* getArgs(void) const { return args; }
 	class SymbolTable* getSyms() const;
 	class SymbolTable* getSymsByUserType() const;
+	class SymbolTable* getSymsByUserTypeStrongOrConditional() const;
 	class SymbolTable* getSymsByUserTypeStrong() const;
 	class SymbolTable* getSymsStrong(void) const;
 	class SymbolTable* getSymsStrongOrConditional(void) const;
@@ -386,7 +393,7 @@ public:
 
 	const TypeBlock* getBlock() const { return block; }
 
-	std::list<const FCall*> getPreambles(const std::string& name) const;
+	std::list<const Preamble*> getPreambles(const std::string& name) const;
 
 private:
 	Id		*name;
