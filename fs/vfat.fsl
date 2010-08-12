@@ -122,20 +122,35 @@ know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb))
 	}
 }
 
+type fat_ent12
+points(fat.ent12[cluster_num])
+{
+	u12	cluster_num;
+}
+
+type fat_ent16
+points(fat.ent16[cluster_num])
+{
+	u16	cluster_num;
+}
+
+type fat_ent32
+points(fat.ent32[cluster_num])
+{
+	u32	cluster_num;
+}
+
 type fat 
-points_range(i, 0, get_cluster_count(bpb), disk.clusters[ent12[i]])
-points_range(i, 0, get_cluster_count(bpb), disk.clusters[ent16[i]])
-points_range(i, 0, get_cluster_count(bpb), disk.clusters[ent32[i]])
 free(ent16, disk.clusters, 0)
 free(ent12, disk.clusters, 0)
 free(ent32, disk.clusters, 0)
 { 
 	if (is_fat12(bpb)) {
-		u12	ent12[get_cluster_count(bpb)];
+		fat_ent12	ent12[get_cluster_count(bpb)];
 	} else if (is_fat16(bpb)) {
-		u16	ent16[get_cluster_count(bpb)];
+		fat_ent16	ent16[get_cluster_count(bpb)];
 	} else if (is_fat32(bpb)) {
-		u32	ent32[get_cluster_count(bpb)];
+		fat_etn32	ent32[get_cluster_count(bpb)];
 	} else {
 		fsl_fail();
 	}

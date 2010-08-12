@@ -3,23 +3,40 @@
 
 #include "collection.h"
 
+typedef PtrList<CondOrExpr> preamble_args;
+
 class Preamble
 {
 public:
-	Preamble(FCall* in_fc, PtrList<Id>* in_when_ids = NULL);
+	Preamble(
+		Id* in_name, 
+		preamble_args* in_args,
+		PtrList<Id>* in_when_ids = NULL);
+
+	Preamble(
+		Id* in_name, 
+		PtrList<Id>* in_when_ids = NULL);
+
 	virtual ~Preamble();
 
-	const FCall* getFCall(void) const
+	const std::string& getName() const
 	{
-		return fc;
+		return name->getName();
+	}
+
+	const preamble_args* getArgsList(void) const
+	{
+		return args;
 	}
 
 	const PtrList<Id>* getWhenList(void) const
 	{
 		return when_ids;
 	}
+
 private:
-	FCall		*fc;
+	Id		*name;
+	preamble_args	*args;
 	PtrList<Id>	*when_ids;
 };
 

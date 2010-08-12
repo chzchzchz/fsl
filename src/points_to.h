@@ -41,8 +41,13 @@ public:
 private:
 	void loadPoints(void);
 	void loadPointsRange(void);
+	void loadPointsIf(void);
 
 	void loadPointsInstance(const Expr* data_loc);
+	void loadPointsIfInstance(
+		const CondExpr* cond_expr,
+		const Expr*	data_loc);
+
 	void loadPointsRangeInstance(
 		const Id*	bound_var,
 		const Expr*	first_val,
@@ -98,17 +103,17 @@ public:
 	PointsRange(
 		const Type*	in_src_type, 
 		const Type*	in_dst_type,
-		const Id*	in_binding,
-		const Expr*	in_min_expr,
-		const Expr*	in_max_expr,
-		const Expr*	in_points_expr,
+		Id*		in_binding,
+		Expr*		in_min_expr,
+		Expr*		in_max_expr,
+		Expr*		in_points_expr,
 		unsigned int	in_seq)
 	: src_type(in_src_type),
 	  dst_type(in_dst_type),
-	  binding(in_binding->copy()),
-	  min_expr(in_min_expr->copy()),
-	  max_expr(in_max_expr->copy()),
-	  points_expr(in_points_expr->copy()),
+	  binding(in_binding),
+	  min_expr(in_min_expr),
+	  max_expr(in_max_expr),
+	  points_expr(in_points_expr),
 	  seq(in_seq)
 	{
 		assert (src_type != NULL);
@@ -132,8 +137,8 @@ public:
 	const std::string getFCallName(void) const;
 	const std::string getMinFCallName(void) const;
 	const std::string getMaxFCallName(void) const;
-private:
 
+private:
 	const Type*	src_type;
 	const Type*	dst_type;
 	Id*		binding;
@@ -141,6 +146,29 @@ private:
 	Expr*		max_expr;
 	Expr*		min_expr;
 	unsigned int	seq;
+protected:
+	unsigned int getSeqNum(void) const { return seq; }
+};
+
+class PointsIf : public PointsRange 
+{
+public:
+	PointsIf(
+		const Type*	in_src_type,
+		const Type*	in_dst_type,
+		CondExpr*	in_cond_expr,
+		Expr*		in_points_expr,
+		unsigned int	in_seq);
+	virtual ~PointsIf();
+
+	virtual void genCode(void) const;
+	virtual void genProto(void) const;
+private:
+	const std::string getWrapperFCallName(
+		const std::string& type_name,
+		unsigned int s) const;
+
+	CondExpr	*cond_expr;
 };
 
 #endif

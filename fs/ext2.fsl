@@ -148,10 +148,17 @@ sum(s_free_inodes_c)
 	assert_eq(from_base(), 8*1024);
 }
 
+uint num_direct_blocks(ext2_inode ino)
+{
+	if (ino.i_blocks_c > EXT2_NDIR_BLOCKS)
+		return EXT2_NDIR_BLOCKS;
+	return ino.i_blocks_c;
+}
+
 /* XXX add points-to here */
 type ext2_inode
 points_range(
-	i, 0, EXT2_NDIR_BLOCKS,
+	i, 0, num_direct_blocks(ext2_inode),
 	disk.blocks[i_block_direct[i] - blocks_off(disk.sb)].data_blk)
 points(disk.blocks[i_block_indir  - blocks_off(disk.sb)].indir_blk)
 points(disk.blocks[i_block_biindir  - blocks_off(disk.sb)].biindir_blk)

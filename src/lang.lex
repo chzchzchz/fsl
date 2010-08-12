@@ -96,6 +96,7 @@ WHITESPACE [ 	]
 "<"		IN_TOKEN(TOKEN_CMPLT);
 ","		IN_TOKEN(TOKEN_COMMA);
 "when"		IN_TOKEN(TOKEN_WHEN);
+"?"		IN_TOKEN(TOKEN_QUESTION);
 .		printf("Couldn't tokenize: %s\n", yytext);
 %%
 

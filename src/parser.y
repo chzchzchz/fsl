@@ -31,11 +31,13 @@ void yyerror(const char* s)
 	Id			*id;
 	IdStruct		*idstruct;
 	PtrList<Id>		*id_l;
+	PtrList<CondOrExpr>	*c_or_e_l;
 	ArgsList		*args;
 	TypeBlock		*t_block;
 	TypePreamble		*t_preamble;
 	CondExpr		*c_expr;
 	Preamble		*p_preamble;
+	CondOrExpr		*c_or_e;
 }
 
 
@@ -49,7 +51,7 @@ void yyerror(const char* s)
 %token <token> TOKEN_LSHIFT TOKEN_RSHIFT TOKEN_MOD
 
 
-%token <token> TOKEN_SEMI
+%token <token> TOKEN_SEMI TOKEN_QUESTION
 
 // comparison
 %token <token> TOKEN_CMPEQ TOKEN_CMPLE TOKEN_CMPGE TOKEN_CMPNE TOKEN_CMPGT TOKEN_CMPLT
@@ -67,9 +69,9 @@ void yyerror(const char* s)
 // keywords
 %token <token> TOKEN_TYPE TOKEN_UNION TOKEN_IF TOKEN_ELSE TOKEN_ENUM TOKEN_WHILE TOKEN_FOR TOKEN_RETURN 
 
-// unused
 %token <token> TOKEN_LOGOR TOKEN_LOGAND 
 
+%type <c_or_e> cond_or_expr
 %type <expr_l> expr_list_ent expr_list
 %type <e> expr expr_ident num array expr_id_struct fcall struct_type arith fcall_no_args fcall_args
 %type <id> ident
@@ -87,6 +89,7 @@ void yyerror(const char* s)
 %type <f_block> func_block func_stmts
 %type <p_preamble> preamble
 %type <id_l> id_list
+%type <c_or_e_l> preamble_args_list
 
 %start program
 
@@ -250,13 +253,32 @@ id_list		: id_list ident
 		}
 		;
 
-preamble	: fcall
+preamble_args_list	: preamble_args_list TOKEN_COMMA cond_or_expr
+			{
+				$1->add($3);
+				$$ = $1;
+			}
+			| cond_or_expr
+			{
+				$$ = new PtrList<CondOrExpr>();
+				$$->add($1);
+			}
+
+preamble	: ident TOKEN_LPAREN preamble_args_list TOKEN_RPAREN
 		{
-			$$ = new Preamble((FCall*)$1);
+			$$ = new Preamble($1, $3);
 		}
-		| fcall TOKEN_WHEN id_list
+		| ident TOKEN_LPAREN preamble_args_list TOKEN_RPAREN TOKEN_WHEN id_list
 		{
-			$$ = new Preamble((FCall*)$1, $3);
+			$$ = new Preamble($1, $3, $6);	
+		}
+		| ident
+		{
+			$$ = new Preamble($1);
+		}
+		| ident TOKEN_WHEN id_list
+		{
+			$$ = new Preamble($1, $3);
 		}
 		;
 
@@ -316,6 +338,9 @@ type_stmt	: ident ident TOKEN_SEMI
 		}
 		| type_block { $$ = $1; } 
 		;
+
+cond_or_expr	: TOKEN_QUESTION cond_expr { $$ = new CondOrExpr($2); }
+		| expr { $$ = new CondOrExpr($1); }
 
 cond_expr	: TOKEN_LPAREN cond_expr TOKEN_RPAREN { $$ = $2; }
 		| fcall { $$ = new FuncCond((FCall*)$1); }

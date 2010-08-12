@@ -506,6 +506,35 @@ private:
 #include "binarithop.h"
 #include "cond_expr.h"
 
+class CondOrExpr {
+public:
+	CondOrExpr(Expr* in_expr)
+	: cexpr(NULL), expr(in_expr)
+	{
+		assert (expr != NULL);
+	}
+
+	CondOrExpr(CondExpr* in_cexpr)
+	: cexpr(in_cexpr), expr(NULL)
+	{
+		assert (cexpr != NULL);
+	}
+
+	virtual ~CondOrExpr(void)
+	{
+		if (cexpr != NULL) delete cexpr;
+		if (expr != NULL) delete expr;
+	}
+
+	const CondExpr* getCondExpr(void) const { return cexpr; }
+	const Expr* getExpr(void) const { return expr; }
+
+private:
+	CondOrExpr() {}
+	CondExpr	*cexpr;
+	Expr		*expr;
+};
+
 class ExprRewriteVisitor : public ExprVisitor
 {
 public:

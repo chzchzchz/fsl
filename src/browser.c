@@ -51,6 +51,7 @@ static void menu(struct type_info* cur);
 static bool handle_menu_choice(
 	struct type_info* cur,
 	int choice);
+
 static void select_field(struct type_info* cur, int field_num);
 static void select_pointsto(struct type_info* cur, int pt_idx);
 
@@ -211,9 +212,10 @@ static void dump_typeinfo_data(const struct type_info* ti)
 	for (i = 0; i < type_sz / 8; i++) {
 		uint8_t	c;
 
-		if ((i % (80/3)) ==((80/3)-1))
-			printf("\n");
-
+		if ((i % 0x18) == 0) {
+			if (i != 0) printf("\n");
+			printf("%04x: ", i);
+		}
 		c = __getLocal(ti->ti_diskoff + (i*8), 8);
 		printf("%c%c ", hexmap[(c >> 4) & 0xf], hexmap[c & 0xf]);
 

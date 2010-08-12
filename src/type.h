@@ -205,23 +205,7 @@ public:
 	TypePreamble() {}
 	virtual ~TypePreamble() {}
 	void print(std::ostream& out) const { out << "PREAMBLE"; }
-	std::list<const Preamble*> findByName(const std::string& n) const
-	{
-		std::list<const Preamble*>	ret;
-
-		for (const_iterator it = begin(); it != end(); it++) {
-			const Preamble	*p;
-			const FCall	*fc;
-			
-			p = *it;
-			fc = p->getFCall();
-
-			if (fc->getName() == n)
-				ret.push_back(p);
-		}
-
-		return ret;
-	}
+	std::list<const Preamble*> findByName(const std::string& n) const;
 };
 
 class TypeBlock : public TypeStmt, public PtrList<TypeStmt>

@@ -3,6 +3,7 @@
 #include "evalctx.h"
 #include "func_args.h"
 #include "util.h"
+#include "runtime_interface.h"
 
 #include "points_to.h"
 
@@ -13,6 +14,7 @@ typedef list<const Preamble*>	point_list;
 extern CodeBuilder		*code_builder;
 extern symtab_map		symtabs;
 extern const_map		constants;
+extern RTInterface		rt_glue;
 
 Points::Points(const Type* t)
 : src_type(t), seq(0)
@@ -22,22 +24,67 @@ Points::Points(const Type* t)
 	loadPointsRange();
 }
 
+void Points::loadPointsIf(void)
+{
+	point_list	pointsif_list;
+
+	pointsif_list = src_type->getPreambles("points_if");
+	for (	point_list::const_iterator it = pointsif_list.begin();
+		it != pointsif_list.end();
+		it++)
+	{
+		const preamble_args		*args;
+		preamble_args::const_iterator	args_it;
+		const Expr			*data_loc;
+		const CondExpr			*cexpr;
+
+		args = (*it)->getArgsList();
+		if (args == NULL || args->size() != 2) {
+			cerr << "points_if: expects two args" << endl;
+			continue;
+		}
+
+		args_it = args->begin();
+
+		cexpr = (*args_it)->getCondExpr();
+		args_it++;
+		data_loc = (*args_it)->getExpr();
+
+		if (cexpr == NULL || data_loc == NULL) {
+			cerr << "points_if: Unexpected argtype" << endl;
+			continue;
+		}
+
+		loadPointsIfInstance(cexpr, data_loc);
+	}
+}
+
 void Points::loadPoints(void)
 {
 	point_list	points_list;
 
 	points_list = src_type->getPreambles("points");
 
-	for (	point_list::iterator it = points_list.begin();
+	for (	point_list::const_iterator it = points_list.begin();
 		it != points_list.end();
 		it++)
 	{
-		const FCall	*fc;
-		const Expr	*expr;
-		/* takes the form points(expr) */
-		fc = (*it)->getFCall();
-		expr = *(fc->getExprs()->begin());
-		loadPointsInstance(expr);
+		const preamble_args	*args;
+		const Expr		*data_loc;
+
+		args = (*it)->getArgsList();
+		if (args == NULL ||  args->size() != 1) {
+			cerr << "points: expects one arg" << endl;
+			continue;
+		}
+
+		data_loc = (args->front())->getExpr();
+		if (data_loc == NULL) {
+			cerr << "points: Unexpected argtype" << endl;
+			continue;
+		}
+
+		loadPointsInstance(data_loc);
 	}
 }
 
@@ -50,34 +97,50 @@ void Points::loadPointsRange(void)
 		it != points_range_list.end();
 		it++)
 	{
-		ExprList::const_iterator	e_it;
-		const FCall	*fc;
-		const ExprList	*exprs;
+		const preamble_args		*args;
+		preamble_args::const_iterator	args_it;
 		const Expr	*_bound_var, *first_val, *last_val, *data;
 		const Id	*bound_var;
 
 		/* takes the form
 		 * points_range(bound_var, first_val, last_val, data_loc) */
 
-		fc = (*it)->getFCall();
-		exprs = fc->getExprs();
+		args = (*it)->getArgsList();
+		if (args == NULL || args->size() != 4) {
+			cerr << "points_range: expects 4 args" << endl;
+			continue;
+		}
 
-		e_it = exprs->begin();
-		_bound_var = *e_it; e_it++;
-		first_val = *e_it; e_it++;
-		last_val = *e_it; e_it++;
-		data = *e_it;
+		args_it = args->begin();
+		_bound_var = (*args_it)->getExpr(); args_it++;
+		first_val = (*args_it)->getExpr(); args_it++;
+		last_val = (*args_it)->getExpr(); args_it++;
+		data = (*args_it)->getExpr();
 
 		bound_var = dynamic_cast<const Id*>(_bound_var);
 		if (bound_var == NULL) {
 			cerr << "Expected identifier for bound variable in ";
-			fc->print(cerr);
+			if (_bound_var == NULL) 
+				cerr << " bad argtype";
+			 else
+				_bound_var->print(cerr);
 			cerr << endl;
+			continue;
+		}
+
+		if (first_val == NULL || last_val == NULL || data == NULL) {
+			cerr << "points_range: Unexpected argtype" << endl;
 			continue;
 		}
 
 		loadPointsRangeInstance(bound_var, first_val, last_val, data);
 	}
+}
+
+void Points::loadPointsIfInstance(
+	const CondExpr* ce, const Expr* data_loc)
+{
+	assert (0 == 1);
 }
 
 void Points::loadPointsInstance(const Expr* data_loc)
@@ -124,8 +187,8 @@ void Points::loadPointsRangeInstance(
 
 	points_range_elems.add(new PointsRange(
 		src_type, dst_type,
-		bound_var, first_val, last_val,
-		data_loc,
+		bound_var->copy(), first_val->copy(), last_val->copy(),
+		data_loc->copy(),
 		seq++));
 }
 
@@ -193,7 +256,6 @@ const std::string PointsRange::getMaxFCallName(void) const
 		"_" + int_to_string(seq);
 }
 
-
 void Points::genCode(void)
 {
 
@@ -229,3 +291,60 @@ void Points::genProtos(void)
 		(*it)->genProto();
 	}
 }
+
+PointsIf::PointsIf(
+	const Type*	in_src_type,
+	const Type*	in_dst_type,
+	CondExpr	*in_cond_expr,
+	Expr		*in_points_expr,
+	unsigned int	in_seq)
+: PointsRange(
+	in_src_type, in_dst_type,
+	new Id("__no_binding"), 
+	new Number(0),
+	new FCall(
+		new Id(getWrapperFCallName(in_src_type->getName(), in_seq)),
+		new ExprList(rt_glue.getThunkArg())),
+	in_points_expr,
+	in_seq),
+	cond_expr(in_cond_expr)
+{
+	assert (cond_expr != NULL);
+}
+
+
+PointsIf::~PointsIf(void)
+{
+	delete cond_expr;
+}
+
+const string PointsIf::getWrapperFCallName(
+	const string& type_name, unsigned int s) const
+{
+	return 	"__pointsif_condwrap_" + type_name + "_" + 
+		int_to_string(s);
+}
+
+void PointsIf::genCode(void) const
+{
+	code_builder->genCodeCond(
+		getSrcType(),
+		getWrapperFCallName(
+			getSrcType()->getName(),
+			getSeqNum()),
+		cond_expr,
+		new Number(1),
+		new Number(0));
+
+	PointsRange::genCode();
+}
+
+void PointsIf::genProto(void) const
+{
+	const ThunkType	*tt;
+	tt = symtabs[getSrcType()->getName()]->getThunkType();
+	code_builder->genProto(getFCallName(), tt->getThunkArgCount());
+	PointsRange::genProto();
+}
+
+
