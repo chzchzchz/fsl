@@ -16,6 +16,8 @@ public:
 	Expr*	getDyn(Expr* typenum);
 	Expr*	getThunkArg(void);
 	const std::string getThunkArgName(void);
+	Expr	*maxValue(ExprList* exprs);
+	Expr	*fail(void);
 private:
 
 };

@@ -142,9 +142,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 		const ThunkField* tf = (*it)->getFieldThunk();
 		size_args->add(tf->getSize()->copyFCall());	
 	}
-	size_expr = new FCall(
-		new Id("__max" + int_to_string(size_args->size())),
-		size_args);
+	size_expr = rt_glue.maxValue(size_args);
 	}
 
 	/* create thunk size function */
@@ -197,9 +195,7 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 			field_name,
 			getConds(),
 			copyCurrentOffset(),
-			new FCall(
-				new Id("fsl_fail"),
-				new ExprList()));
+			rt_glue.fail());
 	}
 
 	/* get thunksize object */
