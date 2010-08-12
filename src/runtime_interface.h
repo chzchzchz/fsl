@@ -13,7 +13,7 @@ public:
 	Expr*	getLocal(Expr* disk_bit_offset, Expr* num_bits);
 	Expr*	getLocalArray(
 		Expr* idx, Expr* bits_in_type, Expr* base_offset, Expr* bits_in_array);
-	Expr*	getDyn(Expr* typenum);
+	Expr*	getDyn(const class Type* user_type);
 	Expr*	getThunkArg(void);
 	const std::string getThunkArgName(void);
 	Expr	*maxValue(ExprList* exprs);

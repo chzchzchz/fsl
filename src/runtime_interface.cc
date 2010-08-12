@@ -1,4 +1,5 @@
 #include "runtime_interface.h"
+#include "type.h"
 #include "util.h"
 
 Expr* RTInterface::getLocal(Expr* disk_bit_offset, Expr* num_bits)
@@ -32,14 +33,13 @@ Expr* RTInterface::getLocalArray(
 	return new FCall(new Id("__getLocalArray"), exprs);
 }
 
-Expr* RTInterface::getDyn(Expr* typenum)
+Expr* RTInterface::getDyn(const Type* user_type)
 {
-	ExprList	*exprs = new ExprList();
+	ExprList	*exprs; 
 
-	assert (typenum != NULL);
+	assert (user_type != NULL);
 
-	exprs->add(typenum);
-
+	exprs = new ExprList(new Number(user_type->getTypeNum()));
 	return new FCall(new Id("__getDyn"), exprs);
 }
 

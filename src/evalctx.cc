@@ -47,7 +47,7 @@ Expr* EvalCtx::resolve(const Id* id) const
 
 	/* support for access of dynamic types.. gets base bits for type */
 	if ((t = typeByName(id->getName())) != NULL) {
-		return rt_glue.getDyn(new Number(t->getTypeNum()));
+		return rt_glue.getDyn(t);
 	}
 
 	/* could not resolve */
@@ -334,7 +334,7 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 	}
 
 
-	base = rt_glue.getDyn(new Number(top_type->getTypeNum()));
+	base = rt_glue.getDyn(top_type);
 
 	it++;
 	offset = getStructExpr(base, top_symtab, it, ids->end(), last_ste);
