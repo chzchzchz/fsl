@@ -56,6 +56,8 @@ public:
 		return (*it).second;
 	}
 
+	llvm::GlobalVariable* getGlobalVar(const std::string& varname) const;
+
 	void setDebug(bool b) { debug_output = b; }
 private:
 

@@ -65,6 +65,7 @@ Value* FCall::codeGen() const
 Value* Id::codeGen() const 
 {
 	AllocaInst		*ai;
+	GlobalVariable		*gv;
 
 	/* load.. */
 	if (gen_func_block == NULL && code_builder->getThunkVarCount() == 0) {
@@ -75,7 +76,9 @@ Value* Id::codeGen() const
 
 	if (gen_func_block != NULL)
 		ai = gen_func_block->getVar(getName());
-	else
+	else if ((gv = code_builder->getGlobalVar(getName())) != NULL) {
+		return code_builder->getBuilder()->CreateLoad(gv, getName());
+	} else
 		ai = code_builder->getThunkAllocInst(getName());
 
 	if (ai == NULL) {

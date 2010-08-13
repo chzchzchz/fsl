@@ -51,6 +51,17 @@ void CodeBuilder::createGlobal(const char* str, uint64_t v, bool is_const)
 		str);
 }
 
+llvm::GlobalVariable* CodeBuilder::getGlobalVar(const std::string& varname) const
+{
+	llvm::GlobalVariable	*gv;
+
+	gv = mod->getGlobalVariable(varname);
+	if (gv == NULL)
+		return NULL;
+
+	return gv;
+}
+
 
 void CodeBuilder::genProto(const string& name, uint64_t num_args)
 {

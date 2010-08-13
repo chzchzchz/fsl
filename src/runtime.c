@@ -16,11 +16,6 @@ static struct fsl_rt_ctx* env;
 
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
 
-/* exported variables.. */
-uint64_t __FROM_OS_BDEV_BYTES;
-uint64_t __FROM_OS_BDEV_BLOCK_BYTES;
-uint64_t __FROM_OS_SB_BLOCKSIZE_BYTES;
-
 uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 {
 	uint8_t		buf[10];

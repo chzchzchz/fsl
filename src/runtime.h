@@ -82,6 +82,10 @@ struct fsl_rt_table_pointsto
 };
 
 
+/* exported variables from types module.. */
+extern uint64_t __FROM_OS_BDEV_BYTES;
+extern uint64_t __FROM_OS_BDEV_BLOCK_BYTES;
+extern uint64_t __FROM_OS_SB_BLOCKSIZE_BYTES;
 
 /* these are in the generated  fsl.table.c */
 extern struct fsl_rt_table_type		fsl_rt_table[];
