@@ -153,13 +153,13 @@ static void print_field(
 	field_off = field->tf_fieldbitoff(ti_diskoff);
 	field_sz = field->tf_typesize(ti_diskoff);
 
-	if (num_elems > 1 || field_sz > 32) {
-		printf("@%"PRIu64"--%"PRIu64"\n", 
+	if (num_elems == 1 && field_sz <= 64) {
+		printf(" = %"PRIu64, __getLocal(field_off, field_sz));
+	} else
+		printf("@%"PRIu64"--%"PRIu64, 
 			field_off, field_off + field_sz*num_elems);
-	} else {
-		printf(" = %"PRIu64"\n",
-			__getLocal(field_off, field_sz));
-	}
+
+	printf("\n");
 }
 
 

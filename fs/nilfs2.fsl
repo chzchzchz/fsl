@@ -86,6 +86,7 @@ blocknum_t nilfs_segblock_last(segnum_t segnum)
 }
 
 blockcount_t nilfs_seg_blocks(segnum_t segnum)
+
 {
 	return (nilfs_segblock_last(segnum) - nilfs_segblock_first(segnum))+1;
 }
@@ -143,9 +144,9 @@ type nilfs_segment
 	nilfs_segment_summary	seg_sum;
 	/* XXX more needs to be done here */
 	nilfs_block		seg_blocks[seg_sum.ss_nblocks-1];
-	assert_le(
-		from_base(), 
-		8*get_block_size(nilfs_sb)*nilfs_sb.s_blocks_per_segment);
+//	assert_le(
+//		from_base(), 
+//		8*get_block_size(nilfs_sb)*nilfs_sb.s_blocks_per_segment);
 }
 
 type nilfs_block
@@ -242,8 +243,7 @@ assert_eq(s_magic, NILFS_SUPER_MAGIC)
 					   the segment contypeion */
 	u32	s_reserved[192];	/* padding to the end of the block */
 
-	assert_ge(__FROM_OS_BDEV_BLOCK_BYTES, from_base()*8);
-
+//	assert_ge(__FROM_OS_BDEV_BLOCK_BYTES, from_base()*8);
 }
 
 type nilfs_dir_entry {

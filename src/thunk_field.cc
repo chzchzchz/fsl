@@ -43,6 +43,8 @@ ThunkField::ThunkField(
 	assert (t_fieldoff != NULL);
 	assert (t_elems != NULL);
 	assert (t_size != NULL);
+
+	t_size->setThunkField(this);
 	owner.registerFunc(t_fieldoff);
 	owner.registerFunc(t_size);
 	owner.registerFunc(t_elems);

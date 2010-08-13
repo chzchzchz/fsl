@@ -41,11 +41,11 @@ fsl.ext2.types.s: fsl.ext2.types.bc
 fsl.ext2.types.bc: fsl.ext2.types.ll
 	opt -O3 $^ >$@
 
-fsl.ext2.types.ll:
-	../lang ext2 <../../fs/ext2.fsl
+fsl.ext2.types.ll: ../../fs/ext2.fsl
+	../lang ext2 <$^
 
-fsl.ext2.table.c:
-	../lang ext2 <../../fs/ext2.fsl
+fsl.ext2.table.c: ../../fs/ext2.fsl
+	../lang ext2 <$^
 
 fsl.ext2.table.o: fsl.ext2.table.c
 	gcc -O3 -c $^ -o $@
@@ -61,11 +61,11 @@ fsl.vfat.types.s: fsl.vfat.types.bc
 fsl.vfat.types.bc: fsl.vfat.types.ll
 	opt -O3 $^ >$@
 
-fsl.vfat.types.ll:
-	../lang vfat <../../fs/vfat.fsl
+fsl.vfat.types.ll: ../../fs/vfat.fsl
+	../lang vfat <$^
 
-fsl.vfat.table.c:
-	../lang vfat <../../fs/vfat.fsl
+fsl.vfat.table.c: ../../fs/vfat.fsl
+	../lang vfat <$^
 
 fsl.vfat.table.o: fsl.vfat.table.c
 	gcc -O3 -c $^ -o $@
@@ -80,11 +80,11 @@ fsl.nilfs.types.s: fsl.nilfs.types.bc
 fsl.nilfs.types.bc: fsl.nilfs.types.ll
 	opt -O3 $^ >$@
 
-fsl.nilfs.types.ll:
-	../lang nilfs <../../fs/nilfs2.fsl
+fsl.nilfs.types.ll: ../../fs/nilfs2.fsl
+	../lang nilfs <$^
 
-fsl.nilfs.table.c:
-	../lang nilfs <../../fs/nilfs2.fsl
+fsl.nilfs.table.c: ../../fs/nilfs2.fsl
+	../lang nilfs <$^
 
 fsl.nilfs.table.o: fsl.nilfs.table.c
 	gcc -O3 -c $^ -o $@
