@@ -487,6 +487,10 @@ void SymTabThunkBuilder::visit(const TypeFunc* tf)
 		thunkf = skipBits(tf);
 	} else if (fcall_name == "skip_bytes") {
 		thunkf = skipBytes(tf);
+	} else if (fcall_name == "set_bits") {
+		thunkf = setBits(tf);
+	} else if (fcall_name == "set_bytes") {
+		thunkf = setBytes(tf);
 	} else if (fcall_name == "assert_eq") {
 		cerr << "XXX: ASSERT_EQ" << endl;
 		return;
@@ -577,6 +581,94 @@ done:
 
 	return thunkf;
 }
+
+ThunkField* SymTabThunkBuilder::setBits(const TypeFunc* tf)
+{
+	ThunkField*	thunkf = NULL;
+	ExprList*	args;
+	Expr*		from_base;
+
+	from_base = copyFromBase();
+	args = (tf->getFCall()->getExprs())->simplify();
+	args->rewrite(&from_base_fc, from_base);
+
+	if (args->size() != 1) {
+		cerr << "set_bits takes one arg" << endl;
+		goto done;
+	}
+
+	assert (cond_stack.size() == 0);
+
+	thunkf = new ThunkField(
+		*cur_thunk_type,
+		new ThunkFieldOffset(
+			cur_thunk_type,
+			"__set_bits_"+int_to_string(field_count),
+			copyCurrentOffset()),
+		new ThunkFieldSize(
+			cur_thunk_type,
+			"__set_bits_"+int_to_string(field_count),
+			new AOPSub(
+				(args->front())->simplify(),
+				copyCurrentOffset())),
+		new ThunkElements(
+			cur_thunk_type,
+			"__set_bits"+int_to_string(field_count),
+			1)
+	);		
+
+done:
+	delete args;
+	delete from_base;
+
+	return thunkf;
+
+}
+
+ThunkField* SymTabThunkBuilder::setBytes(const TypeFunc* tf)
+{
+	ThunkField*	thunkf = NULL;
+	ExprList*	args;
+	Expr*		from_base;
+
+	from_base = copyFromBase();
+	args = (tf->getFCall()->getExprs())->simplify();
+	args->rewrite(&from_base_fc, from_base);
+
+	if (args->size() != 1) {
+		cerr << "set_bytes takes one arg" << endl;
+		goto done;
+	}
+
+	assert (cond_stack.size() == 0);
+
+	thunkf = new ThunkField(
+		*cur_thunk_type,
+		new ThunkFieldOffset(
+			cur_thunk_type,
+			"__set_bytes_"+int_to_string(field_count),
+			copyCurrentOffset()),
+		new ThunkFieldSize(
+			cur_thunk_type,
+			"__set_bytes_"+int_to_string(field_count),
+			new AOPSub(
+				new AOPMul(
+					(args->front())->simplify(),
+					new Number(8)),
+				copyCurrentOffset())),
+		new ThunkElements(
+			cur_thunk_type,
+			"__set_bytes_"+int_to_string(field_count),
+			1)
+	);		
+
+done:
+	delete args;
+	delete from_base;
+
+	return thunkf;
+}
+
 
 ThunkField* SymTabThunkBuilder::alignBytes(const TypeFunc* tf)
 {

@@ -146,7 +146,6 @@ static void load_user_funcs(const GlobalBlock* gb)
 		funcs_list.push_back(f);
 		funcs_map[f->getName()] = f;
 
-		cout << "LOADING FUNC: " << f->getName() << endl;
 		gen_func_code(f);
 	}
 }

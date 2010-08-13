@@ -150,7 +150,7 @@ free(ent32, disk.clusters, 0)
 	} else if (is_fat16(bpb)) {
 		fat_ent16	ent16[get_cluster_count(bpb)];
 	} else if (is_fat32(bpb)) {
-		fat_etn32	ent32[get_cluster_count(bpb)];
+		fat_ent32	ent32[get_cluster_count(bpb)];
 	} else {
 		fsl_fail();
 	}

@@ -264,11 +264,13 @@ static llvm::Function* gen_func_code_proto(const Func* f)
 	/* XXX need to do this better.. */
 	if (f->getRet() == "bool") {
 		t_ret = llvm::Type::getInt1Ty(llvm::getGlobalContext());
-	} else
+	} else {
 		t_ret = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+	}
 		
 	if (is_user_type)
-		cerr << "XXX: be smarter about returning user types" << endl;
+		cerr	<< f->getName() 
+			<< ": be smarter about returning user types" << endl;
 
 	if (gen_func_code_args(f, f_args) == false) {
 		cerr << "Bailing on generating " << f->getName() << endl;
@@ -301,12 +303,13 @@ static bool gen_func_code_args(
 	llvm_args.clear();
 
 	for (unsigned int i = 0; i < args->size(); i++) {
-		string			cur_type(((args->get(i)).first)->getName());
 		const llvm::Type	*t;
-		bool			is_user_type;
+		string		cur_type(((args->get(i)).first)->getName());
+		bool		is_user_type;
 
 		if (types_map.count(cur_type) != 0) {
-			cerr << "XXX : be smarter about type args" << endl;
+			cerr	<< f->getName() 
+				<< ": be smarter about type args" << endl;
 			is_user_type = true;
 		} else if (ctypes_map.count(cur_type) != 0) {
 			is_user_type = false;

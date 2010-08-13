@@ -1,0 +1,359 @@
+/**
+ * XXX TODO
+ * 1. support direct and btree bmaps
+ * 2. support files
+ * ...
+ */
+const __FSL_FSNAME = nilfs2;
+const NILFS_SECRM_FL		= 0x00000001; /* Secure deletion */
+const NILFS_UNRM_FL		= 0x00000002; /* Undelete */
+const NILFS_SYNC_FL		= 0x00000008; /* Synchronous updates */
+const NILFS_IMMUTABLE_FL	= 0x00000010; /* Immutable file */
+const NILFS_APPEND_FL		= 0x00000020; /* writes to file may only append */
+const NILFS_NODUMP_FL		= 0x00000040; /* do not dump file */
+const NILFS_NOATIME_FL		= 0x00000080; /* do not update atime */
+/* Reserved for compression usage... */
+const NILFS_NOTAIL_FL		= 0x00008000; /* file tail should not be merged */
+const NILFS_DIRSYNC_FL		= 0x00010000; /* dirsync behaviour */
+const NILFS_FL_USER_VISIBLE	= 0x0003DFFF; /* User visible flags */
+const NILFS_FL_USER_MODIFIABLE	= 0x000380FF; /* User modifiable flags */
+
+const NILFS_NAME_LEN		= 255;
+
+const NILFS_INODE_BMAP_SIZE = 7;
+
+const NILFS_OS_LINUX = 0;
+
+const NILFS_CURRENT_REV	= 2;	/* current major revision */
+const NILFS_MINOR_REV = 0;	/* minor revision */
+
+
+const NILFS_INO_ROOT	= 2;	/* Root file inode */
+const NILFS_INO_DAT 	= 3;	/* DAT file */
+const NILFS_INO_CPFILE	= 4;	/* checkpoint file */
+const NILFS_INO_SUFILE	= 5;	/* segment usage file */
+const NILFS_INO_IFILE	= 6;	/* ifile */
+const NILFS_INO_ATIME	= 7;	/* Atime file (reserved) */
+const NILFS_INO_XATTR	= 8;	/* Xattribute file (reserved) */
+const NILFS_INO_SKETCH	= 10;	/* Sketch file */
+const NILFS_INO_USER	= 11;	/* Fisrt user's file inode number */
+
+const NILFS_SB_OFFSET_BYTES	= 1024; /* byte offset of nilfs superblock */
+const NILFS_SUPER_MAGIC		= 0x3434; /* NILFS filesystem  magic number */
+const NILFS_SEG_MIN_BLOCKS	= 16;	/* Minimum number of blocks in
+					   a full segment */
+const NILFS_PSEG_MIN_BLOCKS	= 2;	/* Minimum number of blocks in
+					   a partial segment */
+const NILFS_MIN_NRSVSEGS	= 8;	/* Minimum number of reserved
+					   segments */
+
+/* ... */
+typedef blocknum_t = u64;
+typedef blockcount_t = u64;
+typedef segnum_t = u64;
+
+uint get_block_size(nilfs_sb nsb)
+{
+	return (1 << (nsb.s_log_block_size + 10));
+}
+
+nilfs_segment get_segment(segnum_t segnum)
+{
+	if (segnum == 0)
+		return disk.first_seg;
+
+	return disk.more_segs[segnum - 1];
+}
+
+u64 nilfs_sb2_offset_bytes(u64 devsize) 
+{ 
+	return (((devsize) >> 12) - 1) << 12; 
+}
+
+blocknum_t nilfs_segblock_first(segnum_t segnum)
+{
+	if (segnum == 0)
+		return nilfs_sb.s_first_data_block;
+	return nilfs_sb.s_blocks_per_segment * segnum;
+}
+
+blocknum_t nilfs_segblock_last(segnum_t segnum)
+{
+	u64	fake_start;
+	
+	fake_start = nilfs_sb.s_blocks_per_segment * segnum;
+	return fake_start + (nilfs_segblock_first(segnum+1) - 1);
+}
+
+blockcount_t nilfs_seg_blocks(segnum_t segnum)
+{
+	return (nilfs_segblock_last(segnum) - nilfs_segblock_first(segnum))+1;
+}
+
+/* XXX we need a mechanism in FSL to get a type if and only if some preamble
+ * properties are satisfied */
+nilfs_sb get_valid_sb(disk d)
+{
+	/* XXX-- use nilfs_valid_sb algorithm */
+	return d.nsb;
+}
+
+segnum_t block_to_segnum(blocknum_t blocknr)
+{
+	return blocknr / nilfs_sb.s_blocks_per_segment;
+}
+
+
+blocknum_t disk_off_to_block(u64 bit_offset_into_disk)
+{
+	u64	block_num;
+	u64	block_sz;
+
+	block_sz = get_block_size(nilfs_sb);
+	block_num = (bit_offset_into_disk / 8) / block_sz;
+	
+	return block_num;
+}
+
+segnum_t disk_off_to_seg(u64 bit_offset_into_disk)
+{
+	u64	block_num;
+	block_num = disk_off_to_block(bit_offset_into_disk);
+	return block_to_segnum(block_num);
+}
+
+type disk
+{
+	skip_bytes(NILFS_SB_OFFSET_BYTES);
+	nilfs_sb	nsb;
+
+	/* no idea what would be here */
+
+	set_bytes(nsb.s_first_data_block * get_block_size(nsb));
+	nilfs_segment		first_seg;
+	set_bytes(nilfs_segblock_first(1) * get_block_size(nsb));
+	nilfs_segment		more_segs[nsb.s_nsegments];
+
+	set_bytes(nilfs_sb2_offset_bytes(__FROM_OS_BDEV_BYTES));
+	nilfs_sb	nsb2;
+}
+
+type nilfs_segment
+{
+	nilfs_segment_summary	seg_sum;
+	/* XXX more needs to be done here */
+	nilfs_block		seg_blocks[seg_sum.ss_nblocks-1];
+	assert_le(
+		from_base(), 
+		8*get_block_size(nilfs_sb)*nilfs_sb.s_blocks_per_segment);
+}
+
+type nilfs_block
+{
+	u8	dat[get_block_size(nilfs_sb)];
+}
+
+type nilfs_inode {
+	u64  i_blocks;
+	u64  i_size;
+	u64  i_ctime;
+	u64  i_mtime;
+	u32  i_ctime_nsec;
+	u32  i_mtime_nsec;
+	u32  i_uid;
+	u32  i_gid;
+	u16  i_mode;
+	u16  i_links_count;
+	u32  i_flags;
+	u64  i_bmap[NILFS_INODE_BMAP_SIZE];
+	u64  i_xattr;
+	u32  i_generation;
+	u32  i_pad;
+}
+
+/* superroot */
+type nilfs_sr {
+	u32		sr_sum;
+	u16		sr_bytes;
+	u16		sr_flags;
+	u64		sr_nongc_ctime;
+	nilfs_inode	sr_dat;
+	nilfs_inode	sr_cpfile;
+	nilfs_inode	sr_sufile;
+}
+
+
+
+type nilfs_sb 
+assert_eq(s_magic, NILFS_SUPER_MAGIC)
+{
+	u32	s_rev_level;		/* Revision level */
+	u16	s_minor_rev_level;	/* minor revision level */
+	u16	s_magic;		/* Magic signature */
+
+	u16	s_bytes;		/* Bytes count of CRC calculation
+					 for this structure. s_reserved
+					 is excluded. */
+	u16	s_flags;		/* flags */
+	u32	s_crc_seed;		/* Seed value of CRC calculation */
+	u32	s_sum;			/* Check sum of super block */
+
+	u32	s_log_block_size;	/* Block size represented as follows
+					 blocksize =
+					  1 << (s_log_block_size + 10) */
+	u64	s_nsegments;		/* Number of segments in filesystem */
+	u64	s_dev_size;		/* block device size in bytes */
+	u64	s_first_data_block;	/* 1st seg disk block number */
+	u32	s_blocks_per_segment; /* number of blocks per full segment */
+	u32	s_r_segments_percentage; /* Reserved segments percentage */
+
+	u64	s_last_cno;		/* Last checkpoint number */
+	u64	s_last_pseg;		/* disk block addr pseg written last */
+	u64	s_last_seq;		/* seq. number of seg written last */
+	u64	s_free_blocks_count;	/* Free blocks count */
+
+	u64	s_ctime;		/* Creation time (execution time of
+					 newfs) */
+	u64	s_mtime;		/* Mount time */
+	u64	s_wtime;		/* Write time */
+	u16	s_mnt_count;		/* Mount count */
+	u16	s_max_mnt_count;	/* Maximal mount count */
+	u16	s_state;		/* File system state */
+	u16	s_errors;		/* Behaviour when detecting errors */
+	u64	s_lastcheck;		/* time of last check */
+
+	u32	s_checkinterval;	/* max. time between checks */
+	u32	s_creator_os;		/* OS */
+	u16	s_def_resuid;		/* Default uid for reserved blocks */
+	u16	s_def_resgid;		/* Default gid for reserved blocks */
+	u32	s_first_ino; 		/* First non-reserved inode */
+
+	u16	s_inode_size; 		/* Size of an inode */
+	u16	s_dat_entry_size;	/* Size of a dat entry */
+	u16	s_checkpoint_size;	/* Size of a checkpoint */
+	u16	s_segment_usage_size;	/* Size of a segment usage */
+
+	u8	s_uuid[16];		/* 128-bit uuid for volume */
+	u8	s_volume_name[16]; 	/* volume name */
+	u8 	s_last_mounted[64]; 	/* directory where last mounted */
+
+	u32	s_c_interval;		/* Commit interval of segment */
+	u32	s_c_block_max;		/* Threshold of data amount for
+					   the segment contypeion */
+	u32	s_reserved[192];	/* padding to the end of the block */
+
+	assert_ge(__FROM_OS_BDEV_BLOCK_BYTES, from_base()*8);
+
+}
+
+type nilfs_dir_entry {
+	u64	inode;			/* Inode number */
+	u16	rec_len;		/* Directory entry length */
+	u8	name_len;		/* Name length */
+	u8	file_type;
+	u8	name[NILFS_NAME_LEN];	/* File name */
+	u8	pad;
+}
+
+type nilfs_finfo {
+	u64 		fi_ino;			/* inode number */
+	u64 		fi_cno;			/* checkpoint number */
+	u32 		fi_nblocks;		/* number of blocks */
+	u32 		fi_ndatablk;		/* number of file data blocks */
+	/* XXX array of virtual block numbers */
+}
+
+/* information for the block to which a virtual block number is assigned */
+type nilfs_binfo_v {
+	u64 bi_vblocknr;	/* virtual block number */
+	u64 bi_blkoff;		/* block offset */
+}
+
+/* information for the block which belongs to the DAT file */
+type nilfs_binfo_dat {
+	u64	bi_blkoff;	/* block offset */
+	u8	bi_level;	
+	u8	bi_pad[7];
+}
+
+/* block information */
+type nilfs_binfo {
+	union {
+		nilfs_binfo_v	v;
+		nilfs_binfo_dat dat;
+	} bi;
+}
+
+const NILFS_SEGSUM_MAGIC = 0x1eaffa11;
+/* flags for the segment summary */
+const NILFS_SS_LOGBGN	= (1 << 0);	/* begins a logical segment */
+const NILFS_SS_LOGEND	= (1 << 1);	/* ends a logical segment */
+const NILFS_SS_SR	= (1 << 2);	/* has super root */
+const NILFS_SS_SYNDT	= (1 << 3);	/* includes data only updates */
+const NILFS_SS_GC	= (1 << 4);	/* segment written for cleaner op */
+
+type nilfs_segment_summary 
+points(get_segment(ss_next))
+{
+	u32		ss_datasum;		/* checksum of data */
+	u32		ss_sumsum;		/* checksum of seg sum */
+	u32		ss_magic;		/* magic number */
+	u16		ss_bytes;		/* size of structure */
+	u16		ss_flags;		/* ... */
+	u64		ss_seq;			/* sequence number */
+	u64		ss_create;		/* creation timestamp */
+	u64		ss_next;		/* next segment */
+	u32		ss_nblocks;		/* number of blocks in seg */
+	u32		ss_nfinfo;		/* number of finfo entries */
+	u32		ss_sumbytes;		/* size of segment summary */
+	u32		ss_pad;			/* ... */
+	nilfs_finfo	ss_finfo[ss_nfinfo];
+	align_bytes(get_block_size(disk.nsb));		/* takes up a block */
+}
+
+/* btree flags */
+const NILFS_BTREE_NODE_ROOT = 0x01;
+const NILFS_BTREE_LEVEL_DATA = 0;
+const NILFS_BTREE_LEVEL_NODE_MIN = (NILFS_BTREE_LEVEL_DATA + 1);
+const NILFS_BTREE_LEVEL_MAX = 14;
+
+type nilfs_btree_node {
+	u8	bn_flags;
+	u8	bn_level;
+	u16	bn_nchildren;
+	u32	bn_pad;
+}
+
+
+type nilfs_palloc_group_desc {
+	u32	pg_nfrees;	/* number of free entries in block group */
+}
+
+/* disk address translation entry */
+type nilfs_dat_entry {
+	u64 de_blocknr;		/* block number */
+	u64 de_start;		/* start checkpoint number */
+	u64 de_end;		/* end checkpoint number */
+	u64 de_rsv;		/* reserved for future */
+}
+
+type nilfs_snapshot_list {
+	u64 ssl_next;		/* next checkpoint num on snapshot list */
+	u64 ssl_prev;		/* previous checkpoint num on ss list */
+}
+
+type nilfs_checkpoint {
+	u32			cp_flags;
+	u32			cp_checkpoints_count;	/* count in a block */
+	nilfs_snapshot_list	cp_snapshot_list;	/* list entry */
+	u64			cp_cno;			/* checkpoint number */
+	u64			cp_create;		/* creation timestamp */
+	u64			cp_nblk_inc;		/* # blks incremented */
+	u64			cp_inodes_count;
+	u64			cp_blocks_count;
+
+	/* Do not change the byte offset of ifile inode.
+	   To keep the compatibility of the disk format,
+	   additional fields should be added behind cp_ifile_inode. */
+	nilfs_inode		cp_ifile_inode;
+}

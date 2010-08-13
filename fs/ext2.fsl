@@ -155,14 +155,25 @@ uint num_direct_blocks(ext2_inode ino)
 	return ino.i_blocks_c;
 }
 
+uint blocks_per_indir()
+{
+	return get_block_size(ext2_sb)/4;
+}
+
 /* XXX add points-to here */
 type ext2_inode
 points_range(
 	i, 0, num_direct_blocks(ext2_inode),
 	disk.blocks[i_block_direct[i] - blocks_off(disk.sb)].data_blk)
-points(disk.blocks[i_block_indir  - blocks_off(disk.sb)].indir_blk)
-points(disk.blocks[i_block_biindir  - blocks_off(disk.sb)].biindir_blk)
-points(disk.blocks[i_block_triindir  - blocks_off(disk.sb)].triindir_blk)
+points_if(
+	? i_block_c > EXT2_NDIR_BLOCKS, 
+	disk.blocks[i_block_indir - blocks_off(disk.sb)].indir_blk)
+points_if(
+	? i_block_c > (EXT2_NDIR_BLOCKS + blocks_per_indir()),
+	disk.blocks[i_block_biindir - blocks_off(disk.sb)].biindir_blk)
+points_if(
+	? i_block_c > (EXT2_NDIR_BLCOKS + blocks_per_indir()*(1 + blocks_per_indir())),
+	disk.blocks[i_block_triindir - blocks_off(disk.sb)].triindir_blk)
 {
 	u16	i_mode;	/* file mode */
 	u16	i_uid;	/* low 16 bits of owner uid */

@@ -27,8 +27,6 @@ public:
 	virtual ~GlobalBlock() {}
 };
 
-
-
 class ConstVar : public GlobalStmt
 {
 public:

@@ -51,11 +51,14 @@ private:
 		const CondExpr*		cond_expr,
 		const ThunkField*	last_tf_true,
 		const ThunkField*	last_tf_false);
-
+	
 	ThunkField* alignBits(const TypeFunc* tf);
 	ThunkField* alignBytes(const TypeFunc* tf);
 	ThunkField* skipBits(const TypeFunc* tf);
 	ThunkField* skipBytes(const TypeFunc* tf);
+	ThunkField* setBits(const TypeFunc* tf);
+	ThunkField* setBytes(const TypeFunc* tf);
+
 
 	SymbolTable		*cur_symtab;
 	ThunkType		*cur_thunk_type;
