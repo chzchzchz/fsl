@@ -5,6 +5,7 @@
 #include "AST.h"
 #include "type.h"
 #include "func.h"
+#include "deftype.h"
 #include "symtab.h"
 #include "eval.h"
 #include "code_builder.h"
@@ -30,6 +31,7 @@ type_map		types_map;
 type_list		types_list;
 const_map		constants;
 symtab_map		symtabs;
+deftype_map		deftypes_map;
 CodeBuilder		*code_builder;
 pointing_list		points_list;
 pointing_map		points_map;
@@ -38,6 +40,7 @@ RTInterface		rt_glue;
 
 static void	load_user_types_list(const GlobalBlock* gb);
 static void	load_primitive_ptypes(void);
+static void	load_def_types(const GlobalBlock* gb);
 static void	build_inline_symtabs(void);
 static bool	apply_consts_to_consts(void);
 static void	simplify_constants(void);
@@ -56,6 +59,50 @@ static void load_primitive_ptypes(void)
 
 	for (unsigned int i = 0; i < PRIM_NUM; i++) {
 		ctypes_map[prim_name[i]] = prim_bits[i];
+	}
+}
+
+
+static void load_def_types(const GlobalBlock* gb)
+{
+	GlobalBlock::const_iterator	it;
+	deftype_map::const_iterator	dt_it;
+
+	for (it = gb->begin(); it != gb->end(); it++) {
+		DefType		*dt;
+
+		dt = dynamic_cast<DefType*>(*it);
+		if (dt == NULL)
+			continue;
+
+		if (ctypes_map.count(dt->getName()) != 0) {
+			cerr << "Trying to remap primitive type." << endl;
+			continue;
+		}
+
+		if (deftypes_map.count(dt->getName()) != 0) {
+			cerr << "Typedef " << dt->getName() << " already defined"
+				<< endl;
+			continue;
+		}
+
+		if (deftypes_map.count(dt->getTargetTypeName()) != 0) {
+			cerr << "Oops, no nesting typedefs: " << dt->getTargetTypeName()
+				<< endl;
+			continue;
+		}
+
+		if (ctypes_map.count(dt->getTargetTypeName()) == 0) {
+			cerr	<< "Oops, typedef '"
+				<< dt->getName() 
+				<< "' target needs to be a primitive type. Not " 
+				<< dt->getTargetTypeName()
+				<< endl;
+			continue;
+		}
+
+		deftypes_map[dt->getName()] = dt;
+		ctypes_map[dt->getName()] = ctypes_map[dt->getTargetTypeName()];
 	}
 }
 
@@ -365,6 +412,9 @@ int main(int argc, char *argv[])
 	/* load ptypes in */
 	cout << "Loading ptypes" << endl;
 	load_primitive_ptypes();
+
+	cout << "Loading typedefs" << endl;
+	load_def_types(global_scope);
 
 	/* make consts resolve to numbers */
 	cout << "Setting up constants" << endl;

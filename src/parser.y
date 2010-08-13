@@ -3,13 +3,16 @@
 #include "AST.h"
 #include "type.h"
 #include "func.h"
+#include "deftype.h"
 
 GlobalBlock*	global_scope;
 extern int yylex();
 extern int yylineno;
+extern char* yytext;
 void yyerror(const char* s)
 { 
-	std::cerr <<  "Oops: " <<  s <<  ". Line: " << yylineno << std::endl; 
+	std::cerr	<<  "Oops: " <<  s <<  ". Line: " <<  yylineno
+			<<". Text: '" << yytext << "'" << std::endl; 
 }
 
 %}
@@ -61,7 +64,7 @@ void yyerror(const char* s)
 
 %token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS
 
-%token <token> TOKEN_WHEN
+%token <token> TOKEN_WHEN TOKEN_TYPEDEF
 
 %token <text> TOKEN_ID
 %token <val> TOKEN_NUM
@@ -82,6 +85,8 @@ void yyerror(const char* s)
 %type <args> type_args type_args_list
 %type <t_block> type_block type_stmts
 %type <t_preamble> type_preamble
+
+
 %type <c_expr> cond_expr
 %type <enm_enum> enum_ents
 %type <enm_ent> enum_ent
@@ -147,6 +152,10 @@ program_stmt	: TOKEN_CONST ident TOKEN_ASSIGN expr TOKEN_SEMI
 			$$ = new Func(
 				(Id*)$1, (Id*)$2, 
 				$3, (FuncBlock*)$4);
+		}
+		| TOKEN_TYPEDEF ident TOKEN_ASSIGN ident TOKEN_SEMI
+		{
+			$$ = new DefType((Id*)$2, (Id*)$4);
 		}
 		;
 
@@ -218,6 +227,10 @@ enum_ent	: ident { $$ = new EnumEnt($1); }
 type_args	: TOKEN_LPAREN type_args_list TOKEN_RPAREN
 		{
 			$$ = $2;
+		}
+		| TOKEN_LPAREN TOKEN_RPAREN
+		{
+			$$ = new ArgsList();
 		}
 		;
 type_args_list	: type_args_list TOKEN_COMMA ident ident

@@ -35,7 +35,7 @@ int yywrap() {return 1;}
 %}
 
 DIGIT	[0-9]
-HEXDIGIT [0-9a-f]
+HEXDIGIT [0-9a-fA-F]
 ID	[_a-zA-Z][_a-zA-Z0-9]*
 SPACE	[ ]
 TAB	[	]
@@ -58,6 +58,8 @@ WHITESPACE [ 	]
 "for"		IN_TOKEN(TOKEN_FOR);
 "return"	IN_TOKEN(TOKEN_RETURN);
 "const"		IN_TOKEN(TOKEN_CONST);
+"when"		IN_TOKEN(TOKEN_WHEN);
+"typedef"	IN_TOKEN(TOKEN_TYPEDEF);
 "("		IN_TOKEN(TOKEN_LPAREN);
 ")"		IN_TOKEN(TOKEN_RPAREN);
 "{"		IN_TOKEN(TOKEN_LBRACE);
@@ -71,8 +73,9 @@ WHITESPACE [ 	]
 <COMMENT>[^\n]	
 <COMMENT>"\n"	{ BEGIN(INITIAL); yyset_lineno(yyget_lineno() + 1); }
 "/*"		{ BEGIN(COMMENT2); }
-<COMMENT2>[^*]
-<COMMENT2>"*/"	{ BEGIN(INITIAL); }
+<COMMENT2>"\n"	{ yyset_lineno( yyget_lineno() + 1); }
+<COMMENT2>[^*]	{ }
+<COMMENT2>"*/"	{ BEGIN(INITIAL);  }
 "/"		IN_TOKEN(TOKEN_DIV);
 "*"		IN_TOKEN(TOKEN_MUL);
 "-"		IN_TOKEN(TOKEN_SUB);
@@ -95,9 +98,8 @@ WHITESPACE [ 	]
 ">"		IN_TOKEN(TOKEN_CMPGT);
 "<"		IN_TOKEN(TOKEN_CMPLT);
 ","		IN_TOKEN(TOKEN_COMMA);
-"when"		IN_TOKEN(TOKEN_WHEN);
-"?"		IN_TOKEN(TOKEN_QUESTION);
-.		printf("Couldn't tokenize: %s\n", yytext);
+"\?"		IN_TOKEN(TOKEN_QUESTION);
+.		{ printf("Couldn't tokenize: %s\n", yytext); } 
 %%
 
 
