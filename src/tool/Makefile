@@ -4,8 +4,8 @@ VFAT_OBJS= fsl.vfat.table.o fsl.vfat.types.o
 VFAT_TOOLS= scantool-vfat browser-vfat
 NILFS_OBJS= fsl.nilfs.table.o fsl.nilfs.types.o
 NILFS_TOOLS= scantool-nilfs browser-nilfs
-SCANTOOL_OBJS=../scantool.o ../runtime.o
-BROWSER_OBJS=../browser.o ../runtime.o
+SCANTOOL_OBJS=../scantool.o ../runtime.o ../type_info.o
+BROWSER_OBJS=../browser.o ../runtime.o ../type_info.o
 
 all: $(EXT2_TOOLS) $(VFAT_TOOLS) $(NILFS_TOOLS)
 

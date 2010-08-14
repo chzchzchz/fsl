@@ -24,7 +24,7 @@ OBJS=	parser.o		\
 	points.o		\
 	runtime_interface.o		
 
-RTOBJS= runtime.o
+RTOBJS= runtime.o type_info.o
 TOOLOBJS= scantool.o browser.o
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE

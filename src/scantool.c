@@ -2,17 +2,10 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <assert.h>
+
 #include "runtime.h" 
+#include "type_info.h"
 
-#define tt_by_num(x)	(&fsl_rt_table[x])
-#define tt_by_ti(x)	tt_by_num((x)->ti_typenum)
-
-struct type_info
-{
-	typenum_t	ti_typenum;
-	diskoff_t	ti_diskoff;
-	unsigned int	ti_depth;
-};
 
 static void print_indent(unsigned int depth);
 static void scan_type_pointsto(
