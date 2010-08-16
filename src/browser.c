@@ -59,11 +59,8 @@ static void select_field(struct type_info* cur, int field_idx)
 	next_diskoff = field->tf_fieldbitoff(cur->ti_diskoff);
 
 	if (num_elems > 1) {
-		typesize_t	fsz;
 		int		sel_elem;
 		ssize_t		br;
-
-		fsz = field->tf_typesize(cur->ti_diskoff);
 
 		sel_elem = num_elems + 1;
 		while (sel_elem >= num_elems) {
@@ -73,7 +70,20 @@ static void select_field(struct type_info* cur, int field_idx)
 				return;
 		}
 
-		next_diskoff += sel_elem * fsz;
+		if (field->tf_constsize == false) {
+			typesize_t	array_off;
+
+			array_off = __computeArrayBits(
+				field->tf_typenum,
+				next_diskoff,
+				sel_elem);
+
+			next_diskoff += array_off;
+		}  else {
+			typesize_t	fsz;
+			fsz = field->tf_typesize(cur->ti_diskoff);
+			next_diskoff += sel_elem * fsz;
+		}
 	}
 
 	ti_next = typeinfo_alloc(

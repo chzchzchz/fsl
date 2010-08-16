@@ -285,12 +285,6 @@ static bool apply_consts_to_consts(void)
 		new_expr = expr_resolve_consts(constants, p.second);
 
 		if (*old_expr != new_expr) {
-			cerr << "UPDATED: ";
-			old_expr->print(cerr);
-			cerr << " to ";
-			new_expr->print(cerr);
-			cerr << endl;
-
 			constants[p.first] = new_expr;
 			updated = true;
 		}

@@ -10,21 +10,33 @@ static char hexmap[] = {"0123456789abcdef"};
 
 
 static void print_field(
-	const struct fsl_rt_table_field* field,
-	diskoff_t ti_diskoff)
+	const struct type_info		*ti,
+	const struct fsl_rt_table_field	*field)
 {
 	uint64_t			num_elems;
 	typesize_t			field_sz;
+	typenum_t			field_typenum;
 	diskoff_t			field_off;
 
-	num_elems = field->tf_elemcount(ti_diskoff);
+	num_elems = field->tf_elemcount(ti->ti_diskoff);
 	printf("%s", field->tf_fieldname);
 	if (num_elems > 1) {
 		printf("[%"PRIu64"]", num_elems);
 	}
 
-	field_off = field->tf_fieldbitoff(ti_diskoff);
-	field_sz = field->tf_typesize(ti_diskoff);
+	field_off = field->tf_fieldbitoff(ti->ti_diskoff);
+
+	field_typenum = field->tf_typenum;
+	if (num_elems > 1 && field_typenum != ~0 && !field->tf_constsize) {
+		/* non-constant width.. */
+		field_sz = __computeArrayBits(
+			field_typenum,
+			field_off,
+			num_elems);
+	} else {
+		/* constant width */
+		field_sz = field->tf_typesize(ti->ti_diskoff)*num_elems;
+	}
 
 	if (num_elems == 1 && field_sz <= 64) {
 		printf(" = %"PRIu64 " (0x%"PRIx64")", 
@@ -33,10 +45,10 @@ static void print_field(
 	} else {
 #ifdef PRINT_BITS
 		printf("@%"PRIu64"--%"PRIu64, 
-			field_off, field_off + field_sz*num_elems);
+			field_off, field_off + field_sz);
 #else
 		printf("@%"PRIu64"--%"PRIu64, 
-			field_off/8, (field_off + field_sz*num_elems)/8);
+			field_off/8, (field_off + field_sz)/8);
 #endif
 	}
 
@@ -148,7 +160,7 @@ void typeinfo_print_fields(const struct type_info* ti)
 		else
 			printf("--- ");
 
-		print_field(field, ti->ti_diskoff);
+		print_field(ti, field);
 	}
 }
 
