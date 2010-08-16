@@ -449,6 +449,8 @@ public:
 		in_parens = dynamic_cast<const ExprParens*>(e);
 		if (in_parens == NULL)
 			return false;
+
+		return (*expr == (in_parens->getExpr()));
 	}
 
 	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)

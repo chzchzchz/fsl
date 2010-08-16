@@ -61,6 +61,8 @@ void TableGen::genInstanceTypeField(
 		sw.write("tf_cond", "NULL");
 	}
 
+	sw.writeB("tf_constsize", tf->getSize()->isConstant());
+
 	delete field_off_fc;
 	delete field_elems_fc;
 	delete field_size_fc;

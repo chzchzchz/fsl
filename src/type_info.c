@@ -8,6 +8,41 @@
 
 static char hexmap[] = {"0123456789abcdef"};
 
+
+static void print_field(
+	const struct fsl_rt_table_field* field,
+	diskoff_t ti_diskoff)
+{
+	uint64_t			num_elems;
+	typesize_t			field_sz;
+	diskoff_t			field_off;
+
+	num_elems = field->tf_elemcount(ti_diskoff);
+	printf("%s", field->tf_fieldname);
+	if (num_elems > 1) {
+		printf("[%"PRIu64"]", num_elems);
+	}
+
+	field_off = field->tf_fieldbitoff(ti_diskoff);
+	field_sz = field->tf_typesize(ti_diskoff);
+
+	if (num_elems == 1 && field_sz <= 64) {
+		printf(" = %"PRIu64 " (0x%"PRIx64")", 
+			__getLocal(field_off, field_sz),
+			__getLocal(field_off, field_sz));
+	} else {
+#ifdef PRINT_BITS
+		printf("@%"PRIu64"--%"PRIu64, 
+			field_off, field_off + field_sz*num_elems);
+#else
+		printf("@%"PRIu64"--%"PRIu64, 
+			field_off/8, (field_off + field_sz*num_elems)/8);
+#endif
+	}
+
+	printf("\n");
+}
+
 void typeinfo_print(const struct type_info* ti)
 {
 	struct fsl_rt_table_type	*tt;
@@ -19,11 +54,19 @@ void typeinfo_print(const struct type_info* ti)
 	if (ti->ti_prev == NULL || ti->ti_typenum != ~0) {
 		len = tt->tt_size(ti->ti_diskoff);
 
-		printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)\n", 
+#ifdef PRINT_BITS
+		printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)", 
 			tt_by_ti(ti)->tt_name, 
 			ti->ti_diskoff,
 			ti->ti_diskoff + len,
 			len);
+#else
+		printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bytes)", 
+			tt_by_ti(ti)->tt_name, 
+			ti->ti_diskoff/8,
+			(ti->ti_diskoff + len)/8,
+			len/8);
+#endif
 		return;
 	}
 
@@ -38,12 +81,21 @@ void typeinfo_print(const struct type_info* ti)
 
 		field = &tt->tt_field_thunkoff[ti->ti_fieldidx];
 		len = field->tf_typesize(ti->ti_prev->ti_diskoff);
-		printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)\n",
+#ifdef PRINT_BITS
+		printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
 			tt->tt_name,
 			field->tf_fieldname,
 			ti->ti_diskoff,
 			ti->ti_diskoff + len,
 			len);
+#else
+		printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bytse)",
+			tt->tt_name,
+			field->tf_fieldname,
+			ti->ti_diskoff/8,
+			(ti->ti_diskoff + len)/8,
+			len/8);
+#endif
 	}
 }
 
@@ -100,6 +152,7 @@ void typeinfo_print_fields(const struct type_info* ti)
 	}
 }
 
+
 struct type_info* typeinfo_alloc_pointsto(
 	typenum_t		ti_typenum,
 	diskoff_t		ti_diskoff,
@@ -119,7 +172,7 @@ struct type_info* typeinfo_alloc_pointsto(
 
 	ret->ti_prev = ti_prev;
 
-	set_dyn_on_type(ret);
+	typeinfo_set_dyn(ret);
 
 	return ret;
 }
@@ -128,8 +181,6 @@ void typeinfo_free(struct type_info* ti)
 {
 	free(ti);
 }
-
-
 
 void typeinfo_dump_data(const struct type_info* ti)
 {
@@ -174,11 +225,48 @@ struct type_info* typeinfo_alloc(
 	ret->ti_fieldidx = ti_fieldidx;
 
 	ret->ti_prev = ti_prev;
-
-	set_dyn_on_type(ret);
+	
+	typeinfo_set_dyn(ret);
 
 	return ret;
 
 }
 
+void typeinfo_set_dyn(const struct type_info* ti)
+{
+	struct fsl_rt_table_type	*tt;
+	unsigned int			i;
 
+	__setDyn(ti->ti_typenum, ti->ti_diskoff);
+
+	tt = tt_by_ti(ti);
+	for (i = 0; i < tt->tt_field_c; i++) {
+		struct fsl_rt_table_field	*field;
+
+		field = &tt->tt_field_thunkoff[i];
+		if (field->tf_typenum == ~0)
+			continue;
+		__setDyn(
+			field->tf_typenum, 
+			field->tf_fieldbitoff(ti->ti_diskoff));
+	}
+}
+
+static void typeinfo_print_path_helper(const struct type_info* ti)
+{
+	/* end of recursion? */
+	if (ti == NULL)
+		return;
+
+	typeinfo_print_path_helper(ti->ti_prev);
+
+	typeinfo_print(ti);
+	printf("/");
+}
+
+
+void typeinfo_print_path(const struct type_info* ti)
+{
+	typeinfo_print_path_helper(ti->ti_prev);
+	typeinfo_print(ti);
+}

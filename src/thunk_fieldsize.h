@@ -49,6 +49,16 @@ public:
 	const Type* getType(void) const { return t; }
 
 	void setThunkField(class ThunkField* tf) { tf_owner = tf; }
+
+	bool isConstant(void) const
+	{
+		if (getType() == NULL)
+			return true;
+
+		/* TODO-- need to be smarter here */
+		return false;
+	}
+
 protected:
 	const std::string getFCallName(void) const;
 

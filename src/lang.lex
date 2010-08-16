@@ -26,7 +26,7 @@
 
 #define IN_TOKEN_HEX(x)					\
 	do {						\
-		yylval.val = getLongHex(yytext);	\
+		yylval.val = getLongHex(yytext + 2);	\
 		return x;				\
 	} while (0)
 

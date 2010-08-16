@@ -1,7 +1,11 @@
 #include "thunk_field.h"
 #include "thunk_type.h"
 
+#include "runtime_interface.h"
+
 using namespace std;
+
+extern RTInterface	rt_glue;
 
 Expr* ThunkField::copyNextOffset(void) const
 {
@@ -13,12 +17,16 @@ Expr* ThunkField::copyNextOffset(void) const
 		ret = new AOPAdd(
 			t_fieldoff->copyFCall(),
 			t_size->copyFCall());
-	} else {
+	} else if (t_size->isConstant()) {
 		ret = new AOPAdd(
 			t_fieldoff->copyFCall(),
 			new AOPMul(
 				t_size->copyFCall(),
 				t_elems->copyFCall()));
+	} else {
+		ret = new AOPAdd(
+			t_fieldoff->copyFCall(),
+			rt_glue.computeArrayBits(this));
 	}
 
 	return ret;

@@ -30,6 +30,8 @@ int inode_table_block_count(ext2_sb sb)
 }
 
 type disk
+assert (? sb.s_blks_per_grp == get_block_size(sb)*8)
+assert (? sb.s_inos_per_grp == get_block_size(sb)*8)
 {
 	/* superblock is always located at byte offset 1024 from the beginning 
 	 * of the file, block device or partition formated with Ext2 */
@@ -52,7 +54,7 @@ type disk
 		ext2_indir_block	indir_blk;
 		ext2_biindir_block	biindir_blk;
 		ext2_triindir_block	triindir_blk;
-	}blocks[sb.s_blocks_c - from_base()/get_block_size(sb)];
+	}blocks[sb.s_blocks_c - (from_base_bits()/8)/get_block_size(sb)];
 }
 
 type ext2_indir_block
@@ -98,6 +100,7 @@ points_range(
 sum(free_block_c)
 sum(free_inode_c)
 sum(used_dir_c)
+assert(? sizeof_bytes(ext2_group_desc) == 32)
 {
 	u32	block_bmp;
 	u32	inode_bmp;
@@ -107,12 +110,12 @@ sum(used_dir_c)
 	u16	used_dir_c;
 	u16	pad;
 	u32	reserved[3];
-	assert_eq(from_base(), 8*32);
 }
 
 type ext2_sb
 sum(s_free_blocks_c)
 sum(s_free_inodes_c)
+assert(? sizeof_bytes(ext2_sb) == 1024)
 {
 	u32	s_inodes_c;
 	u32	s_blocks_c;
@@ -145,7 +148,6 @@ sum(s_free_inodes_c)
 
 	/* finally, padding */
 	align_bytes(1024);
-	assert_eq(from_base(), 8*1024);
 }
 
 uint num_direct_blocks(ext2_inode ino)

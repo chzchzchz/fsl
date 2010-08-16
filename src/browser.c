@@ -12,7 +12,6 @@
 #define INPUT_BUF_SZ	1024
 static char input_buf[INPUT_BUF_SZ];
 
-static void set_dyn_on_type(const struct type_info* ti);
 static void menu(struct type_info* cur);
 static bool handle_menu_choice(
 	struct type_info* cur,
@@ -20,56 +19,6 @@ static bool handle_menu_choice(
 
 static void select_field(struct type_info* cur, int field_num);
 static void select_pointsto(struct type_info* cur, int pt_idx);
-
-
-static void set_dyn_on_type(const struct type_info* ti)
-{
-	struct fsl_rt_table_type	*tt;
-	unsigned int			i;
-
-	if (ti->ti_typenum == ~0)
-		return;
-
-	__setDyn(ti->ti_typenum, ti->ti_diskoff);
-
-	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_field_c; i++) {
-		struct fsl_rt_table_field	*field;
-
-		field = &tt->tt_field_thunkoff[i];
-		if (field->tf_typenum == ~0)
-			continue;
-		__setDyn(
-			field->tf_typenum, 
-			field->tf_fieldbitoff(ti->ti_diskoff));
-	}
-}
-
-static void print_field(
-	const struct fsl_rt_table_field* field,
-	diskoff_t ti_diskoff)
-{
-	uint64_t			num_elems;
-	typesize_t			field_sz;
-	diskoff_t			field_off;
-
-	num_elems = field->tf_elemcount(ti_diskoff);
-	printf("%s", field->tf_fieldname);
-	if (num_elems > 1) {
-		printf("[%"PRIu64"]", num_elems);
-	}
-
-	field_off = field->tf_fieldbitoff(ti_diskoff);
-	field_sz = field->tf_typesize(ti_diskoff);
-
-	if (num_elems == 1 && field_sz <= 64) {
-		printf(" = %"PRIu64, __getLocal(field_off, field_sz));
-	} else
-		printf("@%"PRIu64"--%"PRIu64, 
-			field_off, field_off + field_sz*num_elems);
-
-	printf("\n");
-}
 
 static void select_pointsto(struct type_info* cur, int pt_idx)
 {
@@ -149,7 +98,7 @@ static bool handle_menu_choice(
 
 	if (choice == -1) {
 		/* dump all of current type */
-		dump_typeinfo_data(cur);
+		typeinfo_dump_data(cur);
 		return true;
 	}
 
@@ -179,11 +128,13 @@ static void menu(struct type_info* cur)
 		ssize_t				br;
 
 		printf("Current: ");
-		print_typeinfo(cur);
+		typeinfo_print(cur);
+		printf("\n");
+		typeinfo_print_path(cur);
+		printf("\n");
 
-		print_typeinfo_fields(cur);
-
-		print_typeinfo_pointsto(cur);
+		typeinfo_print_fields(cur);
+		typeinfo_print_pointsto(cur);
 
 		printf(">> ");
 		br = fscanf(stdin, "%d", &choice);

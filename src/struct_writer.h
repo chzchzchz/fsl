@@ -55,6 +55,13 @@ public:
 		out << '.' << fieldname << '=' << val;
 	}
 
+	void writeB(const std::string& fieldname, const bool is_true)
+	{
+		writeComma();
+		out << '.' << fieldname << '=' << ((is_true) ? "true" : "false");
+	}
+
+
 	void beginWrite(void) 
 	{
 		writeComma();

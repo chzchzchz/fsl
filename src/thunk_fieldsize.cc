@@ -56,9 +56,12 @@ ThunkFieldSize* ThunkFieldSize::copy(void) const
 bool ThunkFieldSize::genCode(void) const
 {
 	if (t == NULL) {
+		/* constant value, easy */
 		code_builder->genCode(
 			owner->getType(), getFCallName(), raw_expr);
 	} else {
+		/* passed parent offset, needs field offset to 
+		 * use type's sizeof operator .. */
 		const ThunkType		*tt;
 		const ThunkFieldOffset	*tf_off;
 		Expr			*gen_expr;

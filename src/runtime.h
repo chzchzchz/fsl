@@ -64,6 +64,10 @@ struct fsl_rt_table_type
 struct fsl_rt_table_field
 {
 	const char	*tf_fieldname;
+
+	/* size does not change in field (useful for arrays.) */
+	bool		tf_constsize;	
+
 	thunkf_t	tf_fieldbitoff;
 	typenum_t	tf_typenum;
 	elemsf_t	tf_elemcount;
@@ -94,6 +98,9 @@ extern unsigned int			fsl_rt_origin_typenum;
 extern char				fsl_rt_fsname[];
 
 /* exposed to llvm */
+typesize_t __computeArrayBits(
+	typenum_t elem_type, diskoff_t off, uint64_t num_elems);
+
 uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits);
 uint64_t __getLocalArray(
 	uint64_t idx, uint64_t bits_in_type, 

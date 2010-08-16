@@ -8,8 +8,6 @@ using namespace std;
 
 extern const_map		constants;
 
-FCall	from_base_fc(new Id("from_base"), new ExprList());
-
 void SymbolTable::print(ostream& out) const
 {
 	sym_map::const_iterator	it;

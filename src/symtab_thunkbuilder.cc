@@ -11,7 +11,8 @@ extern type_map			types_map;
 extern ctype_map		ctypes_map;
 extern const_map		constants;
 extern void			dump_ptypes();
-extern FCall			from_base_fc;
+static FCall			from_base_fc(new Id("from_base_bits"), new ExprList());
+
 extern RTInterface		rt_glue;
 
 SymbolTable* SymTabThunkBuilder::getSymTab(
@@ -604,13 +605,11 @@ ThunkField* SymTabThunkBuilder::setBits(const TypeFunc* tf)
 		new ThunkFieldOffset(
 			cur_thunk_type,
 			"__set_bits_"+int_to_string(field_count),
-			copyCurrentOffset()),
+			(args->front())->simplify()),
 		new ThunkFieldSize(
 			cur_thunk_type,
 			"__set_bits_"+int_to_string(field_count),
-			new AOPSub(
-				(args->front())->simplify(),
-				copyCurrentOffset())),
+			new Number(0)),
 		new ThunkElements(
 			cur_thunk_type,
 			"__set_bits"+int_to_string(field_count),
@@ -647,15 +646,13 @@ ThunkField* SymTabThunkBuilder::setBytes(const TypeFunc* tf)
 		new ThunkFieldOffset(
 			cur_thunk_type,
 			"__set_bytes_"+int_to_string(field_count),
-			copyCurrentOffset()),
+			new AOPMul(
+				(args->front())->simplify(),
+				new Number(8))),
 		new ThunkFieldSize(
 			cur_thunk_type,
 			"__set_bytes_"+int_to_string(field_count),
-			new AOPSub(
-				new AOPMul(
-					(args->front())->simplify(),
-					new Number(8)),
-				copyCurrentOffset())),
+			new Number(0)),
 		new ThunkElements(
 			cur_thunk_type,
 			"__set_bytes_"+int_to_string(field_count),
@@ -713,7 +710,7 @@ ThunkField* SymTabThunkBuilder::alignBytes(const TypeFunc* tf)
 			cur_thunk_type,
 			"__align_bytes_"+int_to_string(field_count),
 			1)
-	);		
+	);
 
 done:
 	delete args;

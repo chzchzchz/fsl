@@ -105,31 +105,11 @@ static void scan_type_strong_types(const struct type_info* ti)
 	}
 }
 
-static void set_dyn_on_type(const struct type_info* ti)
-{
-	struct fsl_rt_table_type	*tt;
-	unsigned int			i;
-
-	__setDyn(ti->ti_typenum, ti->ti_diskoff);
-
-	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_field_c; i++) {
-		struct fsl_rt_table_field	*field;
-
-		field = &tt->tt_field_thunkoff[i];
-		if (field->tf_typenum == ~0)
-			continue;
-		__setDyn(
-			field->tf_typenum, 
-			field->tf_fieldbitoff(ti->ti_diskoff));
-	}
-}
-
 static void scan_type(const struct type_info* ti)
 {
 	unsigned int i;
 
-	set_dyn_on_type(ti);
+	typeinfo_set_dyn(ti);
 
 	print_indent(ti->ti_depth-1);
 	printf("scanning: %s (%d usertypes)\n", 

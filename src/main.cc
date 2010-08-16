@@ -285,6 +285,12 @@ static bool apply_consts_to_consts(void)
 		new_expr = expr_resolve_consts(constants, p.second);
 
 		if (*old_expr != new_expr) {
+			cerr << "UPDATED: ";
+			old_expr->print(cerr);
+			cerr << " to ";
+			new_expr->print(cerr);
+			cerr << endl;
+
 			constants[p.first] = new_expr;
 			updated = true;
 		}
@@ -294,47 +300,6 @@ static bool apply_consts_to_consts(void)
 
 	return updated;
 }
-
-#define NUM_RUNTIME_FUNCS	10
-/* TODO: __max should be a proper vararg function */
-const char*	f_names[] = {	
-	"__getLocal", "__getLocalArray", "__getDyn", "fsl_fail", 
-	"__max2", "__max3", "__max4", "__max5",
-	"__max6", "__max7"};
-int	f_arg_c[] = {
-	2,4,1,0, 
-	2,3,4,5,
-	6, 7};
-
-/**
- * insert run-time functions into the llvm module so that they resolve
- * when called..
- */
-static void load_runtime_funcs(void)
-{
-	for (int i = 0; i < NUM_RUNTIME_FUNCS; i++) {
-		vector<const llvm::Type*>	args;
-		llvm::FunctionType		*ft;
-		llvm::Function			*f;
-
-		args = vector<const llvm::Type*>(
-			f_arg_c[i], 
-			llvm::Type::getInt64Ty(llvm::getGlobalContext()));
-
-		ft = llvm::FunctionType::get(
-			llvm::Type::getInt64Ty(llvm::getGlobalContext()),
-			args,
-			false);
-	
-		f = llvm::Function::Create(
-			ft,
-			llvm::Function::ExternalLinkage, 
-			f_names[i],
-			code_builder->getModule());
-	}
-}
-
-
 
 static void gen_thunk_code(void)
 {
@@ -406,7 +371,7 @@ int main(int argc, char *argv[])
 	yyparse();
 
 	/* create prototypes for functions provided by the run-time */
-	load_runtime_funcs();
+	rt_glue.loadRunTimeFuncs(code_builder);
 
 	/* load ptypes in */
 	cout << "Loading ptypes" << endl;

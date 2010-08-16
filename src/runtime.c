@@ -139,6 +139,33 @@ uint64_t fsl_fail(void)
 	exit(-1);
 }
 
+/* compute the number of bits in a given array */
+/* TODO: need a way to handle parent type values if we're computing 
+ * some sort of parameterized type.. */
+typesize_t __computeArrayBits(
+	typenum_t elem_type,
+	diskoff_t off,
+	uint64_t num_elems)
+{
+	unsigned int	i;
+	diskoff_t	cur_off;
+	typesize_t	total_bits;
+
+	assert (elem_type < fsl_rt_table_entries);
+
+	total_bits = 0;
+	cur_off = off;
+	for (i = 0; i < num_elems; i++) {
+		typesize_t	cur_size;
+
+		cur_size = fsl_rt_table[elem_type].tt_size(cur_off);
+		total_bits += cur_size;
+		cur_off += cur_size;
+	}
+
+	return total_bits;
+}
+
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 {
@@ -201,3 +228,5 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	__FROM_OS_BDEV_BLOCK_BYTES = 512;
 	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
 }
+
+

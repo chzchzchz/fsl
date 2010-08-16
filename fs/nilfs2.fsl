@@ -105,24 +105,6 @@ segnum_t block_to_segnum(blocknum_t blocknr)
 }
 
 
-blocknum_t disk_off_to_block(u64 bit_offset_into_disk)
-{
-	u64	block_num;
-	u64	block_sz;
-
-	block_sz = get_block_size(nilfs_sb);
-	block_num = (bit_offset_into_disk / 8) / block_sz;
-	
-	return block_num;
-}
-
-segnum_t disk_off_to_seg(u64 bit_offset_into_disk)
-{
-	u64	block_num;
-	block_num = disk_off_to_block(bit_offset_into_disk);
-	return block_to_segnum(block_num);
-}
-
 type disk
 {
 	skip_bytes(NILFS_SB_OFFSET_BYTES);
@@ -131,7 +113,10 @@ type disk
 	/* no idea what would be here */
 
 	set_bytes(nsb.s_first_data_block * get_block_size(nsb));
+
+	/* first segment does not take up entire segment */
 	nilfs_segment		first_seg;
+
 	set_bytes(nilfs_segblock_first(1) * get_block_size(nsb));
 	nilfs_segment		more_segs[nsb.s_nsegments];
 
@@ -143,7 +128,8 @@ type nilfs_segment
 {
 	nilfs_segment_summary	seg_sum;
 	/* XXX more needs to be done here */
-	nilfs_block		seg_blocks[seg_sum.ss_nblocks-1];
+	nilfs_block		seg_blocks[seg_sum.ss_header.ss_nblocks-1];
+/* XXX -- FILL OUT BOGUS BLOCKS */
 //	assert_le(
 //		from_base(), 
 //		8*get_block_size(nilfs_sb)*nilfs_sb.s_blocks_per_segment);
@@ -186,7 +172,8 @@ type nilfs_sr {
 
 
 type nilfs_sb 
-assert_eq(s_magic, NILFS_SUPER_MAGIC)
+assert(? s_magic == NILFS_SUPER_MAGIC)
+assert(? __FROM_OS_BDEV_BLOCK_BYTES == sizeof_bytes(nilfs_sb))
 {
 	u32	s_rev_level;		/* Revision level */
 	u16	s_minor_rev_level;	/* minor revision level */
@@ -255,12 +242,19 @@ type nilfs_dir_entry {
 	u8	pad;
 }
 
-type nilfs_finfo {
+type nilfs_finfo 
+assert( ? fi_nblocks >= fi_ndatablk )
+{
 	u64 		fi_ino;			/* inode number */
 	u64 		fi_cno;			/* checkpoint number */
 	u32 		fi_nblocks;		/* number of blocks */
 	u32 		fi_ndatablk;		/* number of file data blocks */
-	/* XXX array of virtual block numbers */
+
+	/* first, file_data_binfo */
+	nilfs_binfo_v	fi_data_binfo[fi_ndatablk];
+
+	/* finally, file_node_binfo */
+	u64		fi_vblocknr[fi_nblocks - fi_ndatablk];
 }
 
 /* information for the block to which a virtual block number is assigned */
@@ -268,7 +262,6 @@ type nilfs_binfo_v {
 	u64 bi_vblocknr;	/* virtual block number */
 	u64 bi_blkoff;		/* block offset */
 }
-
 /* information for the block which belongs to the DAT file */
 type nilfs_binfo_dat {
 	u64	bi_blkoff;	/* block offset */
@@ -292,8 +285,10 @@ const NILFS_SS_SR	= (1 << 2);	/* has super root */
 const NILFS_SS_SYNDT	= (1 << 3);	/* includes data only updates */
 const NILFS_SS_GC	= (1 << 4);	/* segment written for cleaner op */
 
-type nilfs_segment_summary 
-points(get_segment(ss_next))
+type nilfs_segment_summary_header
+assert_eq(
+	sizeof_bytes(nilfs_segment_summary_header),
+	ss_bytes)
 {
 	u32		ss_datasum;		/* checksum of data */
 	u32		ss_sumsum;		/* checksum of seg sum */
@@ -307,7 +302,13 @@ points(get_segment(ss_next))
 	u32		ss_nfinfo;		/* number of finfo entries */
 	u32		ss_sumbytes;		/* size of segment summary */
 	u32		ss_pad;			/* ... */
-	nilfs_finfo	ss_finfo[ss_nfinfo];
+}
+
+type nilfs_segment_summary 
+points(get_segment(ss_header.ss_next))
+{
+	nilfs_segment_summary_header	ss_header;
+	nilfs_finfo			ss_finfo[ss_header.ss_nfinfo];
 	align_bytes(get_block_size(disk.nsb));		/* takes up a block */
 }
 

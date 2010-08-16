@@ -39,8 +39,10 @@ struct type_info* typeinfo_alloc_pointsto(
 	unsigned int		ti_pointsto_elem,
 	struct type_info*	ti_prev);
 
-void typeinfo_print_logical(const struct type_info* cur);
+void typeinfo_print_name(void);
+void typeinfo_print_path(const struct type_info* cur);
 void typeinfo_print_pointsto(const struct type_info* cur);
 void typeinfo_dump_data(const struct type_info* ti);
+void typeinfo_set_dyn(const struct type_info* ti);
 
 #endif
