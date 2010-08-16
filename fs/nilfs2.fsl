@@ -131,10 +131,40 @@ assert(? seg_sum.ss_header.ss_magic == NILFS_SEGSUM_MAGIC)
 	nilfs_segment_summary	seg_sum;
 	/* XXX more needs to be done here */
 	nilfs_block		seg_blocks[seg_sum.ss_header.ss_nblocks-1];
-/* XXX -- FILL OUT BOGUS BLOCKS */
-//	assert_le(
-//		from_base(), 
-//		8*get_block_size(nilfs_sb)*nilfs_sb.s_blocks_per_segment);
+}
+
+const NILFS_SEGSUM_MAGIC = 0x1eaffa11;
+/* flags for the segment summary */
+const NILFS_SS_LOGBGN	= (1 << 0);	/* begins a logical segment */
+const NILFS_SS_LOGEND	= (1 << 1);	/* ends a logical segment */
+const NILFS_SS_SR	= (1 << 2);	/* has super root */
+const NILFS_SS_SYNDT	= (1 << 3);	/* includes data only updates */
+const NILFS_SS_GC	= (1 << 4);	/* segment written for cleaner op */
+
+type nilfs_segment_summary_header
+assert(? ss_magic == NILFS_SEGSUM_MAGIC)
+assert(? sizeof_bytes(nilfs_segment_summary_header) == ss_bytes)
+{
+	u32		ss_datasum;		/* checksum of data */
+	u32		ss_sumsum;		/* checksum of seg sum */
+	u32		ss_magic;		/* magic number */
+	u16		ss_bytes;		/* size of structure */
+	u16		ss_flags;		/* ... */
+	u64		ss_seq;			/* sequence number */
+	u64		ss_create;		/* creation timestamp */
+	blocknum_t	ss_next;		/* next segment */
+	u32		ss_nblocks;		/* number of blocks in seg */
+	u32		ss_nfinfo;		/* number of finfo entries */
+	u32		ss_sumbytes;		/* size of segment summary */
+	u32		ss_pad;			/* ... */
+}
+
+type nilfs_segment_summary 
+points(get_segment(ss_header.ss_next))
+{
+	nilfs_segment_summary_header	ss_header;
+	nilfs_finfo			ss_finfo[ss_header.ss_nfinfo];
+	align_bytes(get_block_size(disk.nsb));		/* takes up a block */
 }
 
 type nilfs_block
@@ -282,39 +312,6 @@ type nilfs_binfo {
 	} bi;
 }
 
-const NILFS_SEGSUM_MAGIC = 0x1eaffa11;
-/* flags for the segment summary */
-const NILFS_SS_LOGBGN	= (1 << 0);	/* begins a logical segment */
-const NILFS_SS_LOGEND	= (1 << 1);	/* ends a logical segment */
-const NILFS_SS_SR	= (1 << 2);	/* has super root */
-const NILFS_SS_SYNDT	= (1 << 3);	/* includes data only updates */
-const NILFS_SS_GC	= (1 << 4);	/* segment written for cleaner op */
-
-type nilfs_segment_summary_header
-assert(? ss_magic == NILFS_SEGSUM_MAGIC)
-assert(? sizeof_bytes(nilfs_segment_summary_header) == ss_bytes)
-{
-	u32		ss_datasum;		/* checksum of data */
-	u32		ss_sumsum;		/* checksum of seg sum */
-	u32		ss_magic;		/* magic number */
-	u16		ss_bytes;		/* size of structure */
-	u16		ss_flags;		/* ... */
-	u64		ss_seq;			/* sequence number */
-	u64		ss_create;		/* creation timestamp */
-	segnum_t	ss_next;		/* next segment */
-	u32		ss_nblocks;		/* number of blocks in seg */
-	u32		ss_nfinfo;		/* number of finfo entries */
-	u32		ss_sumbytes;		/* size of segment summary */
-	u32		ss_pad;			/* ... */
-}
-
-type nilfs_segment_summary 
-points(get_segment(ss_header.ss_next))
-{
-	nilfs_segment_summary_header	ss_header;
-	nilfs_finfo			ss_finfo[ss_header.ss_nfinfo];
-	align_bytes(get_block_size(disk.nsb));		/* takes up a block */
-}
 
 /* btree flags */
 const NILFS_BTREE_NODE_ROOT = 0x01;

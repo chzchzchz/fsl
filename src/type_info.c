@@ -144,7 +144,7 @@ void typeinfo_print_pointsto(const struct type_info* ti)
 	if (tt->tt_pointsto_c > 0)
 		printf("Points-To:\n");
 	for (i = 0; i < tt->tt_pointsto_c; i++) {
-		printf("%02d. ((%s))\n", 
+		printf("%02d. (%s)\n", 
 			tt->tt_fieldall_c + i,
 			tt_by_num(tt->tt_pointsto[i].pt_type_dst)->tt_name);
 	}

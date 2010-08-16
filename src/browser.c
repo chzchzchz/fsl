@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <assert.h>
 #include <stdbool.h>
 
@@ -17,8 +18,40 @@ static bool handle_menu_choice(
 	struct type_info* cur,
 	int choice);
 
+static int get_sel_elem(int min_v, int max_v);
 static void select_field(struct type_info* cur, int field_num);
 static void select_pointsto(struct type_info* cur, int pt_idx);
+static void select_pointsto_range(struct type_info* cur, int pt_idx);
+
+static void select_pointsto_range(struct type_info* cur, int pt_idx)
+{
+	struct fsl_rt_table_pointsto	*pt;
+	struct type_info		*ti_next;
+	diskoff_t			pt_off;
+	int				min_idx, max_idx;
+	int				pt_elem_idx;
+
+	pt = &(tt_by_ti(cur)->tt_pointsto[pt_idx]);
+	assert (pt->pt_single == NULL);
+
+	/* get the range element idx */
+	min_idx = pt->pt_min(cur->ti_diskoff);
+	max_idx = pt->pt_max(cur->ti_diskoff);
+	pt_elem_idx = get_sel_elem(min_idx, max_idx);
+	if (pt_elem_idx == INT_MIN)
+		return;
+
+	/* jump to it */
+	pt_off = pt->pt_range(cur->ti_diskoff, pt_elem_idx);
+	ti_next = typeinfo_alloc_pointsto(
+		pt->pt_type_dst, pt_off, pt_idx, pt_elem_idx, cur);
+	if (ti_next == NULL)
+		return;
+
+	menu(ti_next);
+
+	typeinfo_free(ti_next);
+}
 
 static void select_pointsto(struct type_info* cur, int pt_idx)
 {
@@ -28,7 +61,7 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 
 	pt = &(tt_by_ti(cur)->tt_pointsto[pt_idx]);
 	if (pt->pt_single == NULL) {
-		printf("XXX: only single points-to supported\n");
+		select_pointsto_range(cur, pt_idx);
 		return;
 	}
 
@@ -42,6 +75,26 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 	menu(ti_next);
 
 	typeinfo_free(ti_next);
+}
+
+static int get_sel_elem(int min_v, int max_v)
+{
+	int	sel_elem;
+
+	assert (min_v > INT_MIN);
+	assert (max_v < INT_MAX);
+
+	sel_elem = INT_MIN;
+	while (sel_elem < min_v || sel_elem > max_v) {
+		ssize_t	br;
+
+		printf("Which element of [%"PRIi32",%"PRIi32"]?\n>> ", min_v, max_v);
+		br = fscanf(stdin, "%d", &sel_elem);
+		if (br < 0)
+			return INT_MIN;
+	}
+
+	return sel_elem;
 }
 
 static void select_field(struct type_info* cur, int field_idx)
@@ -61,16 +114,11 @@ static void select_field(struct type_info* cur, int field_idx)
 	next_diskoff = field->tf_fieldbitoff(cur->ti_diskoff);
 
 	if (num_elems > 1) {
-		int		sel_elem;
-		ssize_t		br;
+		int	sel_elem;
 
-		sel_elem = num_elems + 1;
-		while (sel_elem >= num_elems) {
-			printf("Which element? (of %"PRIu64")\n>> ", num_elems);
-			br = fscanf(stdin, "%d", &sel_elem);
-			if (br < 0 || sel_elem < 0)
-				return;
-		}
+		sel_elem = get_sel_elem(0, num_elems-1);
+		if (sel_elem < INT_MIN)
+			return;
 
 		if (field->tf_constsize == false) {
 			typesize_t	array_off;

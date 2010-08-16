@@ -98,7 +98,7 @@ type bpb_32 {
 }
 
 type bpb
-know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb)) 
+//assert (? is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb))
 {
 	u8		jmp[3];
 	u8		oem_name[8];
@@ -114,7 +114,7 @@ know_xor (is_fat12(bpb), is_fat16(bpb), is_fat32(bpb))
 	u16		num_heads;
 	u32		hidden_sec;
 	u32		total_sect32;
-	assert_eq (from_base_bits(), 36*8);
+//	assert_eq (from_base_bits(), 36*8);
 	if (get_fat_type(bpb) == FAT_TYPE_FAT32) {
 		bpb_32	priv32;
 	} else {
