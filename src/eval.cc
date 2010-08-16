@@ -20,6 +20,7 @@ extern RTInterface	rt_glue;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
 static Expr* eval_rewrite_sizeof_bits(const EvalCtx& ectx, const FCall* fc);
+static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits);
 
 class ExprRewriteConsts : public ExprRewriteAll
 {
@@ -95,9 +96,13 @@ public:
 		
 		if (fc->getName() == "sizeof_bits") {
 			Expr	*ret;
-			ret = eval_rewrite_sizeof_bits(ectx, fc);
+			ret = eval_rewrite_sizeof(ectx, fc, true);
 			return ret;
-		} 
+		} else if (fc->getName() == "sizeof_bytes") {
+			Expr*	ret;
+			ret = eval_rewrite_sizeof(ectx, fc, false);
+			return ret;
+		}	
 
 		return ExprRewriteAll::visit(fc);
 	}
@@ -119,7 +124,7 @@ Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 	return erc.apply(cur_expr);
 }
 
-static Expr* eval_rewrite_sizeof_bits(const EvalCtx& ectx, const FCall* fc)
+static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits)
 {
 	const ExprList			*exprs;
 	const SymbolTable		*st;
@@ -168,6 +173,11 @@ static Expr* eval_rewrite_sizeof_bits(const EvalCtx& ectx, const FCall* fc)
 		ret_size,
 		rt_glue.getThunkArg(),
 		new Number(0));
+
+	if (bits == false) {
+		/* convert bits to bytes */
+		ret_size = new AOPDiv(ret_size, new Number(8));
+	}
 
 	return ret_size;
 }

@@ -9,6 +9,7 @@
 #include "symtab.h"
 #include "eval.h"
 #include "code_builder.h"
+#include "asserts.h"
 #include "points_to.h"
 #include "table_gen.h"
 #include "runtime_interface.h"
@@ -35,6 +36,8 @@ deftype_map		deftypes_map;
 CodeBuilder		*code_builder;
 pointing_list		points_list;
 pointing_map		points_map;
+assert_map		asserts_map;
+assert_list		asserts_list;
 RTInterface		rt_glue;
 
 
@@ -328,7 +331,6 @@ static void gen_thunk_proto(void)
 
 static void gen_points_to(void)
 {
-	
 	for (	type_list::const_iterator it = types_list.begin();
 		it != types_list.end();
 		it++)
@@ -343,6 +345,25 @@ static void gen_points_to(void)
 		points_list.push_back(points);
 		points_map[t->getName()] = points;
 	}
+}
+
+static void gen_asserts(void)
+{
+	for (	type_list::const_iterator it = types_list.begin();
+		it != types_list.end();
+		it++)
+	{
+		const Type	*t;
+		Asserts		*asserts;
+		
+		t = *it;
+		asserts = new Asserts(t);
+		asserts->genProtos();
+		asserts->genCode();
+		asserts_list.push_back(asserts);
+		asserts_map[t->getName()] = asserts;
+	}
+
 }
 
 int main(int argc, char *argv[])
@@ -401,6 +422,9 @@ int main(int argc, char *argv[])
 
 	cout << "Generating points-to functions" << endl;
 	gen_points_to();
+
+	cout << "Generating assertions" << endl;
+	gen_asserts();
 
 	cout << "Writing out module's code" << endl;
 	code_builder->write(llvm_fname);

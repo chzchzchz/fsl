@@ -11,6 +11,7 @@
 #include "symtab.h"
 #include "eval.h"
 #include "points_to.h"
+#include "asserts.h"
 #include "table_gen.h"
 #include "thunk_fieldoffset_cond.h"
 
@@ -21,6 +22,8 @@ extern type_map			types_map;
 extern const_map		constants;
 extern pointing_list		points_list;
 extern pointing_map		points_map;
+extern assert_map		asserts_map;
+extern assert_list		asserts_list;
 
 using namespace std;
 
@@ -129,7 +132,8 @@ void TableGen::genInstanceType(const Type *t)
 	StructWriter	sw(out);
 	SymbolTable	*st, *st_all, *st_types;
 	FCall		*size_fc;
-	unsigned int	pointsto_num;
+	unsigned int	pointsto_count;
+	unsigned int	assert_count;
 
 	st = t->getSymsByUserTypeStrong();
 	st_all = t->getSymsStrongOrConditional();
@@ -138,14 +142,20 @@ void TableGen::genInstanceType(const Type *t)
 	assert (st != NULL);
 
 	size_fc = st->getThunkType()->getSize()->copyFCall();
-	pointsto_num = points_map[t->getName()]->getNumPointing();
+	pointsto_count = points_map[t->getName()]->getNumPointing();
+	assert_count = asserts_map[t->getName()]->getNumAsserts();
 
 	sw.writeStr("tt_name", t->getName());
 	sw.write("tt_size", size_fc->getName());
 	sw.write("tt_field_c", st->size());
 	sw.write("tt_field_thunkoff", "__rt_tab_thunks_" + t->getName());
-	sw.write("tt_pointsto_c", pointsto_num);
+	
+	sw.write("tt_pointsto_c", pointsto_count);
 	sw.write("tt_pointsto", "__rt_tab_pointsto_" + t->getName());
+
+	sw.write("tt_assert_c", assert_count);
+	sw.write("tt_assert", "__rt_tab_asserts_" + t->getName());
+
 	sw.write("tt_fieldall_c", st_all->size());
 	sw.write("tt_fieldall_thunkoff", "__rt_tab_thunksall_" + t->getName());
 
@@ -272,6 +282,12 @@ void TableGen::genInstancePointsTo(const PointsTo* pto)
 	sw.write("pt_max", "NULL");
 }
 
+void TableGen::genInstanceAssertion(const Assertion* as)
+{
+	StructWriter	sw(out);
+	sw.write("as_assertf", as->getFCallName());
+}
+
 void TableGen::genInstancePointsRange(const PointsRange* ptr)
 {
 	StructWriter	sw(out);
@@ -281,6 +297,19 @@ void TableGen::genInstancePointsRange(const PointsRange* ptr)
 	sw.write("pt_range", ptr->getFCallName());
 	sw.write("pt_min", ptr->getMinFCallName());
 	sw.write("pt_max", ptr->getMaxFCallName());
+}
+
+void TableGen::genExternsAsserts(const Asserts* as)
+{
+	const assertion_list*	asl = as->getAsserts();
+
+	for (	assertion_list::const_iterator it = asl->begin();
+		it != asl->end();
+		it++)
+	{
+		const Assertion*	assertion = *it;
+		printExternFunc(assertion->getFCallName(), "bool", 1);
+	}
 }
 
 void TableGen::genExternsPoints(const Points* pt)
@@ -346,6 +375,34 @@ void TableGen::genPointsTables(void)
 	}
 }
 
+void TableGen::genAssertsTables(void)
+{
+	for (	assert_list::const_iterator it = asserts_list.begin();
+		it != asserts_list.end();
+		it++)
+	{
+		genExternsAsserts(*it);
+		genAssertsTable(*it);
+	}
+}
+
+void TableGen::genAssertsTable(const Asserts* as)
+{
+	StructWriter	sw(
+		out,
+		"fsl_rt_table_assert",
+		"__rt_tab_asserts_" + as->getType()->getName() + "[]",
+		true);
+	const assertion_list	*al = as->getAsserts();
+
+	for (	assertion_list::const_iterator it = al->begin();
+		it != al->end();
+		it++)
+	{
+		sw.beginWrite();
+		genInstanceAssertion(*it);
+	}
+}
 
 void TableGen::genScalarConstants(void)
 {
@@ -379,6 +436,7 @@ void TableGen::gen(const string& fname)
 	genExternsFields();
 	genUserFieldTables();
 	genPointsTables();
+	genAssertsTables();
 
 	genTable_fsl_rt_table();
 

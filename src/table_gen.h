@@ -19,6 +19,9 @@ private:
 	void genPointsTables(void);
 	void genPointsTable(const Points* pt);
 
+	void genAssertsTables(void);
+	void genAssertsTable(const Asserts* as);
+
 	void genTable_fsl_rt_table(void);
 	void genExternsFieldsByType(const Type *t);
 	void genExternsFields(void);
@@ -52,7 +55,9 @@ private:
 	void genInstancePointsTo(const PointsTo* pto);
 	void genInstancePointsRange(const PointsRange* ptr);
 
+	void genInstanceAssertion(const Assertion* assertion);
 
+	void genExternsAsserts(const Asserts* as);
 	void genExternsPoints(const Points* pt);
 	void genScalarConstants(void);
 

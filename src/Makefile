@@ -22,6 +22,7 @@ OBJS=	parser.o		\
 	func_args.o		\
 	preamble.o		\
 	points.o		\
+	asserts.o		\
 	runtime_interface.o		
 
 RTOBJS= runtime.o type_info.o

@@ -31,6 +31,7 @@ typedef uint64_t(*points_maxf_t)(diskoff_t);
 typedef diskoff_t(*points_rangef_t)(diskoff_t, uint64_t /* idx */);
 typedef diskoff_t(*pointsf_t)(diskoff_t);
 typedef bool(*condf_t)(diskoff_t);
+typedef bool(*assertf_t)(diskoff_t);
 
 
 struct fsl_rt_thunk_var 
@@ -50,6 +51,9 @@ struct fsl_rt_table_type
 
 	unsigned int			tt_pointsto_c;
 	struct fsl_rt_table_pointsto	*tt_pointsto;
+
+	unsigned int			tt_assert_c;
+	struct fsl_rt_table_assert	*tt_assert;
 
 	/* non-union fields */
 	unsigned int			tt_fieldall_c;
@@ -85,6 +89,10 @@ struct fsl_rt_table_pointsto
 	points_maxf_t	pt_max;
 };
 
+struct fsl_rt_table_assert
+{
+	assertf_t	as_assertf;
+};
 
 /* exported variables from types module.. */
 extern uint64_t __FROM_OS_BDEV_BYTES;
