@@ -106,7 +106,6 @@ segnum_t block_to_segnum(blocknum_t blocknr)
 	return blocknr / nilfs_sb.s_blocks_per_segment;
 }
 
-
 type disk
 {
 	skip_bytes(NILFS_SB_OFFSET_BYTES);
@@ -127,6 +126,7 @@ type disk
 }
 
 type nilfs_segment
+assert(? seg_sum.ss_header.ss_magic == NILFS_SEGSUM_MAGIC)
 {
 	nilfs_segment_summary	seg_sum;
 	/* XXX more needs to be done here */
@@ -177,7 +177,6 @@ type nilfs_sr {
 
 type nilfs_sb 
 assert(? s_magic == NILFS_SUPER_MAGIC)
-assert(? __FROM_OS_BDEV_BLOCK_BYTES == sizeof_bytes(nilfs_sb))
 {
 	u32	s_rev_level;		/* Revision level */
 	u16	s_minor_rev_level;	/* minor revision level */
@@ -233,8 +232,6 @@ assert(? __FROM_OS_BDEV_BLOCK_BYTES == sizeof_bytes(nilfs_sb))
 	u32	s_c_block_max;		/* Threshold of data amount for
 					   the segment contypeion */
 	u32	s_reserved[192];	/* padding to the end of the block */
-
-//	assert_ge(__FROM_OS_BDEV_BLOCK_BYTES, from_base()*8);
 }
 
 type nilfs_dir_entry {
@@ -304,7 +301,7 @@ assert(? sizeof_bytes(nilfs_segment_summary_header) == ss_bytes)
 	u16		ss_flags;		/* ... */
 	u64		ss_seq;			/* sequence number */
 	u64		ss_create;		/* creation timestamp */
-	u64		ss_next;		/* next segment */
+	segnum_t	ss_next;		/* next segment */
 	u32		ss_nblocks;		/* number of blocks in seg */
 	u32		ss_nfinfo;		/* number of finfo entries */
 	u32		ss_sumbytes;		/* size of segment summary */

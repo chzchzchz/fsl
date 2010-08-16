@@ -36,6 +36,8 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 
 	ti_next = typeinfo_alloc_pointsto(
 		pt->pt_type_dst, pt_off, pt_idx, 0, cur);
+	if (ti_next == NULL)
+		return;
 		
 	menu(ti_next);
 
@@ -88,6 +90,8 @@ static void select_field(struct type_info* cur, int field_idx)
 
 	ti_next = typeinfo_alloc(
 		field->tf_typenum, next_diskoff, field_idx, cur);
+	if (ti_next == NULL)
+		return;
 		
 	menu(ti_next);
 
@@ -159,7 +163,13 @@ void tool_entry(void)
 	struct type_info	*origin_ti;
 
 	printf("Welcome to fsl browser. Browsing \"%s\"\n", fsl_rt_fsname);
+
 	origin_ti = typeinfo_alloc(fsl_rt_origin_typenum, 0, 0, NULL);
+	if (origin_ti == NULL) {
+		printf("Could not open origin type\n");
+		return;
+	}
+
 	menu(origin_ti);
 	typeinfo_free(origin_ti);
 	printf("Have a nice day.\n");

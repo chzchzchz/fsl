@@ -9,6 +9,27 @@
 static char hexmap[] = {"0123456789abcdef"};
 
 
+static bool verify_asserts(const struct type_info *ti)
+{
+	struct fsl_rt_table_type	*tt;
+	unsigned int			i;
+
+	assert (ti != NULL);
+
+	tt = tt_by_ti(ti);
+	for (i = 0; i < tt->tt_assert_c; i++) {
+		const struct fsl_rt_table_assert	*as;
+		as = &tt->tt_assert[i];
+		if (as->as_assertf(ti->ti_diskoff) == false) {
+			printf("!!! !!!Assert #%d failed on type %s!!! !!!\n", 
+				i, tt->tt_name);
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static void print_field(
 	const struct type_info		*ti,
 	const struct fsl_rt_table_field	*field)
@@ -185,6 +206,10 @@ struct type_info* typeinfo_alloc_pointsto(
 	ret->ti_prev = ti_prev;
 
 	typeinfo_set_dyn(ret);
+	if (verify_asserts(ret) == false) {
+		typeinfo_free(ret);
+		return NULL;
+	}
 
 	return ret;
 }
@@ -239,6 +264,10 @@ struct type_info* typeinfo_alloc(
 	ret->ti_prev = ti_prev;
 	
 	typeinfo_set_dyn(ret);
+	if (verify_asserts(ret) == false) {
+		typeinfo_free(ret);
+		return NULL;
+	}
 
 	return ret;
 
