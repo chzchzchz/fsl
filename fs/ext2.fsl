@@ -40,9 +40,6 @@ assert (? sb.s_inos_per_grp == get_block_size(sb)*8)
 
 	align_bytes(get_block_size(sb));
 
-	assert_le(sb.s_blks_per_grp, get_block_size(sb) * 8);
-	assert_le(sb.s_inos_per_grp, get_block_size(sb) * 8);
-
 	ext2_group_desc	grp_desc_table[get_group_count(sb)];
 	align_bytes(get_block_size(sb));
 	

@@ -286,9 +286,7 @@ const NILFS_SS_SYNDT	= (1 << 3);	/* includes data only updates */
 const NILFS_SS_GC	= (1 << 4);	/* segment written for cleaner op */
 
 type nilfs_segment_summary_header
-assert_eq(
-	sizeof_bytes(nilfs_segment_summary_header),
-	ss_bytes)
+assert(? sizeof_bytes(nilfs_segment_summary_header) == ss_bytes)
 {
 	u32		ss_datasum;		/* checksum of data */
 	u32		ss_sumsum;		/* checksum of seg sum */
