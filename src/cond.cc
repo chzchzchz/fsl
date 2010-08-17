@@ -138,9 +138,9 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	builder->CreateBr(bb_merge);
 
 	builder->SetInsertPoint(bb_else);
+	rhs_v = cond_codeGen(ctx, rhs);
 
 	builder->CreateBr(bb_merge);
-	rhs_v = cond_codeGen(ctx, rhs);
 	builder->SetInsertPoint(bb_merge);
 
 	/* short-circuit */
