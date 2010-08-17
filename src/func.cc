@@ -100,7 +100,8 @@ Value* FuncDecl::codeGen(const EvalCtx* ectx) const
 
 Value* FuncAssign::codeGen(const EvalCtx* ectx) const
 {
-	Value	*e_v;
+	Value			*e_v;
+	llvm::AllocaInst*	var_loc;
 
 	e_v = evalAndGen(*ectx, expr);
 	if (e_v == NULL) {
@@ -112,11 +113,10 @@ Value* FuncAssign::codeGen(const EvalCtx* ectx) const
 	}
 
 	/* XXX no support for arrays just yet */
-	assert (array == NULL);
+	assert (array == NULL && "Can't assign to arrays yet");
 
-	code_builder->getBuilder()->CreateStore(
-		e_v,
-		getOwner()->getVar(scalar->getName()));
+	var_loc = getOwner()->getVar(scalar->getName());
+	code_builder->getBuilder()->CreateStore(e_v, var_loc);
 
 	return e_v;
 }

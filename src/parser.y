@@ -62,7 +62,7 @@ void yyerror(const char* s)
 
 %token <token> TOKEN_CONST
 
-%token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS
+%token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS TOKEN_ASSIGNDIV TOKEN_ASSIGNMUL TOKEN_ASSIGNMOD
 
 %token <token> TOKEN_WHEN TOKEN_TYPEDEF
 
@@ -178,11 +178,23 @@ func_stmt	: ident ident TOKEN_SEMI { $$ = new FuncDecl($1, (Id*)$2); }
 		}
 		| ident TOKEN_ASSIGNPLUS expr TOKEN_SEMI 
 		{
-			$$ = new FuncAssign((Id*)$1, new AOPAdd((Id*)$1, $3));
+			$$ = new FuncAssign((Id*)$1, new AOPAdd(((Id*)$1)->copy(), $3));
 		}
 		| ident TOKEN_ASSIGNMINUS expr TOKEN_SEMI 
 		{
-			$$ = new FuncAssign((Id*)$1, new AOPSub((Id*)$1, $3));
+			$$ = new FuncAssign((Id*)$1, new AOPSub(((Id*)$1)->copy(), $3));
+		}
+		| ident TOKEN_ASSIGNMUL expr TOKEN_SEMI 
+		{
+			$$ = new FuncAssign((Id*)$1, new AOPMul(((Id*)$1)->copy(), $3));
+		}
+		| ident TOKEN_ASSIGNDIV expr TOKEN_SEMI 
+		{
+			$$ = new FuncAssign((Id*)$1, new AOPDiv(((Id*)$1)->copy(), $3));
+		}
+		| ident TOKEN_ASSIGNMOD expr TOKEN_SEMI 
+		{
+			$$ = new FuncAssign((Id*)$1, new AOPMod(((Id*)$1)->copy(), $3));
 		}
 		| array TOKEN_ASSIGN expr TOKEN_SEMI 
 		{
@@ -190,10 +202,12 @@ func_stmt	: ident ident TOKEN_SEMI { $$ = new FuncDecl($1, (Id*)$2); }
 		}
 		| array TOKEN_ASSIGNPLUS expr TOKEN_SEMI 
 		{
+			assert (0 == 1 && "STUB: ArrayAssignPlus");
 			$$ = new FuncAssign((IdArray*)$1, new AOPAdd((IdArray*)$1, $3));
 		}
 		| array TOKEN_ASSIGNMINUS expr TOKEN_SEMI 
 		{
+			assert (0 == 1 && "STUB: ArrayAssignPlus");
 			$$ = new FuncAssign((IdArray*)$1, new AOPSub((IdArray*)$1, $3));
 		}
 		| TOKEN_RETURN expr TOKEN_SEMI { $$ = new FuncRet($2); }
