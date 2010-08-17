@@ -15,9 +15,22 @@ const ATTR_LONG_NAME_MASK =	ATTR_READ_ONLY |
 const ATTR_LONG_NAME = 	ATTR_READ_ONLY | ATTR_HIDDEN | 
 			ATTR_SYSTEM | ATTR_VOLUME_ID;
 
+const BAD_FAT12 = 0xff7;
+const BAD_FAT16 = 0xfff7;
+const BAD_FAT32 = 0xfffffff7;
 
+const EOF_FAT12 = 0xfff;
+const EOF_FAT16 = 0xffff;
+const EOF_FAT32 = 0xffffffff;
+
+const FAT_ENT_FREE = 0;
+const FAT_ENT_BAD = BAD_FAT32;
+const FAT_ENT_EOF = EOF_FAT32;
+
+const FAT_START_ENT = 2;
 
 type disk 
+assert ( ? get_cluster_count(d_bpb) <= ((get_fat_bytes(d_bpb)*8)/get_fatent_bits(d_bpb)-2) )
 {
 	bpb		d_bpb;
 
@@ -35,16 +48,20 @@ type disk
 	cluster		clusters[get_cluster_count(d_bpb)];
 }
 
-type cluster
-align_bits(512)
+uint bytes_per_cluster()
 {
-	u8	data[bpb.sectors_per_cluster*bpb.bytes_per_sector];
+	return bpb.sectors_per_cluster*bpb.bytes_per_sector;
+}
+
+type cluster
+{
+	u8	data[bytes_per_cluster()];
 }
 
 type fat_de
 points(disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))])
 {
-	u8		name[11];
+	u8		name[8+3];	/* name + ext */
 	u8		attr;
 	u8		nters;	/* special NT data */
 	u8		time_create_ms;
@@ -98,7 +115,7 @@ type bpb_32 {
 }
 
 type bpb
-//assert (? is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb))
+assert (? is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb))
 {
 	u8		jmp[3];
 	u8		oem_name[8];
@@ -146,15 +163,15 @@ free(ent12, disk.clusters, 0)
 free(ent32, disk.clusters, 0)
 { 
 	if (is_fat12(bpb)) {
-		fat_ent12	ent12[get_cluster_count(bpb)];
+		fat_ent12	ent12[FAT_START_ENT+get_cluster_count(bpb)];
 	} else if (is_fat16(bpb)) {
-		fat_ent16	ent16[get_cluster_count(bpb)];
+		fat_ent16	ent16[FAT_START_ENT+get_cluster_count(bpb)];
 	} else if (is_fat32(bpb)) {
-		fat_ent32	ent32[get_cluster_count(bpb)];
+		fat_ent32	ent32[FAT_START_ENT+get_cluster_count(bpb)];
 	} else {
 		fsl_fail();
 	}
-	align_bytes(bpb.bytes_per_sector);
+	set_bytes(get_fat_sectors(bpb)*bpb.bytes_per_sector);
 }
 
 
@@ -166,6 +183,12 @@ uint get_fat_sectors(bpb b)
 		return b.sectors_in_fat16;
 	return b.priv32.sectors_in_fat32;
 }
+
+uint get_fat_bytes(bpb b)
+{
+	return get_fat_sectors(b)*b.bytes_per_sector;
+}
+
 
 uint get_total_sectors(bpb b)
 {
@@ -180,18 +203,24 @@ uint get_cluster_count(bpb b)
 	uint	total_sectors;
 	uint	root_dir_sectors;
 	uint	data_sectors;
+	uint	resv_sectors;
+	uint	cluster_c;
 
 	fat_sectors = get_fat_sectors(b);
 	total_sectors  = get_total_sectors(b);
 
-	root_dir_sectors = (b.root_de_c * (sizeof_bits(fat_de)/8)) + 
-		(b.bytes_per_sector - 1);
-	root_dir_sectors = root_dir_sectors / b.bytes_per_sector;
+	root_dir_sectors = b.root_de_c * sizeof_bytes(fat_de);
+	root_dir_sectors += b.bytes_per_sector - 1;
+	root_dir_sectors /= b.bytes_per_sector;
 
-	data_sectors = total_sectors - (b.reserved_sector_c + 
-		(b.fat_count * fat_sectors) + root_dir_sectors);
+	resv_sectors = b.reserved_sector_c;
+	resv_sectors += b.fat_count*fat_sectors;
+	resv_sectors += root_dir_sectors;
 
-	return data_sectors / b.sectors_per_cluster;
+	data_sectors = total_sectors - resv_sectors;
+	cluster_c = data_sectors / b.sectors_per_cluster;
+
+	return cluster_c;
 }
 
 /* XXX make this 'fat_type' when we can treat enums as types */
@@ -206,6 +235,14 @@ int get_fat_type(bpb b)
 		return FAT_TYPE_FAT16;
 	} 
 	return FAT_TYPE_FAT32;
+}
+
+uint get_fatent_bits(bpb b)
+{
+	if (is_fat12(b)) return 12;
+	if (is_fat16(b)) return 16;
+	if (is_fat32(b)) return 32;
+	return 9999;
 }
 
 bool is_fat12(bpb b){ 

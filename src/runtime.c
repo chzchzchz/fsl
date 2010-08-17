@@ -12,7 +12,8 @@
 
 extern uint64_t fsl_num_types;
 
-static struct fsl_rt_ctx* env;
+static struct fsl_rt_ctx* 	env;
+int				fsl_rt_debug = 0;
 
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
 
@@ -45,6 +46,11 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 	for (i = (num_bits / 8) - 1; i >= 0; i--) {
 		ret <<= 8;
 		ret += buf[i];
+	}
+
+	if (fsl_rt_debug & FSL_DEBUG_FL_GETLOCAL) {
+		printf("getlocal: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64"\n",
+			bit_off, num_bits, ret);
 	}
 
 	return ret;
@@ -83,6 +89,19 @@ void __setDyn(uint64_t type_num, uint64_t offset)
 {
 	assert (type_num < env->fctx_num_types);
 	env->fctx_type_offsets[type_num] = offset;
+}
+
+void fsl_rt_dump_dyn(void)
+{
+	unsigned int	i;
+
+	assert (env != NULL);
+	for (i = 0; i < env->fctx_num_types; i++) {
+		printf("type %2d (%s): %"PRIu64"\n",
+			i,
+			tt_by_num(i)->tt_name,
+			env->fctx_type_offsets[i]);
+	}
 }
 
 uint64_t __max2(uint64_t a0, uint64_t a1)
@@ -147,18 +166,21 @@ typesize_t __computeArrayBits(
 	diskoff_t off,
 	uint64_t num_elems)
 {
-	unsigned int	i;
-	diskoff_t	cur_off;
-	typesize_t	total_bits;
+	struct fsl_rt_table_type	*tt;
+	unsigned int			i;
+	diskoff_t			cur_off;
+	typesize_t			total_bits;
 
 	assert (elem_type < fsl_rt_table_entries);
 
 	total_bits = 0;
 	cur_off = off;
+	tt = tt_by_num(elem_type);
 	for (i = 0; i < num_elems; i++) {
-		typesize_t	cur_size;
+		typesize_t		cur_size;
 
-		cur_size = fsl_rt_table[elem_type].tt_size(cur_off);
+		__setDyn(elem_type, cur_off);
+		cur_size = tt->tt_size(cur_off);
 		total_bits += cur_size;
 		cur_off += cur_size;
 	}

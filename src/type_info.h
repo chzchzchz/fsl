@@ -21,7 +21,6 @@ struct type_info
 	struct type_info	*ti_prev;
 };
 
-#define tt_by_num(x)	(&fsl_rt_table[x])
 #define tt_by_ti(x)	tt_by_num((x)->ti_typenum)
 
 void typeinfo_print(const struct type_info* ti);

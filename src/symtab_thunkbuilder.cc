@@ -605,7 +605,9 @@ ThunkField* SymTabThunkBuilder::setBits(const TypeFunc* tf)
 		new ThunkFieldOffset(
 			cur_thunk_type,
 			"__set_bits_"+int_to_string(field_count),
-			(args->front())->simplify()),
+			new AOPAdd(
+				rt_glue.getThunkArg(),
+				(args->front())->simplify())),
 		new ThunkFieldSize(
 			cur_thunk_type,
 			"__set_bits_"+int_to_string(field_count),
@@ -646,9 +648,11 @@ ThunkField* SymTabThunkBuilder::setBytes(const TypeFunc* tf)
 		new ThunkFieldOffset(
 			cur_thunk_type,
 			"__set_bytes_"+int_to_string(field_count),
-			new AOPMul(
-				(args->front())->simplify(),
-				new Number(8))),
+			new AOPAdd(
+				rt_glue.getThunkArg(),
+				new AOPMul(
+					(args->front())->simplify(),
+					new Number(8)))),
 		new ThunkFieldSize(
 			cur_thunk_type,
 			"__set_bytes_"+int_to_string(field_count),

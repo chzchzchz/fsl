@@ -1,11 +1,14 @@
 #ifndef RUNTIME_H
 #define RUNTIME_H
 
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 
 /* XXX TODO Needs local context for multi-threading.. */
+
+#define tt_by_num(x)	(&fsl_rt_table[x])
 
 
 struct fsl_rt_ctx
@@ -105,6 +108,9 @@ extern unsigned int			fsl_rt_table_entries;
 extern unsigned int			fsl_rt_origin_typenum;
 extern char				fsl_rt_fsname[];
 
+#define FSL_DEBUG_FL_GETLOCAL		0x1
+extern int				fsl_rt_debug;
+
 /* exposed to llvm */
 typesize_t __computeArrayBits(
 	typenum_t elem_type, diskoff_t off, uint64_t num_elems);
@@ -124,11 +130,13 @@ uint64_t __max6(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 		uint64_t a5);
 uint64_t __max7(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		uint64_t a5, uint64_t a6);
+
 uint64_t fsl_fail(void);
 
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
+void fsl_rt_dump_dyn(void);
 
 /* implemented by tool: */
 void tool_entry(void);
