@@ -22,6 +22,7 @@ Points::Points(const Type* t)
 	assert (src_type != NULL);
 	loadPoints();
 	loadPointsRange();
+	loadPointsIf();
 }
 
 void Points::loadPointsIf(void)
@@ -140,7 +141,22 @@ void Points::loadPointsRange(void)
 void Points::loadPointsIfInstance(
 	const CondExpr* ce, const Expr* data_loc)
 {
-	assert (0 == 1);
+	EvalCtx		ectx(symtabs[src_type->getName()], symtabs, constants);
+	const Type	*dst_type;
+
+	assert (ce != NULL);
+	assert (data_loc != NULL);
+
+	dst_type = ectx.getType(data_loc);
+	if (dst_type == NULL) {
+		cerr << "Could not resolve type for pointsif: '";
+		data_loc->print(cerr);
+		cerr << "' in type " << src_type->getName() << endl;
+		return;
+	}
+
+	points_range_elems.add(new PointsIf(
+		src_type, dst_type, ce->copy(), data_loc->copy(), seq++));
 }
 
 void Points::loadPointsInstance(const Expr* data_loc)
@@ -301,7 +317,7 @@ PointsIf::PointsIf(
 : PointsRange(
 	in_src_type, in_dst_type,
 	new Id("__no_binding"), 
-	new Number(0),
+	new Number(1),
 	new FCall(
 		new Id(getWrapperFCallName(in_src_type->getName(), in_seq)),
 		new ExprList(rt_glue.getThunkArg())),
@@ -343,7 +359,9 @@ void PointsIf::genProto(void) const
 {
 	const ThunkType	*tt;
 	tt = symtabs[getSrcType()->getName()]->getThunkType();
-	code_builder->genProto(getFCallName(), tt->getThunkArgCount());
+	code_builder->genProto(
+		getWrapperFCallName(getSrcType()->getName(), getSeqNum()), 
+		tt->getThunkArgCount());
 	PointsRange::genProto();
 }
 
