@@ -198,5 +198,6 @@ private:
 };
 
 void gen_func_code(Func* f);
+void gen_func_proto(const Func* f);
 
 #endif

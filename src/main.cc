@@ -137,9 +137,10 @@ static void load_user_types_list(const GlobalBlock* gb)
 
 static void load_user_funcs(const GlobalBlock* gb)
 {
-	GlobalBlock::const_iterator	it;
-
-	for (it = gb->begin(); it != gb->end(); it++) {
+	for (	GlobalBlock::const_iterator it = gb->begin(); 
+		it != gb->end(); 
+		it++) 
+	{
 		Func		*f;
 
 		f = dynamic_cast<Func*>(*it);
@@ -148,7 +149,14 @@ static void load_user_funcs(const GlobalBlock* gb)
 		/* add to mappings.. */
 		funcs_list.push_back(f);
 		funcs_map[f->getName()] = f;
+		gen_func_proto(f);
+	}
 
+	for (	func_list::const_iterator it = funcs_list.begin();
+		it != funcs_list.end();
+		it++)
+	{
+		Func	*f = *it;
 		gen_func_code(f);
 	}
 }

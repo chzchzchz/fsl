@@ -24,8 +24,6 @@ extern symtab_map	symtabs;
 static bool gen_func_code_args(
 		const Func* f,
 		vector<const llvm::Type*>& llvm_args);
-static Function* gen_func_code_proto(const Func* f);
-
 
 Func* FuncStmt::getFunc(void) const
 {
@@ -242,7 +240,7 @@ Function* FuncStmt::getFunction() const
 	return getFunc()->getFunction();
 }
 
-static llvm::Function* gen_func_code_proto(const Func* f)
+void gen_func_proto(const Func* f)
 {
 	vector<const llvm::Type*>	f_args;
 	llvm::Type			*ret_type;
@@ -258,7 +256,7 @@ static llvm::Function* gen_func_code_proto(const Func* f)
 	} else {
 		cerr	<< "Bad return type (" << f->getRet() << ") for "
 			<< f->getName() << endl;
-		return NULL;
+		return;
 	}
 
 	/* XXX need to do this better.. */
@@ -274,7 +272,7 @@ static llvm::Function* gen_func_code_proto(const Func* f)
 
 	if (gen_func_code_args(f, f_args) == false) {
 		cerr << "Bailing on generating " << f->getName() << endl;
-		return NULL;
+		return;
 	}
 
 	/* finally, create the proto */
@@ -286,10 +284,7 @@ static llvm::Function* gen_func_code_proto(const Func* f)
 		code_builder->getModule());
 	if (llvm_f->getName() != f->getName()) {
 		cerr << f->getName() << " already declared!" << endl;
-		return NULL;
 	}
-
-	return llvm_f;
 }
 
 static bool gen_func_code_args(
@@ -340,9 +335,12 @@ void gen_func_code(Func* f)
 	llvm::BasicBlock		*f_bb;
 	FuncArgs			*fargs;
 
-	llvm_f = gen_func_code_proto(f);
-	if (llvm_f == NULL)
+	llvm_f = code_builder->getModule()->getFunction(f->getName());
+	if (llvm_f == NULL) {
+		cerr	<< "Could not find function prototype for "
+			<< f->getName() << endl;
 		return;
+	}
 
 	fargs = new FuncArgs(f->getArgs());
 
