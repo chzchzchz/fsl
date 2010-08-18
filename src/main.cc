@@ -12,6 +12,7 @@
 #include "asserts.h"
 #include "points_to.h"
 #include "table_gen.h"
+#include "detached_preamble.h"
 #include "runtime_interface.h"
 
 #include <stdint.h>
@@ -40,7 +41,7 @@ assert_map		asserts_map;
 assert_list		asserts_list;
 RTInterface		rt_glue;
 
-
+static void	load_detached_preambles(const GlobalBlock* gb);
 static void	load_user_types_list(const GlobalBlock* gb);
 static void	load_primitive_ptypes(void);
 static void	load_def_types(const GlobalBlock* gb);
@@ -65,6 +66,28 @@ static void load_primitive_ptypes(void)
 	}
 }
 
+static void load_detached_preambles(const GlobalBlock* gb)
+{
+	GlobalBlock::const_iterator	it;
+
+	for (it = gb->begin(); it!= gb->end(); it++) {
+		DetachedPreamble	*dp;
+		Type			*t;
+
+		dp = dynamic_cast<DetachedPreamble*>(*it);
+		if (dp == NULL)
+			continue;
+		
+		t = types_map[dp->getTypeName()];
+		if (t == NULL) {
+			cerr	<< "Detached preamble with bad type (" << 
+				dp->getTypeName() << ")" << endl;
+			continue;
+		}
+
+		t->addPreamble(dp->getPreamble());
+	}
+}
 
 static void load_def_types(const GlobalBlock* gb)
 {
@@ -412,6 +435,9 @@ int main(int argc, char *argv[])
 
 	cout << "Loading user types list" << endl;
 	load_user_types_list(global_scope);
+
+	cout << "Attaching detached preambles" << endl;
+	load_detached_preambles(global_scope);
 
 	/* next, build up symbol tables on types.. this is our type checking */
 	cout << "Building symbol tables" << endl;

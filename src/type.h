@@ -378,7 +378,7 @@ public:
 	const TypeBlock* getBlock() const { return block; }
 
 	std::list<const Preamble*> getPreambles(const std::string& name) const;
-
+	void addPreamble(Preamble* p);
 private:
 	Id		*name;
 	ArgsList	*args;

@@ -76,6 +76,7 @@ WHITESPACE [ 	]
 <COMMENT2>"\n"	{ yyset_lineno( yyget_lineno() + 1); }
 <COMMENT2>[^*]	{ }
 <COMMENT2>"*/"	{ BEGIN(INITIAL);  }
+"::"		IN_TOKEN(TOKEN_DOUBLECOLON);
 "/"		IN_TOKEN(TOKEN_DIV);
 "*"		IN_TOKEN(TOKEN_MUL);
 "-"		IN_TOKEN(TOKEN_SUB);

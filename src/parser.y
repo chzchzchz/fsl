@@ -4,6 +4,7 @@
 #include "type.h"
 #include "func.h"
 #include "deftype.h"
+#include "detached_preamble.h"
 
 GlobalBlock*	global_scope;
 extern int yylex();
@@ -64,7 +65,7 @@ void yyerror(const char* s)
 
 %token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS TOKEN_ASSIGNDIV TOKEN_ASSIGNMUL TOKEN_ASSIGNMOD
 
-%token <token> TOKEN_WHEN TOKEN_TYPEDEF
+%token <token> TOKEN_WHEN TOKEN_TYPEDEF TOKEN_DOUBLECOLON
 
 %token <text> TOKEN_ID
 %token <val> TOKEN_NUM
@@ -156,6 +157,10 @@ program_stmt	: TOKEN_CONST ident TOKEN_ASSIGN expr TOKEN_SEMI
 		| TOKEN_TYPEDEF ident TOKEN_ASSIGN ident TOKEN_SEMI
 		{
 			$$ = new DefType((Id*)$2, (Id*)$4);
+		}
+		| ident TOKEN_DOUBLECOLON  preamble TOKEN_SEMI
+		{
+			$$ = new DetachedPreamble((Id*)$1, $3);
 		}
 		;
 

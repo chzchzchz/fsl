@@ -223,3 +223,12 @@ list<const Preamble*> Type::getPreambles(const string& name) const
 	return preamble->findByName(name);
 }
 
+
+void Type::addPreamble(Preamble* p)
+{
+	if (preamble == NULL) {
+		preamble = new TypePreamble();
+	}
+
+	preamble->add(p);
+}
