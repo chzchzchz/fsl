@@ -210,7 +210,7 @@ void tool_entry(void)
 {
 	struct type_info	*origin_ti;
 
-	printf("Welcome to fsl browser. Browsing \"%s\"\n", fsl_rt_fsname);
+	printf("Welcome to fsl browser. Browse mode: \"%s\"\n", fsl_rt_fsname);
 
 	origin_ti = typeinfo_alloc(fsl_rt_origin_typenum, 0, 0, NULL);
 	if (origin_ti == NULL) {

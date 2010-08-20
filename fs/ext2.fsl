@@ -131,7 +131,7 @@ points_range(
 type ext2_inode_block
 assert (? sizeof_bytes(ext2_inode_block) == get_block_size(ext2_sb))
 {
-	ext2_inode	ino[get_block_size(ext2_sb)/(sizeof_bits(ext2_inode)/8)];
+	ext2_inode	ino[get_block_size(ext2_sb)/sizeof_bytes(ext2_inode)];
 }
 
 type ext2_data_block
@@ -207,6 +207,9 @@ uint num_direct_blocks(ext2_inode ino)
 {
 	u32	num_blks;
 
+	if (is_fast_symlink(ino) == true)
+		return 0;
+
 	num_blks = sect_to_blocks(ino.i_blocks_c);
 	if (num_blks > EXT2_NDIR_BLOCKS)
 		return EXT2_NDIR_BLOCKS;
@@ -218,19 +221,29 @@ uint blocks_per_indir()
 	return get_block_size(ext2_sb)/4;
 }
 
+bool is_fast_symlink(ext2_inode ino)
+{
+	if ((ino.i_mode & 0xa000) == 0xa000)
+		return true;
+	return false;
+}
+
 /* XXX add points-to here */
 type ext2_inode
 points_range(
 	i, 0, num_direct_blocks(ext2_inode)-1,
 	disk.blocks[i_block_direct[i] - blocks_off(disk.sb)].data_blk)
 points_if(
-	? sect_to_blocks(i_blocks_c) > EXT2_NDIR_BLOCKS, 
+	? !is_fast_symlink(ext2_inode) &&
+	   sect_to_blocks(i_blocks_c) > EXT2_NDIR_BLOCKS, 
 	disk.blocks[i_block_indir - blocks_off(disk.sb)].indir_blk)
 points_if(
-	? sect_to_blocks(i_blocks_c)> (EXT2_NDIR_BLOCKS + blocks_per_indir()),
+	? !is_fast_symlink(ext2_inode) && 
+	  sect_to_blocks(i_blocks_c) > (EXT2_NDIR_BLOCKS + blocks_per_indir()),
 	disk.blocks[i_block_biindir - blocks_off(disk.sb)].biindir_blk)
 points_if(
-	? sect_to_blocks(i_blocks_c) > 
+	? !is_fast_symlink(ext2_inode) && 
+	  sect_to_blocks(i_blocks_c) > 
 		(EXT2_NDIR_BLOCKS + blocks_per_indir()*
 			(1 + blocks_per_indir())),
 	disk.blocks[i_block_triindir - blocks_off(disk.sb)].triindir_blk)
@@ -247,14 +260,21 @@ points_if(
 	u32	i_blocks_c;	/* number of 512b sectors */
 	u32	i_flags;
 	u32	i_osd_resv;
-	u32	i_block_direct[EXT2_NDIR_BLOCKS];
-	u32	i_block_indir;
-	u32	i_block_biindir;
-	u32	i_block_triindir;
+
+	if (is_fast_symlink(ext2_inode) == false) {
+		u32	i_block_direct[EXT2_NDIR_BLOCKS];
+		u32	i_block_indir;
+		u32	i_block_biindir;
+		u32	i_block_triindir;
+	} else {
+		u8	i_symname[60];
+	}
+
 	u32	i_gen;
 	u32	i_file_acl;
 	u32	i_dir_acl;
 	u32	i_faddr;
+
 	align_bytes(EXT2_GOOD_OLD_INODE_SIZE);
 }
 
@@ -266,7 +286,7 @@ points(ino_by_num(inode))
 	u8	name_len;
 	u8	file_type;
 	u8	name[name_len];
-	align_bytes(rec_len);
+	set_bytes(rec_len);
 }
 
 

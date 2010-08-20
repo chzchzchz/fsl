@@ -84,6 +84,10 @@ void CodeBuilder::genProto(const string& name, uint64_t num_args)
 		mod);
 
 	/* should not be redefinitions.. */
+	if (f->getName() != name) {
+		cerr << "Expected name " << name <<" got " <<
+		f->getNameStr() << endl;
+	}
 	assert (f->getName() == name);
 	assert (f->arg_size() == args.size());
 }

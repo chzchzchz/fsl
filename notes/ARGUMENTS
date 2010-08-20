@@ -21,7 +21,7 @@ Do we need this?
 What if something changes to the interface?
 * The vnode interface has been stable for some time. Even so, it means changing the compiler to reflect this new target. On the otherhand, porting to the new target is expected to be easier than porting all the filesystems in the long run.
 
-What if I want something new-fangled feature (i.e. net-interaction...)?
+What if I want something new fangled feature (i.e. net-interaction...)?
 * At the moment this is intended primarily for disk that ensure a partial ordering; if I write T to A, I expect to read back T from B. Note: coherent but not necessarily consistent-- this is why we have fs logic..
 * On the other hand, we can handle user-interface problems by providing an ioctl interface. 
 * Will have to be ported to compiler, but then every fs can use it instead of just your one.

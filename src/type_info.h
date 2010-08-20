@@ -18,10 +18,13 @@ struct type_info
 	};
 
 	unsigned int		ti_depth;
-	struct type_info	*ti_prev;
+	const struct type_info	*ti_prev;
 };
 
 #define tt_by_ti(x)	tt_by_num((x)->ti_typenum)
+
+#define typeinfo_set_depth(x,y)	do { (x)->ti_depth = (y); } while (0)
+#define typeinfo_get_depth(x)	(x)->ti_depth
 
 void typeinfo_print(const struct type_info* ti);
 void typeinfo_print_fields(const struct type_info* ti);
@@ -30,13 +33,13 @@ struct type_info* typeinfo_alloc(
 	typenum_t		ti_typenum,
 	diskoff_t		ti_diskoff,
 	unsigned int		ti_fieldidx,
-	struct type_info*	ti_prev);
+	const struct type_info*	ti_prev);
 struct type_info* typeinfo_alloc_pointsto(
 	typenum_t		ti_typenum,
 	diskoff_t		ti_diskoff,
 	unsigned int		ti_pointsto_idx,
 	unsigned int		ti_pointsto_elem,
-	struct type_info*	ti_prev);
+	const struct type_info*	ti_prev);
 
 void typeinfo_print_name(void);
 void typeinfo_print_path(const struct type_info* cur);

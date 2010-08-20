@@ -135,18 +135,39 @@ void typeinfo_print(const struct type_info* ti)
 void typeinfo_print_pointsto(const struct type_info* ti)
 {
 	struct fsl_rt_table_type	*tt;
+	bool				none_seen;
 	unsigned int			i;
 
 	if (ti->ti_typenum == ~0)
 		return;
 
 	tt = tt_by_ti(ti);
-	if (tt->tt_pointsto_c > 0)
-		printf("Points-To:\n");
+
+	none_seen = true;
 	for (i = 0; i < tt->tt_pointsto_c; i++) {
+		struct fsl_rt_table_pointsto	*pt;
+
+		pt = &tt->tt_pointsto[i];
+		if (pt->pt_single == NULL) {
+			uint64_t	pt_min, pt_max;
+
+			pt_min = pt->pt_min(ti->ti_diskoff);
+			pt_max = pt->pt_max(ti->ti_diskoff);
+			if (pt_min > pt_max) {
+				/* failed some condition */
+				continue;
+			}
+		}
+
+		if (none_seen) {
+			printf("Points-To:\n");
+			none_seen = false;
+		}
+
 		printf("%02d. (%s)\n", 
 			tt->tt_fieldall_c + i,
-			tt_by_num(tt->tt_pointsto[i].pt_type_dst)->tt_name);
+			tt_by_num(pt->pt_type_dst)->tt_name);
+
 	}
 }
 
@@ -186,34 +207,6 @@ void typeinfo_print_fields(const struct type_info* ti)
 }
 
 
-struct type_info* typeinfo_alloc_pointsto(
-	typenum_t		ti_typenum,
-	diskoff_t		ti_diskoff,
-	unsigned int		ti_pointsto_idx,
-	unsigned int		ti_pointsto_elem,
-	struct type_info*	ti_prev)
-{
-	struct type_info*	ret;
-
-	ret = malloc(sizeof(struct type_info));
-	ret->ti_typenum = ti_typenum;
-	ret->ti_diskoff = ti_diskoff;
-
-	ret->ti_pointsto = true;
-	ret->ti_pointstoidx = ti_pointsto_idx;
-	ret->ti_pointsto_elem = ti_pointsto_elem;
-
-	ret->ti_prev = ti_prev;
-
-	typeinfo_set_dyn(ret);
-	if (verify_asserts(ret) == false) {
-		typeinfo_free(ret);
-		return NULL;
-	}
-
-	return ret;
-}
-
 void typeinfo_free(struct type_info* ti)
 {
 	free(ti);
@@ -245,12 +238,41 @@ void typeinfo_dump_data(const struct type_info* ti)
 		printf("OOPS-- size is not byte-aligned\n");
 }
 
+struct type_info* typeinfo_alloc_pointsto(
+	typenum_t		ti_typenum,
+	diskoff_t		ti_diskoff,
+	unsigned int		ti_pointsto_idx,
+	unsigned int		ti_pointsto_elem,
+	const struct type_info*	ti_prev)
+{
+	struct type_info*	ret;
+
+	ret = malloc(sizeof(struct type_info));
+	ret->ti_typenum = ti_typenum;
+	ret->ti_diskoff = ti_diskoff;
+
+	ret->ti_pointsto = true;
+	ret->ti_pointstoidx = ti_pointsto_idx;
+	ret->ti_pointsto_elem = ti_pointsto_elem;
+
+	ret->ti_prev = ti_prev;
+	if (ti_prev != NULL)
+		ret->ti_depth = ti_prev->ti_depth + 1;
+
+	typeinfo_set_dyn(ret);
+	if (verify_asserts(ret) == false) {
+		typeinfo_free(ret);
+		return NULL;
+	}
+
+	return ret;
+}
 
 struct type_info* typeinfo_alloc(
 	typenum_t		ti_typenum,
 	diskoff_t		ti_diskoff,
 	unsigned int		ti_fieldidx,
-	struct type_info*	ti_prev)
+	const struct type_info*	ti_prev)
 {
 	struct type_info*	ret;
 
@@ -262,6 +284,9 @@ struct type_info* typeinfo_alloc(
 	ret->ti_fieldidx = ti_fieldidx;
 
 	ret->ti_prev = ti_prev;
+	if (ti_prev != NULL) {
+		ret->ti_depth = ti_prev->ti_depth + 1;
+	}
 	
 	typeinfo_set_dyn(ret);
 	if (verify_asserts(ret) == false) {

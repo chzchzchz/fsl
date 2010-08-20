@@ -6,14 +6,8 @@ const ATTR_SYSTEM = 0x04;
 const ATTR_VOLUME_ID = 0x08;
 const ATTR_DIRECTORY = 0x10;
 const ATTR_ARCHIVE = 0x20;
-const ATTR_LONG_NAME_MASK =	ATTR_READ_ONLY |
-				ATTR_HIDDEN |
-				ATTR_SYSTEM |
-				ATTR_VOLUME_ID |
-				ATTR_DIRECTORY |
-				ATTR_ARCHIVE;
-const ATTR_LONG_NAME = 	ATTR_READ_ONLY | ATTR_HIDDEN | 
-			ATTR_SYSTEM | ATTR_VOLUME_ID;
+const ATTR_LONG_NAME_MASK = 0x3f; 
+const ATTR_LONG_NAME = 	ATTR_READ_ONLY|ATTR_HIDDEN|ATTR_SYSTEM|ATTR_VOLUME_ID;
 
 const BAD_FAT12 = 0xff7;
 const BAD_FAT16 = 0xfff7;
@@ -30,7 +24,10 @@ const FAT_ENT_EOF = EOF_FAT32;
 const FAT_START_ENT = 2;
 
 type disk 
-assert ( ? get_cluster_count(d_bpb) <= ((get_fat_bytes(d_bpb)*8)/get_fatent_bits(d_bpb)-2) )
+assert ( ? (d_bpb.bytes_per_sector & (512 - 1)) == 0)
+assert ( ? d_bpb.reserved_sector_c > 0)
+assert ( ? get_cluster_count(d_bpb) <= 
+	((get_fat_bytes(d_bpb)*8)/get_fatent_bits(d_bpb)-2) )
 {
 	bpb		d_bpb;
 
@@ -59,7 +56,18 @@ type cluster
 }
 
 type fat_de
-points(disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))])
+points_if(
+	? file_size > 0 && first_cluster_hi != 0xffff,
+	disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))])
+points_if(
+	? is_fat12(bpb) && first_cluster_hi != 0xffff && file_size > 0,
+	disk.fats[0].ent12[(first_cluster_lo + (first_cluster_hi << 16))])
+points_if(
+	? is_fat16(bpb) && first_cluster_hi != 0xffff && file_size > 0,
+	disk.fats[0].ent16[(first_cluster_lo + (first_cluster_hi << 16))])
+points_if(
+	? is_fat32(bpb) && first_cluster_hi != 0xffff && file_size > 0,
+	disk.fats[0].ent32[(first_cluster_lo + (first_cluster_hi << 16))])
 {
 	u8		name[8+3];	/* name + ext */
 	u8		attr;
@@ -76,8 +84,8 @@ points(disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))])
 }
 
 type fat_long_de 
-know_eq (attr & ATTR_LONG_NAME_MASK, ATTR_LONG_NAME)
-know_eq (first_cluster_lo, 0)
+assert (? (attr & ATTR_LONG_NAME_MASK) == ATTR_LONG_NAME)
+assert (? first_cluster_lo == 0)
 {
 	u8	order;
 	u8	name[10];
@@ -140,19 +148,22 @@ assert (? is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb))
 }
 
 type fat_ent12
-points(fat.ent12[cluster_num])
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT12, fat.ent12[cluster_num])
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT12, disk.clusters[cluster_num])
 {
 	u12	cluster_num;
 }
 
 type fat_ent16
-points(fat.ent16[cluster_num])
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT16, fat.ent16[cluster_num])
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT16, disk.clusters[cluster_num])
 {
 	u16	cluster_num;
 }
 
 type fat_ent32
-points(fat.ent32[cluster_num])
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT32, fat.ent32[cluster_num])
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT32, disk.clusters[cluster_num])
 {
 	u32	cluster_num;
 }
@@ -223,17 +234,15 @@ uint get_cluster_count(bpb b)
 	return cluster_c;
 }
 
-/* XXX make this 'fat_type' when we can treat enums as types */
-int get_fat_type(bpb b)
+fat_type get_fat_type(bpb b)
 {
 	uint cluster_count;
 
 	cluster_count = get_cluster_count(b);
-	if (cluster_count < 4085) {
+	if (cluster_count < 4085) 
 		return FAT_TYPE_FAT12;
-	} else if (cluster_count < 65525) {
+	else if (cluster_count < 65525)
 		return FAT_TYPE_FAT16;
-	} 
 	return FAT_TYPE_FAT32;
 }
 
@@ -242,10 +251,10 @@ uint get_fatent_bits(bpb b)
 	if (is_fat12(b)) return 12;
 	if (is_fat16(b)) return 16;
 	if (is_fat32(b)) return 32;
-	return 9999;
+	return 0;
 }
 
-bool is_fat12(bpb b){ 
+bool is_fat12(bpb b) { 
 	if (get_fat_type(b) == FAT_TYPE_FAT12) 
 		return true;
 	return false;

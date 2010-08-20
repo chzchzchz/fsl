@@ -23,15 +23,18 @@ typedef uint64_t	diskoff_t;
 typedef uint64_t	typeoff_t;
 typedef uint64_t	typesize_t;
 typedef unsigned int	typenum_t;
+typedef uint64_t*	parambuf_t;
+
 #define TYPENUM_INVALID	(~0)
 
 /* XXX these should take a thunkvar when we support args */
-typedef diskoff_t(*thunkf_t)(diskoff_t /* thunk_off_bits */);
-typedef typesize_t(*sizef_t)(diskoff_t /* thunk_off_bits */);
-typedef uint64_t(*elemsf_t)(diskoff_t /* thunk_off_bits */);
+typedef diskoff_t(*thunkf_t)(diskoff_t);
+typedef typesize_t(*sizef_t)(diskoff_t);
+typedef uint64_t(*elemsf_t)(diskoff_t);
 typedef uint64_t(*points_minf_t)(diskoff_t);
 typedef uint64_t(*points_maxf_t)(diskoff_t);
 typedef diskoff_t(*points_rangef_t)(diskoff_t, uint64_t /* idx */);
+typedef void(*paramsf_t)(parambuf_t);
 typedef diskoff_t(*pointsf_t)(diskoff_t);
 typedef bool(*condf_t)(diskoff_t);
 typedef bool(*assertf_t)(diskoff_t);
@@ -49,6 +52,7 @@ struct fsl_rt_table_type
 	const char			*tt_name;
 	sizef_t				tt_size;
 
+	/* strong user-types */
 	unsigned int			tt_field_c;
 	struct fsl_rt_table_field	*tt_field_thunkoff;
 
@@ -58,7 +62,7 @@ struct fsl_rt_table_type
 	unsigned int			tt_assert_c;
 	struct fsl_rt_table_assert	*tt_assert;
 
-	/* non-union fields */
+	/* all non-union fields */
 	unsigned int			tt_fieldall_c;
 	struct fsl_rt_table_field	*tt_fieldall_thunkoff;
 
@@ -80,6 +84,7 @@ struct fsl_rt_table_field
 	elemsf_t	tf_elemcount;
 	sizef_t		tf_typesize;
 	condf_t		tf_cond;
+	paramsf_t	tf_params;
 };
 
 struct fsl_rt_table_pointsto
