@@ -19,33 +19,35 @@ public:
 	virtual bool genProto(void) const;
 	virtual bool genCode(void) const;
 
-protected:
-	ThunkFunc(const ThunkType* in_owner, unsigned int i)
-	: owner(in_owner)
+	void setOwner(const ThunkType* tt);
+	const ThunkType* getOwner(void) const 
 	{
-		assert (owner != NULL);
+		assert (owner != NULL  && "Owner not set");
+		return owner; 
+	}
+
+protected:
+	ThunkFunc(unsigned int i) : owner(NULL)
+	{
 		raw_expr = new Number(i);
 	}
 
-	ThunkFunc(const ThunkType* in_owner, Expr* e)
-	: owner(in_owner)
+	ThunkFunc(Expr* e) : owner(NULL)
 	{
-		assert (owner != NULL);
 		assert (e != NULL);
-
 		raw_expr = e->simplify();
 		delete e;
 	}
 
-	ThunkFunc(const ThunkType* in_owner)
-	: owner(in_owner),
-	  raw_expr(NULL) {}
+	ThunkFunc(void)
+	: owner(NULL), raw_expr(NULL) {}
 
-	const ThunkType*	owner;
+
 	Expr*			raw_expr;
 	virtual const std::string getFCallName(void) const = 0;
+
 private:
-	ThunkFunc() {}
+	const ThunkType*	owner;
 };
 
 #endif

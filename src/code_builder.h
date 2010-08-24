@@ -34,12 +34,21 @@ public:
 		const class Expr* raw_expr,
 		const class FuncArgs* extra_args = NULL);
 
+	void genCodeEmpty(const std::string& name);
+
 	void genCodeCond(
 		const Type		*t,
 		const std::string&	name,
 		const class CondExpr	*cond_expr,
 		const Expr		*true_expr,
 		const Expr		*false_expr);
+
+	void genThunkProto(const std::string& name);
+	void genThunkProto(
+		const std::string	&name,
+		const llvm::Type	*ret_type);
+
+
 
 	void write(std::ostream& os);
 	void write(std::string& os);
@@ -59,7 +68,16 @@ public:
 	llvm::GlobalVariable* getGlobalVar(const std::string& varname) const;
 
 	void setDebug(bool b) { debug_output = b; }
+
+
+	llvm::Type* getTypePassStruct(void);
+	llvm::Type* getTypePassStructPtr(void);
+
+	void copyTypePassStruct(const Type* t,
+		llvm::Value *src, llvm::Value *dst_ptr);
+
 private:
+	void makeTypePassStruct(void);
 
 	void genHeaderArgs(
 		llvm::Function* f, const Type* t, 
@@ -70,11 +88,16 @@ private:
 		llvm::IRBuilder<>		*tmpB,
 		const class ArgsList		*args);
 
+	void genTypeArgs(
+		const Type			*t,
+		llvm::IRBuilder<>		*tmpB);
+	
+
 	CodeBuilder() {}
 	llvm::Module		*mod;
 	llvm::IRBuilder<> 	*builder;
+	llvm::Type		*typepass_struct;
 	llvm_var_map		thunk_var_map;
-	bool			debug_output;
-};
+	bool			debug_output;};
 
 #endif

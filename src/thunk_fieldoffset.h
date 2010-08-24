@@ -4,7 +4,7 @@
 #include <string>
 #include <assert.h>
 
-#include "thunk_func.h"
+#include "thunk_fieldfunc.h"
 
 /* XXX!!! add functions to get data for
  * fully qualified type (e.g. convert 
@@ -13,38 +13,24 @@
 /* represents the offset of a type materialization's given the offset to 
  * the parent class
  */
-class ThunkFieldOffset : public ThunkFunc
+class ThunkFieldOffset : public ThunkFieldFunc
 {
 public:
-	ThunkFieldOffset(
-		const ThunkType*	in_owner, 
-		const std::string	&in_fieldname,
-		unsigned int		off_bits)
-	: ThunkFunc(in_owner, off_bits),
-	  fieldname(in_fieldname) {}
+	ThunkFieldOffset(unsigned int off_bits)
+	: ThunkFieldFunc(off_bits) {}
 
-	ThunkFieldOffset(
-		const ThunkType*	in_owner,
-		const std::string	&in_fieldname,
-		Expr*			e)
-	: ThunkFunc(in_owner, e),
-	  fieldname(in_fieldname) {}
+	ThunkFieldOffset(Expr* e)
+	: ThunkFieldFunc(e) {}
 
 	virtual ~ThunkFieldOffset() {}
 
-	FCall* copyFCall(void) const;
-
+	virtual FCall* copyFCall(void) const;
 	virtual ThunkFieldOffset* copy(void) const;
 
 protected:
-	ThunkFieldOffset(
-		const ThunkType* 	in_owner,
-		const std::string	&in_fieldname)
-	: ThunkFunc(in_owner),
-	  fieldname(in_fieldname) {}
+	ThunkFieldOffset() {}
 
 	const std::string getFCallName(void) const;
-	const std::string fieldname;
 };
 
 #endif

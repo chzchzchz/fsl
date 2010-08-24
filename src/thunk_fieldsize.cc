@@ -17,8 +17,8 @@ const std::string ThunkFieldSize::getFCallName(void) const
 	/* TODO: support field sizes that are type size aliases */
 
 	return "__thunkfieldsize_"+
-		owner->getType()->getName() + "_" +
-		fieldname;
+		getOwner()->getType()->getName() + "_" +
+		getFieldName();
 }
 
 
@@ -26,7 +26,7 @@ FCall* ThunkFieldSize::copyFCall(void) const
 {
 	return new FCall(
 		new Id(getFCallName()),
-		owner->copyExprList());
+		getOwner()->copyExprList());
 }
 
 Expr* ThunkFieldSize::copyConstValue(void) const
@@ -43,12 +43,12 @@ ThunkFieldSize* ThunkFieldSize::copy(void) const
 	ThunkFieldSize	*tfs;
 
 	if (t != NULL)
-		tfs = new ThunkFieldSize(owner, fieldname, t);
+		tfs = new ThunkFieldSize(t);
 	else
-		tfs = new ThunkFieldSize(
-			owner, fieldname, raw_expr->copy());
+		tfs = new ThunkFieldSize(raw_expr->copy());
 
-	tfs->tf_owner = tf_owner;
+	tfs->setFieldName(getFieldName());
+	tfs->setOwner(getOwner());
 
 	return tfs;
 }
@@ -58,28 +58,36 @@ bool ThunkFieldSize::genCode(void) const
 	if (t == NULL) {
 		/* constant value, easy */
 		code_builder->genCode(
-			owner->getType(), getFCallName(), raw_expr);
+			getOwner()->getType(), getFCallName(), raw_expr);
 	} else {
 		/* passed parent offset, needs field offset to 
 		 * use type's sizeof operator .. */
+		const SymbolTable	*st, *st_owner;
+		const SymbolTableEnt	*st_ent;
 		const ThunkType		*tt;
 		const ThunkFieldOffset	*tf_off;
 		Expr			*gen_expr;
 
-		assert (tf_owner != NULL);
+		st = symtabs[t->getName()];
+		st_owner = symtabs[getOwner()->getType()->getName()];
+		assert (st != NULL);
+		assert (st_owner != NULL);
 
-		tt = symtabs[t->getName()]->getThunkType();
+		tt = st->getThunkType();
 		gen_expr = tt->getSize()->copyFCall();
-		tf_off = tf_owner->getOffset();
+
+		st_ent = st_owner->lookup(getFieldName());
+		assert (st_ent != NULL);
+		tf_off = st_ent->getFieldThunk()->getOffset();
 
 		/* replace getSize fcall's thunk_offset with
 		 * our offset. */
 		gen_expr = Expr::rewriteReplace(
 				gen_expr,
-				rt_glue.getThunkArg(),
+				rt_glue.getThunkArgOffset(),
 				tf_off->copyFCall());
 		code_builder->genCode(
-			owner->getType(),
+			getOwner()->getType(),
 			getFCallName(), 
 			gen_expr);
 

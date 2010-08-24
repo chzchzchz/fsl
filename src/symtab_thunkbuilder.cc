@@ -1,10 +1,12 @@
 #include <iostream>
+#include <stdlib.h>
 #include "expr.h"
 #include "thunk_size.h"
 #include "thunk_fieldoffset_cond.h"
 #include "symtab_thunkbuilder.h"
 #include "util.h"
 #include "runtime_interface.h"
+#include "thunk_params.h"
 
 using namespace std;
 extern type_map			types_map;
@@ -40,10 +42,13 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 	setLastThunk(
 		new ThunkField(
 			*cur_thunk_type,
-			new ThunkFieldOffset(thunk_type, "__base", 
-				rt_glue.getThunkArg()),
-			new ThunkFieldSize(thunk_type, "__base", 0U),
-			new ThunkElements(thunk_type, "__base", 0U)));
+			"__base",
+			new ThunkFieldOffset(rt_glue.getThunkArgOffset()),
+			new ThunkFieldSize(0U),
+			new ThunkElements(0U),
+			ThunkParams::createNoParams()
+		)
+	);
 
 	apply(t);
 
@@ -53,7 +58,6 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 	/* create thunk size function */
 
 	thunk_size = new ThunkSize(
-		thunk_type,
 		new AOPSub(
 			/* offset of last bit */
 			new AOPAdd(
@@ -62,8 +66,9 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 					(last_tf->getElems())->copyFCall()),
 				(last_tf->getOffset())->copyFCall()),
 			/* offset of base */
-			rt_glue.getThunkArg())
+			rt_glue.getThunkArgOffset())
 	);
+	thunk_size->setOwner(thunk_type);
 
 	thunk_type->setSize(thunk_size);
 
@@ -117,10 +122,12 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 	setLastThunk(
 		new ThunkField(
 			*cur_thunk_type,
-			new ThunkFieldOffset(thunk_type, "__base", 
-				rt_glue.getThunkArg()),
-			new ThunkFieldSize(thunk_type, "__base", 0u),
-			new ThunkElements(thunk_type, "__base", 0u)));
+			"__base",
+			new ThunkFieldOffset(rt_glue.getThunkArgOffset()),
+			new ThunkFieldSize(0u),
+			new ThunkElements(0u),
+			ThunkParams::createNoParams())
+	);
 
 	last_tf_union_off = copyCurrentOffset();
 
@@ -147,7 +154,8 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 	}
 
 	/* create thunk size function */
-	thunk_size = new ThunkSize(thunk_type, size_expr);
+	thunk_size = new ThunkSize(size_expr);
+	thunk_size->setOwner(thunk_type);
 	thunk_type->setSize(thunk_size);
 
 	ret = cur_symtab;
@@ -181,31 +189,20 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 	/* get field offset object */
 	if (last_tf_union_off != NULL) {
 		assert (cond_stack.size() == 0);
-		field_offset = new ThunkFieldOffset(
-			cur_thunk_type,
-			field_name,
-			last_tf_union_off->copy());
+		field_offset = new ThunkFieldOffset(last_tf_union_off->copy());
 	} else if (cond_stack.size() == 0) {
-		field_offset = new ThunkFieldOffset(
-			cur_thunk_type, 
-			field_name,
-			copyCurrentOffset());
+		field_offset = new ThunkFieldOffset(copyCurrentOffset());
 	} else {
 		field_offset = new ThunkFieldOffsetCond(
-			cur_thunk_type,
-			field_name,
-			getConds(),
-			copyCurrentOffset(),
-			rt_glue.fail());
+			getConds(), copyCurrentOffset(), rt_glue.fail());
 	}
 
 	/* get thunksize object */
 	t = (types_map.count(type_str)) ?  types_map[type_str] : NULL;
 	if (t != NULL) {
-		field_size = new ThunkFieldSize(cur_thunk_type, field_name, t);
+		field_size = new ThunkFieldSize(t);
 	} else if (ctypes_map.count(type_str)) {
-		field_size = new ThunkFieldSize(
-			cur_thunk_type, field_name, ctypes_map[type_str]);
+		field_size = new ThunkFieldSize(ctypes_map[type_str]);
 	} else {
 		cerr << "Could not get type size for " << type_str << endl;
 		delete field_offset;
@@ -214,8 +211,7 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 
 	/* get number of elements object */
 	if (array == NULL) {
-		field_elems = new ThunkElements(
-			cur_thunk_type, field_name, 1u);
+		field_elems = new ThunkElements(1u);
 	} else {
 		Expr	*num_elems;
 
@@ -224,12 +220,19 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 			from_base_fc.copy(),
 			copyCurrentOffset());
 
-		field_elems = new ThunkElements(
-			cur_thunk_type, field_name, num_elems);
+		field_elems = new ThunkElements(num_elems);
+	}
+
+	if (t != NULL && t->getNumArgs() != 0) {
+		/* XXX TODO */
+		cerr << "XXX: Can not add parameteric type as field." << endl;
+		exit(-1);
 	}
 
 	field_thunk = new ThunkField(
-		*cur_thunk_type, field_offset, field_size, field_elems);
+		*cur_thunk_type, field_name,
+		field_offset, field_size, field_elems,
+		ThunkParams::createNoParams());
 
 	addToCurrentSymTab(type_str, field_name, field_thunk);
 }
@@ -289,18 +292,16 @@ void SymTabThunkBuilder::addUnionToSymTab(
 
 	assert (last_tf_union_off != NULL);
 	/* get field offset object */
-	field_offset = new ThunkFieldOffset(
-		cur_thunk_type, field_name, last_tf_union_off->copy());
+	field_offset = new ThunkFieldOffset(last_tf_union_off->copy());
 
 	/* get field size object.. */
 	union_t = getTypeFromUnionSyms(field_name);
 	assert (union_t != NULL);
-	field_size = new ThunkFieldSize(cur_thunk_type, field_name, union_t);
+	field_size = new ThunkFieldSize(union_t);
 
 	/* get number of elements object */
 	if (array == NULL) {
-		field_elems = new ThunkElements(
-			cur_thunk_type, field_name, 1);
+		field_elems = new ThunkElements(1);
 	} else {
 		Expr	*num_elems;
 
@@ -310,12 +311,19 @@ void SymTabThunkBuilder::addUnionToSymTab(
 			last_tf_union_off->copy());
 
 
-		field_elems = new ThunkElements(
-			cur_thunk_type, field_name, num_elems);
+		field_elems = new ThunkElements(num_elems);
 	}
 
+	assert (
+		union_t->getNumArgs() == 0 && 
+		"Parameterized union types not supported yet");
+
+	/* XXX: should this be a copyParams?-- need clearer semantics 
+	 * for union types */
 	field_thunk = new ThunkField(
-		*cur_thunk_type, field_offset, field_size, field_elems);
+		*cur_thunk_type, field_name,
+		field_offset, field_size, field_elems,
+		ThunkParams::createNoParams());
 
 	addToCurrentSymTab(
 		union_t->getName(),
@@ -413,19 +421,18 @@ void SymTabThunkBuilder::rebaseByCond(
 	else
 		next_off_false = last_tf_false->copyNextOffset();
 
-	field_size = new ThunkFieldSize(cur_thunk_type, fieldname, 0u);
-	field_elements = new ThunkElements(cur_thunk_type, fieldname, 1);
+	field_size = new ThunkFieldSize(0u);
+	field_elements = new ThunkElements(1);
 	field_offset = 	new ThunkFieldOffsetCond(
-		cur_thunk_type,
-		fieldname,
 		rebase_cond_expr,
 		next_off_true,
 		next_off_false);
 
 	/* create a field which will do a 'rebase', use it as the last tf */
 	rebase_tf = new ThunkField(
-		*cur_thunk_type,
-		field_offset, field_size, field_elements);
+		*cur_thunk_type, fieldname,
+		field_offset, field_size, field_elements,
+		ThunkParams::createNoParams());
 
 	setLastThunk(rebase_tf);
 }
@@ -492,12 +499,6 @@ void SymTabThunkBuilder::visit(const TypeFunc* tf)
 		thunkf = setBits(tf);
 	} else if (fcall_name == "set_bytes") {
 		thunkf = setBytes(tf);
-	} else if (fcall_name == "assert_eq") {
-		cerr << "XXX: ASSERT_EQ" << endl;
-		return;
-	} else if (fcall_name == "assert_le") {
-		cerr << "XXX: ASSERT_LE" << endl;
-		return;
 	} else {
 		cerr << "Symtab: Unknown function call: ";
 		tf->print(cerr);
@@ -516,9 +517,7 @@ void SymTabThunkBuilder::visit(const TypeFunc* tf)
 
 Expr* SymTabThunkBuilder::copyFromBase(void) const
 {
-	return new AOPSub(
-		copyCurrentOffset(), 
-		rt_glue.getThunkArg());
+	return new AOPSub(copyCurrentOffset(), rt_glue.getThunkArgOffset());
 }
 
 Expr* SymTabThunkBuilder::copyCurrentOffset(void) const
@@ -562,18 +561,11 @@ ThunkField* SymTabThunkBuilder::alignBits(const TypeFunc* tf)
 
 	thunkf = new ThunkField(
 		*cur_thunk_type,
-		new ThunkFieldOffset(
-			cur_thunk_type,
-			"__align_bits_"+int_to_string(field_count),
-			copyCurrentOffset()),
-		new ThunkFieldSize(
-			cur_thunk_type,
-			"__align_bits_"+int_to_string(field_count),
-			align_bits_pad),
-		new ThunkElements(
-			cur_thunk_type,
-			"__align_bits_"+int_to_string(field_count),
-			1)
+		"__align_bits_"+int_to_string(field_count),
+		new ThunkFieldOffset(copyCurrentOffset()),
+		new ThunkFieldSize(align_bits_pad),
+		new ThunkElements(1),
+		ThunkParams::createNoParams()
 	);		
 
 done:
@@ -602,20 +594,14 @@ ThunkField* SymTabThunkBuilder::setBits(const TypeFunc* tf)
 
 	thunkf = new ThunkField(
 		*cur_thunk_type,
+		"__set_bits_"+int_to_string(field_count),
 		new ThunkFieldOffset(
-			cur_thunk_type,
-			"__set_bits_"+int_to_string(field_count),
 			new AOPAdd(
-				rt_glue.getThunkArg(),
+				rt_glue.getThunkArgOffset(),
 				(args->front())->simplify())),
-		new ThunkFieldSize(
-			cur_thunk_type,
-			"__set_bits_"+int_to_string(field_count),
-			new Number(0)),
-		new ThunkElements(
-			cur_thunk_type,
-			"__set_bits"+int_to_string(field_count),
-			1)
+		new ThunkFieldSize(new Number(0)),
+		new ThunkElements(1),
+		ThunkParams::createNoParams()
 	);		
 
 done:
@@ -645,22 +631,16 @@ ThunkField* SymTabThunkBuilder::setBytes(const TypeFunc* tf)
 
 	thunkf = new ThunkField(
 		*cur_thunk_type,
+		"__set_bytes_"+int_to_string(field_count),
 		new ThunkFieldOffset(
-			cur_thunk_type,
-			"__set_bytes_"+int_to_string(field_count),
 			new AOPAdd(
-				rt_glue.getThunkArg(),
+				rt_glue.getThunkArgOffset(),
 				new AOPMul(
 					(args->front())->simplify(),
 					new Number(8)))),
-		new ThunkFieldSize(
-			cur_thunk_type,
-			"__set_bytes_"+int_to_string(field_count),
-			new Number(0)),
-		new ThunkElements(
-			cur_thunk_type,
-			"__set_bytes_"+int_to_string(field_count),
-			1)
+		new ThunkFieldSize(new Number(0)),
+		new ThunkElements(1),
+		ThunkParams::createNoParams()
 	);		
 
 done:
@@ -702,18 +682,11 @@ ThunkField* SymTabThunkBuilder::alignBytes(const TypeFunc* tf)
 
 	thunkf = new ThunkField(
 		*cur_thunk_type,
-		new ThunkFieldOffset(
-			cur_thunk_type,
-			"__align_bytes_"+int_to_string(field_count),
-			copyCurrentOffset()),
-		new ThunkFieldSize(
-			cur_thunk_type,
-			"__align_bytes_"+int_to_string(field_count),
-			align_bytes_pad),
-		new ThunkElements(
-			cur_thunk_type,
-			"__align_bytes_"+int_to_string(field_count),
-			1)
+		"__align_bytes_"+int_to_string(field_count),
+		new ThunkFieldOffset(copyCurrentOffset()),
+		new ThunkFieldSize(align_bytes_pad),
+		new ThunkElements(1),
+		ThunkParams::createNoParams()
 	);
 
 done:
@@ -742,18 +715,11 @@ ThunkField* SymTabThunkBuilder::skipBits(const TypeFunc* tf)
 
 	thunkf = new ThunkField(
 		*cur_thunk_type,
-		new ThunkFieldOffset(
-			cur_thunk_type,
-			"__skip_bits_"+int_to_string(field_count),
-			copyCurrentOffset()),
-		new ThunkFieldSize(
-			cur_thunk_type,
-			"__skip_bits_"+int_to_string(field_count),
-			(args->front())->simplify()),
-		new ThunkElements(
-			cur_thunk_type,
-			"__skip_bits_"+int_to_string(field_count),
-			1)
+		"__skip_bits_"+int_to_string(field_count),
+		new ThunkFieldOffset(copyCurrentOffset()),
+		new ThunkFieldSize((args->front())->simplify()),
+		new ThunkElements(1),
+		ThunkParams::createNoParams()
 	);		
 
 done:
@@ -782,20 +748,14 @@ ThunkField* SymTabThunkBuilder::skipBytes(const TypeFunc* tf)
 
 	thunkf = new ThunkField(
 		*cur_thunk_type,
-		new ThunkFieldOffset(
-			cur_thunk_type,
-			"__skip_bytes_"+int_to_string(field_count),
-			copyCurrentOffset()),
+		"__skip_bytes_"+int_to_string(field_count),
+		new ThunkFieldOffset(copyCurrentOffset()),
 		new ThunkFieldSize(
-			cur_thunk_type,
-			"__skip_bytes_"+int_to_string(field_count),
 			new AOPMul(
 				(args->front())->simplify(),
 				new Number(8))),
-		new ThunkElements(
-			cur_thunk_type,
-			"__skip_bytes_"+int_to_string(field_count),
-			1)
+		new ThunkElements(1),
+		ThunkParams::createNoParams()
 	);		
 
 done:

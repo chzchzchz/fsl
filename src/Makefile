@@ -18,6 +18,7 @@ OBJS=	parser.o		\
 	thunk_fieldsize.o	\
 	thunk_size.o		\
 	thunk_func.o		\
+	thunk_params.o		\
 	thunk_fieldoffset_cond.o\
 	func_args.o		\
 	preamble.o		\

@@ -15,9 +15,16 @@ public:
 	Expr*	getLocal(Expr* disk_bit_offset, Expr* num_bits);
 	Expr*	getLocalArray(
 		Expr* idx, Expr* bits_in_type, Expr* base_offset, Expr* bits_in_array);
-	Expr*	getDyn(const class Type* user_type);
-	Expr*	getThunkArg(void);
-	const std::string getThunkArgName(void);
+	Expr*	getDynOffset(const class Type* user_type);
+	Expr*	getDynParams(const class Type* user_type);
+
+	Expr*	getThunkArgOffset(void);
+	Expr*	getThunkArgParamPtr(void);
+
+
+	const std::string getThunkArgOffsetName(void);
+	const std::string getThunkArgParamPtrName(void);
+
 	Expr	*maxValue(ExprList* exprs);
 	Expr	*computeArrayBits(const class ThunkField* tf);
 	Expr	*fail(void);

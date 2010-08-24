@@ -7,6 +7,7 @@ struct type_info
 {
 	typenum_t		ti_typenum;
 	diskoff_t		ti_diskoff;
+	parambuf_t		ti_params;
 
 	bool			ti_pointsto;
 	union {

@@ -172,7 +172,7 @@ static void load_user_funcs(const GlobalBlock* gb)
 		/* add to mappings.. */
 		funcs_list.push_back(f);
 		funcs_map[f->getName()] = f;
-		gen_func_proto(f);
+		f->genProto();
 	}
 
 	for (	func_list::const_iterator it = funcs_list.begin();
@@ -180,7 +180,7 @@ static void load_user_funcs(const GlobalBlock* gb)
 		it++)
 	{
 		Func	*f = *it;
-		gen_func_code(f);
+		f->genCode();
 	}
 }
 

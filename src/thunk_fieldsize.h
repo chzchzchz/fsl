@@ -2,53 +2,34 @@
 #define THUNKFIELDSIZE_H
 
 #include <string>
-#include "thunk_func.h"
+#include "thunk_fieldfunc.h"
 
 class Type;
 
-class ThunkFieldSize : public ThunkFunc
+class ThunkFieldSize : public ThunkFieldFunc
 {
 public:
-	ThunkFieldSize(
-		const ThunkType* in_owner, 
-		const std::string& in_fieldname,
-		unsigned int size_bits)
-	: ThunkFunc(in_owner, size_bits), 
-	  tf_owner(NULL),
-	  t(NULL),
-	  fieldname(in_fieldname) {}
+	ThunkFieldSize(unsigned int size_bits)
+	: ThunkFieldFunc(size_bits), t(NULL) {}
 
-	ThunkFieldSize(
-		const ThunkType* in_owner,
-		const std::string& in_fieldname,
-		Expr* e)
-	: ThunkFunc(in_owner, e),
-	  tf_owner(NULL),
-	  t(NULL),
-	  fieldname(in_fieldname) {}
+	ThunkFieldSize(Expr* e)
+	: ThunkFieldFunc(e), t(NULL) {}
 
-	ThunkFieldSize(
-		const ThunkType* in_owner, 
-		const std::string& in_fieldname,
-		const Type* t_in)
-	: ThunkFunc(in_owner),
-	  tf_owner(NULL),
-	  t(t_in),
-	  fieldname(in_fieldname)
+	ThunkFieldSize(const Type* t_in)
+	: t(t_in) 
 	{
-		assert (t != NULL);
+		assert (t != NULL); 
 	}
 
 	virtual ~ThunkFieldSize() {}
 
 	virtual FCall* copyFCall(void) const;
-
 	virtual ThunkFieldSize* copy(void) const;
-	Expr* copyConstValue(void) const;
-	bool genCode(void) const;
-	const Type* getType(void) const { return t; }
+	virtual bool genCode(void) const;
 
-	void setThunkField(class ThunkField* tf) { tf_owner = tf; }
+	Expr* copyConstValue(void) const;
+
+	const Type* getType(void) const { return t; }
 
 	bool isConstant(void) const
 	{
@@ -61,11 +42,7 @@ public:
 
 protected:
 	const std::string getFCallName(void) const;
-
-	const class ThunkField	*tf_owner;
 	const Type		*t;
-	const std::string	fieldname;
-
 };
 
 

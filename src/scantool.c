@@ -43,7 +43,7 @@ static void scan_type_pointsto_single(
 
 	new_ti = typeinfo_alloc_pointsto(
 		pt->pt_type_dst,
-		pt->pt_single(ti->ti_diskoff),
+		pt->pt_single(ti->ti_diskoff, ti->ti_params),
 		pt_idx,
 		0,
 		ti);
@@ -72,15 +72,15 @@ static void scan_type_pointsto_range(
 	pt = pt_from_idx(ti, pt_idx);
 	assert (pt->pt_range != NULL);	
 
-	min_idx = pt->pt_min(ti->ti_diskoff);
-	max_idx = pt->pt_max(ti->ti_diskoff);
+	min_idx = pt->pt_min(ti->ti_diskoff, ti->ti_params);
+	max_idx = pt->pt_max(ti->ti_diskoff, ti->ti_params);
 	printf("[%d,%d]\n", min_idx, max_idx);
 	for (k = min_idx; k <= max_idx; k++) {
 		struct type_info	*new_ti;
 
 		new_ti = typeinfo_alloc_pointsto(
 			pt->pt_type_dst,
-			pt->pt_range(ti->ti_diskoff, k),
+			pt->pt_range(ti->ti_diskoff, ti->ti_params, k),
 			pt_idx,
 			k,
 			ti);
@@ -139,8 +139,8 @@ static void handle_field(
 	unsigned int			i;
 	
 	field = &tt_by_ti(ti)->tt_field_thunkoff[field_idx];
-	bitoff = field->tf_fieldbitoff(ti->ti_diskoff);
-	num_elems = field->tf_elemcount(ti->ti_diskoff);
+	bitoff = field->tf_fieldbitoff(ti->ti_diskoff, ti->ti_params);
+	num_elems = field->tf_elemcount(ti->ti_diskoff, ti->ti_params);
 
 	for (i = 0; i < num_elems; i++) {
 		/* dump data */
@@ -159,7 +159,8 @@ static void handle_field(
 
 		if (i < num_elems - 1) {
 			/* more to next element */
-			bitoff += tt_by_ti(new_ti)->tt_size(new_ti->ti_diskoff);
+			bitoff += tt_by_ti(new_ti)->tt_size(
+				new_ti->ti_diskoff, new_ti->ti_params);
 		}
 
 		typeinfo_free(new_ti);

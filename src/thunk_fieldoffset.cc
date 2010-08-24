@@ -7,21 +7,26 @@ extern CodeBuilder*	code_builder;
 const std::string ThunkFieldOffset::getFCallName(void) const
 {
 	return "__thunkfieldoff_" + 
-		owner->getType()->getName() + "_" +
-		fieldname;
+		getOwner()->getType()->getName() + "_" +
+		getFieldName();
 }
 
 FCall* ThunkFieldOffset::copyFCall(void) const
 {
 	return new FCall(
 		new Id(getFCallName()),
-		owner->copyExprList());
+		getOwner()->copyExprList());
 }
 
 ThunkFieldOffset* ThunkFieldOffset::copy(void) const
 {
-	assert (raw_expr != NULL);
-	return new ThunkFieldOffset(
-		owner, fieldname, raw_expr->copy());
-}
+	ThunkFieldOffset	*ret;
 
+	assert (raw_expr != NULL);
+
+	ret = new ThunkFieldOffset(raw_expr->copy());
+	ret->setFieldName(getFieldName());
+	ret->setOwner(getOwner());
+
+	return ret;
+}

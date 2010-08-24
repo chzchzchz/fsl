@@ -15,21 +15,27 @@ bool ThunkElements::isSingleton(void) const
 const string ThunkElements::getFCallName(void) const
 {
 	return "__thunkelems_" +
-		owner->getType()->getName() + "_" +
-		fieldname;
+		getOwner()->getType()->getName() + "_" +
+		getFieldName();
 }
 
 FCall* ThunkElements::copyFCall(void) const
 {
 	return new FCall(
 		new Id(getFCallName()),
-		owner->copyExprList());
+		getOwner()->copyExprList());
 }
 
 ThunkElements* ThunkElements::copy(void) const
 {
+	ThunkElements*	ret;
+
 	assert (raw_expr != NULL);
-	return new ThunkElements(
-		owner, fieldname, raw_expr->copy());
+
+	ret = new ThunkElements(raw_expr->copy());
+	ret->setOwner(getOwner());
+	ret->setFieldName(getFieldName());
+
+	return ret;
 }
 

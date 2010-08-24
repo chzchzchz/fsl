@@ -8,13 +8,10 @@ class ThunkFieldOffsetCond : public ThunkFieldOffset
 {
 public:
 	ThunkFieldOffsetCond(
-		const ThunkType*	in_owner,
-		const std::string	&in_fieldname,
 		CondExpr*		in_cond,
 		Expr*			in_true_off,
 		Expr*			in_false_off = NULL)
-	: ThunkFieldOffset(in_owner, in_fieldname),
-	  cond_expr(in_cond),
+	: cond_expr(in_cond),
 	  true_off(in_true_off),
 	  false_off(in_false_off)
 	{

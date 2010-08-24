@@ -320,11 +320,12 @@ PointsIf::PointsIf(
 	new Number(1),
 	new FCall(
 		new Id(getWrapperFCallName(in_src_type->getName(), in_seq)),
-		new ExprList(rt_glue.getThunkArg())),
+		new ExprList(rt_glue.getThunkArgOffset())),
 	in_points_expr,
 	in_seq),
 	cond_expr(in_cond_expr)
 {
+	assert (0 == 1 && "NEED TO PASS PARAMS");
 	assert (cond_expr != NULL);
 }
 

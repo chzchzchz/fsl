@@ -9,6 +9,7 @@ extern RTInterface	rt_glue;
 
 using namespace std;
 
+
 Expr* EvalCtx::resolve(const Id* id) const
 {
 	const_map::const_iterator	const_it;
@@ -47,7 +48,7 @@ Expr* EvalCtx::resolve(const Id* id) const
 
 	/* support for access of dynamic types.. gets base bits for type */
 	if ((t = typeByName(id->getName())) != NULL) {
-		return rt_glue.getDyn(t);
+		return rt_glue.getDynOffset(t);
 	}
 
 	/* could not resolve */
@@ -210,7 +211,7 @@ Expr* EvalCtx::buildTail(
 
 		new_base = Expr::rewriteReplace(
 				thunk_field->getOffset()->copyFCall(),
-				rt_glue.getThunkArg(),
+				rt_glue.getThunkArgOffset(),
 				ret->simplify());
 
 		new_base = new AOPAdd(
@@ -218,7 +219,7 @@ Expr* EvalCtx::buildTail(
 			new AOPMul(
 				Expr::rewriteReplace(
 					thunk_field->getSize()->copyFCall(),
-					rt_glue.getThunkArg(),
+					rt_glue.getThunkArgOffset(),
 					ret->simplify()),
 				evalReplace(*this, cur_idx->simplify())));
 
@@ -238,7 +239,7 @@ Expr* EvalCtx::buildTail(
 
 		new_base = Expr::rewriteReplace(
 			thunk_field->getOffset()->copyFCall(),
-			rt_glue.getThunkArg(),
+			rt_glue.getThunkArgOffset(),
 			ret->simplify());
 
 		delete ret;
@@ -334,7 +335,7 @@ Expr* EvalCtx::resolveGlobalScope(const IdStruct* ids) const
 	}
 
 
-	base = rt_glue.getDyn(top_type);
+	base = rt_glue.getDynOffset(top_type);
 
 	it++;
 	offset = getStructExpr(base, top_symtab, it, ids->end(), last_ste);
@@ -403,6 +404,10 @@ Expr* EvalCtx::resolveFuncArg(const IdStruct* ids) const
 
 	if (offset == NULL) 
 		return NULL;
+
+	cerr << "RESOLVED FUNC ARG: ";
+	offset->print(cerr);
+	cerr << endl;
 
 	thunk_field = last_ste->getFieldThunk();
 

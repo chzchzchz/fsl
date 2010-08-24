@@ -17,6 +17,19 @@ void Type::print(ostream& out) const
 	out << "End Type";
 }
 
+Type::Type(	Id* in_name, ArgsList* in_args, TypePreamble* in_preamble, 
+		TypeBlock* in_block)
+: name(in_name),
+  args(in_args),
+  preamble(in_preamble),
+  block(in_block),
+  type_num(-1),
+  cached_symtab(NULL)
+{
+	assert (in_name != NULL);
+	assert (in_block != NULL);
+	in_block->setOwner(this);
+}
 
 Type::~Type(void)
 {
@@ -85,8 +98,11 @@ void Type::buildSyms(void)
 
 SymbolTable* Type::getSyms(void) const
 {
+	SymbolTable	*ret;
+
 	assert (cached_symtab != NULL);
-	return cached_symtab->copy();
+	ret = cached_symtab->copy();
+	return ret;
 }
 
 SymbolTable* Type::getSymsByUserType() const

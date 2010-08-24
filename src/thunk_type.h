@@ -11,7 +11,7 @@
 class ThunkFunc;
 class ThunkSize;
 
-typedef std::map<std::string, ThunkFunc*>	thunkfunc_map;
+typedef std::map<std::string, ThunkFunc*>		thunkfunc_map;
 
 class ThunkType
 {

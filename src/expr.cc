@@ -28,7 +28,6 @@ Value* Expr::ErrorV(const string& s) const
 	return NULL;
 }
 
-/** TODO: This should be able to catch user-defined functions! */
 Value* FCall::codeGen() const
 {
 	Function			*callee;
@@ -42,6 +41,8 @@ Value* FCall::codeGen() const
 			(string("could not find function ") + 
 			id->getName()).c_str());
 	}
+
+	/* XXX PUT SOMETHING HERE FOR USER FUNCS*/
 
 	if (callee->arg_size() != exprs->size()) {
 		return ErrorV(

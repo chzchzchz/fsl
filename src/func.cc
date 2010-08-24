@@ -33,20 +33,19 @@ Func* FuncStmt::getFunc(void) const
 	return f_owner;
 }
 
-Value* Func::codeGen(const EvalCtx* ectx) const
+
+void Func::genLoadArgs(void) const
 {
 	Function			*f;
 	Function::arg_iterator		ai;
 	unsigned int			arg_c;
 
-	assert (ectx != NULL);
-
-	/* create arguments */
 	f = getFunction();
 	ai = f->arg_begin();
 	arg_c = args->size();
 	IRBuilder<>			tmpB(
-		&f->getEntryBlock(), f->getEntryBlock().begin());
+		&f->getEntryBlock(),
+		f->getEntryBlock().begin());
 
 	for (unsigned int i = 0; i < arg_c; i++, ai++) {
 		AllocaInst		*allocai;
@@ -61,8 +60,17 @@ Value* Func::codeGen(const EvalCtx* ectx) const
 		code_builder->getBuilder()->CreateStore(ai, allocai);
 	}
 
-	/* gen rest of code */
-	return block->codeGen(ectx);
+	/* handle return value if passing type */
+	if (f->getType() == llvm::Type::getVoidTy(llvm::getGlobalContext())) {
+		AllocaInst		*allocai;
+		const llvm::Type	*t;
+
+		t = code_builder->getTypePassStructPtr();
+
+		allocai = tmpB.CreateAlloca(t, 0, "__ret_typepass");
+		block->addVar("__ret_typepass", allocai);
+		code_builder->getBuilder()->CreateStore(ai, allocai);
+	}
 }
 
 Value* FuncDecl::codeGen(const EvalCtx* ectx) const
@@ -136,12 +144,37 @@ Value* FuncRet::codeGen(const EvalCtx* ectx) const
 
 	builder = code_builder->getBuilder();
 	cur_bb = builder->GetInsertBlock();
+
+	/* if return type is boolean, truncate 64-bit return value */
 	f = cur_bb->getParent();
 	t = f->getReturnType();
 	if (t == llvm::Type::getInt1Ty(llvm::getGlobalContext())) {
 		e_v = builder->CreateTrunc(e_v, t);
+	} else if (t == code_builder->getTypePassStruct()) {
+		/* copy result into return value */
+		llvm::Value			*idx_val;
+		llvm::Value			*param_elem_val;
+		llvm::Value			*tp_elem_ptr;
+		AllocaInst			*allocai;
+
+		allocai = getOwner()->getVar("__ret_typepass");
+		idx_val = llvm::ConstantInt::get(
+			llvm::getGlobalContext(),
+			llvm::APInt(32, 0));
+		tp_elem_ptr = builder->CreateGEP(
+			builder->CreateLoad(allocai), 
+			idx_val);
+
+		code_builder->copyTypePassStruct(
+			types_map[getFunc()->getRet()],
+			e_v, tp_elem_ptr);
+
+		builder->CreateRetVoid();
+
+		return NULL;
 	}
 
+	/* return result */
 	builder->CreateRet(e_v);
 
 	return e_v;
@@ -240,7 +273,8 @@ Function* FuncStmt::getFunction() const
 	return getFunc()->getFunction();
 }
 
-void gen_func_proto(const Func* f)
+
+void Func::genProto(void) const
 {
 	vector<const llvm::Type*>	f_args;
 	llvm::Type			*ret_type;
@@ -249,41 +283,44 @@ void gen_func_proto(const Func* f)
 	const llvm::Type		*t_ret;
 	bool				is_user_type;
 
-	if (types_map.count(f->getRet()) != 0) {
+	if (types_map.count(getRet()) != 0) {
 		is_user_type = true;
-	} else if (ctypes_map.count(f->getRet()) != 0) {
+	} else if (ctypes_map.count(getRet()) != 0) {
 		is_user_type = false;	
 	} else {
-		cerr	<< "Bad return type (" << f->getRet() << ") for "
-			<< f->getName() << endl;
+		cerr	<< "Bad return type (" << getRet() << ") for "
+			<< getName() << endl;
 		return;
 	}
 
 	/* XXX need to do this better.. */
-	if (f->getRet() == "bool") {
+	if (getRet() == "bool") {
 		t_ret = llvm::Type::getInt1Ty(llvm::getGlobalContext());
-	} else {
+	} else if (is_user_type == false) {
 		t_ret = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+	} else {
+		/* we'll tack on a parameter at the end that is a pointer
+		 * to a typepass struct, which will be what we write our 
+		 * return data too (return will act as an assignment) */
+		t_ret = llvm::Type::getVoidTy(llvm::getGlobalContext());
 	}
 		
-	if (is_user_type)
-		cerr	<< f->getName() 
-			<< ": be smarter about returning user types" << endl;
 
-	if (gen_func_code_args(f, f_args) == false) {
-		cerr << "Bailing on generating " << f->getName() << endl;
+	if (gen_func_code_args(this, f_args) == false) {
+		cerr << "Bailing on generating " << getName() << endl;
 		return;
 	}
 
 	/* finally, create the proto */
 	llvm_ft = llvm::FunctionType::get(t_ret, f_args, false);
+
 	llvm_f = llvm::Function::Create(
 		llvm_ft,
 		llvm::Function::ExternalLinkage,
-		f->getName(),
+		getName(),
 		code_builder->getModule());
-	if (llvm_f->getName() != f->getName()) {
-		cerr << f->getName() << " already declared!" << endl;
+	if (llvm_f->getName() != getName()) {
+		cerr << getName() << " already declared!" << endl;
 	}
 }
 
@@ -291,6 +328,9 @@ static bool gen_func_code_args(
 	const Func* f, vector<const llvm::Type*>& llvm_args)
 {
 	const ArgsList	*args;
+	bool		is_ret_user_type;
+
+	is_ret_user_type = (types_map.count(f->getRet()) != 0);
 
 	args = f->getArgs();
 	assert (args != NULL);
@@ -298,13 +338,12 @@ static bool gen_func_code_args(
 	llvm_args.clear();
 
 	for (unsigned int i = 0; i < args->size(); i++) {
+		string			cur_type;
+		bool			is_user_type;
 		const llvm::Type	*t;
-		string		cur_type(((args->get(i)).first)->getName());
-		bool		is_user_type;
 
+		cur_type = (((args->get(i)).first)->getName());
 		if (types_map.count(cur_type) != 0) {
-			cerr	<< f->getName() 
-				<< ": be smarter about type args" << endl;
 			is_user_type = true;
 		} else if (ctypes_map.count(cur_type) != 0) {
 			is_user_type = false;
@@ -315,34 +354,39 @@ static bool gen_func_code_args(
 			return false;
 		}
 
-		t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
-		if (t == NULL) {
-			cerr << f->getName() << ": bad func arg type \"" << 
-			cur_type << "\"." << endl;
-			return false;
+		if (is_user_type) {
+			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+		} else {
+			t = code_builder->getTypePassStruct();
 		}
 
 		llvm_args.push_back(t);
 	}
 
+	if (is_ret_user_type) {
+		/* hidden return value */
+		llvm_args.push_back(code_builder->getTypePassStructPtr());
+	}
+
+
 	return true;
 }
 
-void gen_func_code(Func* f)
+void Func::genCode(void) const
 {
 	EvalCtx*			ectx;
 	llvm::Function			*llvm_f;
 	llvm::BasicBlock		*f_bb;
 	FuncArgs			*fargs;
 
-	llvm_f = code_builder->getModule()->getFunction(f->getName());
+	llvm_f = code_builder->getModule()->getFunction(getName());
 	if (llvm_f == NULL) {
 		cerr	<< "Could not find function prototype for "
-			<< f->getName() << endl;
+			<< getName() << endl;
 		return;
 	}
 
-	fargs = new FuncArgs(f->getArgs());
+	fargs = new FuncArgs(getArgs());
 
 	/* scope takes args */
 	ectx = new EvalCtx(fargs, symtabs, constants);
@@ -354,8 +398,14 @@ void gen_func_code(Func* f)
 
 	/* set gen_func so that expr id resolution will get the right
 	 * alloca variable */
-	gen_func = f;
-	f->codeGen(ectx);
+	gen_func = this;
+
+	/* create arguments */
+	genLoadArgs();
+
+	/* gen rest of code */
+	block->codeGen(ectx);
+
 	gen_func = NULL;
 	gen_func_block = NULL;
 

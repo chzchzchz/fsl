@@ -324,18 +324,7 @@ class Type : public GlobalStmt
 public:
 
 	Type(	Id* in_name, ArgsList* in_args, TypePreamble* in_preamble, 
-		TypeBlock* in_block)
-	: name(in_name),
-	  args(in_args),
-	  preamble(in_preamble),
-	  block(in_block),
-	  type_num(-1),
-	  cached_symtab(NULL)
-	{
-		assert (in_name != NULL);
-		assert (in_block != NULL);
-		in_block->setOwner(this);
-	}
+		TypeBlock* in_block);
 
 	void print(std::ostream& out) const;
 

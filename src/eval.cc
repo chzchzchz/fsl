@@ -171,7 +171,7 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 	ret_size = st->getThunkType()->getSize()->copyFCall();
 	ret_size = Expr::rewriteReplace(
 		ret_size,
-		rt_glue.getThunkArg(),
+		rt_glue.getThunkArgOffset(),
 		new Number(0));
 
 	if (bits == false) {

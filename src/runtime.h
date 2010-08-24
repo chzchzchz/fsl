@@ -28,16 +28,16 @@ typedef uint64_t*	parambuf_t;
 #define TYPENUM_INVALID	(~0)
 
 /* XXX these should take a thunkvar when we support args */
-typedef diskoff_t(*thunkf_t)(diskoff_t);
-typedef typesize_t(*sizef_t)(diskoff_t);
-typedef uint64_t(*elemsf_t)(diskoff_t);
-typedef uint64_t(*points_minf_t)(diskoff_t);
-typedef uint64_t(*points_maxf_t)(diskoff_t);
-typedef diskoff_t(*points_rangef_t)(diskoff_t, uint64_t /* idx */);
-typedef void(*paramsf_t)(parambuf_t);
-typedef diskoff_t(*pointsf_t)(diskoff_t);
-typedef bool(*condf_t)(diskoff_t);
-typedef bool(*assertf_t)(diskoff_t);
+typedef diskoff_t(*thunkf_t)(diskoff_t, parambuf_t );
+typedef typesize_t(*sizef_t)(diskoff_t, parambuf_t );
+typedef uint64_t(*elemsf_t)(diskoff_t, parambuf_t );
+typedef uint64_t(*points_minf_t)(diskoff_t, parambuf_t );
+typedef uint64_t(*points_maxf_t)(diskoff_t, parambuf_t );
+typedef diskoff_t(*points_rangef_t)(diskoff_t, parambuf_t , uint64_t /* idx */);
+typedef void(*paramsf_t)(diskoff_t, parambuf_t /* in */, parambuf_t /* out */);
+typedef diskoff_t(*pointsf_t)(diskoff_t, parambuf_t);
+typedef bool(*condf_t)(diskoff_t, parambuf_t);
+typedef bool(*assertf_t)(diskoff_t, parambuf_t);
 
 
 struct fsl_rt_thunk_var 
@@ -50,6 +50,8 @@ struct fsl_rt_thunk_var
 struct fsl_rt_table_type
 {
 	const char			*tt_name;
+	unsigned int			tt_param_c;
+
 	sizef_t				tt_size;
 
 	/* strong user-types */
@@ -75,12 +77,11 @@ struct fsl_rt_table_type
 struct fsl_rt_table_field
 {
 	const char	*tf_fieldname;
-
+	typenum_t	tf_typenum;
 	/* size does not change in field (useful for arrays.) */
 	bool		tf_constsize;	
 
 	thunkf_t	tf_fieldbitoff;
-	typenum_t	tf_typenum;
 	elemsf_t	tf_elemcount;
 	sizef_t		tf_typesize;
 	condf_t		tf_cond;
@@ -118,14 +119,17 @@ extern int				fsl_rt_debug;
 
 /* exposed to llvm */
 typesize_t __computeArrayBits(
-	typenum_t elem_type, diskoff_t off, uint64_t num_elems);
+	typenum_t elem_type, 
+	diskoff_t off,
+	parambuf_t params,
+	uint64_t num_elems);
 
 uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits);
 uint64_t __getLocalArray(
 	uint64_t idx, uint64_t bits_in_type, 
 	uint64_t base_offset, uint64_t bits_in_array);
 uint64_t __getDyn(uint64_t type_num);
-void __setDyn(uint64_t type_num, uint64_t offset);
+void __setDyn(uint64_t type_num, diskoff_t offset, parambuf_t params);
 uint64_t __max2(
 	uint64_t a0, uint64_t a1);
 uint64_t __max3(uint64_t a0, uint64_t a1, uint64_t a2);

@@ -6,12 +6,34 @@ using namespace std;
 
 const std::string ThunkSize::getFCallName(void) const
 {
-	return "__typesize_" + owner->getType()->getName(); 
+	const Type	*owner_t;
+	const ThunkType	*tt;
+
+	tt = getOwner();
+	assert (tt != NULL);
+
+	owner_t = tt->getType();
+	assert (owner_t != NULL);
+
+	return "__typesize_" + owner_t->getName();
 }
+
+ThunkSize* ThunkSize::copy(void) const
+{
+	ThunkSize	*ret;
+
+	ret = new ThunkSize(raw_expr->copy());
+	ret->setOwner(getOwner());
+
+	return ret;
+}
+
 
 FCall* ThunkSize::copyFCall(void) const
 {
-	return new FCall(new Id(getFCallName()), owner->copyExprList());
+	return new FCall(
+		new Id(getFCallName()),
+		getOwner()->copyExprList());
 }
 
 Expr* ThunkSize::copyConstValue(void) const

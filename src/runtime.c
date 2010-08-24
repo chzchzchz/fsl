@@ -85,10 +85,11 @@ uint64_t __getDyn(uint64_t type_num)
 	return env->fctx_type_offsets[type_num];
 }
 
-void __setDyn(uint64_t type_num, uint64_t offset)
+void __setDyn(uint64_t type_num, diskoff_t offset, parambuf_t params)
 {
 	assert (type_num < env->fctx_num_types);
 	env->fctx_type_offsets[type_num] = offset;
+	assert (0 == 1 && "NEED TO COPY OVER PARAMS");
 }
 
 void fsl_rt_dump_dyn(void)
@@ -164,6 +165,7 @@ uint64_t fsl_fail(void)
 typesize_t __computeArrayBits(
 	typenum_t elem_type,
 	diskoff_t off,
+	parambuf_t params,
 	uint64_t num_elems)
 {
 	struct fsl_rt_table_type	*tt;
@@ -179,8 +181,8 @@ typesize_t __computeArrayBits(
 	for (i = 0; i < num_elems; i++) {
 		typesize_t		cur_size;
 
-		__setDyn(elem_type, cur_off);
-		cur_size = tt->tt_size(cur_off);
+		__setDyn(elem_type, cur_off, params);
+		cur_size = tt->tt_size(cur_off, params);
 		total_bits += cur_size;
 		cur_off += cur_size;
 	}

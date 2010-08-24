@@ -12,7 +12,7 @@ using namespace std;
 
 /* TODO: __max should be a proper vararg function */
 static const char*	rt_func_names[] = {	
-	"__getLocal", "__getLocalArray", "__getDyn", "fsl_fail", 
+	"__getLocal", "__getLocalArray", "__getDynOffset", "fsl_fail", 
 	"__max2", "__max3", "__max4", "__max5",
 	"__max6", "__max7",
 	"__computeArrayBits"};
@@ -82,27 +82,41 @@ Expr* RTInterface::getLocalArray(
 	return new FCall(new Id("__getLocalArray"), exprs);
 }
 
-Expr* RTInterface::getDyn(const Type* user_type)
+Expr* RTInterface::getDynOffset(const Type* user_type)
 {
 	ExprList	*exprs; 
 
 	assert (user_type != NULL);
 
 	exprs = new ExprList(new Number(user_type->getTypeNum()));
-	return new FCall(new Id("__getDyn"), exprs);
+	return new FCall(new Id("__getDynOffset"), exprs);
 }
 
-
-Expr* RTInterface::getThunkArg(void)
+Expr* RTInterface::getDynParams(const Type* user_Type)
 {
-	return new Id("__thunk_arg_off");
+	assert (0 == 1);
 }
 
-const std::string RTInterface::getThunkArgName(void)
+
+Expr* RTInterface::getThunkArgOffset(void)
+{
+	return new Id(getThunkArgOffsetName());
+}
+
+Expr*	RTInterface::getThunkArgParamPtr(void)
+{
+	return new Id(getThunkArgParamPtrName());
+}
+
+const std::string RTInterface::getThunkArgOffsetName(void)
 {
 	return "__thunk_arg_off";
 }
 
+const std::string RTInterface::getThunkArgParamPtrName(void)
+{
+	return "__thunk_arg_params";
+}
 
 Expr* RTInterface::maxValue(ExprList* exprs)
 {
@@ -134,3 +148,5 @@ Expr* RTInterface::computeArrayBits(const ThunkField* tf)
 		new Id("__computeArrayBits"),
 		exprs);
 }
+
+

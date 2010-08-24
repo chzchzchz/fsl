@@ -189,8 +189,12 @@ public:
 	llvm::Function* getFunction(void) const;
 
 	const ArgsList* getArgs() const { return args; }
-	llvm::Value* codeGen(const class EvalCtx*) const;
+	void genProto(void) const;
+	void genCode(void) const;
+	
 private:
+	void genLoadArgs(void) const;
+
 	Id		*ret_type;
 	Id		*name;
 	ArgsList	*args;

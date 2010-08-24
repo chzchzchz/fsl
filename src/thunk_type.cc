@@ -1,5 +1,6 @@
 #include "thunk_type.h"
 #include "runtime_interface.h"
+#include "thunk_field.h"
 
 #include <iostream>
 
@@ -76,14 +77,8 @@ ExprList* ThunkType::copyExprList(void) const
 	assert (t_type != NULL);
 
 	ret = new ExprList();
-	ret->add(rt_glue.getThunkArg());
-
-	args = t_type->getArgs();
-	if (args != NULL) {
-		for (unsigned int i = 0; i < args->size(); i++) {
-			ret->add(args->get(i).second->copy());
-		}
-	}
+	ret->add(rt_glue.getThunkArgOffset());
+	ret->add(rt_glue.getThunkArgParamPtr());
 
 	return ret;
 }

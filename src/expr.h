@@ -259,6 +259,9 @@ public:
 
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
+	llvm::Value*	codeGenNormalFunc() const;
+	llvm::Value*	codeGenTypeFunc() const;
+
 	Id*		id;
 	ExprList*	exprs;
 };

@@ -14,11 +14,11 @@
 class ThunkSize : public ThunkFunc
 {
 public:
-	ThunkSize(const ThunkType* in_owner, unsigned int size_bits)
-	: ThunkFunc(in_owner, size_bits), t(NULL) {}
+	ThunkSize(unsigned int size_bits)
+	: ThunkFunc(size_bits), t(NULL) {}
 
-	ThunkSize(const ThunkType* in_owner, Expr* e)
-	: ThunkFunc(in_owner, e), t(NULL) {}
+	ThunkSize(Expr* e)
+	: ThunkFunc(e), t(NULL) {}
 
 	virtual ~ThunkSize() {}
 
@@ -26,10 +26,7 @@ public:
 	Expr* copyConstValue(void) const;
 
 
-	ThunkSize* copy(void) const
-	{
-		return new ThunkSize(owner, raw_expr->copy());
-	}
+	ThunkSize* copy(void) const;
 
 protected:
 	const class Type	*t;

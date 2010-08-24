@@ -35,14 +35,14 @@ static void select_pointsto_range(struct type_info* cur, int pt_idx)
 	assert (pt->pt_single == NULL);
 
 	/* get the range element idx */
-	min_idx = pt->pt_min(cur->ti_diskoff);
-	max_idx = pt->pt_max(cur->ti_diskoff);
+	min_idx = pt->pt_min(cur->ti_diskoff, cur->ti_params);
+	max_idx = pt->pt_max(cur->ti_diskoff, cur->ti_params);
 	pt_elem_idx = get_sel_elem(min_idx, max_idx);
 	if (pt_elem_idx == INT_MIN)
 		return;
 
 	/* jump to it */
-	pt_off = pt->pt_range(cur->ti_diskoff, pt_elem_idx);
+	pt_off = pt->pt_range(cur->ti_diskoff, cur->ti_params, pt_elem_idx);
 	ti_next = typeinfo_alloc_pointsto(
 		pt->pt_type_dst, pt_off, pt_idx, pt_elem_idx, cur);
 	if (ti_next == NULL)
@@ -65,7 +65,7 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 		return;
 	}
 
-	pt_off = pt->pt_single(cur->ti_diskoff);
+	pt_off = pt->pt_single(cur->ti_diskoff, cur->ti_params);
 
 	ti_next = typeinfo_alloc_pointsto(
 		pt->pt_type_dst, pt_off, pt_idx, 0, cur);
@@ -110,8 +110,9 @@ static void select_field(struct type_info* cur, int field_idx)
 		return;
 	}
 
-	num_elems = field->tf_elemcount(cur->ti_diskoff);
-	next_diskoff = field->tf_fieldbitoff(cur->ti_diskoff);
+	num_elems = field->tf_elemcount(cur->ti_diskoff, cur->ti_params);
+	next_diskoff = field->tf_fieldbitoff(
+		cur->ti_diskoff, cur->ti_params);
 
 	if (num_elems > 1) {
 		int	sel_elem;
@@ -123,15 +124,19 @@ static void select_field(struct type_info* cur, int field_idx)
 		if (field->tf_constsize == false) {
 			typesize_t	array_off;
 
+			assert (0 == 1 && "LOAD PARAMS PROPERLY");
+
 			array_off = __computeArrayBits(
 				field->tf_typenum,
 				next_diskoff,
+				NULL,
 				sel_elem);
 
 			next_diskoff += array_off;
 		}  else {
 			typesize_t	fsz;
-			fsz = field->tf_typesize(cur->ti_diskoff);
+			fsz = field->tf_typesize(
+				cur->ti_diskoff, cur->ti_params);
 			next_diskoff += sel_elem * fsz;
 		}
 	}

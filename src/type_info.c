@@ -20,7 +20,7 @@ static bool verify_asserts(const struct type_info *ti)
 	for (i = 0; i < tt->tt_assert_c; i++) {
 		const struct fsl_rt_table_assert	*as;
 		as = &tt->tt_assert[i];
-		if (as->as_assertf(ti->ti_diskoff) == false) {
+		if (as->as_assertf(ti->ti_diskoff, ti->ti_params) == false) {
 			printf("!!! !!!Assert #%d failed on type %s!!! !!!\n", 
 				i, tt->tt_name);
 			return false;
@@ -39,24 +39,27 @@ static void print_field(
 	typenum_t			field_typenum;
 	diskoff_t			field_off;
 
-	num_elems = field->tf_elemcount(ti->ti_diskoff);
+	num_elems = field->tf_elemcount(ti->ti_diskoff, ti->ti_params);
 	printf("%s", field->tf_fieldname);
 	if (num_elems > 1) {
 		printf("[%"PRIu64"]", num_elems);
 	}
 
-	field_off = field->tf_fieldbitoff(ti->ti_diskoff);
+	field_off = field->tf_fieldbitoff(ti->ti_diskoff, ti->ti_params);
 
 	field_typenum = field->tf_typenum;
 	if (num_elems > 1 && field_typenum != ~0 && !field->tf_constsize) {
 		/* non-constant width.. */
+		assert (0 == 1 && "LOAD IN FIELD PARAMS");
 		field_sz = __computeArrayBits(
 			field_typenum,
 			field_off,
+			NULL,
 			num_elems);
 	} else {
 		/* constant width */
-		field_sz = field->tf_typesize(ti->ti_diskoff)*num_elems;
+		field_sz = field->tf_typesize(
+			ti->ti_diskoff, ti->ti_params)*num_elems;
 	}
 
 	if (num_elems == 1 && field_sz <= 64) {
@@ -85,7 +88,7 @@ void typeinfo_print(const struct type_info* ti)
 
 	tt = tt_by_ti(ti);
 	if (ti->ti_prev == NULL || ti->ti_typenum != ~0) {
-		len = tt->tt_size(ti->ti_diskoff);
+		len = tt->tt_size(ti->ti_diskoff, ti->ti_params);
 
 #ifdef PRINT_BITS
 		printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)", 
@@ -113,7 +116,9 @@ void typeinfo_print(const struct type_info* ti)
 		struct fsl_rt_table_field	*field;
 
 		field = &tt->tt_field_thunkoff[ti->ti_fieldidx];
-		len = field->tf_typesize(ti->ti_prev->ti_diskoff);
+		len = field->tf_typesize(
+			ti->ti_prev->ti_diskoff,
+			ti->ti_prev->ti_params);
 #ifdef PRINT_BITS
 		printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
 			tt->tt_name,
@@ -151,8 +156,8 @@ void typeinfo_print_pointsto(const struct type_info* ti)
 		if (pt->pt_single == NULL) {
 			uint64_t	pt_min, pt_max;
 
-			pt_min = pt->pt_min(ti->ti_diskoff);
-			pt_max = pt->pt_max(ti->ti_diskoff);
+			pt_min = pt->pt_min(ti->ti_diskoff, ti->ti_params);
+			pt_max = pt->pt_max(ti->ti_diskoff, ti->ti_params);
 			if (pt_min > pt_max) {
 				/* failed some condition */
 				continue;
@@ -192,7 +197,8 @@ void typeinfo_print_fields(const struct type_info* ti)
 		if (field->tf_cond == NULL)
 			is_present = true;
 		else
-			is_present = field->tf_cond(ti->ti_diskoff);
+			is_present = field->tf_cond(
+				ti->ti_diskoff, ti->ti_params);
 
 		if (is_present == false)
 			continue;
@@ -219,7 +225,7 @@ void typeinfo_dump_data(const struct type_info* ti)
 	unsigned int			i;
 
 	tt = tt_by_ti(ti);
-	type_sz = tt->tt_size(ti->ti_diskoff);
+	type_sz = tt->tt_size(ti->ti_diskoff, ti->ti_params);
 
 	for (i = 0; i < type_sz / 8; i++) {
 		uint8_t	c;
@@ -246,6 +252,8 @@ struct type_info* typeinfo_alloc_pointsto(
 	const struct type_info*	ti_prev)
 {
 	struct type_info*	ret;
+
+	assert (0 == 1 && "WORRY ABOUT TYPE PARAMS");
 
 	ret = malloc(sizeof(struct type_info));
 	ret->ti_typenum = ti_typenum;
@@ -276,6 +284,8 @@ struct type_info* typeinfo_alloc(
 {
 	struct type_info*	ret;
 
+	assert (0 == 1 && "WORRY ABOUT TYPE PARAMS");
+
 	ret = malloc(sizeof(struct type_info));
 	ret->ti_typenum = ti_typenum;
 	ret->ti_diskoff = ti_diskoff;
@@ -303,7 +313,7 @@ void typeinfo_set_dyn(const struct type_info* ti)
 	struct fsl_rt_table_type	*tt;
 	unsigned int			i;
 
-	__setDyn(ti->ti_typenum, ti->ti_diskoff);
+	__setDyn(ti->ti_typenum, ti->ti_diskoff, ti->ti_params);
 
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_field_c; i++) {
@@ -312,9 +322,12 @@ void typeinfo_set_dyn(const struct type_info* ti)
 		field = &tt->tt_field_thunkoff[i];
 		if (field->tf_typenum == ~0)
 			continue;
+
+		assert (0 == 1 && "Load field params!");
 		__setDyn(
 			field->tf_typenum, 
-			field->tf_fieldbitoff(ti->ti_diskoff));
+			field->tf_fieldbitoff(ti->ti_diskoff, ti->ti_params),
+			NULL);
 	}
 }
 
