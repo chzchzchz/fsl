@@ -13,7 +13,6 @@ typedef list<const Preamble*>	point_list;
 
 extern CodeBuilder		*code_builder;
 extern symtab_map		symtabs;
-extern const_map		constants;
 extern RTInterface		rt_glue;
 
 Points::Points(const Type* t)
@@ -141,7 +140,7 @@ void Points::loadPointsRange(void)
 void Points::loadPointsIfInstance(
 	const CondExpr* ce, const Expr* data_loc)
 {
-	EvalCtx		ectx(symtabs[src_type->getName()], symtabs, constants);
+	EvalCtx		ectx(symtabs[src_type->getName()]);
 	const Type	*dst_type;
 
 	assert (ce != NULL);
@@ -161,7 +160,7 @@ void Points::loadPointsIfInstance(
 
 void Points::loadPointsInstance(const Expr* data_loc)
 {
-	EvalCtx		ectx(symtabs[src_type->getName()], symtabs, constants);
+	EvalCtx		ectx(symtabs[src_type->getName()]);
 	const Type	*dst_type;
 
 	assert (data_loc != NULL);
@@ -185,7 +184,7 @@ void Points::loadPointsRangeInstance(
 	const Expr*	last_val,
 	const Expr*	data_loc)
 {
-	EvalCtx		ectx(symtabs[src_type->getName()], symtabs, constants);
+	EvalCtx		ectx(symtabs[src_type->getName()]);
 	const Type	*dst_type;
 
 	assert (bound_var != NULL);
@@ -228,28 +227,73 @@ const std::string PointsTo::getFCallName(void) const
 
 void PointsRange::genCode(void) const
 {
-	ArgsList	al;
-
-	al.add(new Id("u64"), binding->copy());
-
-	FuncArgs	extra_args(&al);
-
 	/* function(<thunk-args>, <binding-var>) */
-	code_builder->genCode(
-		src_type, getFCallName(), points_expr, &extra_args);
+	genCodeRange();
 
 	/* function(<thunk-args>) */
 	code_builder->genCode(src_type, getMinFCallName(), min_expr);
 	code_builder->genCode(src_type, getMaxFCallName(), max_expr);
 }
 
+
+void PointsRange::genCodeRange(void) const
+{
+	ArgsList	al;
+
+	al.add(new Id("u64"), binding->copy());	/* this is the bound arg*/
+
+	FuncArgs	extra_args(&al);
+
+	assert (0 == 1);
+	code_builder->genCode(
+		src_type, getFCallName(), points_expr, &extra_args);
+/* XXXXXXX FUCK. Need to have special demarshalling code here. */
+}
+
+
+
 void PointsRange::genProto(void) const
 {
 	const ThunkType	*tt;
 
 	tt = symtabs[src_type->getName()]->getThunkType();
-	code_builder->genProto(
-		getFCallName(), tt->getThunkArgCount() + 1 /*binding sym*/);
+//	code_builder->genProto(
+//		getFCallName(), tt->getThunkArgCount() + 1 /*binding sym*/);
+	{
+	llvm::Function			*f;
+	llvm::FunctionType		*ft;
+	vector<const llvm::Type*>	args;
+
+	/* diskoff_t */
+	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
+
+	/* parambuf_t */
+	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
+
+	/* binding sym */
+	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
+
+	/* parambuf_t out */
+	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
+
+	ft = llvm::FunctionType::get(
+		llvm::Type::getInt64Ty(llvm::getGlobalContext()), args, false);
+	f = llvm::Function::Create(
+		ft,
+		llvm::Function::ExternalLinkage, 
+		getFCallName(),
+		code_builder->getModule());
+
+	/* should not be redefinitions.. */
+	if (f->getName() != getFCallName()) {
+		cerr << "Expected name " << getFCallName() <<" got " <<
+		f->getNameStr() << endl;
+	}
+
+	assert (f->getName() == getFCallName());
+	assert (f->arg_size() == args.size());
+	}
+
 	code_builder->genProto(getMinFCallName(), tt->getThunkArgCount());
 	code_builder->genProto(getMaxFCallName(), tt->getThunkArgCount());
 }

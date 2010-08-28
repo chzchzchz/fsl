@@ -18,7 +18,7 @@ llvm::Value* cond_cmpop_codeGen(const EvalCtx* ctx, const CmpOp* cmpop)
 {
 	llvm::Value			*lhs, *rhs;
 	llvm::CmpInst::Predicate	pred;
-
+	llvm::LLVMContext		&gctx(llvm::getGlobalContext());
 
 	assert (cmpop != NULL);
 
@@ -35,7 +35,6 @@ llvm::Value* cond_cmpop_codeGen(const EvalCtx* ctx, const CmpOp* cmpop)
 	default:
 		assert (0 == 1);
 	}
-
 	return code_builder->getBuilder()->CreateICmp(pred, lhs, rhs);
 }
 

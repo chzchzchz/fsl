@@ -104,7 +104,8 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 			tu->getName()),
 		args,
 		NULL,
-		new TypeBlock());
+		new TypeBlock(),
+		true);
 
 	thunk_type = new ThunkType(fake_type);
 	cur_thunk_type = thunk_type;
@@ -178,12 +179,14 @@ void SymTabThunkBuilder::setLastThunk(ThunkField* tf)
 void SymTabThunkBuilder::addToCurrentSymTab(
 	const std::string&	type_str,
 	const std::string&	field_name,
-	const IdArray*		array)
+	const IdArray*		array,
+	const ExprList*		exprs)
 {
 	ThunkField		*field_thunk;
 	ThunkFieldOffset	*field_offset;
 	ThunkFieldSize		*field_size;
 	ThunkElements		*field_elems;
+	ThunkParams		*field_params;
 	const Type		*t;
 
 	/* get field offset object */
@@ -224,15 +227,19 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 	}
 
 	if (t != NULL && t->getNumArgs() != 0) {
-		/* XXX TODO */
-		cerr << "XXX: Can not add parameteric type as field." << endl;
-		exit(-1);
-	}
+		if (exprs == NULL || t->getNumArgs() != exprs->size()) {
+			cerr	<< "Wrong number of arguments for " 
+				<< t->getName() << endl;
+			exit(-1);
+		}
+		field_params = new ThunkParams(exprs->copy());
+	} else 
+		field_params = ThunkParams::createNoParams();
 
 	field_thunk = new ThunkField(
 		*cur_thunk_type, field_name,
 		field_offset, field_size, field_elems,
-		ThunkParams::createNoParams());
+		field_params);
 
 	addToCurrentSymTab(type_str, field_name, field_thunk);
 }
@@ -475,7 +482,8 @@ void SymTabThunkBuilder::visit(const TypeParamDecl* tp)
 	addToCurrentSymTab(
 		tp->getType()->getName(), 
 		tp->getName(), 
-		tp->getArray());
+		tp->getArray(),
+		tp->getType()->getExprs());
 }
 
 void SymTabThunkBuilder::visit(const TypeFunc* tf)

@@ -18,13 +18,14 @@ void Type::print(ostream& out) const
 }
 
 Type::Type(	Id* in_name, ArgsList* in_args, TypePreamble* in_preamble, 
-		TypeBlock* in_block)
+		TypeBlock* in_block, bool is_union)
 : name(in_name),
   args(in_args),
   preamble(in_preamble),
   block(in_block),
   type_num(-1),
-  cached_symtab(NULL)
+  cached_symtab(NULL),
+  is_union_type(is_union)
 {
 	assert (in_name != NULL);
 	assert (in_block != NULL);

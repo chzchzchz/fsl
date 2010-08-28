@@ -17,6 +17,7 @@
 typedef std::map<std::string, unsigned int>		ctype_map;
 typedef std::list<class Type*>				type_list;
 typedef std::map<std::string, class Type*>		type_map;
+typedef std::map<unsigned int, class Type*>		typenum_map;
 
 extern int yylineno;
 
@@ -101,9 +102,7 @@ public:
 	
 	const std::string getName() const 
 	{
-		if (name != NULL)
-			return name->getName();
-		return array->getName();
+		return (name != NULL) ? name->getName() : array->getName();
 	}
 
 	virtual void accept(TypeVisitor* tv) const { tv->visit(this); }
@@ -324,7 +323,7 @@ class Type : public GlobalStmt
 public:
 
 	Type(	Id* in_name, ArgsList* in_args, TypePreamble* in_preamble, 
-		TypeBlock* in_block);
+		TypeBlock* in_block, bool is_union = false);
 
 	void print(std::ostream& out) const;
 
@@ -368,6 +367,8 @@ public:
 
 	std::list<const Preamble*> getPreambles(const std::string& name) const;
 	void addPreamble(Preamble* p);
+
+	bool isUnion(void) const { return is_union_type; }
 private:
 	Id		*name;
 	ArgsList	*args;
@@ -375,6 +376,7 @@ private:
 	TypeBlock	*block;
 	int		type_num;
 	SymbolTable	*cached_symtab;
+	bool		is_union_type;
 };
 
 std::ostream& operator<<(std::ostream& in, const Type& t);

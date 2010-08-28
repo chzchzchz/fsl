@@ -143,7 +143,11 @@ const ThunkType* SymbolTable::getThunkType(void) const
 
 bool SymbolTableEnt::isUserType(void) const
 {
-	const ThunkField*	tf;
-	tf = getFieldThunk();
-	return (tf->getType() != NULL);
+	return (getType() != NULL);
+}
+
+
+const Type* SymbolTableEnt::getType(void) const 
+{
+	 return getFieldThunk()->getType();
 }

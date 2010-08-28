@@ -173,7 +173,8 @@ private:
 class Id  : public Expr
 {
 public: 
-	Id(const std::string& s) : id_name(s) {}
+	Id(const std::string& s) : id_name(s) 
+	{ assert (s.size() > 0); }
 	virtual ~Id() {}
 	const std::string& getName() const { return id_name; }
 	void print(std::ostream& out) const { out << id_name; }
@@ -194,77 +195,7 @@ private:
 };
 
 
-class FCall  : public Expr
-{
-public:
-	FCall(Id* in_id, ExprList* in_exprs) 
-	:	id(in_id),
-		exprs(in_exprs)
-	{ 
-		assert (id != NULL);
-		assert (exprs != NULL);
-		exprs = in_exprs->simplify();
-		delete in_exprs;
-	}
-	virtual ~FCall()
-	{
-		delete id;
-		delete exprs;
-	}
-
-	const ExprList* getExprs(void) const { return exprs; }
-	ExprList* getExprs(void) { return exprs; }
-	void setExprs(ExprList* new_exprs) 
-	{
-		assert (new_exprs != NULL);
-		assert (new_exprs->size() == exprs->size());
-
-		if (new_exprs == exprs) return;
-
-		delete exprs;
-		exprs = new_exprs->simplify();
-		delete new_exprs;
-	}
-
-	const std::string& getName(void) const { return id->getName(); }
-	void print(std::ostream& out) const
-	{
-		out << "[ fcall " << getName() << "("; 
-		exprs->print(out);
-		out << ") ]";
-	}
-
-	FCall* copy(void) const 
-	{
-		return new FCall(id->copy(), exprs->copy());
-	}
-
-	bool operator==(const Expr* e) const
-	{
-		const FCall	*in_fc;
-
-		in_fc = dynamic_cast<const FCall*>(e);
-		if (in_fc == NULL) return false;
-
-		return (*(in_fc->id) == id) && (*exprs == in_fc->exprs);
-	}
-
-	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
-	{
-		exprs->rewrite(to_rewrite, new_expr);
-		return Expr::rewrite(to_rewrite, new_expr);
-	}
-
-	llvm::Value*  codeGen() const;
-
-	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
-private:
-	llvm::Value*	codeGenNormalFunc() const;
-	llvm::Value*	codeGenTypeFunc() const;
-
-	Id*		id;
-	ExprList*	exprs;
-};
+#include "fcall.h"
 
 class IdStruct : public Expr, public PtrList<Expr>
 {
@@ -474,6 +405,37 @@ public:
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 	Expr	*expr;
+};
+
+class Boolean : public Expr
+{
+public:
+	Boolean(bool v) : b(v) {}
+	virtual ~Boolean() {}
+
+	void print(std::ostream& out) const { out << b; }
+
+	Expr* copy(void) const { return new Boolean(b); }
+
+	bool operator==(const Expr* e) const
+	{
+		const Boolean	*in_num;
+
+		in_num = dynamic_cast<const Boolean*>(e);
+		if (in_num == NULL)
+			return false;
+
+		return (b == in_num->isTrue());
+	}
+
+	llvm::Value* codeGen() const;
+
+	bool isTrue(void) const { return b; }
+
+	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
+private:
+	unsigned long b;
+
 };
 
 class Number : public Expr

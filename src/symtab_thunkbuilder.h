@@ -33,7 +33,8 @@ private:
 	void addToCurrentSymTab(
 		const std::string& 	type_str,
 		const std::string&	field_name,
-		const IdArray*		array);
+		const IdArray*		array,
+		const ExprList*		exprs = NULL);
 
 	void addToCurrentSymTab(
 		const std::string&	type_str,

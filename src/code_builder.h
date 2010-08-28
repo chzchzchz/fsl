@@ -53,17 +53,16 @@ public:
 	void write(std::ostream& os);
 	void write(std::string& os);
 
-	unsigned int getThunkVarCount(void) const { return thunk_var_map.size(); }
-	llvm::AllocaInst* getThunkAllocInst(const std::string& s) const 
-	{
-		llvm_var_map::const_iterator	it;
-		
-		it = thunk_var_map.find(s);
-		if (it == thunk_var_map.end())
-			return NULL;
+	unsigned int getTmpVarCount(void) const { return tmp_var_map.size(); }
+	llvm::AllocaInst* getTmpAllocaInst(const std::string& s) const;
+	llvm::AllocaInst* createTmpI64(
+		const std::string& name);
+	llvm::AllocaInst* createTmpTypePass(
+		const Type* t,
+		const std::string& name);
 
-		return (*it).second;
-	}
+	llvm::AllocaInst* createTmpI64Ptr(void);
+	
 
 	llvm::GlobalVariable* getGlobalVar(const std::string& varname) const;
 
@@ -76,12 +75,14 @@ public:
 	void copyTypePassStruct(const Type* t,
 		llvm::Value *src, llvm::Value *dst_ptr);
 
+	void genThunkHeaderArgs(
+		llvm::Function* f, const Type* t, 
+		const FuncArgs* e_args = NULL);
+
+
 private:
 	void makeTypePassStruct(void);
 
-	void genHeaderArgs(
-		llvm::Function* f, const Type* t, 
-		const FuncArgs* e_args = NULL);
 
 	void genArgs(
 		llvm::Function::arg_iterator	&ai,
@@ -97,7 +98,9 @@ private:
 	llvm::Module		*mod;
 	llvm::IRBuilder<> 	*builder;
 	llvm::Type		*typepass_struct;
-	llvm_var_map		thunk_var_map;
-	bool			debug_output;};
+	llvm_var_map		tmp_var_map;
+	bool			debug_output;
+	unsigned int		tmp_c;	
+};
 
 #endif

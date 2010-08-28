@@ -14,15 +14,14 @@
 #include "cond.h"
 #include "runtime_interface.h"
 #include "code_builder.h"
+#include "util.h"
 
 using namespace std;
 
-extern llvm_var_map	thunk_var_map;
 extern symtab_map	symtabs;
-extern const_map	constants;
 extern RTInterface	rt_glue;
 
-CodeBuilder::CodeBuilder(const char* mod_name)
+CodeBuilder::CodeBuilder(const char* mod_name) : tmp_c(0)
 {
 	builder = new llvm::IRBuilder<>(llvm::getGlobalContext());
 	mod = new llvm::Module(mod_name, llvm::getGlobalContext());
@@ -153,9 +152,7 @@ void CodeBuilder::genCode(
 	local_syms = symtabs[type->getName()];
 	assert (local_syms != NULL);
 
-	expr_eval_bits = eval(
-		EvalCtx(local_syms, symtabs, constants),
-		raw_expr);
+	expr_eval_bits = eval(EvalCtx(local_syms), raw_expr);
 	if (debug_output) {
 		cerr << "DEBUG: " << fname << endl;
 		expr_eval_bits->print(cerr);
@@ -165,7 +162,7 @@ void CodeBuilder::genCode(
 	bb_bits = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f_bits);
 	builder->SetInsertPoint(bb_bits);
-	genHeaderArgs(f_bits, type, extra_args);
+	genThunkHeaderArgs(f_bits, type, extra_args);
 	builder->CreateRet(expr_eval_bits->codeGen());
 
 	delete expr_eval_bits;
@@ -189,7 +186,7 @@ void CodeBuilder::genCodeEmpty(const std::string& name)
 }
 
 
-void CodeBuilder::genHeaderArgs(
+void CodeBuilder::genThunkHeaderArgs(
 	llvm::Function* f, 
 	const Type* t,
 	const FuncArgs* extra_args)
@@ -200,27 +197,41 @@ void CodeBuilder::genHeaderArgs(
 	llvm::IRBuilder<>		tmpB(
 		&f->getEntryBlock(), f->getEntryBlock().begin());
 
+	cerr << "THUNKHEADERARGS."<< endl;
+	f->dump();
+	cerr << endl;
 	assert (t != NULL);
 
 	ai = f->arg_begin();
 
-	thunk_var_map.clear();
+	tmp_var_map.clear();
 
 	/* create the hidden argument __thunk_off_arg */
 	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgOffsetName());
-	thunk_var_map[rt_glue.getThunkArgOffsetName()] = allocai;
-	thunk_var_map[t->getName()] = allocai;	/* alias for typename */
+	tmp_var_map[rt_glue.getThunkArgOffsetName()] = allocai;
+	tmp_var_map[t->getName()] = allocai;	/* alias for typename */
 	builder->CreateStore(ai, allocai);
 
 	/* skip over __thunk_off_arg */
 	ai++;
 
+	cerr << "TYPES-- " << endl;
+
 	l_t = llvm::Type::getInt64PtrTy(llvm::getGlobalContext());
 	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgParamPtrName());
-	thunk_var_map[rt_glue.getThunkArgParamPtrName()] = allocai;
-	thunk_var_map[t->getName() + "_params"] = allocai;
+	cerr << "ALLOCAI: ";
+	allocai->dump();
+	cerr << endl;
+	cerr << "AI: ";
+	ai->dump();
+	cerr << endl;
+
+	tmp_var_map[rt_glue.getThunkArgParamPtrName()] = allocai;
+	tmp_var_map[t->getName() + "_params"] = allocai;
 	builder->CreateStore(ai, allocai);
+
+	cerr << "DONE." << endl;
 
 	/* skip over param pointer */
 	ai++;
@@ -248,7 +259,7 @@ void CodeBuilder::genTypeArgs(
 	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 	arg_c = args->size();
 
-	params_ai = thunk_var_map[t->getName() + "_params"];
+	params_ai = tmp_var_map[t->getName() + "_params"];
 	assert (params_ai != NULL && "Didn't allocate params?");
 
 	for (unsigned int i = 0; i < arg_c; i++) {
@@ -282,7 +293,7 @@ void CodeBuilder::genTypeArgs(
 		param_elem_val = builder->CreateLoad(param_elem_ptr);
 
 		builder->CreateStore(param_elem_val, allocai);
-		thunk_var_map[arg_name] = allocai;
+		tmp_var_map[arg_name] = allocai;
 	}
 }
 
@@ -314,7 +325,7 @@ void CodeBuilder::genArgs(
 		arg_name = (args->get(i).second)->getName();
 		allocai = tmpB->CreateAlloca(l_t, 0, arg_name);
 		builder->CreateStore(ai, allocai);
-		thunk_var_map[arg_name] = allocai;
+		tmp_var_map[arg_name] = allocai;
 	}
 }
 
@@ -335,7 +346,7 @@ void CodeBuilder::genCodeCond(
 	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_entry;
 	llvm::Value		*cond_v, *false_v, *true_v;
 	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
-	EvalCtx			ectx(symtabs[t->getName()], symtabs, constants);
+	EvalCtx			ectx(symtabs[t->getName()]);
 
 	assert (true_expr != NULL);
 	assert (false_expr != NULL);
@@ -345,7 +356,7 @@ void CodeBuilder::genCodeCond(
 
 	bb_entry = llvm::BasicBlock::Create(gctx, "entry", f);
 	builder->SetInsertPoint(bb_entry);
-	genHeaderArgs(f, t);
+	genThunkHeaderArgs(f, t);
 
 	cond_v = cond_codeGen(&ectx, cond_expr);
 	if (cond_v == NULL) {
@@ -412,8 +423,46 @@ void CodeBuilder::makeTypePassStruct(void)
 	/* param array */
 	types.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
 
-	typepass_struct = llvm::StructType::get(llvm::getGlobalContext(), types);
+	typepass_struct = llvm::StructType::get(
+		llvm::getGlobalContext(), 
+		types,
+		"typepass");
 }
 
+
+llvm::AllocaInst* CodeBuilder::createTmpI64Ptr(void)
+{
+	llvm::AllocaInst	*ret;
+	
+	ret = builder->CreateAlloca(
+		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()),
+		0,
+		"AAA" + int_to_string(tmp_c++));
+	tmp_var_map[ret->getName()] = ret;
+
+	return ret;
+}
+
+llvm::AllocaInst* CodeBuilder::getTmpAllocaInst(const std::string& s) const
+{
+	llvm_var_map::const_iterator	it;
+	
+	it = tmp_var_map.find(s);
+	if (it == tmp_var_map.end())
+		return NULL;
+
+	return (*it).second;
+}
+
+llvm::AllocaInst* CodeBuilder::createTmpI64(const std::string& name)
+{
+	assert (0 == 1);
+}
+
+llvm::AllocaInst* CodeBuilder::createTmpTypePass(
+	const Type* t, const std::string& name)
+{
+	assert (0 == 1);
+}
 
 

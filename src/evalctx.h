@@ -6,6 +6,17 @@
 #include "expr.h"
 #include "func_args.h"
 
+struct TypeBase
+{
+	/* gives sym we're sitting on  */
+	const Type		*tb_type;
+	const SymbolTable	*tb_symtab;
+	const SymbolTableEnt	*tb_lastsym;
+	/* expressions that'll take us to sym */
+	Expr			*tb_diskoff;
+	Expr			*tb_parambuf;
+};
+
 /**
  * will eventualy want to replace this with different eval contexts so
  * that we can use it for handling local scopes within functions
@@ -14,27 +25,17 @@ class EvalCtx
 {
 public:
 	/* evaluating for a type */
-	EvalCtx(
-		const SymbolTable*	in_cur_scope,
-		const symtab_map&	in_all_types,
-		const const_map&	in_constants)
+	EvalCtx(const SymbolTable* in_cur_scope)
 	: func_args(NULL),
-	  cur_scope(in_cur_scope),
-	  all_types(in_all_types),
-	  constants(in_constants)
+	  cur_scope(in_cur_scope)
 	{
 		assert (in_cur_scope != NULL);
 	}
 
 	/* evaluating for a function */
-	EvalCtx(	
-		const FuncArgs*		in_func_args,
-		const symtab_map&	in_all_types,
-		const const_map&	in_constants)
+	EvalCtx(const FuncArgs* in_func_args)
 	:	func_args(in_func_args),
-		cur_scope(NULL),
-		all_types(in_all_types),
-		constants(in_constants)
+		cur_scope(NULL)
 	{
 	}
 		
@@ -42,8 +43,6 @@ public:
 	virtual ~EvalCtx() {}
 
 	const SymbolTable*	getCurrentScope() const { return cur_scope; }
-	const symtab_map&	getGlobalScope() const { return all_types; }
-	const const_map&	getConstants() const { return constants; }
 	const FuncArgs*		getFuncArgs(void) const { return func_args; }
 
 	/* given an expression that is either a scalar id or an array id,
@@ -62,39 +61,23 @@ public:
 private:
 	EvalCtx(void);
 	Expr* resolveArrayInType(const IdArray* ida) const;
+	bool setNewOffsets(
+		struct TypeBase& current_base, const Expr* idx) const;
+
 
 protected:
 	const FuncArgs*		func_args;
 	const SymbolTable*	cur_scope;
-	const symtab_map&	all_types;
-	const const_map&	constants;
 
 	const SymbolTable*	symtabByName(const std::string& s) const;
 	const Type*		typeByName(const std::string& s) const;
 
-	Expr* resolveCurrentScope(const IdStruct* ids) const;
-	Expr* resolveGlobalScope(const IdStruct* ids) const;
-	Expr* resolveFuncArg(const IdStruct* ids) const;
 
-	Expr* getStructExpr(
-		const Expr			*base,
-		const SymbolTable		*first_symtab,
-		const IdStruct::const_iterator	ids_first,
-		const IdStruct::const_iterator	ids_end,
-		const SymbolTableEnt*		&last_sym) const;
+	bool resolveTail(
+		TypeBase			&tb,	/* current base */
+		const IdStruct* 		ids,
+		IdStruct::const_iterator	ids_begin) const;
 
-	Expr* buildTail(
-		IdStruct::const_iterator	it,
-		IdStruct::const_iterator	ids_end,
-		Expr*				ret,
-		const SymbolTable*		parent_symtab,
-		const SymbolTableEnt*		&last_sym) const;
-
-
-	Expr* getStructExprBase(
-		const SymbolTable		*first_symtab,
-		const IdStruct::const_iterator	it_begin,
-		const SymbolTable*		&next_symtab) const;
 };
 
 #endif

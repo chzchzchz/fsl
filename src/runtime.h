@@ -33,7 +33,8 @@ typedef typesize_t(*sizef_t)(diskoff_t, parambuf_t );
 typedef uint64_t(*elemsf_t)(diskoff_t, parambuf_t );
 typedef uint64_t(*points_minf_t)(diskoff_t, parambuf_t );
 typedef uint64_t(*points_maxf_t)(diskoff_t, parambuf_t );
-typedef diskoff_t(*points_rangef_t)(diskoff_t, parambuf_t , uint64_t /* idx */);
+typedef diskoff_t(*points_rangef_t)(
+	diskoff_t, parambuf_t , uint64_t /* idx */, parambuf_t /* out */);
 typedef void(*paramsf_t)(diskoff_t, parambuf_t /* in */, parambuf_t /* out */);
 typedef diskoff_t(*pointsf_t)(diskoff_t, parambuf_t);
 typedef bool(*condf_t)(diskoff_t, parambuf_t);
@@ -119,7 +120,7 @@ extern int				fsl_rt_debug;
 
 /* exposed to llvm */
 typesize_t __computeArrayBits(
-	typenum_t elem_type, 
+	uint64_t elem_type, 
 	diskoff_t off,
 	parambuf_t params,
 	uint64_t num_elems);
@@ -128,7 +129,8 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits);
 uint64_t __getLocalArray(
 	uint64_t idx, uint64_t bits_in_type, 
 	uint64_t base_offset, uint64_t bits_in_array);
-uint64_t __getDyn(uint64_t type_num);
+uint64_t __getDynOffset(uint64_t type_num);
+void __getDynParams(uint64_t typenum, parambuf_t params_out);
 void __setDyn(uint64_t type_num, diskoff_t offset, parambuf_t params);
 uint64_t __max2(
 	uint64_t a0, uint64_t a1);

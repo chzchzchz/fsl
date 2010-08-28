@@ -139,6 +139,8 @@ public:
 	const std::string getMaxFCallName(void) const;
 
 private:
+	void genCodeRange(void) const; 
+
 	const Type*	src_type;
 	const Type*	dst_type;
 	Id*		binding;

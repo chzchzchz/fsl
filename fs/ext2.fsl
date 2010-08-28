@@ -20,9 +20,11 @@ int blocks_off(ext2_sb sb)
 {
 	int	group_bytes;
 	int	group_blocks;
+	int	blk_sz;
 
+	blk_sz = get_block_size(sb);
 	group_bytes = get_group_count(sb)*sizeof_bytes(ext2_group_desc);
-	group_blocks = (group_bytes+get_block_size(sb)-1)/get_block_size(sb);
+	group_blocks = (group_bytes+blk_sz)/blk_sz;
 
 	return 1 + sb.s_first_data_block + group_blocks;
 }
@@ -207,7 +209,7 @@ uint num_direct_blocks(ext2_inode ino)
 {
 	u32	num_blks;
 
-	if (is_fast_symlink(ino) == true)
+	if (is_fast_symlink(ino))
 		return 0;
 
 	num_blks = sect_to_blocks(ino.i_blocks_c);
@@ -234,15 +236,15 @@ points_range(
 	i, 0, num_direct_blocks(ext2_inode)-1,
 	disk.blocks[i_block_direct[i] - blocks_off(disk.sb)].data_blk)
 points_if(
-	? !is_fast_symlink(ext2_inode) &&
+	? is_fast_symlink(ext2_inode) == false &&
 	   sect_to_blocks(i_blocks_c) > EXT2_NDIR_BLOCKS, 
 	disk.blocks[i_block_indir - blocks_off(disk.sb)].indir_blk)
 points_if(
-	? !is_fast_symlink(ext2_inode) && 
+	? is_fast_symlink(ext2_inode) == false && 
 	  sect_to_blocks(i_blocks_c) > (EXT2_NDIR_BLOCKS + blocks_per_indir()),
 	disk.blocks[i_block_biindir - blocks_off(disk.sb)].biindir_blk)
 points_if(
-	? !is_fast_symlink(ext2_inode) && 
+	? is_fast_symlink(ext2_inode) == false && 
 	  sect_to_blocks(i_blocks_c) > 
 		(EXT2_NDIR_BLOCKS + blocks_per_indir()*
 			(1 + blocks_per_indir())),

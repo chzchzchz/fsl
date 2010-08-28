@@ -28,6 +28,7 @@ public:
 		assert (thunk_field != NULL);
 	}
 
+	const Type* getType(void) const;
 	const std::string& getTypeName(void) const { return type_name; }
 	const std::string& getFieldName(void) const { return fieldname; }
 	const ThunkField* getFieldThunk(void) const { return thunk_field; }

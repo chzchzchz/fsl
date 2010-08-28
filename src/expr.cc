@@ -18,6 +18,8 @@ extern CodeBuilder	*code_builder;
 extern const Func	*gen_func;
 extern const FuncBlock	*gen_func_block;
 
+#define get_builder()	code_builder->getBuilder()
+
 Value* Expr::ErrorV(const string& s) const
 {
 	cerr << endl;
@@ -28,48 +30,24 @@ Value* Expr::ErrorV(const string& s) const
 	return NULL;
 }
 
-Value* FCall::codeGen() const
-{
-	Function			*callee;
-	ExprList::const_iterator	it;
-	vector<Value*>			args;
-	string				call_name(id->getName());
-
-	callee = code_builder->getModule()->getFunction(call_name);
-	if (callee == NULL) {
-		return ErrorV(
-			(string("could not find function ") + 
-			id->getName()).c_str());
-	}
-
-	/* XXX PUT SOMETHING HERE FOR USER FUNCS*/
-
-	if (callee->arg_size() != exprs->size()) {
-		return ErrorV(
-			(string("wrong number of function arguments in ") + 
-			id->getName() + 
-			string(". Expected ") + 
-			int_to_string(callee->size()) + 
-			" got " + int_to_string(exprs->size())).c_str());
-	}
-
-	for (it = exprs->begin(); it != exprs->end(); it++) {
-		Expr	*cur_expr;
-		cur_expr = *it;
-		args.push_back(cur_expr->codeGen());
-	}
-
-	return code_builder->getBuilder()->CreateCall(
-		callee, args.begin(), args.end(), "calltmp");
-}
 
 Value* Id::codeGen() const 
 {
-	AllocaInst		*ai;
+	AllocaInst		*ai = NULL;
 	GlobalVariable		*gv;
 
+	if (getName() == "__NULLPTR") {
+		llvm::LLVMContext	&gctx(llvm::getGlobalContext());
+		llvm::Value		*ret;
+		ret = llvm::ConstantExpr::getIntToPtr(
+			llvm::ConstantInt::get(llvm::Type::getInt64Ty(gctx), 0),
+			llvm::PointerType::getUnqual(
+				llvm::Type::getInt64Ty(gctx))); 
+		return ret;
+	}
+
 	/* load.. */
-	if (gen_func_block == NULL && code_builder->getThunkVarCount() == 0) {
+	if (gen_func_block == NULL && code_builder->getTmpVarCount() == 0) {
 		return ErrorV(
 			string("Loading ") + getName() + 
 			string(" with no gen_func set"));
@@ -78,9 +56,11 @@ Value* Id::codeGen() const
 	if (gen_func_block != NULL)
 		ai = gen_func_block->getVar(getName());
 	else if ((gv = code_builder->getGlobalVar(getName())) != NULL) {
-		return code_builder->getBuilder()->CreateLoad(gv, getName());
-	} else
-		ai = code_builder->getThunkAllocInst(getName());
+		return get_builder()->CreateLoad(gv, getName());
+	}
+
+	if (ai == NULL)
+		ai = code_builder->getTmpAllocaInst(getName());
 
 	if (ai == NULL) {
 		return ErrorV(
@@ -88,7 +68,7 @@ Value* Id::codeGen() const
 			getName());
 	}
 
-	return code_builder->getBuilder()->CreateLoad(ai, getName());
+	return get_builder()->CreateLoad(ai, getName());
 }
 
 Value* IdStruct::codeGen() const 
@@ -115,54 +95,51 @@ Value* Number::codeGen() const
 
 Value* AOPOr::codeGen() const
 {
-	return code_builder->getBuilder()->CreateOr(
-		e_lhs->codeGen(), e_rhs->codeGen());
+	return get_builder()->CreateOr(e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPAnd::codeGen() const
 {
-	return code_builder->getBuilder()->CreateAnd(
-		e_lhs->codeGen(), e_rhs->codeGen());
+	return get_builder()->CreateAnd(e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPAdd::codeGen() const
 {
-	return code_builder->getBuilder()->CreateAdd(
-		e_lhs->codeGen(), e_rhs->codeGen());
+	return get_builder()->CreateAdd(e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPSub::codeGen() const
 {
-	return code_builder->getBuilder()->CreateSub(
-		e_lhs->codeGen(), e_rhs->codeGen());
+	return get_builder()->CreateSub(e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPDiv::codeGen() const
 {
-	return code_builder->getBuilder()->CreateUDiv(
-		e_lhs->codeGen(), e_rhs->codeGen());
+	return get_builder()->CreateUDiv(e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPMul::codeGen() const
 {
-	return code_builder->getBuilder()->CreateMul(
-		e_lhs->codeGen(), e_rhs->codeGen());
+	return get_builder()->CreateMul(e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPLShift::codeGen() const
 {
-	return code_builder->getBuilder()->CreateShl(
+	return get_builder()->CreateShl(
 		e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPRShift::codeGen() const
 {
-	return code_builder->getBuilder()->CreateLShr(
-		e_lhs->codeGen(), e_rhs->codeGen());
+	return get_builder()->CreateLShr(e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* AOPMod::codeGen() const
 {
-	return code_builder->getBuilder()->CreateURem(
-		e_lhs->codeGen(), e_rhs->codeGen());
+	return get_builder()->CreateURem(e_lhs->codeGen(), e_rhs->codeGen());
+}
+
+Value* Boolean::codeGen() const
+{
+	return ConstantInt::get(getGlobalContext(), APInt(1, b, false));
 }

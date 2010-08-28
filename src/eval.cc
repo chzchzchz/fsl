@@ -16,6 +16,7 @@ using namespace std;
 
 extern symtab_map	symtabs;
 extern func_map		funcs_map;
+extern const_map	constants;
 extern RTInterface	rt_glue;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
@@ -72,6 +73,8 @@ public:
 	{	
 		Expr	*result;
 
+		ids->print(cerr);
+		cerr << endl;
 		result = ectx.resolve(ids);
 		if (result == NULL)
 			return ids->copy();
@@ -128,6 +131,7 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 {
 	const ExprList			*exprs;
 	const SymbolTable		*st;
+	const Type			*t;
 	Expr				*front;
 	Expr				*ret_size;
 	Id				*front_id;
@@ -168,11 +172,21 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 
 	//ret_size = st->getThunkType()->getSize()->copyConstValue();
 	/* XXX HACK HACK HACK -- needs proper checking to ensure thunk_arg_off is safe */
+	t = st->getOwnerType();
+	if (t != NULL && t->getNumArgs() != 0) {
+		cerr << "sizeof: no support for parameterized types" << endl;
+		return NULL;
+	}
+
 	ret_size = st->getThunkType()->getSize()->copyFCall();
 	ret_size = Expr::rewriteReplace(
 		ret_size,
 		rt_glue.getThunkArgOffset(),
 		new Number(0));
+	ret_size = Expr::rewriteReplace(
+		ret_size,
+		rt_glue.getThunkArgParamPtr(),
+		new Id("__NULLPTR"));
 
 	if (bits == false) {
 		/* convert bits to bytes */
@@ -197,19 +211,33 @@ llvm::Value* evalAndGen(const EvalCtx& ectx, const Expr* expr)
 	return v;
 }
 
+static int depth = 0;
+
 Expr* eval(const EvalCtx& ectx, const Expr* expr)
 {
 	Expr	*our_expr, *tmp_expr;
 	
+
+	cerr << "X";
+	for (int i = 0; i < depth; i++) cerr << ' ';
+	expr->print(cerr);
+	cerr << endl;
+	depth++;
+
 	/* first, get simplified copy */
 	our_expr = expr->simplify();
 
 	/* resolve all labeled constants into numbers */
-	tmp_expr = expr_resolve_consts(ectx.getConstants(), our_expr);
+	tmp_expr = expr_resolve_consts(constants, our_expr);
 	if (tmp_expr != NULL) {
 		delete our_expr;
 		our_expr = tmp_expr;
 	}
+
+	cerr << ".";
+	for (int i = 0; i < depth; i++) cerr << ' ';
+	our_expr->print(cerr);
+	cerr << endl;
 
 	/* 
 	 * resolve all unknown ids into function calls
@@ -220,7 +248,13 @@ Expr* eval(const EvalCtx& ectx, const Expr* expr)
 		our_expr = tmp_expr;
 	}
 
-	tmp_expr = expr_resolve_consts(ectx.getConstants(), our_expr);
+	cerr << "-";
+	for (int i = 0; i < depth; i++) cerr << ' ';
+	our_expr->print(cerr);
+	cerr << endl;
+
+
+	tmp_expr = expr_resolve_consts(constants, our_expr);
 	if (tmp_expr != NULL) {
 		delete our_expr;
 		our_expr = tmp_expr;
@@ -229,6 +263,13 @@ Expr* eval(const EvalCtx& ectx, const Expr* expr)
 	if (*our_expr != expr) {
 		our_expr = evalReplace(ectx, our_expr);
 	}
+
+	depth--;
+	cerr << "=";
+	for (int i = 0; i < depth; i++) cerr << ' ';
+	our_expr->print(cerr);
+	cerr << endl;
+
 
 	return our_expr;
 }

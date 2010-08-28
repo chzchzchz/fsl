@@ -163,7 +163,7 @@ uint64_t fsl_fail(void)
 /* TODO: need a way to handle parent type values if we're computing 
  * some sort of parameterized type.. */
 typesize_t __computeArrayBits(
-	typenum_t elem_type,
+	uint64_t elem_type,
 	diskoff_t off,
 	parambuf_t params,
 	uint64_t num_elems)

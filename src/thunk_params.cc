@@ -1,6 +1,7 @@
 #include "thunk_params.h"
 #include "code_builder.h"
 #include "runtime_interface.h"
+#include "thunk_type.h"
 
 extern CodeBuilder*	code_builder;
 extern RTInterface	rt_glue;
@@ -12,14 +13,22 @@ static bool has_gen_empty_code = false;
 
 FCall* ThunkParams::copyFCall(void) const
 {
-	ExprList	*exprs;
+	ExprList	*fc_exprs;
+	const Type	*t;
 
-	exprs = new ExprList();
-	exprs->add(rt_glue.getThunkArgOffset());
-	exprs->add(rt_glue.getThunkArgParamPtr());
-	exprs->add(new Id("__THUNKPARAMS_OUTPUT_PARAM"));
+	t = getOwner()->getType();
 
-	return new FCall(new Id(getFCallName()), exprs);
+	fc_exprs = new ExprList();
+	fc_exprs->add(rt_glue.getThunkArgOffset());
+	fc_exprs->add(rt_glue.getThunkArgParamPtr());
+	fc_exprs->add(
+		new FCall(
+			new Id("paramsAllocaByCount"), 
+			new ExprList(
+			new Number(
+				(t != NULL) ? t->getNumArgs() : 0))));
+
+	return new FCall(new Id(getFCallName()), fc_exprs);
 }
 
 ThunkParams* ThunkParams::copy(void) const
@@ -28,6 +37,8 @@ ThunkParams* ThunkParams::copy(void) const
 
 	if (no_params) {
 		ret = createNoParams();
+	} else if (exprs != NULL) {
+		ret = new ThunkParams(exprs->copy());
 	} else {
 		assert (0 == 1);
 	}
@@ -68,9 +79,7 @@ bool ThunkParams::genProtoByName(const string& name)
 	llvm::FunctionType		*ft;
 	vector<const llvm::Type*>	args;
 
-	/* diskoff */
-	/* parent's params */
-	/* out params */
+	/* diskoff,  parent's params, out params */
 	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
 	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
 	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
@@ -89,7 +98,6 @@ bool ThunkParams::genProtoByName(const string& name)
 	return (f->getName() == name);
 }
 
-
 bool ThunkParams::genProto(void) const
 {
 	if (no_params) return genProtoEmpty();
@@ -106,9 +114,75 @@ bool ThunkParams::genCode(void) const
 {
 	if (no_params) return genCodeEmpty();
 
-	assert (0 == 1);
+	assert (exprs != NULL);
+	return genCodeExprs();
 }
 
+bool ThunkParams::genCodeExprs(void) const 
+{
+	llvm::Function			*f;
+	llvm::BasicBlock		*bb_entry;
+	llvm::Module			*mod;
+	llvm::IRBuilder<>		*builder;
+	llvm::AllocaInst		*params_out_ptr;
+	llvm::Function::arg_iterator	arg_it;
+	ExprList::const_iterator	it;
+	unsigned int			i;
+
+	assert (exprs != NULL);
+
+	mod = code_builder->getModule();
+	builder = code_builder->getBuilder();
+
+	f = mod->getFunction(getFCallName());
+	bb_entry = llvm::BasicBlock::Create(
+		llvm::getGlobalContext(), "tp_entry", f);
+	builder->SetInsertPoint(bb_entry);
+
+	/* load n parameters */
+	code_builder->genThunkHeaderArgs(f, getOwner()->getType());
+
+	arg_it = f->arg_begin();	/* diskoff */
+	arg_it++;			/* param (in) */
+	arg_it++;			/* params (out) */
+
+	params_out_ptr = builder->CreateAlloca(
+		arg_it->getType(),
+		0,
+		"__thunkparams_out");
+	builder->CreateStore(arg_it, params_out_ptr);
+	
+
+	/* assign all values in expr list to elements in 
+	 * the passed pointer */
+	for (it = exprs->begin(), i = 0; it != exprs->end(); it++, i++) {
+		Expr		*cur_expr;
+		llvm::Value	*expr_val;
+		llvm::Value	*cur_param_ptr;
+		llvm::Value	*idx_val;
+
+		cur_expr = *it;
+		expr_val = cur_expr->codeGen();
+		if (expr_val == NULL) {
+			cerr << "Oops. Could not generate ";
+			cur_expr->print(cerr);
+			cerr << " for thunk params." << endl;
+			return false;
+		}
+	
+		idx_val = llvm::ConstantInt::get(
+			llvm::getGlobalContext(),
+			llvm::APInt(32, i));
+		cur_param_ptr = builder->CreateGEP(
+			builder->CreateLoad(params_out_ptr), idx_val);
+		
+		builder->CreateStore(expr_val, cur_param_ptr);
+	}
+		
+	builder->CreateRetVoid();
+
+	return true;
+}
 
 ThunkParams* ThunkParams::createNoParams()
 {
@@ -126,12 +200,16 @@ ThunkParams* ThunkParams::createSTUB(void)
 	assert (0 == 1);
 }
 
-
 const std::string ThunkParams::getFCallName(void) const
 {
 	if (no_params) 
 		return THUNKPARAM_EMPTYNAME;
 
-	assert (0 == 1);
+	return "__thunkparams_" + getOwner()->getType()->getName() + "_" +
+		getFieldName();
 }
 
+ThunkParams::~ThunkParams(void)
+{
+	if (exprs != NULL) delete exprs;
+}

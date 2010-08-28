@@ -31,6 +31,7 @@ const FuncBlock		*gen_func_block;
 ctype_map		ctypes_map;
 type_map		types_map;
 type_list		types_list;
+typenum_map		typenums_map;
 const_map		constants;
 symtab_map		symtabs;
 deftype_map		deftypes_map;
@@ -148,6 +149,7 @@ static void load_user_types_list(const GlobalBlock* gb)
 		types_map[t->getName()] = t;
 
 		t->setTypeNum(type_num);
+		typenums_map[type_num] = t;
 		type_num++;
 	}
 
@@ -211,8 +213,8 @@ static void load_constants(const GlobalBlock* gb)
 {
 	GlobalBlock::const_iterator	it;
 	
-	constants["true"] = new Number(1);
-	constants["false"] = new Number(0);
+	constants["true"] = new Boolean(true);
+	constants["false"] = new Boolean(false);
 
 	for (it = gb->begin(); it != gb->end(); it++) {
 		ConstVar	*c;

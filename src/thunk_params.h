@@ -11,15 +11,20 @@
 class ThunkParams : public ThunkFieldFunc
 {
 public:
-	ThunkParams() : no_params(true) {}
+	ThunkParams() : no_params(true), exprs(NULL) {}
+	ThunkParams(ExprList* expr_list) 
+	: no_params(false), exprs(expr_list) 
+	{
+	} 
 
-	virtual ~ThunkParams() {}
+	virtual ~ThunkParams();
 
 	virtual FCall* copyFCall(void) const;
 	virtual ThunkParams* copy(void) const;
 
 	virtual bool genProto(void) const;
 	virtual bool genCode(void) const;
+	bool genCodeExprs(void) const;
 
 	static ThunkParams* createNoParams();
 	static ThunkParams* createCopyParams();
@@ -33,6 +38,7 @@ protected:
 	const std::string getFCallName(void) const;
 private:
 	bool		no_params;
+	ExprList	*exprs;
 };
 
 

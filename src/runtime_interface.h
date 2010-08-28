@@ -27,6 +27,10 @@ public:
 
 	Expr	*maxValue(ExprList* exprs);
 	Expr	*computeArrayBits(const class ThunkField* tf);
+	Expr	*computeArrayBits(
+		const Type* t,
+		const Expr* diskoff, const Expr* params,
+		const Expr* idx);
 	Expr	*fail(void);
 private:
 

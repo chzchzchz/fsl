@@ -18,8 +18,6 @@ extern ctype_map	ctypes_map;
 extern type_map		types_map;
 extern const FuncBlock	*gen_func_block;
 extern const Func	*gen_func;
-extern const_map	constants;
-extern symtab_map	symtabs;
 
 static bool gen_func_code_args(
 		const Func* f,
@@ -40,9 +38,10 @@ void Func::genLoadArgs(void) const
 	Function::arg_iterator		ai;
 	unsigned int			arg_c;
 
+	arg_c = args->size();
+
 	f = getFunction();
 	ai = f->arg_begin();
-	arg_c = args->size();
 	IRBuilder<>			tmpB(
 		&f->getEntryBlock(),
 		f->getEntryBlock().begin());
@@ -50,10 +49,20 @@ void Func::genLoadArgs(void) const
 	for (unsigned int i = 0; i < arg_c; i++, ai++) {
 		AllocaInst		*allocai;
 		const llvm::Type	*t;
-		string			arg_name;
+		string			arg_name, type_name;
+		bool			is_user_type;
 
+		type_name = (args->get(i).first)->getName();
 		arg_name = (args->get(i).second)->getName();
-		t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+
+		is_user_type = (types_map.count(type_name) > 0);
+		if (is_user_type) {
+			t = code_builder->getTypePassStruct();
+		} else {
+			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+		}
+
+		(*ai).dump();
 
 		allocai = tmpB.CreateAlloca(t, 0, arg_name);
 		block->addVar(arg_name, allocai);
@@ -355,9 +364,9 @@ static bool gen_func_code_args(
 		}
 
 		if (is_user_type) {
-			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
-		} else {
 			t = code_builder->getTypePassStruct();
+		} else {
+			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 		}
 
 		llvm_args.push_back(t);
@@ -389,7 +398,7 @@ void Func::genCode(void) const
 	fargs = new FuncArgs(getArgs());
 
 	/* scope takes args */
-	ectx = new EvalCtx(fargs, symtabs, constants);
+	ectx = new EvalCtx(fargs);
 	
 	f_bb = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", llvm_f);

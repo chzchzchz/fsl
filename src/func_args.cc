@@ -1,7 +1,10 @@
 #include "AST.h"
+#include "type.h"
 #include "func_args.h"
 
 using namespace std;
+
+extern type_map types_map;
 
 FuncArgs::FuncArgs(const ArgsList* in_args)
 {
@@ -36,3 +39,14 @@ bool FuncArgs::hasField(const std::string& name) const
 {
 	return (args_map.count(name) != 0);
 }
+
+const Type* FuncArgs::getType(const std::string& name) const
+{
+	string	type_name;
+	if (lookupType(name, type_name) == false)
+		return NULL;
+	if (types_map.count(type_name) == 0)
+		return NULL;
+	return (*(types_map.find(type_name))).second;
+}
+

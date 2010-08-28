@@ -6,6 +6,7 @@ OBJS=	parser.o		\
 	symtab.o		\
 	expr.o			\
 	cond.o			\
+	fcall.o			\
 	func.o			\
 	evalctx.o		\
 	symtab_thunkbuilder.o	\
