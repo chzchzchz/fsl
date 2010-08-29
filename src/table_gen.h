@@ -52,7 +52,6 @@ private:
 	void genInstanceTypeField(
 		const Type*		parent_type,
 		const SymbolTableEnt*	st_ent);
-	void genInstancePointsTo(const PointsTo* pto);
 	void genInstancePointsRange(const PointsRange* ptr);
 
 	void genInstanceAssertion(const Assertion* assertion);

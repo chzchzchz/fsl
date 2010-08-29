@@ -4,6 +4,7 @@
 #include "func_args.h"
 #include "util.h"
 #include "runtime_interface.h"
+#include "eval.h"
 
 #include "points_to.h"
 
@@ -175,7 +176,14 @@ void Points::loadPointsInstance(const Expr* data_loc)
 	}
 
 	/* convert the expression into code for the run-time tool */
-	points_to_elems.add(new PointsTo(src_type, dst_type, data_loc, seq++));
+	points_to_elems.add(new PointsRange(
+		src_type,
+		dst_type,
+		new Id("__nobinding"),
+		new Number(1),
+		new Number(1),
+		data_loc->copy(),
+		seq++));
 }
 
 void Points::loadPointsRangeInstance(
@@ -208,23 +216,6 @@ void Points::loadPointsRangeInstance(
 }
 
 
-void PointsTo::genCode(void) const
-{
-	code_builder->genCode(src_type, getFCallName(), points_expr);
-}
-
-void PointsTo::genProto(void) const
-{
-	const ThunkType	*tt;
-	tt = symtabs[src_type->getName()]->getThunkType();
-	code_builder->genProto(getFCallName(), tt->getThunkArgCount());
-}
-
-const std::string PointsTo::getFCallName(void) const
-{
-	return "__pointsto_" + src_type->getName() + "_" + int_to_string(seq);
-}
-
 void PointsRange::genCode(void) const
 {
 	/* function(<thunk-args>, <binding-var>) */
@@ -235,22 +226,63 @@ void PointsRange::genCode(void) const
 	code_builder->genCode(src_type, getMaxFCallName(), max_expr);
 }
 
-
 void PointsRange::genCodeRange(void) const
 {
-	ArgsList	al;
+//	code_builder->genCode(
+//		src_type, getFCallName(), points_expr, &extra_args);
 
-	al.add(new Id("u64"), binding->copy());	/* this is the bound arg*/
+	llvm::Function		*f;
+	llvm::BasicBlock	*bb_bits;
+	llvm::IRBuilder<>	*builder;
+	llvm::Value		*ret_typepass, *ret_off, *ret_params;
+	string			fcall_bits;
+	Expr			*expr_eval_bits;
+	SymbolTable		*local_syms;
+	string			fname;
+	Expr			*raw_expr = points_expr;
+	llvm::Function::arg_iterator	ai;
+	llvm::Module		*mod;
 
-	FuncArgs	extra_args(&al);
 
-	assert (0 == 1);
-	code_builder->genCode(
-		src_type, getFCallName(), points_expr, &extra_args);
-/* XXXXXXX FUCK. Need to have special demarshalling code here. */
+	mod = code_builder->getModule();
+	fname = getFCallName();
+	builder = code_builder->getBuilder();
+
+	assert (raw_expr != NULL);
+
+	f = mod->getFunction(fname);
+	local_syms = symtabs[src_type->getName()];
+	assert (local_syms != NULL);
+
+	expr_eval_bits = eval(EvalCtx(local_syms), raw_expr);
+	assert (expr_eval_bits != NULL);
+
+	bb_bits = llvm::BasicBlock::Create(
+		llvm::getGlobalContext(), "entry", f);
+	builder->SetInsertPoint(bb_bits);
+	code_builder->genThunkHeaderArgs(f, src_type);
+
+	ai = f->arg_begin();	/* diskoff */
+	ai++;			/* parambuf */
+	ai++;			/* idx */
+
+	/* gen s for idx and output parambuf */
+	builder->CreateStore(
+		ai,
+		code_builder->createTmpI64(binding->getName()));
+
+	ret_typepass = expr_eval_bits->codeGen();
+	assert (ret_typepass != NULL);
+	assert (ret_typepass->getType() == code_builder->getTypePassStruct());
+	/* output value should be a typepass struct */
+
+	ret_params = builder->CreateExtractValue(ret_typepass, 1, "params");
+	ai++;	/* parambuf output */
+	code_builder->emitMemcpy64(ai, ret_params, dst_type->getNumArgs());
+
+	ret_off = builder->CreateExtractValue(ret_typepass, 0, "offset");
+	builder->CreateRet(ret_off);
 }
-
-
 
 void PointsRange::genProto(void) const
 {
@@ -294,8 +326,8 @@ void PointsRange::genProto(void) const
 	assert (f->arg_size() == args.size());
 	}
 
-	code_builder->genProto(getMinFCallName(), tt->getThunkArgCount());
-	code_builder->genProto(getMaxFCallName(), tt->getThunkArgCount());
+	code_builder->genThunkProto(getMinFCallName());
+	code_builder->genThunkProto(getMaxFCallName());
 }
 
 const std::string PointsRange::getFCallName(void) const

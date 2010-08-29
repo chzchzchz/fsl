@@ -272,17 +272,6 @@ void TableGen::genTableHeaders(void)
 	out << "#include \"../runtime.h\"" << endl;
 }
 
-void TableGen::genInstancePointsTo(const PointsTo* pto)
-{
-	StructWriter	sw(out);
-
-	sw.write("pt_type_dst", pto->getDstType()->getTypeNum());
-	sw.write("pt_single", pto->getFCallName());
-	sw.write("pt_range", "NULL");
-	sw.write("pt_min", "NULL");
-	sw.write("pt_max", "NULL");
-}
-
 void TableGen::genInstanceAssertion(const Assertion* as)
 {
 	StructWriter	sw(out);
@@ -322,7 +311,10 @@ void TableGen::genExternsPoints(const Points* pt)
 		it != pt_list->end();
 		it++)
 	{
-		printExternFunc((*it)->getFCallName());
+		const PointsRange*	ptr = *it;
+		printExternFunc(ptr->getFCallName(), 2);
+		printExternFunc(ptr->getMinFCallName(), 1);
+		printExternFunc(ptr->getMaxFCallName(), 1);
 	}
 
 	for (	pointsrange_list::const_iterator it = ptr_list->begin();
@@ -353,7 +345,7 @@ void TableGen::genPointsTable(const Points* pt)
 		it++)
 	{
 		sw.beginWrite();
-		genInstancePointsTo(*it);
+		genInstancePointsRange(*it);
 	}
 
 	for (	pointsrange_list::const_iterator it = ptr_list->begin();

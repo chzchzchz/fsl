@@ -151,17 +151,14 @@ void typeinfo_print_pointsto(const struct type_info* ti)
 	none_seen = true;
 	for (i = 0; i < tt->tt_pointsto_c; i++) {
 		struct fsl_rt_table_pointsto	*pt;
+		uint64_t			pt_min, pt_max;
 
 		pt = &tt->tt_pointsto[i];
-		if (pt->pt_single == NULL) {
-			uint64_t	pt_min, pt_max;
-
-			pt_min = pt->pt_min(ti->ti_diskoff, ti->ti_params);
-			pt_max = pt->pt_max(ti->ti_diskoff, ti->ti_params);
-			if (pt_min > pt_max) {
-				/* failed some condition */
-				continue;
-			}
+		pt_min = pt->pt_min(ti->ti_diskoff, ti->ti_params);
+		pt_max = pt->pt_max(ti->ti_diskoff, ti->ti_params);
+		if (pt_min > pt_max) {
+			/* failed some condition */
+			continue;
 		}
 
 		if (none_seen) {

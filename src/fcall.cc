@@ -129,12 +129,8 @@ llvm::Value* FCall::codeGenDynParams(void) const
 
 	builder = code_builder->getBuilder();
 
-	parambuf = builder->CreateAlloca(
-		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
-		llvm::ConstantInt::get(
-			llvm::getGlobalContext(),
-			llvm::APInt(32, n->getValue())),
-		"dynparam");
+	parambuf = code_builder->createPrivateTmpI64Array(
+		n->getValue(), "dynparam");
 
 	parambuf_ptr = code_builder->createTmpI64Ptr();
 	builder->CreateStore(
@@ -197,21 +193,14 @@ llvm::Value* FCall::codeGenParamsAllocaByCount(void) const
 {
 	llvm::AllocaInst	*parambuf;
 	Number			*n;
-	llvm::IRBuilder<>	*builder;
 
 	assert (exprs->size() == 1);
 
 	n = dynamic_cast<Number*>(exprs->front());
 	assert (n != NULL);
 
-	builder = code_builder->getBuilder();
-
-	parambuf = builder->CreateAlloca(
-		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
-		llvm::ConstantInt::get(
-			llvm::getGlobalContext(),
-			llvm::APInt(32, n->getValue())),
-		"paramallocacount");
+	parambuf = code_builder->createPrivateTmpI64Array(
+		n->getValue(), "paramallocacount");
 
 	return parambuf;
 }	

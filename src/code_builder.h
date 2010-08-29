@@ -55,8 +55,12 @@ public:
 
 	unsigned int getTmpVarCount(void) const { return tmp_var_map.size(); }
 	llvm::AllocaInst* getTmpAllocaInst(const std::string& s) const;
-	llvm::AllocaInst* createTmpI64(
+	llvm::AllocaInst* createTmpI64(const std::string& name);
+	llvm::AllocaInst* createTmpI64(void);
+	llvm::AllocaInst* createPrivateTmpI64Array(
+		unsigned int num_elems,
 		const std::string& name);
+
 	llvm::AllocaInst* createTmpTypePass(
 		const Type* t,
 		const std::string& name);
@@ -80,6 +84,9 @@ public:
 		const FuncArgs* e_args = NULL);
 
 
+	void emitMemcpy64(
+		llvm::Value* dst, llvm::Value* src, 
+		unsigned int elems);
 private:
 	void makeTypePassStruct(void);
 

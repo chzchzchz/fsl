@@ -6,8 +6,8 @@
 #include "collection.h"
 #include "type.h"
 
-typedef PtrList<class PointsTo>		pointsto_list;
 typedef PtrList<class PointsRange>	pointsrange_list;
+typedef pointsrange_list		pointsto_list;
 typedef std::list<class Points*>	pointing_list;
 typedef std::map<std::string, Points*>	pointing_map;
 
@@ -58,43 +58,6 @@ private:
 	pointsto_list		points_to_elems;
 	pointsrange_list	points_range_elems;
 	unsigned int		seq;
-};
-
-class PointsTo
-{
-public:
-	PointsTo(
-		const Type* in_src_type, 
-		const Type* in_dst_type,
-		const Expr* in_points_expr,
-		unsigned int in_seq)
-	: src_type(in_src_type),
-	  dst_type(in_dst_type),
-	  points_expr(in_points_expr->copy()),
-	  seq(in_seq)
-	{
-		assert (src_type != NULL);
-		assert (dst_type != NULL);
-	}
-
-	virtual ~PointsTo() 
-	{
-		delete points_expr;
-	}
-
-	virtual void genCode(void) const;
-	virtual void genProto(void) const;
-
-	const Type* getSrcType(void) const { return src_type; }
-	const Type* getDstType(void) const { return dst_type; }
-
-	const std::string getFCallName(void) const;
-
-private:
-	const Type*	src_type;
-	const Type*	dst_type;
-	Expr*		points_expr;
-	unsigned int	seq;
 };
 
 class PointsRange 

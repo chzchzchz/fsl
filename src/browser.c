@@ -21,18 +21,17 @@ static bool handle_menu_choice(
 static int get_sel_elem(int min_v, int max_v);
 static void select_field(struct type_info* cur, int field_num);
 static void select_pointsto(struct type_info* cur, int pt_idx);
-static void select_pointsto_range(struct type_info* cur, int pt_idx);
 
-static void select_pointsto_range(struct type_info* cur, int pt_idx)
+static void select_pointsto(struct type_info* cur, int pt_idx)
 {
 	struct fsl_rt_table_pointsto	*pt;
 	struct type_info		*ti_next;
+	struct fsl_rt_table_type	*tt_out;
 	diskoff_t			pt_off;
 	int				min_idx, max_idx;
 	int				pt_elem_idx;
 
 	pt = &(tt_by_ti(cur)->tt_pointsto[pt_idx]);
-	assert (pt->pt_single == NULL);
 
 	/* get the range element idx */
 	min_idx = pt->pt_min(cur->ti_diskoff, cur->ti_params);
@@ -41,37 +40,18 @@ static void select_pointsto_range(struct type_info* cur, int pt_idx)
 	if (pt_elem_idx == INT_MIN)
 		return;
 
+	tt_out = tt_by_num(pt->pt_type_dst);
+	uint64_t	params[tt_out->tt_param_c];
+
 	/* jump to it */
-	pt_off = pt->pt_range(cur->ti_diskoff, cur->ti_params, pt_elem_idx);
+	pt_off = pt->pt_range(
+		cur->ti_diskoff, cur->ti_params, pt_elem_idx, params);
+	assert (0 == 1 && "DO SOMETHING WITH PARAMS.");
 	ti_next = typeinfo_alloc_pointsto(
 		pt->pt_type_dst, pt_off, pt_idx, pt_elem_idx, cur);
 	if (ti_next == NULL)
 		return;
 
-	menu(ti_next);
-
-	typeinfo_free(ti_next);
-}
-
-static void select_pointsto(struct type_info* cur, int pt_idx)
-{
-	struct fsl_rt_table_pointsto	*pt;
-	struct type_info		*ti_next;
-	diskoff_t			pt_off;
-
-	pt = &(tt_by_ti(cur)->tt_pointsto[pt_idx]);
-	if (pt->pt_single == NULL) {
-		select_pointsto_range(cur, pt_idx);
-		return;
-	}
-
-	pt_off = pt->pt_single(cur->ti_diskoff, cur->ti_params);
-
-	ti_next = typeinfo_alloc_pointsto(
-		pt->pt_type_dst, pt_off, pt_idx, 0, cur);
-	if (ti_next == NULL)
-		return;
-		
 	menu(ti_next);
 
 	typeinfo_free(ti_next);

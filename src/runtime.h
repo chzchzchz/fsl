@@ -36,7 +36,6 @@ typedef uint64_t(*points_maxf_t)(diskoff_t, parambuf_t );
 typedef diskoff_t(*points_rangef_t)(
 	diskoff_t, parambuf_t , uint64_t /* idx */, parambuf_t /* out */);
 typedef void(*paramsf_t)(diskoff_t, parambuf_t /* in */, parambuf_t /* out */);
-typedef diskoff_t(*pointsf_t)(diskoff_t, parambuf_t);
 typedef bool(*condf_t)(diskoff_t, parambuf_t);
 typedef bool(*assertf_t)(diskoff_t, parambuf_t);
 
@@ -92,8 +91,6 @@ struct fsl_rt_table_field
 struct fsl_rt_table_pointsto
 {
 	typenum_t	pt_type_dst;
-	pointsf_t	pt_single;
-
 	points_rangef_t	pt_range;
 	points_minf_t	pt_min;
 	points_maxf_t	pt_max;

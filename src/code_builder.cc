@@ -4,6 +4,7 @@
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Support/IRBuilder.h>
 #include <llvm/Support/raw_os_ostream.h>
+#include <llvm/Intrinsics.h>
 #include <fstream>
 
 #include "eval.h"
@@ -437,7 +438,7 @@ llvm::AllocaInst* CodeBuilder::createTmpI64Ptr(void)
 	ret = builder->CreateAlloca(
 		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()),
 		0,
-		"AAA" + int_to_string(tmp_c++));
+		"__AAA" + int_to_string(tmp_c++));
 	tmp_var_map[ret->getName()] = ret;
 
 	return ret;
@@ -456,7 +457,42 @@ llvm::AllocaInst* CodeBuilder::getTmpAllocaInst(const std::string& s) const
 
 llvm::AllocaInst* CodeBuilder::createTmpI64(const std::string& name)
 {
-	assert (0 == 1);
+	llvm::AllocaInst	*ret;
+	
+	ret = builder->CreateAlloca(
+		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
+		0,
+		name);
+	assert (name == ret->getName());
+
+	tmp_var_map[name] = ret;
+
+	return ret;
+}
+
+void CodeBuilder::emitMemcpy64(
+	llvm::Value* dst, llvm::Value* src, unsigned int elem_c)
+{
+	llvm::Function	*memcpy_f;
+	const llvm::Type *Tys[] = { builder->getInt32Ty() };
+	llvm::Value* args[] = {
+	  	builder->CreateBitCast(
+			dst, builder->getInt8PtrTy(), "dst_ptr"),
+	  	builder->CreateBitCast(
+			src, builder->getInt8PtrTy(), "src_ptr"),
+		llvm::ConstantInt::get(
+			llvm::getGlobalContext(), llvm::APInt(32, elem_c*8)),
+		llvm::ConstantInt::get(builder->getInt32Ty(), 4)};
+
+	memcpy_f =  llvm::Intrinsic::getDeclaration(
+		mod, llvm::Intrinsic::memcpy, Tys, 1);
+	builder->CreateCall(memcpy_f, args, args+4);
+}
+
+
+llvm::AllocaInst* CodeBuilder::createTmpI64(void)
+{
+	return createTmpI64("__BBB" + int_to_string(tmp_c++));
 }
 
 llvm::AllocaInst* CodeBuilder::createTmpTypePass(
@@ -465,4 +501,18 @@ llvm::AllocaInst* CodeBuilder::createTmpTypePass(
 	assert (0 == 1);
 }
 
+llvm::AllocaInst* CodeBuilder::createPrivateTmpI64Array(
+	unsigned int num_elems,
+	const std::string& name)
+{
+	llvm::Value	*elem_count;
 
+	elem_count = llvm::ConstantInt::get(
+		llvm::getGlobalContext(),
+		llvm::APInt(32, num_elems));
+
+	 return builder->CreateAlloca(
+		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
+		elem_count,
+		name);
+}

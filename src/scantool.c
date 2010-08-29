@@ -13,12 +13,6 @@ static void print_indent(unsigned int depth);
 static void scan_type_pointsto(
 	const struct type_info* ti, 
 	unsigned int pt_idx);
-static void scan_type_pointsto_single(
-	const struct type_info* ti, 
-	unsigned int pt_idx);
-static void scan_type_pointsto_range(
-	const struct type_info* ti, 
-	unsigned int pt_idx);
 static void scan_type_pointsto_all(const struct type_info* ti);
 static void scan_type_strongtypes(const struct type_info* ti);
 static void scan_type(const struct type_info* ti);
@@ -31,56 +25,33 @@ static void print_indent(unsigned int depth)
 	}
 }
 
-static void scan_type_pointsto_single(
-	const struct type_info* ti, 
-	unsigned int pt_idx)
-{
-	struct fsl_rt_table_pointsto		*pt;
-	struct type_info			*new_ti;
-
-	pt = pt_from_idx(ti, pt_idx);
-	assert (pt->pt_single != NULL);
-
-	new_ti = typeinfo_alloc_pointsto(
-		pt->pt_type_dst,
-		pt->pt_single(ti->ti_diskoff, ti->ti_params),
-		pt_idx,
-		0,
-		ti);
-	if (new_ti == NULL)
-		return;
-
-	print_indent(typeinfo_get_depth(ti));
-	printf("points-to-single@%"PRIx64" -> %"PRId64 " (%s)\n", 
-		ti->ti_diskoff,
-		new_ti->ti_diskoff,
-		tt_by_ti(new_ti)->tt_name);
-
-	scan_type(new_ti);
-
-	typeinfo_free(new_ti);
-}
-
-static void scan_type_pointsto_range(
+static void scan_type_pointsto(
 	const struct type_info* ti, 
 	unsigned int pt_idx)
 {
 	struct fsl_rt_table_pointsto	*pt;
+	struct fsl_rt_table_type	*tt;
 	unsigned int			k;
 	unsigned int			min_idx, max_idx;
 
 	pt = pt_from_idx(ti, pt_idx);
-	assert (pt->pt_range != NULL);	
+	assert (pt->pt_range != NULL);
+
+	tt = tt_by_num(pt->pt_type_dst);
 
 	min_idx = pt->pt_min(ti->ti_diskoff, ti->ti_params);
 	max_idx = pt->pt_max(ti->ti_diskoff, ti->ti_params);
-	printf("[%d,%d]\n", min_idx, max_idx);
+	if (min_idx != max_idx)
+		printf("[%d,%d]\n", min_idx, max_idx);
 	for (k = min_idx; k <= max_idx; k++) {
 		struct type_info	*new_ti;
+		uint64_t		params[tt->tt_param_c];
+
+		assert (0 == 1 && "need to pass params");
 
 		new_ti = typeinfo_alloc_pointsto(
 			pt->pt_type_dst,
-			pt->pt_range(ti->ti_diskoff, ti->ti_params, k),
+			pt->pt_range(ti->ti_diskoff, ti->ti_params, k, params),
 			pt_idx,
 			k,
 			ti);
@@ -91,17 +62,7 @@ static void scan_type_pointsto_range(
 
 		typeinfo_free(new_ti);
 	}
-}
 
-
-static void scan_type_pointsto(
-	const struct type_info* ti, 
-	unsigned int pt_idx)
-{
-	if (pt_from_idx(ti, pt_idx)->pt_single != NULL)
-		scan_type_pointsto_single(ti, pt_idx);
-	else
-		scan_type_pointsto_range(ti, pt_idx);
 }
 
 static void scan_type_pointsto_all(const struct type_info* ti)
