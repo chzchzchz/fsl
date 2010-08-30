@@ -20,8 +20,8 @@ extern const FuncBlock	*gen_func_block;
 extern const Func	*gen_func;
 
 static bool gen_func_code_args(
-		const Func* f,
-		vector<const llvm::Type*>& llvm_args);
+	const Func* f, 
+	vector<const llvm::Type*>& llvm_args);
 
 Func* FuncStmt::getFunc(void) const
 {
@@ -30,7 +30,6 @@ Func* FuncStmt::getFunc(void) const
 
 	return f_owner;
 }
-
 
 void Func::genLoadArgs(void) const
 {
@@ -62,15 +61,13 @@ void Func::genLoadArgs(void) const
 			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 		}
 
-		(*ai).dump();
-
 		allocai = tmpB.CreateAlloca(t, 0, arg_name);
 		block->addVar(arg_name, allocai);
 		code_builder->getBuilder()->CreateStore(ai, allocai);
 	}
 
 	/* handle return value if passing type */
-	if (f->getType() == llvm::Type::getVoidTy(llvm::getGlobalContext())) {
+	if (f->getReturnType() == tmpB.getVoidTy()) {
 		AllocaInst		*allocai;
 		const llvm::Type	*t;
 
@@ -159,20 +156,14 @@ Value* FuncRet::codeGen(const EvalCtx* ectx) const
 	t = f->getReturnType();
 	if (t == llvm::Type::getInt1Ty(llvm::getGlobalContext())) {
 		e_v = builder->CreateTrunc(e_v, t);
-	} else if (t == code_builder->getTypePassStruct()) {
+	} else if (t == builder->getVoidTy()) {
 		/* copy result into return value */
-		llvm::Value			*idx_val;
-		llvm::Value			*param_elem_val;
 		llvm::Value			*tp_elem_ptr;
 		AllocaInst			*allocai;
 
 		allocai = getOwner()->getVar("__ret_typepass");
-		idx_val = llvm::ConstantInt::get(
-			llvm::getGlobalContext(),
-			llvm::APInt(32, 0));
-		tp_elem_ptr = builder->CreateGEP(
-			builder->CreateLoad(allocai), 
-			idx_val);
+		assert (allocai != NULL);
+		tp_elem_ptr = builder->CreateLoad(allocai);
 
 		code_builder->copyTypePassStruct(
 			types_map[getFunc()->getRet()],
@@ -247,7 +238,6 @@ Value* FuncBlock::codeGen(const EvalCtx* ectx) const
 	return NULL;
 }
 
-
 AllocaInst* FuncBlock::getVar(const std::string& s) const
 {
 	map<string, AllocaInst*>::const_iterator	it;
@@ -282,7 +272,6 @@ Function* FuncStmt::getFunction() const
 	return getFunc()->getFunction();
 }
 
-
 void Func::genProto(void) const
 {
 	vector<const llvm::Type*>	f_args;
@@ -310,7 +299,7 @@ void Func::genProto(void) const
 	} else {
 		/* we'll tack on a parameter at the end that is a pointer
 		 * to a typepass struct, which will be what we write our 
-		 * return data too (return will act as an assignment) */
+		 * return data to (return will act as an assignment) */
 		t_ret = llvm::Type::getVoidTy(llvm::getGlobalContext());
 	}
 		

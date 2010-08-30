@@ -48,8 +48,6 @@ public:
 		const std::string	&name,
 		const llvm::Type	*ret_type);
 
-
-
 	void write(std::ostream& os);
 	void write(std::string& os);
 

@@ -396,12 +396,13 @@ PointsIf::PointsIf(
 	new Number(1),
 	new FCall(
 		new Id(getWrapperFCallName(in_src_type->getName(), in_seq)),
-		new ExprList(rt_glue.getThunkArgOffset())),
+		new ExprList(
+			rt_glue.getThunkArgOffset(), 
+			rt_glue.getThunkArgParamPtr())),
 	in_points_expr,
 	in_seq),
 	cond_expr(in_cond_expr)
 {
-	assert (0 == 1 && "NEED TO PASS PARAMS");
 	assert (cond_expr != NULL);
 }
 
@@ -434,11 +435,9 @@ void PointsIf::genCode(void) const
 
 void PointsIf::genProto(void) const
 {
-	const ThunkType	*tt;
-	tt = symtabs[getSrcType()->getName()]->getThunkType();
-	code_builder->genProto(
-		getWrapperFCallName(getSrcType()->getName(), getSeqNum()), 
-		tt->getThunkArgCount());
+	code_builder->genThunkProto(
+		getWrapperFCallName(
+			getSrcType()->getName(), getSeqNum()));
 	PointsRange::genProto();
 }
 

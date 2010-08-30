@@ -84,15 +84,12 @@ void RTInterface::loadRunTimeFuncs(CodeBuilder* cb)
 
 Expr* RTInterface::getLocal(Expr* disk_bit_offset, Expr* num_bits)
 {
-	ExprList*	exprs = new ExprList();
-
 	assert (disk_bit_offset != NULL);
 	assert (num_bits != NULL);
 	
-	exprs->add(disk_bit_offset);
-	exprs->add(num_bits);
-
-	return new FCall(new Id("__getLocal"), exprs);
+	return new FCall(
+		new Id("__getLocal"), 
+		new ExprList(disk_bit_offset, num_bits));
 }
 
 Expr* RTInterface::getLocalArray(
@@ -115,12 +112,11 @@ Expr* RTInterface::getLocalArray(
 
 Expr* RTInterface::getDynOffset(const Type* user_type)
 {
-	ExprList	*exprs; 
-
 	assert (user_type != NULL);
 
-	exprs = new ExprList(new Number(user_type->getTypeNum()));
-	return new FCall(new Id("__getDynOffset"), exprs);
+	return new FCall(
+		new Id("__getDynOffset"), 
+		new ExprList(new Number(user_type->getTypeNum())));
 }
 
 Expr* RTInterface::getDynParams(const Type* user_type)
@@ -177,8 +173,6 @@ Expr* RTInterface::computeArrayBits(const ThunkField* tf)
 	assert (t->isUnion() == false);
 	assert (tf->getElems()->isSingleton() == false);
 
-	cerr << "WHAT: " << tf->getType()->getName() << endl;
-
 	exprs = new ExprList();
 	exprs->add(new Number(tf->getType()->getTypeNum()));
 	exprs->add(tf->getOffset()->copyFCall());
@@ -197,8 +191,6 @@ Expr* RTInterface::computeArrayBits(
 
 	assert (t != NULL);
 	assert (t->isUnion() == false);
-
-	cerr << "WHAT: " << t->getName() << endl;
 
 	exprs = new ExprList();
 	exprs->add(new Number(t->getTypeNum()));

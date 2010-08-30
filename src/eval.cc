@@ -73,8 +73,6 @@ public:
 	{	
 		Expr	*result;
 
-		ids->print(cerr);
-		cerr << endl;
 		result = ectx.resolve(ids);
 		if (result == NULL)
 			return ids->copy();
@@ -211,19 +209,10 @@ llvm::Value* evalAndGen(const EvalCtx& ectx, const Expr* expr)
 	return v;
 }
 
-static int depth = 0;
-
 Expr* eval(const EvalCtx& ectx, const Expr* expr)
 {
 	Expr	*our_expr, *tmp_expr;
 	
-
-	cerr << "X";
-	for (int i = 0; i < depth; i++) cerr << ' ';
-	expr->print(cerr);
-	cerr << endl;
-	depth++;
-
 	/* first, get simplified copy */
 	our_expr = expr->simplify();
 
@@ -234,11 +223,6 @@ Expr* eval(const EvalCtx& ectx, const Expr* expr)
 		our_expr = tmp_expr;
 	}
 
-	cerr << ".";
-	for (int i = 0; i < depth; i++) cerr << ' ';
-	our_expr->print(cerr);
-	cerr << endl;
-
 	/* 
 	 * resolve all unknown ids into function calls
 	 */
@@ -247,12 +231,6 @@ Expr* eval(const EvalCtx& ectx, const Expr* expr)
 		delete our_expr;
 		our_expr = tmp_expr;
 	}
-
-	cerr << "-";
-	for (int i = 0; i < depth; i++) cerr << ' ';
-	our_expr->print(cerr);
-	cerr << endl;
-
 
 	tmp_expr = expr_resolve_consts(constants, our_expr);
 	if (tmp_expr != NULL) {
@@ -263,13 +241,6 @@ Expr* eval(const EvalCtx& ectx, const Expr* expr)
 	if (*our_expr != expr) {
 		our_expr = evalReplace(ectx, our_expr);
 	}
-
-	depth--;
-	cerr << "=";
-	for (int i = 0; i < depth; i++) cerr << ' ';
-	our_expr->print(cerr);
-	cerr << endl;
-
 
 	return our_expr;
 }

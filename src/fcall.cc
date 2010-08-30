@@ -6,6 +6,7 @@
 #include <llvm/Support/IRBuilder.h>
 #include <iostream>
 
+#include "type.h"
 #include "code_builder.h"
 #include "func.h"
 #include "expr.h"
@@ -17,6 +18,8 @@ using namespace llvm;
 extern CodeBuilder	*code_builder;
 extern const Func	*gen_func;
 extern const FuncBlock	*gen_func_block;
+extern type_map		types_map;
+extern func_map		funcs_map;
 
 
 llvm::Value* FCall::codeGenLet(void) const
@@ -119,7 +122,6 @@ llvm::Value* FCall::codeGenDynParams(void) const
 	::Type			*t;
 	Expr			*param_ptr;
 	FCall			*new_call;
-	ExprList		*new_exprs;
 	llvm::IRBuilder<>	*builder;
 
 	assert (exprs->size() == 1);
@@ -141,11 +143,9 @@ llvm::Value* FCall::codeGenDynParams(void) const
 				llvm::APInt(32, 0))),
 		parambuf_ptr);
 
-	new_exprs = new ExprList();
-	new_exprs->add(n->copy());
-	new_exprs->add(new Id(parambuf_ptr->getName()));
-
-	new_call = new FCall(new Id("__getDynParams"), new_exprs);
+	new_call = new FCall(
+		new Id("__getDynParams"), 
+		new ExprList(n->copy(), new Id(parambuf_ptr->getName())));
 	new_call->codeGen();
 	delete new_call;
 
@@ -214,6 +214,8 @@ llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 
 	builder = code_builder->getBuilder();
 	params_ret = NULL;
+	args.clear();
+
 	for (it = exprs->begin(); it != exprs->end(); it++) {
 		Expr	*cur_expr;
 		FCall	*fc;
@@ -235,9 +237,6 @@ llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 						llvm::APInt(32, 0))),
 				p_ptr);
 			
-//			args.push_back(p_ptr);
-			p_ptr->dump();
-//			params_ret = builder->CreateLoad(p_ptr);
 			args.push_back(params);
 			params_ret = params;
 			
@@ -250,32 +249,77 @@ llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 	return params_ret;
 }
 
+bool FCall::handleSpecialForms(llvm::Value* &ret) const
+{
+	string	call_name(id->getName());
+
+	if (call_name == "let")
+		ret = codeGenLet();
+	else if (call_name == "__extractOff")
+		ret = codeGenExtractOff();
+	else if (call_name == "__extractParam")
+		ret = codeGenExtractParam();
+	else if (call_name == "__getDynParams_preAlloca")
+		ret = codeGenDynParams();
+	else if (call_name == "__mktypepass")
+		ret = codeGenMkTypePass();
+	else if (call_name == "paramsAllocaByCount")
+		ret = codeGenParamsAllocaByCount();
+	else
+		return false;
+
+	return true;
+}
+
+/**
+ * We have a function call that is returning a typepass.
+ * BUT we convert the function to use a parameter for returns to avoid 
+ * any scoping issues with the parambuf. 
+ */
+Value* FCall::codeGenTypePassCall(std::vector<llvm::Value*>& args) const
+{
+	const Func		*callee_func;
+	IRBuilder<>		*builder;
+	Value			*ret;
+	AllocaInst		*tmp_tp;
+	AllocaInst		*tmp_params;
+	unsigned int		param_c;
+
+	builder = code_builder->getBuilder();
+	callee_func = funcs_map[id->getName()];
+	assert (callee_func != NULL);
+
+	param_c = types_map[callee_func->getRet()]->getNumArgs();
+	
+	tmp_tp = builder->CreateAlloca(code_builder->getTypePassStruct());
+	tmp_params = code_builder->createPrivateTmpI64Array(
+		param_c, "BURRITOS"); 
+	builder->CreateInsertValue(tmp_tp, tmp_params, 1);
+
+
+	args.push_back(tmp_tp);
+	ret = builder->CreateCall(
+		code_builder->getModule()->getFunction(id->getName()), 
+		args.begin(), args.end());
+
+	return builder->CreateLoad(tmp_tp);
+}
+
 Value* FCall::codeGen() const
 {
 	Function			*callee;
+	Func				*callee_func;
 	vector<Value*>			args;
 	string				call_name(id->getName());
 	Value				*params_ret;
 	Value				*ret;
-	Value				*parent;
+	bool				is_ret_typepass;
+	unsigned int			expected_arg_c;
+	IRBuilder<>			*builder;
 
-	cerr << "ENTERING CODEGEN FOR " << endl;
-	print(cerr);
-	cerr << endl;
-
-	if (call_name == "let") {
-		return codeGenLet();
-	} else if (call_name == "__extractOff") {
-		return codeGenExtractOff();
-	} else if (call_name == "__extractParam") {
-		return codeGenExtractParam();
-	} else if (call_name == "__getDynParams_preAlloca") {
-		return codeGenDynParams();
-	}else if (call_name == "__mktypepass") {
-		return codeGenMkTypePass();
-	} else if (call_name == "paramsAllocaByCount") {
-		return codeGenParamsAllocaByCount();
-	}
+	builder = code_builder->getBuilder();
+	if (handleSpecialForms(ret) == true)
+		return ret;
 
 	callee = code_builder->getModule()->getFunction(call_name);
 	if (callee == NULL) {
@@ -284,48 +328,33 @@ Value* FCall::codeGen() const
 			id->getName()).c_str());
 	}
 
-	if (callee->arg_size() != exprs->size()) {
+	if (funcs_map.count(call_name) != 0) {
+		callee_func = funcs_map[call_name];
+		is_ret_typepass = (types_map.count(callee_func->getRet()) > 0);
+	} else
+		is_ret_typepass = false;
+
+	expected_arg_c = callee->arg_size() - ((is_ret_typepass) ? 1 : 0);
+	if (expected_arg_c != exprs->size()) {
 		return ErrorV(
 			(string("wrong number of function arguments in ") + 
 			id->getName() + 
 			string(". Expected ") + 
-			int_to_string(callee->size()) + 
+			int_to_string(expected_arg_c) + 
 			" got " + int_to_string(exprs->size())).c_str());
 	}
 
-	BasicBlock	*bb;
-	bb = code_builder->getBuilder()->GetInsertBlock();
-	assert (bb != NULL);
-	parent = bb->getParent();
-	if (parent != NULL) 
-		cerr << "-----------PARENT: " << (string)parent->getName() << endl;
-	else
-		cerr << "----------PARENT: " << "???" << endl;
-
 	params_ret = codeGenParams(args);
 
-	cerr << "CALLING: ";
-	callee->dump();
-
-	cerr << "Dumping args: " <<  endl;
-	for (	vector<Value*>::iterator it = args.begin();
-		it != args.end();
-		it++)
-	{
-		cerr << "Arg: ";
-		(*it)->dump();
-		cerr << endl;
+	if (is_ret_typepass) {
+		ret = codeGenTypePassCall(args);
+		assert (params_ret == NULL);
+	} else {
+		ret = builder->CreateCall(callee, args.begin(), args.end());
 	}
-	cerr << "End Args" << endl;
-
-	ret = code_builder->getBuilder()->CreateCall(
-		callee, args.begin(), args.end());
-	cerr << "Call created." << endl;
 
 	if (params_ret != NULL)
 		return params_ret;
 
 	return ret;
 }
-
-

@@ -191,7 +191,6 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 		 * defer execution until later on.
 		 * 
 		 */
-		cerr << "A" << endl;
 		tb.tb_lastsym = cur_scope->lookup(name);
 		if (tb.tb_lastsym != NULL) {
 			tb.tb_type = tb.tb_lastsym->getType();
@@ -252,10 +251,9 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	/* return typepass if we are returning a user type */
 	thunk_field = tb.tb_lastsym->getFieldThunk();
 	if (thunk_field->getType() != NULL) {
-		ExprList	*exprs = new ExprList();
-		exprs->add(tb.tb_diskoff);
-		exprs->add(tb.tb_parambuf);
-		return new FCall(new Id("__mktypepass"), exprs);
+		return new FCall(
+			new Id("__mktypepass"), 
+			new ExprList(tb.tb_diskoff, tb.tb_parambuf));
 	}
 
 	/* not returning a user type-- we know that the size to 
@@ -292,15 +290,11 @@ Expr* EvalCtx::resolve(const Id* id) const
 
 			tf = st_ent->getFieldThunk();
 			if (tf->getType() != NULL) {
-				ExprList*	exprs;
-
-				exprs = new ExprList();
-				exprs->add(tf->getOffset()->copyFCall());
-				exprs->add(tf->getParams()->copyFCall());
-
 				return new FCall(
 					new Id("__mktypepass"),
-					exprs);
+					new ExprList(
+						tf->getOffset()->copyFCall(),
+						tf->getParams()->copyFCall()));
 			}
 
 			offset = tf->getOffset()->copyFCall();
@@ -317,12 +311,11 @@ Expr* EvalCtx::resolve(const Id* id) const
 
 	/* support for access of dynamic types.. gets base bits for type */
 	if ((t = typeByName(id->getName())) != NULL) {
-		ExprList	*exprs;
-
-		exprs = new ExprList();
-		exprs->add(rt_glue.getDynOffset(t));
-		exprs->add(rt_glue.getDynParams(t));
-		return new FCall(new Id("__mktypepass"), exprs);
+		return new FCall(
+			new Id("__mktypepass"),
+			new ExprList(
+				rt_glue.getDynOffset(t), 
+				rt_glue.getDynParams(t)));
 	}
 
 	/* could not resolve */

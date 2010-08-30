@@ -95,6 +95,10 @@ class ExprList : public PtrList<Expr>
 public:
 	ExprList() {}
 	ExprList(Expr* e) { assert (e != NULL); add(e); }
+	ExprList(Expr* e, Expr* e2) { 
+		assert (e != NULL && e2 != NULL); 
+		add(e); add(e2); 
+	}
 
 	ExprList(const PtrList<Expr>& p) : PtrList<Expr>(p) {}
 	virtual ~ExprList()  {}

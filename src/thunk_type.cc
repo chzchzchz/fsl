@@ -71,16 +71,11 @@ bool ThunkType::genProtos(void) const
 
 ExprList* ThunkType::copyExprList(void) const
 {
-	const ArgsList*	args;
-	ExprList*	ret;
-
 	assert (t_type != NULL);
 
-	ret = new ExprList();
-	ret->add(rt_glue.getThunkArgOffset());
-	ret->add(rt_glue.getThunkArgParamPtr());
-
-	return ret;
+	return new ExprList(
+		rt_glue.getThunkArgOffset(),
+		rt_glue.getThunkArgParamPtr());
 }
 
 ThunkType* ThunkType::copy(void) const

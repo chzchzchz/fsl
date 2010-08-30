@@ -130,9 +130,7 @@ void CodeBuilder::genThunkProto(
  * (e.g. f(diskoff_t, parambuf_t) */
 void CodeBuilder::genThunkProto(const std::string& name)
 {
-	genThunkProto(
-		name, 
-		llvm::Type::getInt64Ty(llvm::getGlobalContext()));
+	genThunkProto(name, builder->getInt64Ty());
 }
 
 void CodeBuilder::genCode(
@@ -198,14 +196,11 @@ void CodeBuilder::genThunkHeaderArgs(
 	llvm::IRBuilder<>		tmpB(
 		&f->getEntryBlock(), f->getEntryBlock().begin());
 
-	cerr << "THUNKHEADERARGS."<< endl;
-	f->dump();
-	cerr << endl;
 	assert (t != NULL);
 
-	ai = f->arg_begin();
-
 	tmp_var_map.clear();
+
+	ai = f->arg_begin();
 
 	/* create the hidden argument __thunk_off_arg */
 	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
@@ -217,22 +212,12 @@ void CodeBuilder::genThunkHeaderArgs(
 	/* skip over __thunk_off_arg */
 	ai++;
 
-	cerr << "TYPES-- " << endl;
-
 	l_t = llvm::Type::getInt64PtrTy(llvm::getGlobalContext());
 	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgParamPtrName());
-	cerr << "ALLOCAI: ";
-	allocai->dump();
-	cerr << endl;
-	cerr << "AI: ";
-	ai->dump();
-	cerr << endl;
 
 	tmp_var_map[rt_glue.getThunkArgParamPtrName()] = allocai;
 	tmp_var_map[t->getName() + "_params"] = allocai;
 	builder->CreateStore(ai, allocai);
-
-	cerr << "DONE." << endl;
 
 	/* skip over param pointer */
 	ai++;
@@ -301,8 +286,20 @@ void CodeBuilder::genTypeArgs(
 void CodeBuilder::copyTypePassStruct(
 	const Type* copy_type, llvm::Value *src, llvm::Value *dst_ptr)
 {
+	llvm::Value	*dst_params_ptr;
+	llvm::Value	*src_params_ptr;
+
 	/* copy contents of src into dst */
-	assert (0 == 1);
+	builder->CreateInsertValue(
+		dst_ptr,
+		builder->CreateExtractValue(src, 0, "offset"),
+		0);
+
+	src_params_ptr = builder->CreateExtractValue(src, 1, "src_params");
+	dst_params_ptr = builder->CreateExtractValue(
+		builder->CreateLoad(dst_ptr), 1, "dst_params");
+
+	emitMemcpy64(dst_params_ptr, src_params_ptr,copy_type->getNumArgs());
 }
 
 void CodeBuilder::genArgs(
@@ -365,8 +362,8 @@ void CodeBuilder::genCodeCond(
 		return;
 	}
 
-	bb_then = llvm::BasicBlock::Create(gctx, "then");
-	bb_else = llvm::BasicBlock::Create(gctx, "else");
+	bb_then = llvm::BasicBlock::Create(gctx, "then", f);
+	bb_else = llvm::BasicBlock::Create(gctx, "else", f);
 
 	/*
 	 * if (cond_v) {
@@ -388,9 +385,6 @@ void CodeBuilder::genCodeCond(
 	builder->SetInsertPoint(bb_else);
 	false_v = evalAndGen(ectx, false_expr);
 	builder->CreateRet(false_v);
-
-	f->getBasicBlockList().push_back(bb_then);
-	f->getBasicBlockList().push_back(bb_else);
 }
 
 

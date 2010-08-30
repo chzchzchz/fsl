@@ -66,6 +66,8 @@ public:
 
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
+	bool handleSpecialForms(llvm::Value* &ret) const;
+
 	llvm::Value*	codeGenParams(std::vector<llvm::Value*>& args) const;
 	llvm::Value*	codeGenNormalFunc() const;
 	llvm::Value*	codeGenTypeFunc() const;
@@ -73,6 +75,8 @@ private:
 	llvm::Value*	codeGenDynParams(void) const;
 	llvm::Value*	codeGenMkTypePass(void) const;
 	llvm::Value* 	codeGenParamsAllocaByCount(void) const;
+	llvm::Value*	codeGenTypePassCall(
+		std::vector<llvm::Value*>& args) const;
 
 	llvm::Value* 	codeGenExtractOff(void) const;
 	llvm::Value* 	codeGenExtractParam(void) const;

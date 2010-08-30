@@ -96,9 +96,7 @@ void Assertion::genCode(void)
 
 void Assertion::genProtos(void)
 {
-	const ThunkType	*tt;
-	tt = symtabs[src_type->getName()]->getThunkType();
-	code_builder->genProto(getFCallName(), tt->getThunkArgCount());
+	code_builder->genThunkProto(getFCallName());
 }
 
 
