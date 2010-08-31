@@ -165,7 +165,6 @@ assert(? sizeof_bytes(ext2_group_desc) == 32)
 type ext2_sb
 sum(s_free_blocks_c)
 sum(s_free_inodes_c)
-assert(? sizeof_bytes(ext2_sb) == 1024)
 {
 	u32	s_inodes_c;
 	u32	s_blocks_c;
@@ -197,7 +196,7 @@ assert(? sizeof_bytes(ext2_sb) == 1024)
 	/* XXX ... */
 
 	/* finally, padding */
-	align_bytes(1024);
+	set_bytes(1024);
 }
 
 uint sect_to_blocks(u32 sect)
@@ -277,7 +276,7 @@ points_if(
 	u32	i_dir_acl;
 	u32	i_faddr;
 
-	align_bytes(EXT2_GOOD_OLD_INODE_SIZE);
+	set_bytes(EXT2_GOOD_OLD_INODE_SIZE);
 }
 
 type ext2_dir_entry

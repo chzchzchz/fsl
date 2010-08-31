@@ -36,9 +36,14 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 	/* get the range element idx */
 	min_idx = pt->pt_min(cur->ti_diskoff, cur->ti_params);
 	max_idx = pt->pt_max(cur->ti_diskoff, cur->ti_params);
-	pt_elem_idx = get_sel_elem(min_idx, max_idx);
-	if (pt_elem_idx == INT_MIN)
-		return;
+	if (min_idx != max_idx) {
+		pt_elem_idx = get_sel_elem(min_idx, max_idx);
+		if (pt_elem_idx == INT_MIN)
+			return;
+	} else {
+		/* only one element -- follow that */
+		pt_elem_idx = min_idx;
+	}
 
 	tt_out = tt_by_num(pt->pt_type_dst);
 	uint64_t	params[tt_out->tt_param_c];
@@ -46,9 +51,9 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 	/* jump to it */
 	pt_off = pt->pt_range(
 		cur->ti_diskoff, cur->ti_params, pt_elem_idx, params);
-	assert (0 == 1 && "DO SOMETHING WITH PARAMS.");
 	ti_next = typeinfo_alloc_pointsto(
-		pt->pt_type_dst, pt_off, pt_idx, pt_elem_idx, cur);
+		pt->pt_type_dst, pt_off, params,
+		pt_idx, pt_elem_idx, cur);
 	if (ti_next == NULL)
 		return;
 
@@ -77,11 +82,44 @@ static int get_sel_elem(int min_v, int max_v)
 	return sel_elem;
 }
 
+static uint64_t select_field_array(
+	struct type_info* cur,
+	struct fsl_rt_table_field* field,
+	unsigned int num_elems,
+	uint64_t next_diskoff,
+	parambuf_t next_params)
+{
+	int	sel_elem;
+
+	sel_elem = get_sel_elem(0, num_elems-1);
+	if (sel_elem < INT_MIN)
+		return;
+
+	if (field->tf_constsize == false) {
+		typesize_t	array_off;
+
+		array_off = __computeArrayBits(
+			field->tf_typenum, 
+			next_diskoff,
+			next_params,
+			sel_elem);
+
+		next_diskoff += array_off;
+	} else {
+		typesize_t	fsz;
+		fsz = field->tf_typesize(cur->ti_diskoff, cur->ti_params);
+		next_diskoff += sel_elem * fsz;
+	}
+
+	return next_diskoff;
+}
+
 static void select_field(struct type_info* cur, int field_idx)
 {
 	struct fsl_rt_table_field	*field;
 	struct type_info		*ti_next;
 	uint64_t			num_elems;
+	uint64_t			params[tt_by_ti(cur)->tt_param_c];
 	diskoff_t			next_diskoff;
 
 	field = &(tt_by_ti(cur)->tt_fieldall_thunkoff[field_idx]);
@@ -91,38 +129,16 @@ static void select_field(struct type_info* cur, int field_idx)
 	}
 
 	num_elems = field->tf_elemcount(cur->ti_diskoff, cur->ti_params);
-	next_diskoff = field->tf_fieldbitoff(
-		cur->ti_diskoff, cur->ti_params);
+	next_diskoff = field->tf_fieldbitoff(cur->ti_diskoff, cur->ti_params);
+	field->tf_params(cur->ti_diskoff, cur->ti_params, params);
 
 	if (num_elems > 1) {
-		int	sel_elem;
-
-		sel_elem = get_sel_elem(0, num_elems-1);
-		if (sel_elem < INT_MIN)
-			return;
-
-		if (field->tf_constsize == false) {
-			typesize_t	array_off;
-
-			assert (0 == 1 && "LOAD PARAMS PROPERLY");
-
-			array_off = __computeArrayBits(
-				field->tf_typenum,
-				next_diskoff,
-				NULL,
-				sel_elem);
-
-			next_diskoff += array_off;
-		}  else {
-			typesize_t	fsz;
-			fsz = field->tf_typesize(
-				cur->ti_diskoff, cur->ti_params);
-			next_diskoff += sel_elem * fsz;
-		}
+		next_diskoff = select_field_array(
+			cur, field, num_elems, next_diskoff, params);
 	}
 
 	ti_next = typeinfo_alloc(
-		field->tf_typenum, next_diskoff, field_idx, cur);
+		field->tf_typenum, next_diskoff, params, field_idx, cur);
 	if (ti_next == NULL)
 		return;
 		
@@ -143,7 +159,7 @@ static bool handle_menu_choice(
 {
 	struct fsl_rt_table_type	*tt;
 
-	if (choice == -1) {
+	if (choice == MCMD_DUMP) {
 		/* dump all of current type */
 		typeinfo_dump_data(cur);
 		return true;
@@ -190,14 +206,13 @@ static void menu(struct type_info* cur)
 	} while(1);
 }
 
-
 void tool_entry(void)
 {
 	struct type_info	*origin_ti;
 
 	printf("Welcome to fsl browser. Browse mode: \"%s\"\n", fsl_rt_fsname);
 
-	origin_ti = typeinfo_alloc(fsl_rt_origin_typenum, 0, 0, NULL);
+	origin_ti = typeinfo_alloc(fsl_rt_origin_typenum, 0, NULL, 0, NULL);
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
 		return;

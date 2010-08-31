@@ -33,11 +33,13 @@ void typeinfo_free(struct type_info* ti);
 struct type_info* typeinfo_alloc(
 	typenum_t		ti_typenum,
 	diskoff_t		ti_diskoff,
+	parambuf_t		ti_params,
 	unsigned int		ti_fieldidx,
 	const struct type_info*	ti_prev);
 struct type_info* typeinfo_alloc_pointsto(
 	typenum_t		ti_typenum,
 	diskoff_t		ti_diskoff,
+	parambuf_t		ti_params,
 	unsigned int		ti_pointsto_idx,
 	unsigned int		ti_pointsto_elem,
 	const struct type_info*	ti_prev);

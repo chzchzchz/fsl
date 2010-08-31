@@ -47,11 +47,10 @@ static void scan_type_pointsto(
 		struct type_info	*new_ti;
 		uint64_t		params[tt->tt_param_c];
 
-		assert (0 == 1 && "need to pass params");
-
 		new_ti = typeinfo_alloc_pointsto(
 			pt->pt_type_dst,
 			pt->pt_range(ti->ti_diskoff, ti->ti_params, k, params),
+			params,
 			pt_idx,
 			k,
 			ti);
@@ -97,11 +96,20 @@ static void handle_field(
 	struct fsl_rt_table_field*	field;
 	uint64_t			bitoff;
 	uint64_t			num_elems;
+	unsigned int			param_c;
 	unsigned int			i;
 	
 	field = &tt_by_ti(ti)->tt_field_thunkoff[field_idx];
 	bitoff = field->tf_fieldbitoff(ti->ti_diskoff, ti->ti_params);
 	num_elems = field->tf_elemcount(ti->ti_diskoff, ti->ti_params);
+
+	if (field->tf_typenum != ~0)
+		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
+	else
+		param_c = 0;
+	uint64_t params[param_c];
+
+	field->tf_params(ti->ti_diskoff, ti->ti_params, params);
 
 	for (i = 0; i < num_elems; i++) {
 		/* dump data */
@@ -112,7 +120,7 @@ static void handle_field(
 
 		/* recurse */
 		new_ti = typeinfo_alloc(
-			field->tf_typenum, bitoff, field_idx, ti);
+			field->tf_typenum, bitoff, params, field_idx, ti);
 		if (new_ti == NULL)
 			continue;
 
@@ -159,7 +167,7 @@ void tool_entry(void)
 
 	printf("Welcome to fsl scantool. Scan mode: \"%s\"\n", fsl_rt_fsname);
 
-	origin_ti = typeinfo_alloc(fsl_rt_origin_typenum, 0, 0, NULL);
+	origin_ti = typeinfo_alloc(fsl_rt_origin_typenum, 0, NULL, 0, NULL);
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
 		return;

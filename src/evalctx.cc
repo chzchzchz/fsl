@@ -199,8 +199,10 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 					tb.tb_type->getName());
 			else
 				tb.tb_symtab = NULL;
+
 			tb.tb_diskoff = rt_glue.getThunkArgOffset();
 			tb.tb_parambuf = rt_glue.getThunkArgParamPtr();
+			setNewOffsets(tb, idx);
 
 			found_expr = resolveTail(tb, ids, ++(ids->begin()));
 		}

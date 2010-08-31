@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <string.h>
 
 #include "type_info.h"
 
@@ -38,6 +39,7 @@ static void print_field(
 	typesize_t			field_sz;
 	typenum_t			field_typenum;
 	diskoff_t			field_off;
+	unsigned int			param_c;
 
 	num_elems = field->tf_elemcount(ti->ti_diskoff, ti->ti_params);
 	printf("%s", field->tf_fieldname);
@@ -49,12 +51,16 @@ static void print_field(
 
 	field_typenum = field->tf_typenum;
 	if (num_elems > 1 && field_typenum != ~0 && !field->tf_constsize) {
+		unsigned int param_c = tt_by_num(field->tf_typenum)->tt_param_c;
+		uint64_t field_params[param_c];
+
+		field->tf_params(ti->ti_diskoff, ti->ti_params, field_params);
+
 		/* non-constant width.. */
-		assert (0 == 1 && "LOAD IN FIELD PARAMS");
 		field_sz = __computeArrayBits(
 			field_typenum,
 			field_off,
-			NULL,
+			field_params,
 			num_elems);
 	} else {
 		/* constant width */
@@ -212,6 +218,7 @@ void typeinfo_print_fields(const struct type_info* ti)
 
 void typeinfo_free(struct type_info* ti)
 {
+	if (ti->ti_params != NULL) free(ti->ti_params);
 	free(ti);
 }
 
@@ -241,28 +248,56 @@ void typeinfo_dump_data(const struct type_info* ti)
 		printf("OOPS-- size is not byte-aligned\n");
 }
 
-struct type_info* typeinfo_alloc_pointsto(
+static struct type_info* typeinfo_alloc_generic(
 	typenum_t		ti_typenum,
 	diskoff_t		ti_diskoff,
-	unsigned int		ti_pointsto_idx,
-	unsigned int		ti_pointsto_elem,
-	const struct type_info*	ti_prev)
+	parambuf_t		ti_params,
+	const struct type_info	*ti_prev)
 {
-	struct type_info*	ret;
-
-	assert (0 == 1 && "WORRY ABOUT TYPE PARAMS");
+	struct fsl_rt_table_type	*tt;
+	struct type_info		*ret;
 
 	ret = malloc(sizeof(struct type_info));
 	ret->ti_typenum = ti_typenum;
 	ret->ti_diskoff = ti_diskoff;
 
+	tt = tt_by_num(ti_typenum);
+	if (tt->tt_param_c > 0) {
+		unsigned int	len;
+		assert (ti_params != NULL);
+
+		len = sizeof(uint64_t) * tt->tt_param_c;
+		ret->ti_params = malloc(len);
+		memcpy(ret->ti_params, ti_params, len);
+	} else
+		ret->ti_params = NULL;
+
+	ret->ti_prev = ti_prev;
+	if (ti_prev != NULL) {
+		ret->ti_depth = ti_prev->ti_depth + 1;
+	}
+
+	return ret;
+}
+
+struct type_info* typeinfo_alloc_pointsto(
+	typenum_t		ti_typenum,
+	diskoff_t		ti_diskoff,
+	parambuf_t		ti_params,
+	unsigned int		ti_pointsto_idx,
+	unsigned int		ti_pointsto_elem,
+	const struct type_info*	ti_prev)
+{
+	struct type_info*		ret;
+
+	ret = typeinfo_alloc_generic(
+		ti_typenum, ti_diskoff, ti_params, ti_prev);
+	if (ret == NULL)
+		return NULL;
+
 	ret->ti_pointsto = true;
 	ret->ti_pointstoidx = ti_pointsto_idx;
 	ret->ti_pointsto_elem = ti_pointsto_elem;
-
-	ret->ti_prev = ti_prev;
-	if (ti_prev != NULL)
-		ret->ti_depth = ti_prev->ti_depth + 1;
 
 	typeinfo_set_dyn(ret);
 	if (verify_asserts(ret) == false) {
@@ -276,25 +311,20 @@ struct type_info* typeinfo_alloc_pointsto(
 struct type_info* typeinfo_alloc(
 	typenum_t		ti_typenum,
 	diskoff_t		ti_diskoff,
+	parambuf_t		ti_params,
 	unsigned int		ti_fieldidx,
 	const struct type_info*	ti_prev)
 {
 	struct type_info*	ret;
 
-	assert (0 == 1 && "WORRY ABOUT TYPE PARAMS");
-
-	ret = malloc(sizeof(struct type_info));
-	ret->ti_typenum = ti_typenum;
-	ret->ti_diskoff = ti_diskoff;
+	ret = typeinfo_alloc_generic(
+		ti_typenum, ti_diskoff, ti_params, ti_prev);
+	if (ret == NULL)
+		return NULL;
 	
 	ret->ti_pointsto = false;
 	ret->ti_fieldidx = ti_fieldidx;
 
-	ret->ti_prev = ti_prev;
-	if (ti_prev != NULL) {
-		ret->ti_depth = ti_prev->ti_depth + 1;
-	}
-	
 	typeinfo_set_dyn(ret);
 	if (verify_asserts(ret) == false) {
 		typeinfo_free(ret);
@@ -302,7 +332,6 @@ struct type_info* typeinfo_alloc(
 	}
 
 	return ret;
-
 }
 
 void typeinfo_set_dyn(const struct type_info* ti)
@@ -315,16 +344,19 @@ void typeinfo_set_dyn(const struct type_info* ti)
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_field_c; i++) {
 		struct fsl_rt_table_field	*field;
+		unsigned int			param_c;
+		diskoff_t			diskoff;
 
 		field = &tt->tt_field_thunkoff[i];
 		if (field->tf_typenum == ~0)
 			continue;
 
-		assert (0 == 1 && "Load field params!");
-		__setDyn(
-			field->tf_typenum, 
-			field->tf_fieldbitoff(ti->ti_diskoff, ti->ti_params),
-			NULL);
+		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
+		uint64_t	params[param_c];
+
+		diskoff = field->tf_fieldbitoff(ti->ti_diskoff, ti->ti_params);
+		field->tf_params(ti->ti_diskoff, ti->ti_params, params);
+		__setDyn(field->tf_typenum, diskoff, params);
 	}
 }
 

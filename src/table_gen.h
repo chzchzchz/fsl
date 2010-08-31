@@ -39,6 +39,7 @@ private:
 	void printExternFuncThunk(
 		const std::string& funcname,
 		const char* return_type = "uint64_t");
+	void printExternFuncThunkParams(const ThunkParams* tp);
 
 	void printExternPointsRange(const PointsRange*);
 

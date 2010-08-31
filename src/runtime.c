@@ -22,10 +22,11 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 	uint8_t		buf[10];
 	uint64_t	ret;
 	int		i;
+	size_t		br;
 
 	assert (num_bits <= 64);
 
-	if (fseeko(env->fctx_backing, bit_off / 8, SEEK_SET) == -1) {
+	if (fseeko(env->fctx_backing, bit_off / 8, SEEK_SET) != 0) {
 		fprintf(stderr, "BAD SEEK! bit_off=%"PRIx64"\n", bit_off);
 		exit(-2);
 	}
@@ -37,7 +38,8 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 		exit(-3);
 	}
 	
-	if (fread(buf, (num_bits + 7) / 8, 1, env->fctx_backing) == -1) {
+	br = fread(buf, (num_bits + 7) / 8, 1, env->fctx_backing);
+	if (br != 1) {
 		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64"\n", bit_off);
 		exit(-4);
 	}
@@ -100,9 +102,13 @@ void __getDynParams(uint64_t typenum, parambuf_t params_out)
 
 void __setDyn(uint64_t type_num, diskoff_t offset, parambuf_t params)
 {
+	struct fsl_rt_table_type	*tt;
+
 	assert (type_num < env->fctx_num_types);
 	env->fctx_type_offsets[type_num] = offset;
-	assert (0 == 1 && "NEED TO COPY OVER PARAMS");
+
+	tt = tt_by_num(type_num);
+	memcpy(env->fctx_type_params[type_num], params, 8*tt->tt_param_c);
 }
 
 void fsl_rt_dump_dyn(void)
