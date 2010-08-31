@@ -46,11 +46,8 @@ static void	load_detached_preambles(const GlobalBlock* gb);
 static void	load_user_types_list(const GlobalBlock* gb);
 static void	load_primitive_ptypes(void);
 static void	load_def_types(const GlobalBlock* gb);
-static void	build_inline_symtabs(void);
 static bool	apply_consts_to_consts(void);
 static void	simplify_constants(void);
-static void	build_thunk_symtabs(void);
-static void	create_global(const char* str, uint64_t v);
 
 static void load_primitive_ptypes(void)
 {

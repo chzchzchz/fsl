@@ -26,6 +26,9 @@ public:
 		return owner; 
 	}
 
+private:
+	const ThunkType*	owner;
+
 protected:
 	ThunkFunc(unsigned int i) : owner(NULL)
 	{
@@ -46,8 +49,6 @@ protected:
 	Expr*			raw_expr;
 	virtual const std::string getFCallName(void) const = 0;
 
-private:
-	const ThunkType*	owner;
 };
 
 #endif

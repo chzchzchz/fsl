@@ -77,12 +77,25 @@ uint64_t __getLocalArray(
 	return __getLocal(real_off, bits_in_type);
 }
 
-uint64_t __getDyn(uint64_t type_num)
+uint64_t __getDynOffset(uint64_t type_num)
 {
 	assert (type_num < env->fctx_num_types);
 	assert (env->fctx_type_offsets[type_num] != ~0);
 
 	return env->fctx_type_offsets[type_num];
+}
+
+void __getDynParams(uint64_t typenum, parambuf_t params_out)
+{
+	struct fsl_rt_table_type	*tt;
+
+	assert (typenum < env->fctx_num_types);
+	assert (env->fctx_type_offsets[typenum] != ~0);
+
+	tt = tt_by_num(typenum);
+	if (tt->tt_param_c == 0) return;
+
+	memcpy(params_out, env->fctx_type_params[typenum], tt->tt_param_c*8);
 }
 
 void __setDyn(uint64_t type_num, diskoff_t offset, parambuf_t params)
@@ -195,6 +208,7 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 {
 	FILE			*f;
 	struct fsl_rt_ctx	*fsl_ctx;
+	unsigned int		i;
 
 	f = fopen(fsl_rt_backing, "r");
 	if (f == NULL)
@@ -207,6 +221,24 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 	memset(	fsl_ctx->fctx_type_offsets,
 		0xff,
 		sizeof(uint64_t) * fsl_num_types);
+
+	fsl_ctx->fctx_type_params = malloc(sizeof(uint64_t*) * fsl_num_types);
+	for (i = 0; i < fsl_num_types; i++) {
+		struct fsl_rt_table_type	*tt;
+		uint64_t			*param_ptr;
+
+		tt = tt_by_num(i);
+		if (tt->tt_param_c == 0) {
+			param_ptr = NULL;
+		} else {
+			unsigned int	param_byte_c;
+			param_byte_c = sizeof(uint64_t) * tt->tt_param_c;
+			param_ptr = malloc(param_byte_c);
+			memset(param_ptr, 0xff, param_byte_c);
+		}
+
+		fsl_ctx->fctx_type_params[i] = param_ptr;
+	}
 	
 
 	return fsl_ctx;
@@ -214,9 +246,16 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 
 void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 {
+	unsigned int	i;
+
 	assert (fctx != NULL);
 	fclose(fctx->fctx_backing);
 	free(fctx->fctx_type_offsets);
+
+	for (i = 0; i < fsl_num_types; i++)
+		free(fctx->fctx_type_params[i]);
+	free(fctx->fctx_type_params);
+
 	free(fctx);
 }
 

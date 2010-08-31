@@ -119,8 +119,6 @@ llvm::Value* FCall::codeGenDynParams(void) const
 	llvm::AllocaInst	*parambuf;
 	llvm::AllocaInst	*parambuf_ptr;
 	Number			*n;
-	::Type			*t;
-	Expr			*param_ptr;
 	FCall			*new_call;
 	llvm::IRBuilder<>	*builder;
 
@@ -161,6 +159,7 @@ llvm::Value* FCall::codeGenMkTypePass(void) const
 	llvm::Value			*params;
 	llvm::Type			*ret_type;
 	llvm::AllocaInst 		*typepass;
+	llvm::Value			*typepass_loaded;
 	llvm::IRBuilder<>		*builder;
 	ExprList::const_iterator	it;
 
@@ -182,9 +181,14 @@ llvm::Value* FCall::codeGenMkTypePass(void) const
 	builder = code_builder->getBuilder();
 	ret_type = code_builder->getTypePassStruct();
 	typepass = builder->CreateAlloca(ret_type, 0, "mkpasser");
-
-	builder->CreateInsertValue(typepass, diskoff, 0);
-	builder->CreateInsertValue(typepass, params, 1);
+	
+	typepass_loaded = builder->CreateLoad(typepass);
+	builder->CreateStore(
+		builder->CreateInsertValue(
+			builder->CreateInsertValue(
+				typepass_loaded, params, 1),
+			diskoff, 0),
+		typepass);
 	
 	return builder->CreateLoad(typepass);
 }
@@ -294,7 +298,8 @@ Value* FCall::codeGenTypePassCall(std::vector<llvm::Value*>& args) const
 	tmp_tp = builder->CreateAlloca(code_builder->getTypePassStruct());
 	tmp_params = code_builder->createPrivateTmpI64Array(
 		param_c, "BURRITOS"); 
-	builder->CreateInsertValue(tmp_tp, tmp_params, 1);
+	builder->CreateInsertValue(
+		builder->CreateLoad(tmp_tp), tmp_params, 1);
 
 
 	args.push_back(tmp_tp);

@@ -20,7 +20,6 @@ extern const_map	constants;
 extern RTInterface	rt_glue;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
-static Expr* eval_rewrite_sizeof_bits(const EvalCtx& ectx, const FCall* fc);
 static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits);
 
 class ExprRewriteConsts : public ExprRewriteAll
@@ -93,8 +92,6 @@ public:
 	
 	virtual Expr* visit(const FCall* fc)
 	{
-		Expr	*new_expr;
-		
 		if (fc->getName() == "sizeof_bits") {
 			Expr	*ret;
 			ret = eval_rewrite_sizeof(ectx, fc, true);

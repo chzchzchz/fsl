@@ -410,13 +410,8 @@ const SymbolTable* EvalCtx::symtabByName(const std::string& s) const
 const Type* EvalCtx::typeByName(const std::string& s) const
 {
 	const SymbolTable	*st;
-	const Type		*t;
-
 	st = symtabByName(s);
-	if (st == NULL)
-		return NULL;
-
-	return st->getOwnerType();
+	return (st != NULL) ? st->getOwnerType() : NULL;
 }
 
 const Type* EvalCtx::getTypeId(const Id* id) const

@@ -18,7 +18,6 @@ llvm::Value* cond_cmpop_codeGen(const EvalCtx* ctx, const CmpOp* cmpop)
 {
 	llvm::Value			*lhs, *rhs;
 	llvm::CmpInst::Predicate	pred;
-	llvm::LLVMContext		&gctx(llvm::getGlobalContext());
 
 	assert (cmpop != NULL);
 

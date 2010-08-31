@@ -75,9 +75,9 @@ private:
 		first_elem = false;
 	}
 
+	std::ostream&	out;
 	bool		first_elem;
 	bool		is_toplevel;
-	std::ostream&	out;
 };
 
 #endif

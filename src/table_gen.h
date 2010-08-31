@@ -32,19 +32,15 @@ private:
 	void genUserFieldTables(void);
 
 	void printExternFunc(
+		const std::string& fname,	
+		const std::vector<std::string>& args,
+		const char* return_type);
+
+	void printExternFuncThunk(
 		const std::string& funcname,
-		const char* return_type = "uint64_t",
-		unsigned int num_params = 1);
-	void printExternFunc(
-		const class FCall* fc,
 		const char* return_type = "uint64_t");
 
-	void printExternFunc(
-		const std::string& funcname,
-		unsigned int num_params)
-	{
-		printExternFunc(funcname, "uint64_t", num_params);
-	}
+	void printExternPointsRange(const PointsRange*);
 
 	/* these generate the struct instances ala
 	 * { .some_field = whatever, ... } */

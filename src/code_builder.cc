@@ -290,10 +290,12 @@ void CodeBuilder::copyTypePassStruct(
 	llvm::Value	*src_params_ptr;
 
 	/* copy contents of src into dst */
-	builder->CreateInsertValue(
-		dst_ptr,
-		builder->CreateExtractValue(src, 0, "offset"),
-		0);
+	builder->CreateStore(
+		builder->CreateInsertValue(
+			builder->CreateLoad(dst_ptr),
+			builder->CreateExtractValue(src, 0, "cb_copy_offset"),
+			0),
+		dst_ptr);
 
 	src_params_ptr = builder->CreateExtractValue(src, 1, "src_params");
 	dst_params_ptr = builder->CreateExtractValue(
@@ -341,7 +343,7 @@ void CodeBuilder::genCodeCond(
 	const Expr*	false_expr)
 {
 	llvm::Function		*f;
-	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_entry;
+	llvm::BasicBlock	*bb_then, *bb_else, *bb_entry;
 	llvm::Value		*cond_v, *false_v, *true_v;
 	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
 	EvalCtx			ectx(symtabs[t->getName()]);

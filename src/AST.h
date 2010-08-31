@@ -151,9 +151,9 @@ class ArgsList
 {
 public:
 	ArgsList() {}
-	~ArgsList() 
+	virtual ~ArgsList() 
 	{
-		for (int i = 0; i < types.size(); i++) {
+		for (unsigned int i = 0; i < types.size(); i++) {
 			delete types[i];
 			delete names[i];
 		}
@@ -174,7 +174,7 @@ public:
 
 	const Id* findType(const std::string& param_name) const
 	{
-		for (int i = 0; i < size(); i++) {
+		for (unsigned int i = 0; i < size(); i++) {
 			std::pair<Id*, Id*>	p(get(i));
 
 			if (param_name == (p.second)->getName()) {
@@ -189,7 +189,7 @@ public:
 	{
 		ArgsList*	ret = new ArgsList();
 
-		for (int i = 0; i < size(); i++) {
+		for (unsigned int i = 0; i < size(); i++) {
 			std::pair<Id*, Id*>	p(get(i));
 			ret->add(p.first->copy(), p.second->copy());
 		}

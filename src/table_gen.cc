@@ -169,29 +169,35 @@ void TableGen::genInstanceType(const Type *t)
 	delete st;
 }
 
-void TableGen::printExternFunc(const FCall* fc, const char* return_type)
+void TableGen::printExternFunc(
+	const string& fname,
+	const vector<string>& args,
+	const char* return_type)
 {
-	const ExprList	*exprs;
+	vector<string>::const_iterator it = args.begin();
 
-	exprs = fc->getExprs();
-	printExternFunc(fc->getName(), return_type, exprs->size());
+	out << "extern " << return_type << ' ' << fname << '(';
+
+	out << *it;
+	for (	it++;
+		it != args.end();
+		it++)
+	{
+		out << ", ";
+		out << *it;
+	}
+	out << ");\n";
 }
 
-void TableGen::printExternFunc(
-	const string& funcname,
-	const char* return_type,
-	unsigned int num_params)
+void TableGen::printExternFuncThunk(
+	const std::string& funcname,
+	const char* return_type)
 {
-	out << "extern " << return_type << ' ' << funcname << "(";
-	
-	for (unsigned int i = 0; i < num_params; i++) {
-		out << "uint64_t";
-		if (i != (num_params - 1)) {
-			out << ", ";
-		}
-	}
-	
-	out << ");\n";
+	const string args[] = {"uint64_t", "uint64_t*"};
+	printExternFunc(
+		funcname, 
+		vector<string>(args, args+2),
+		return_type);
 }
 
 void TableGen::genExternsFieldsByType(const Type *t)
@@ -220,16 +226,16 @@ void TableGen::genExternsFieldsByType(const Type *t)
 		fc_elems = tf->getElems()->copyFCall();
 		fc_size = tf->getSize()->copyFCall();
 
-		printExternFunc(fc_off);
-		printExternFunc(fc_elems);
-		printExternFunc(fc_size);
+		printExternFuncThunk(fc_off->getName());
+		printExternFuncThunk(fc_elems->getName());
+		printExternFuncThunk(fc_size->getName());
 
 		fo_cond = dynamic_cast<const ThunkFieldOffsetCond*>(
 			tf->getOffset());
 		if (fo_cond != NULL) {
 			FCall	*cond_fc;
 			cond_fc = fo_cond->copyFCallPresent();
-			printExternFunc(cond_fc, "bool");
+			printExternFuncThunk(cond_fc->getName(), "bool");
 			delete cond_fc;
 		}
 
@@ -241,7 +247,7 @@ void TableGen::genExternsFieldsByType(const Type *t)
 	}
 
 	fc_type_size = st->getThunkType()->getSize()->copyFCall();
-	printExternFunc(fc_type_size);
+	printExternFuncThunk(fc_type_size->getName());
 	delete fc_type_size;
 }
 
@@ -283,7 +289,6 @@ void TableGen::genInstancePointsRange(const PointsRange* ptr)
 	StructWriter	sw(out);
 
 	sw.write("pt_type_dst", ptr->getDstType()->getTypeNum());
-	sw.write("pt_single", "NULL");
 	sw.write("pt_range", ptr->getFCallName());
 	sw.write("pt_min", ptr->getMinFCallName());
 	sw.write("pt_max", ptr->getMaxFCallName());
@@ -298,8 +303,29 @@ void TableGen::genExternsAsserts(const Asserts* as)
 		it++)
 	{
 		const Assertion*	assertion = *it;
-		printExternFunc(assertion->getFCallName(), "bool", 1);
+		printExternFuncThunk(assertion->getFCallName(), "bool");
 	}
+}
+
+void TableGen::printExternPointsRange(const PointsRange* pr)
+{
+	string	args_pr[] = {"uint64_t", "uint64_t*", "uint64_t", "uint64_t*"};
+	string	args_bound[] = {"uint64_t", "uint64_t*"};
+
+	printExternFunc(
+		pr->getFCallName(),
+		vector<string>(args_pr,args_pr+4),
+		"uint64_t");
+
+	printExternFunc(
+		pr->getMinFCallName(),
+		vector<string>(args_bound,args_bound+2),
+		"uint64_t");
+
+	printExternFunc(
+		pr->getMaxFCallName(),
+		vector<string>(args_bound,args_bound+2),
+		"uint64_t");
 }
 
 void TableGen::genExternsPoints(const Points* pt)
@@ -311,20 +337,14 @@ void TableGen::genExternsPoints(const Points* pt)
 		it != pt_list->end();
 		it++)
 	{
-		const PointsRange*	ptr = *it;
-		printExternFunc(ptr->getFCallName(), 2);
-		printExternFunc(ptr->getMinFCallName(), 1);
-		printExternFunc(ptr->getMaxFCallName(), 1);
+		printExternPointsRange(*it);
 	}
 
 	for (	pointsrange_list::const_iterator it = ptr_list->begin();
 		it != ptr_list->end();
 		it++)
 	{
-		const PointsRange*	ptr = *it;
-		printExternFunc(ptr->getFCallName(), 2);
-		printExternFunc(ptr->getMinFCallName(), 1);
-		printExternFunc(ptr->getMaxFCallName(), 1);
+		printExternPointsRange(*it);
 	}
 }
 

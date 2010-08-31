@@ -132,8 +132,6 @@ protected:
 	BinArithOp(Expr* e1, Expr* e2)
 		: e_lhs(e1), e_rhs(e2), simplified(false)
 	{
-		Expr	*new_lhs, *new_rhs;
-
 		assert (e_lhs != NULL);
 		assert(e_rhs != NULL);
 	}

@@ -66,12 +66,13 @@ public:
 	}
 
 	virtual void accept(TypeVisitor* tv) const = 0;
+private:
+	unsigned int	lineno;
+
 protected:
 	TypeStmt() : lineno(yylineno), owner(NULL) {}
 	const Type*	owner;
 
-private:
-	unsigned int	lineno;
 };
 
 /* declaration */

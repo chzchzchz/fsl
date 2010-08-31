@@ -74,8 +74,8 @@ public:
 	: src_type(in_src_type),
 	  dst_type(in_dst_type),
 	  binding(in_binding),
-	  min_expr(in_min_expr),
 	  max_expr(in_max_expr),
+	  min_expr(in_min_expr),
 	  points_expr(in_points_expr),
 	  seq(in_seq)
 	{
@@ -107,9 +107,9 @@ private:
 	const Type*	src_type;
 	const Type*	dst_type;
 	Id*		binding;
-	Expr*		points_expr;
 	Expr*		max_expr;
 	Expr*		min_expr;
+	Expr*		points_expr;
 	unsigned int	seq;
 protected:
 	unsigned int getSeqNum(void) const { return seq; }

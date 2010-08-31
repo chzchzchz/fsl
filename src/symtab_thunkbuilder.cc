@@ -489,7 +489,6 @@ void SymTabThunkBuilder::visit(const TypeParamDecl* tp)
 void SymTabThunkBuilder::visit(const TypeFunc* tf)
 {
 	string			fcall_name;
-	ExprList		*args;
 	ThunkField		*thunkf;
 
 	fcall_name = tf->getFCall()->getName();

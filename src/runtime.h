@@ -15,6 +15,7 @@ struct fsl_rt_ctx
 {
 	unsigned int	fctx_num_types;
 	uint64_t	*fctx_type_offsets;
+	uint64_t	**fctx_type_params;
 	FILE		*fctx_backing;
 };
 

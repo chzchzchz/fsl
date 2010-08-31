@@ -195,6 +195,9 @@ Value* FuncCondStmt::codeGen(const EvalCtx* ectx) const
 	bb_then = BasicBlock::Create(getGlobalContext(), "func_then", f);
 	if (is_false != NULL)
 		bb_else = BasicBlock::Create(getGlobalContext(), "func_else", f);
+	else
+		bb_else = NULL;
+
 	bb_merge = BasicBlock::Create(getGlobalContext(), "func_merge", f);
 
 	builder->SetInsertPoint(bb_origin);
@@ -211,7 +214,7 @@ Value* FuncCondStmt::codeGen(const EvalCtx* ectx) const
 	if (bb_then->empty() || bb_then->back().isTerminator() == false)
 		builder->CreateBr(bb_merge);
 
-	if (is_false) {
+	if (bb_else != NULL) {
 		builder->SetInsertPoint(bb_else);
 		is_false->codeGen(ectx);
 		if (bb_else->empty() || bb_else->back().isTerminator() == false)
@@ -275,7 +278,6 @@ Function* FuncStmt::getFunction() const
 void Func::genProto(void) const
 {
 	vector<const llvm::Type*>	f_args;
-	llvm::Type			*ret_type;
 	llvm::Function			*llvm_f;
 	llvm::FunctionType		*llvm_ft;
 	const llvm::Type		*t_ret;

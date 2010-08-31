@@ -10,9 +10,9 @@ class SymTabThunkBuilder : public TypeVisitAll
 public:
 	SymTabThunkBuilder() 
 	: cur_symtab(NULL),
+	  last_tf(NULL),
 	  cur_type(NULL),
-	  weak_c(0),
-	  last_tf(NULL) {}
+	  weak_c(0) {}
 
 	virtual ~SymTabThunkBuilder() { assert (last_tf == NULL); }
 	SymbolTable* getSymTab(
