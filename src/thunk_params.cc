@@ -205,8 +205,7 @@ const std::string ThunkParams::getFCallName(void) const
 	if (no_params) 
 		return THUNKPARAM_EMPTYNAME;
 
-	return "__thunkparams_" + getOwner()->getType()->getName() + "_" +
-		getFieldName();
+	return ThunkFieldFunc::getFCallName();
 }
 
 ThunkParams::~ThunkParams(void)

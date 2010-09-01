@@ -4,20 +4,6 @@
 
 extern CodeBuilder*	code_builder;
 
-const std::string ThunkFieldOffset::getFCallName(void) const
-{
-	return "__thunkfieldoff_" + 
-		getOwner()->getType()->getName() + "_" +
-		getFieldName();
-}
-
-FCall* ThunkFieldOffset::copyFCall(void) const
-{
-	return new FCall(
-		new Id(getFCallName()),
-		getOwner()->copyExprList());
-}
-
 ThunkFieldOffset* ThunkFieldOffset::copy(void) const
 {
 	ThunkFieldOffset	*ret;

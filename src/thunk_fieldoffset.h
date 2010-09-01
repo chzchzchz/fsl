@@ -17,20 +17,17 @@ class ThunkFieldOffset : public ThunkFieldFunc
 {
 public:
 	ThunkFieldOffset(unsigned int off_bits)
-	: ThunkFieldFunc(off_bits) {}
+	: ThunkFieldFunc(off_bits) { setPrefix("thunkfieldoff"); }
 
 	ThunkFieldOffset(Expr* e)
-	: ThunkFieldFunc(e) {}
+	: ThunkFieldFunc(e) { setPrefix("thunkfieldoff"); }
 
 	virtual ~ThunkFieldOffset() {}
 
-	virtual FCall* copyFCall(void) const;
 	virtual ThunkFieldOffset* copy(void) const;
 
 protected:
 	ThunkFieldOffset() {}
-
-	const std::string getFCallName(void) const;
 };
 
 #endif

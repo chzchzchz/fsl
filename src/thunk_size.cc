@@ -28,14 +28,6 @@ ThunkSize* ThunkSize::copy(void) const
 	return ret;
 }
 
-
-FCall* ThunkSize::copyFCall(void) const
-{
-	return new FCall(
-		new Id(getFCallName()),
-		getOwner()->copyExprList());
-}
-
 Expr* ThunkSize::copyConstValue(void) const
 {
 	if (dynamic_cast<const Number*>(raw_expr) == NULL) {

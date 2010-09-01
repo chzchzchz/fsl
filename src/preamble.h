@@ -4,6 +4,7 @@
 #include "collection.h"
 
 typedef PtrList<CondOrExpr> preamble_args;
+typedef std::list<const class Preamble*> preamble_list;
 
 class Preamble
 {

@@ -15,6 +15,7 @@ public:
 	ThunkParams(ExprList* expr_list) 
 	: no_params(false), exprs(expr_list) 
 	{
+		setPrefix("thunkparams");
 	} 
 
 	virtual ~ThunkParams();

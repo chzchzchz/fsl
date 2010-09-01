@@ -23,12 +23,16 @@ public:
 	}
 
 protected:
+	virtual const std::string getFCallName(void) const;
 	ThunkFieldFunc(unsigned int i) : ThunkFunc(i) {}
 	ThunkFieldFunc(Expr* e) : ThunkFunc(e) {}
 	ThunkFieldFunc(void) {}
 
+	void setPrefix(const std::string& p) { prefix = p; }
+
 private:
 	std::string		fieldname;
+	std::string		prefix;
 };
 
 #endif

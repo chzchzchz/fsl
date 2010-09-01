@@ -14,20 +14,18 @@ class ThunkElements : public ThunkFieldFunc
 {
 public:
 	ThunkElements(unsigned int i)
-	: ThunkFieldFunc(i) {}
+	: ThunkFieldFunc(i) { setPrefix("thunkelems"); }
 
 	ThunkElements(Expr* e)
-	: ThunkFieldFunc(e) {}
+	: ThunkFieldFunc(e) { setPrefix("thunkelems"); }
 
 	virtual ~ThunkElements() {}
 
-	virtual FCall* copyFCall(void) const;
 	virtual ThunkElements* copy(void) const;
 
 	bool isSingleton(void) const;
 
 protected:
-	const std::string getFCallName(void) const;
 };
 
 

@@ -22,9 +22,7 @@ public:
 
 	virtual ~ThunkSize() {}
 
-	virtual FCall* copyFCall(void) const;
 	Expr* copyConstValue(void) const;
-
 
 	ThunkSize* copy(void) const;
 

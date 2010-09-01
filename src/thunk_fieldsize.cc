@@ -12,23 +12,6 @@ extern symtab_map	symtabs;
 extern CodeBuilder*	code_builder;
 extern RTInterface	rt_glue;
 
-const std::string ThunkFieldSize::getFCallName(void) const
-{
-	/* TODO: support field sizes that are type size aliases */
-
-	return "__thunkfieldsize_"+
-		getOwner()->getType()->getName() + "_" +
-		getFieldName();
-}
-
-
-FCall* ThunkFieldSize::copyFCall(void) const
-{
-	return new FCall(
-		new Id(getFCallName()),
-		getOwner()->copyExprList());
-}
-
 Expr* ThunkFieldSize::copyConstValue(void) const
 {
 	assert (raw_expr != NULL);

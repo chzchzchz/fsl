@@ -12,20 +12,6 @@ bool ThunkElements::isSingleton(void) const
 	return (n->getValue() == 1);
 }
 
-const string ThunkElements::getFCallName(void) const
-{
-	return "__thunkelems_" +
-		getOwner()->getType()->getName() + "_" +
-		getFieldName();
-}
-
-FCall* ThunkElements::copyFCall(void) const
-{
-	return new FCall(
-		new Id(getFCallName()),
-		getOwner()->copyExprList());
-}
-
 ThunkElements* ThunkElements::copy(void) const
 {
 	ThunkElements*	ret;

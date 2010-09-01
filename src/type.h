@@ -366,7 +366,7 @@ public:
 
 	const TypeBlock* getBlock() const { return block; }
 
-	std::list<const Preamble*> getPreambles(const std::string& name) const;
+	preamble_list getPreambles(const std::string& name) const;
 	void addPreamble(Preamble* p);
 
 	bool isUnion(void) const { return is_union_type; }

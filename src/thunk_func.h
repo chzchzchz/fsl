@@ -10,7 +10,8 @@ class ThunkFunc
 {
 public:
 	virtual ThunkFunc* copy(void) const = 0;
-	virtual FCall* copyFCall(void) const = 0;
+	virtual FCall* copyFCall(void) const;
+
 	virtual ~ThunkFunc() 
 	{
 		if (raw_expr != NULL) delete raw_expr;	

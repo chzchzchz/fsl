@@ -10,20 +10,20 @@ class ThunkFieldSize : public ThunkFieldFunc
 {
 public:
 	ThunkFieldSize(unsigned int size_bits)
-	: ThunkFieldFunc(size_bits), t(NULL) {}
+	: ThunkFieldFunc(size_bits), t(NULL) { setPrefix("thunkfieldsize"); }
 
 	ThunkFieldSize(Expr* e)
-	: ThunkFieldFunc(e), t(NULL) {}
+	: ThunkFieldFunc(e), t(NULL) { setPrefix("thunkfieldsize"); }
 
 	ThunkFieldSize(const Type* t_in)
 	: t(t_in) 
 	{
 		assert (t != NULL); 
+		setPrefix("thunkfieldsize");
 	}
 
 	virtual ~ThunkFieldSize() {}
 
-	virtual FCall* copyFCall(void) const;
 	virtual ThunkFieldSize* copy(void) const;
 	virtual bool genCode(void) const;
 
@@ -41,7 +41,6 @@ public:
 	}
 
 protected:
-	const std::string getFCallName(void) const;
 	const Type		*t;
 };
 
