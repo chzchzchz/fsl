@@ -3,6 +3,8 @@
 
 #include <iostream>
 
+#define ulong	unsigned long
+
 class BinArithOp : public Expr
 {
 public:
@@ -127,6 +129,16 @@ public:
 	}
 
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
+	
+	Expr* simplify(void) const 
+	{
+		unsigned long	n_lhs, n_rhs;
+
+		if (toNumbers(n_lhs, n_rhs) == false)
+			return copy();
+
+		return new Number(doOp(n_lhs, n_rhs));
+	}
 
 protected:
 	BinArithOp(Expr* e1, Expr* e2)
@@ -136,6 +148,7 @@ protected:
 		assert(e_rhs != NULL);
 	}
 	virtual char getOpSymbol() const = 0;
+	virtual ulong doOp(ulong lhs, ulong rhs) const = 0;
 
 	Expr	*e_lhs;
 	Expr	*e_rhs;
@@ -147,10 +160,7 @@ private:
 class AOPOr : public BinArithOp
 {
 public:
-	AOPOr(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2)
-	{
-	}
+	AOPOr(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
 	virtual ~AOPOr() {}
 
 	Expr* copy(void) const
@@ -158,30 +168,19 @@ public:
 		return new AOPOr(e_lhs->copy(), e_rhs->copy()); 
 	}
 
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs | n_rhs);
-	}
-	
 	llvm::Value* codeGen() const;
 
 protected:
+	ulong doOp(ulong lhs, ulong rhs) const { return (lhs | rhs); }
 	virtual char getOpSymbol() const { return '|'; }
+	
 private:
 };
 
 class AOPAnd : public BinArithOp
 {
 public:
-	AOPAnd(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2)
-	{
-	}
+	AOPAnd(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
 	virtual ~AOPAnd() {}
 
 	Expr* copy(void) const
@@ -202,6 +201,7 @@ public:
 	llvm::Value* codeGen() const;
 
 protected:
+	ulong doOp(ulong lhs, ulong rhs) const { return (lhs & rhs); }
 	virtual char getOpSymbol() const { return '&'; }
 private:
 };
@@ -211,8 +211,7 @@ private:
 class AOPAdd : public BinArithOp
 {
 public:
-	AOPAdd(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2) {}
+	AOPAdd(Expr* e1, Expr* e2) : BinArithOp(e1, e2) {}
 
 	virtual ~AOPAdd() {}
 
@@ -221,19 +220,11 @@ public:
 		return new AOPAdd(e_lhs->copy(), e_rhs->copy()); 
 	}
 
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs + n_rhs);
-	}
 
 	llvm::Value* codeGen() const;
 
 protected:
+	ulong doOp(ulong lhs, ulong rhs) const { return (lhs + rhs); }
 	virtual char getOpSymbol() const { return '+'; }
 private:
 };
@@ -241,10 +232,7 @@ private:
 class AOPSub : public BinArithOp
 {
 public:
-	AOPSub(Expr* e1, Expr* e2) 
-		: BinArithOp(e1, e2)
-	{
-	}
+	AOPSub(Expr* e1, Expr* e2) : BinArithOp(e1, e2) {}
 
 	virtual ~AOPSub() {} 
 
@@ -253,20 +241,10 @@ public:
 		return new AOPSub(e_lhs->copy(), e_rhs->copy()); 
 	}
 
-
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs - n_rhs);
-	}
-
 	llvm::Value* codeGen() const;
 
 protected:
+	ulong doOp(ulong lhs, ulong rhs) const { return (lhs - rhs); }
 	virtual char getOpSymbol() const { return '-'; }
 private:
 };
@@ -274,10 +252,7 @@ private:
 class AOPDiv : public BinArithOp
 {
 public:
-	AOPDiv(Expr* e1, Expr* e2) 
-		: BinArithOp(e1, e2)
-	{
-	}
+	AOPDiv(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
 
 	virtual ~AOPDiv() {}
 
@@ -286,26 +261,13 @@ public:
 		return new AOPDiv(e_lhs->copy(), e_rhs->copy()); 
 	}
 
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		if (n_rhs == 0) {
-			std::cerr << "Dividing by zero in ";
-			print(std::cerr);
-			std::cerr << std::endl;
-			return NULL;
-		}
-
-		return new Number(n_lhs / n_rhs);
-	}
-
 	llvm::Value* codeGen() const;
 
 protected:
+	ulong doOp(ulong lhs, ulong rhs) const { 
+		assert (rhs != 0);
+		return (lhs / rhs); 
+	}
 	virtual char getOpSymbol() const { return '/'; }
 private:
 };
@@ -313,10 +275,7 @@ private:
 class AOPMul : public BinArithOp
 {
 public:
-	AOPMul(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2)
-	{
-	}
+	AOPMul(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
 
 	virtual ~AOPMul() {}
 
@@ -325,19 +284,9 @@ public:
 		return new AOPMul(e_lhs->copy(), e_rhs->copy()); 
 	}
 
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs * n_rhs);
-	}
-
 	llvm::Value* codeGen() const;
-
 protected:
+	ulong doOp(ulong lhs, ulong rhs) const { return (lhs*rhs); }
 	virtual char getOpSymbol() const { return '*'; }
 private:
 };
@@ -345,10 +294,7 @@ private:
 class AOPLShift : public BinArithOp
 {
 public:
-	AOPLShift(Expr* e1, Expr* e2)
-		: BinArithOp(e1, e2)
-	{
-	}
+	AOPLShift(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
 
 	virtual ~AOPLShift() {}
 
@@ -357,19 +303,9 @@ public:
 		return new AOPLShift(e_lhs->copy(), e_rhs->copy());
 	}
 
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs << n_rhs);
-	}
-	
 	llvm::Value* codeGen() const;
-
 protected:
+	ulong doOp(ulong lhs, ulong rhs) const { return (lhs<<rhs); }
 virtual char getOpSymbol() const { return '<'; }
 private:
 };
@@ -377,10 +313,7 @@ private:
 class AOPRShift : public BinArithOp
 {
 public:
-	AOPRShift(Expr* e1, Expr* e2) 
-		: BinArithOp(e1, e2)
-	{
-	}
+	AOPRShift(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
 
 	virtual ~AOPRShift() {}
 
@@ -389,19 +322,9 @@ public:
 		return new AOPRShift(e_lhs->copy(), e_rhs->copy()); 
 	}
 
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs >> n_rhs);
-	}
-
 	llvm::Value* codeGen() const;
-
 protected:
+	ulong doOp(ulong lhs, ulong rhs) const { return (lhs>>rhs); }
 	virtual char getOpSymbol() const { return '>'; }
 private:
 };
@@ -409,10 +332,7 @@ private:
 class AOPMod : public BinArithOp
 {
 public:
-	AOPMod(Expr* e1, Expr* e2) 
-		: BinArithOp(e1, e2)
-	{
-	}
+	AOPMod(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
 
 	virtual ~AOPMod() {}
 
@@ -421,19 +341,9 @@ public:
 		return new AOPMod(e_lhs->copy(), e_rhs->copy()); 
 	}
 
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs % n_rhs);
-	}
-
 	llvm::Value* codeGen() const;
-	
 protected:
+	ulong doOp(ulong lhs, ulong rhs) const { return (lhs%rhs); }
 	virtual char getOpSymbol() const { return '%'; }
 };
 
