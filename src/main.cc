@@ -11,6 +11,7 @@
 #include "code_builder.h"
 #include "asserts.h"
 #include "points_to.h"
+#include "virt.h"
 #include "table_gen.h"
 #include "detached_preamble.h"
 #include "runtime_interface.h"
@@ -41,6 +42,8 @@ pointing_map		points_map;
 assert_map		asserts_map;
 assert_list		asserts_list;
 RTInterface		rt_glue;
+typevirt_map		typevirts_map;
+typevirt_list		typevirts_list;
 
 static void	load_detached_preambles(const GlobalBlock* gb);
 static void	load_user_types_list(const GlobalBlock* gb);
@@ -396,6 +399,23 @@ static void gen_asserts(void)
 
 }
 
+static void gen_virtuals(void)
+{
+	for (	type_list::const_iterator it = types_list.begin();
+		it != types_list.end();
+		it++)
+	{
+		VirtualTypes	*virts;
+
+		virts = new VirtualTypes((*it));
+		virts->genProtos();
+		virts->genCode();
+		typevirts_list.push_back(virts);
+		typevirts_map[(*it)->getName()] = virts;
+	}
+}
+
+
 int main(int argc, char *argv[])
 {
 	TableGen		table_gen;
@@ -458,6 +478,9 @@ int main(int argc, char *argv[])
 
 	cout << "Generating assertions" << endl;
 	gen_asserts();
+
+	cout << "Generating virtuals" << endl;
+	gen_virtuals();
 
 	cout << "Writing out module's code" << endl;
 	code_builder->write(llvm_fname);

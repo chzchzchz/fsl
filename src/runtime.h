@@ -65,6 +65,9 @@ struct fsl_rt_table_type
 	unsigned int			tt_assert_c;
 	struct fsl_rt_table_assert	*tt_assert;
 
+	unsigned int			tt_virt_c;
+	struct fsl_rt_table_virt	*tt_virt;
+
 	/* all non-union fields */
 	unsigned int			tt_fieldall_c;
 	struct fsl_rt_table_field	*tt_fieldall_thunkoff;
@@ -97,10 +100,20 @@ struct fsl_rt_table_pointsto
 	points_maxf_t	pt_max;
 };
 
+struct fsl_rt_table_virt
+{
+	typenum_t	vt_type_src;
+	typenum_t	vt_type_virttype;
+	points_rangef_t	vt_range;
+	points_minf_t	vt_min;
+	points_maxf_t	vt_max;
+};
+
 struct fsl_rt_table_assert
 {
 	assertf_t	as_assertf;
 };
+
 
 /* exported variables from types module.. */
 extern uint64_t __FROM_OS_BDEV_BYTES;

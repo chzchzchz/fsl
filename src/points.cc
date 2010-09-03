@@ -16,8 +16,10 @@ extern CodeBuilder		*code_builder;
 extern symtab_map		symtabs;
 extern RTInterface		rt_glue;
 
+unsigned int			points_seq = 0;
+
 Points::Points(const Type* t)
-: src_type(t), seq(0)
+: src_type(t)
 {
 	assert (src_type != NULL);
 	loadPoints();
@@ -156,7 +158,8 @@ void Points::loadPointsIfInstance(
 	}
 
 	points_range_elems.add(new PointsIf(
-		src_type, dst_type, ce->copy(), data_loc->copy(), seq++));
+		src_type, dst_type,
+		ce->copy(), data_loc->copy(), points_seq++));
 }
 
 void Points::loadPointsInstance(const Expr* data_loc)
@@ -183,7 +186,7 @@ void Points::loadPointsInstance(const Expr* data_loc)
 		new Number(1),
 		new Number(1),
 		data_loc->copy(),
-		seq++));
+		points_seq++));
 }
 
 void Points::loadPointsRangeInstance(
@@ -212,7 +215,7 @@ void Points::loadPointsRangeInstance(
 		src_type, dst_type,
 		bound_var->copy(), first_val->copy(), last_val->copy(),
 		data_loc->copy(),
-		seq++));
+		points_seq++));
 }
 
 

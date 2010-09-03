@@ -12,6 +12,7 @@
 #include "eval.h"
 #include "points_to.h"
 #include "asserts.h"
+#include "virt.h"
 #include "table_gen.h"
 #include "thunk_fieldoffset_cond.h"
 
@@ -24,6 +25,9 @@ extern pointing_list		points_list;
 extern pointing_map		points_map;
 extern assert_map		asserts_map;
 extern assert_list		asserts_list;
+extern typevirt_map		typevirts_map;
+extern typevirt_list		typevirts_list;
+
 
 using namespace std;
 
@@ -418,6 +422,62 @@ void TableGen::genAssertsTables(void)
 	}
 }
 
+void TableGen::genVirtsTables(void)
+{
+	for (	typevirt_list::const_iterator it = typevirts_list.begin();
+		it != typevirts_list.end();
+		it++)
+	{
+		genExternsVirts(*it);
+		genVirtsTable(*it);
+	}
+
+}
+
+void TableGen::genExternsVirts(const VirtualTypes* vt)
+{
+	const virt_list*	virts = vt->getVirts();
+
+	for (	virt_list::const_iterator it = virts->begin();
+		it != virts->end();
+		it++)
+	{
+		printExternPointsRange(*it);
+	}
+
+}
+
+void TableGen::genInstanceVirtual(const VirtualType* vt)
+{
+	StructWriter	sw(out);
+
+	sw.write("vt_type_src", vt->getDstType()->getTypeNum());
+	sw.write("vt_type_virttype", vt->getTargetType()->getTypeNum());
+	sw.write("vt_range", vt->getFCallName());
+	sw.write("vt_min", vt->getMinFCallName());
+	sw.write("vt_max", vt->getMaxFCallName());
+}
+
+void TableGen::genVirtsTable(const VirtualTypes* v)
+{
+	StructWriter	sw(
+		out,
+		"fsl_rt_table_virt",
+		"__rt_tab_virt_" + v->getType()->getName() + "[]",
+		true);
+	const virt_list *virts = v->getVirts();
+
+	for (	virt_list::const_iterator it = virts->begin();
+		it != virts->end();
+		it++)
+	{
+		sw.beginWrite();
+		genInstanceVirtual(*it);
+	}
+
+}
+
+
 void TableGen::genAssertsTable(const Asserts* as)
 {
 	StructWriter	sw(
@@ -469,6 +529,7 @@ void TableGen::gen(const string& fname)
 	genUserFieldTables();
 	genPointsTables();
 	genAssertsTables();
+	genVirtsTables();
 
 	genTable_fsl_rt_table();
 

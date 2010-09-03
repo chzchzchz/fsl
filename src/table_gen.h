@@ -22,6 +22,9 @@ private:
 	void genAssertsTables(void);
 	void genAssertsTable(const Asserts* as);
 
+	void genVirtsTables(void);
+	void genVirtsTable(const VirtualTypes* v);
+
 	void genTable_fsl_rt_table(void);
 	void genExternsFieldsByType(const Type *t);
 	void genExternsFields(void);
@@ -42,6 +45,7 @@ private:
 	void printExternFuncThunkParams(const ThunkParams* tp);
 
 	void printExternPointsRange(const PointsRange*);
+	void printExternVirt(const VirtualType* vt);
 
 	/* these generate the struct instances ala
 	 * { .some_field = whatever, ... } */
@@ -50,11 +54,12 @@ private:
 		const Type*		parent_type,
 		const SymbolTableEnt*	st_ent);
 	void genInstancePointsRange(const PointsRange* ptr);
-
+	void genInstanceVirtual(const VirtualType* vt);
 	void genInstanceAssertion(const Assertion* assertion);
 
 	void genExternsAsserts(const Asserts* as);
 	void genExternsPoints(const Points* pt);
+	void genExternsVirts(const VirtualTypes* vt);
 	void genScalarConstants(void);
 
 	std::ofstream	out;

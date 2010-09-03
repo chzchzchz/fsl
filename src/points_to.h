@@ -57,7 +57,6 @@ private:
 	const Type*		src_type;
 	pointsto_list		points_to_elems;
 	pointsrange_list	points_range_elems;
-	unsigned int		seq;
 };
 
 class PointsRange 
@@ -97,9 +96,9 @@ public:
 	const Type* getSrcType(void) const { return src_type; }
 	const Type* getDstType(void) const { return dst_type; }
 
-	const std::string getFCallName(void) const;
-	const std::string getMinFCallName(void) const;
-	const std::string getMaxFCallName(void) const;
+	virtual const std::string getFCallName(void) const;
+	virtual const std::string getMinFCallName(void) const;
+	virtual const std::string getMaxFCallName(void) const;
 
 private:
 	void genCodeRange(void) const; 

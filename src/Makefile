@@ -26,7 +26,8 @@ OBJS=	parser.o		\
 	preamble.o		\
 	points.o		\
 	asserts.o		\
-	runtime_interface.o		
+	runtime_interface.o	\
+	virt.o
 
 RTOBJS= runtime.o type_info.o
 TOOLOBJS= scantool.o browser.o
