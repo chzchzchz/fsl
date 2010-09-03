@@ -40,6 +40,7 @@ bool FuncArgs::hasField(const std::string& name) const
 	return (args_map.count(name) != 0);
 }
 
+
 const Type* FuncArgs::getType(const std::string& name) const
 {
 	string	type_name;

@@ -228,9 +228,6 @@ void PointsRange::genCode(void) const
 
 void PointsRange::genCodeRange(void) const
 {
-//	code_builder->genCode(
-//		src_type, getFCallName(), points_expr, &extra_args);
-
 	llvm::Function		*f;
 	llvm::BasicBlock	*bb_bits;
 	llvm::IRBuilder<>	*builder;

@@ -27,7 +27,7 @@ public:
 	virtual ThunkFieldOffset* copy(void) const;
 
 protected:
-	ThunkFieldOffset() {}
+	ThunkFieldOffset() { setPrefix("thunkfieldoff"); }
 };
 
 #endif
