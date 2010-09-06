@@ -57,7 +57,97 @@ ext2_inode ino_by_num(u32 ino_num)
 			ino_grp_blk_idx];
 }
 
+uint sect_to_blocks(u32 sect)
+{
+	return (sect*512) / get_block_size(ext2_sb);
+}
 
+uint num_direct_blocks(ext2_inode ino)
+{
+	u32	num_blks;
+
+	if (is_fast_symlink(ino))
+		return 0;
+
+	num_blks = sect_to_blocks(ino.i_blocks_c);
+	if (num_blks > EXT2_NDIR_BLOCKS)
+		return EXT2_NDIR_BLOCKS;
+	return num_blks;
+}
+
+uint blocks_per_indir()
+{
+	return get_block_size(ext2_sb)/4;
+}
+
+bool is_fast_symlink(ext2_inode ino)
+{
+	if ((ino.i_mode & 0xa000) == 0xa000)
+		return true;
+	return false;
+}
+
+ext2_indir_block ext2_indir_lookup(uint block_num)
+{
+	return disk.blocks[block_num - blocks_off(disk.sb)].indir_blk;
+}
+
+ext2_biindir_block ext2_biindir_lookup(uint block_num)
+{
+	return disk.blocks[block_num - blocks_off(disk.sb)].biindir_blk;
+}
+
+ext2_triindir_block ext2_triindir_lookup(uint block_num)
+{
+	return disk.blocks[block_num - blocks_off(disk.sb)].triindir_blk;
+}
+
+ext2_data_block ext2_data_block_lookup(uint block_num)
+{
+	return disk.blocks[block_num - blocks_off(disk.sb)].data_blk;
+}
+
+ext2_data_block get_nth(uint n)
+{
+	u32	block_num;
+
+
+	if (n < EXT2_NDIR_BLOCKS) {
+		block_num = ext2_inode.i_block_direct[n];
+	} else if (n < EXT2_NDIR_BLOCKS+blocks_per_indir()) {
+		ext2_indir_block	indir_blk;
+		indir_blk = ext2_indir_lookup(ext2_inode.i_block_indir);
+		block_num = indir_blk.blk_ptr[n-EXT2_NDIR_BLOCKS];
+	} else if (n <
+		(blocks_per_indir()*blocks_per_indir() +
+			EXT2_NDIR_BLOCKS+blocks_per_indir()))
+	{
+		ext2_indir_block	indir_blk;
+		ext2_biindir_block	biindir_blk;
+		u32			indir_blknum;
+		u32			biindir_blknum;
+		u32			biindir_indir_offset;
+		u32			indir_offset;
+
+		biindir_blknum = ext2_inode.i_block_biindir;
+		biindir_indir_offset = (n - (EXT2_NDIR_BLOCKS + blocks_per_indir()));
+		biindir_indir_offset /= blocks_per_indir();
+
+		biindir_blk = ext2_biindir_lookup(biindir_blknum);
+		indir_blknum = biindir_blk.blk_ptr[biindir_indir_offset];
+
+		indir_offset = (n - (EXT2_NDIR_BLOCKS + blocks_per_indir()));
+		indir_offset %= blocks_per_indir();
+
+		indir_blk = ext2_indir_lookup(indir_blknum);
+		block_num = indir_blk.blk_ptr[indir_offset];
+	} else {
+		/* XXX do later */
+		block_num=999999999999;
+	}
+
+	return  ext2_data_block_lookup(block_num);
+}
 
 ext2_inode get_inode(uint ino_num_logical)
 {
@@ -199,38 +289,12 @@ sum(s_free_inodes_c)
 	set_bytes(1024);
 }
 
-uint sect_to_blocks(u32 sect)
-{
-	return (sect*512) / get_block_size(ext2_sb);
-}
-
-uint num_direct_blocks(ext2_inode ino)
-{
-	u32	num_blks;
-
-	if (is_fast_symlink(ino))
-		return 0;
-
-	num_blks = sect_to_blocks(ino.i_blocks_c);
-	if (num_blks > EXT2_NDIR_BLOCKS)
-		return EXT2_NDIR_BLOCKS;
-	return num_blks;
-}
-
-uint blocks_per_indir()
-{
-	return get_block_size(ext2_sb)/4;
-}
-
-bool is_fast_symlink(ext2_inode ino)
-{
-	if ((ino.i_mode & 0xa000) == 0xa000)
-		return true;
-	return false;
-}
-
 /* XXX add points-to here */
 type ext2_inode
+virtual(
+	ext2_data_block,
+	i, 0, sect_to_blocks(i_blocks_c),
+	get_nth(i))
 points_range(
 	i, 0, num_direct_blocks(ext2_inode)-1,
 	disk.blocks[i_block_direct[i] - blocks_off(disk.sb)].data_blk)
@@ -289,7 +353,6 @@ points(ino_by_num(inode))
 	u8	name[name_len];
 	set_bytes(rec_len);
 }
-
 
 /* XXX add points-to here */
 type ext2_bmp_blk { u1	data[get_block_size(disk.sb)*8]; }

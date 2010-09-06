@@ -48,6 +48,7 @@ void Func::genLoadArgs(void) const
 	for (unsigned int i = 0; i < arg_c; i++, ai++) {
 		AllocaInst		*allocai;
 		const llvm::Type	*t;
+		const ::Type*		user_type;
 		string			arg_name, type_name;
 		bool			is_user_type;
 
@@ -56,13 +57,15 @@ void Func::genLoadArgs(void) const
 
 		is_user_type = (types_map.count(type_name) > 0);
 		if (is_user_type) {
+			user_type = types_map[type_name];
 			t = code_builder->getTypePassStruct();
 		} else {
+			user_type = NULL;
 			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 		}
 
 		allocai = tmpB.CreateAlloca(t, 0, arg_name);
-		block->addVar(arg_name, allocai);
+		block->addVar(user_type, arg_name, allocai);
 		code_builder->getBuilder()->CreateStore(ai, allocai);
 	}
 
@@ -74,35 +77,40 @@ void Func::genLoadArgs(void) const
 		t = code_builder->getTypePassStructPtr();
 
 		allocai = tmpB.CreateAlloca(t, 0, "__ret_typepass");
-		block->addVar("__ret_typepass", allocai);
+		block->addVar(types_map[getRet()], "__ret_typepass", allocai);
 		code_builder->getBuilder()->CreateStore(ai, allocai);
 	}
 }
 
-Value* FuncDecl::codeGen(const EvalCtx* ectx) const
+Value* FuncDecl::codeGen(void) const
 {
 	FuncBlock		*scope;
 	Function		*f = getFunc()->getFunction();
-	const llvm::Type	*t;
 	AllocaInst		*ai;
+	const ::Type		*user_type;
 	IRBuilder<>	tmpB(&f->getEntryBlock(), f->getEntryBlock().begin());
 
 	/* XXX no support for arrays yet */
 	assert (array == NULL);
 
-	if (ctypes_map.count(type->getName()) == 0) {
+	if (types_map.count(type->getName()) != 0) {
+		user_type = types_map[type->getName()];
+		ai = code_builder->createTmpTypePass(
+			user_type,
+			scalar->getName());
+	} else if (ctypes_map.count(type->getName()) != 0) {
+		const llvm::Type	*t;
+		t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+		user_type = NULL;
+		ai = tmpB.CreateAlloca(t, 0, scalar->getName());
+	} else {
 		cerr << getLineNo() << ": could not resolve type for "
 			<< type->getName();
 		return NULL;
-	} else {
-		/* lazy about widths right now */
-		t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 	}
 
-	ai = tmpB.CreateAlloca(t, 0, scalar->getName());
-
 	scope = getOwner();
-	if (scope->addVar(scalar->getName(), ai) == false) {
+	if (scope->addVar(user_type, scalar->getName(), ai) == false) {
 		cerr << "Already added variable " << scalar->getName() << endl;
 		return NULL;
 	}
@@ -110,12 +118,13 @@ Value* FuncDecl::codeGen(const EvalCtx* ectx) const
 	return NULL;
 }
 
-Value* FuncAssign::codeGen(const EvalCtx* ectx) const
+Value* FuncAssign::codeGen(void) const
 {
 	Value			*e_v;
 	llvm::AllocaInst*	var_loc;
+	EvalCtx			ectx(getOwner());
 
-	e_v = evalAndGen(*ectx, expr);
+	e_v = evalAndGen(ectx, expr);
 	if (e_v == NULL) {
 		cerr << getLineNo() << ": Could not eval ";
 		expr->print(cerr);
@@ -133,15 +142,16 @@ Value* FuncAssign::codeGen(const EvalCtx* ectx) const
 	return e_v;
 }
 
-Value* FuncRet::codeGen(const EvalCtx* ectx) const
+Value* FuncRet::codeGen(void) const
 {
 	Value			*e_v;
 	IRBuilder<>		*builder;
 	BasicBlock		*cur_bb;
 	const Function		*f;
 	const llvm::Type	*t;
+	EvalCtx			ectx(getOwner());
 
-	e_v = evalAndGen(*ectx, expr);
+	e_v = evalAndGen(ectx, expr);
 	if (e_v == NULL) {
 		cerr << getLineNo() << ": FuncRet could not eval ";
 		expr->print(cerr);
@@ -180,12 +190,13 @@ Value* FuncRet::codeGen(const EvalCtx* ectx) const
 	return e_v;
 }
 
-Value* FuncCondStmt::codeGen(const EvalCtx* ectx) const
+Value* FuncCondStmt::codeGen(void) const
 {
 	Function	*f;
 	BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin, *bb_cur;
 	Value		*cond_v;
 	IRBuilder<>	*builder;
+	EvalCtx		ectx(getOwner());
 
 	builder = code_builder->getBuilder();
 	f = getFunction();
@@ -201,7 +212,7 @@ Value* FuncCondStmt::codeGen(const EvalCtx* ectx) const
 	bb_merge = BasicBlock::Create(getGlobalContext(), "func_merge", f);
 
 	builder->SetInsertPoint(bb_origin);
-	cond_v = cond_codeGen(ectx, cond);
+	cond_v = cond_codeGen(&ectx, cond);
 	if (cond_v == NULL) {
 		cerr << getLineNo() << ": could not gen condition" << endl;
 		return NULL;
@@ -210,13 +221,13 @@ Value* FuncCondStmt::codeGen(const EvalCtx* ectx) const
 
 
 	builder->SetInsertPoint(bb_then);
-	is_true->codeGen(ectx);
+	is_true->codeGen();
 	if (bb_then->empty() || bb_then->back().isTerminator() == false)
 		builder->CreateBr(bb_merge);
 
 	if (bb_else != NULL) {
 		builder->SetInsertPoint(bb_else);
-		is_false->codeGen(ectx);
+		is_false->codeGen();
 		if (bb_else->empty() || bb_else->back().isTerminator() == false)
 			builder->CreateBr(bb_merge);
 	}
@@ -230,12 +241,12 @@ Value* FuncCondStmt::codeGen(const EvalCtx* ectx) const
 	return cond_v;
 }
 
-Value* FuncBlock::codeGen(const EvalCtx* ectx) const
+Value* FuncBlock::codeGen(void) const
 {
 	for (const_iterator it = begin(); it != end(); it++) {
 		FuncStmt	*fstmt = *it;
 		gen_func_block = this;
-		fstmt->codeGen(ectx);
+		fstmt->codeGen();
 	}
 
 	return NULL;
@@ -243,7 +254,7 @@ Value* FuncBlock::codeGen(const EvalCtx* ectx) const
 
 AllocaInst* FuncBlock::getVar(const std::string& s) const
 {
-	map<string, AllocaInst*>::const_iterator	it;
+	funcvar_map::const_iterator	it;
 
 	it = vars.find(s);
 	if (it == vars.end()) {
@@ -253,15 +264,37 @@ AllocaInst* FuncBlock::getVar(const std::string& s) const
 		return getOwner()->getVar(s);
 	}
 
-	return (*it).second;
+	return ((*it).second).fv_ai;
 }
 
-bool FuncBlock::addVar(const std::string& name, llvm::AllocaInst* ai)
+const ::Type* FuncBlock::getVarType(const std::string& s) const
 {
+	funcvar_map::const_iterator	it;
+
+	it = vars.find(s);
+	if (it == vars.end()) {
+		if (getOwner() == NULL)
+			return NULL;
+
+		return getOwner()->getVarType(s);
+	}
+
+	return ((*it).second).fv_t;
+}
+
+bool FuncBlock::addVar(
+	const ::Type* t,
+	const std::string& name, llvm::AllocaInst* ai)
+{
+	struct FuncVar	fv;
+
 	if (vars.count(name) != 0)
 		return false;
 
-	vars[name] = ai;
+	fv.fv_ai = ai;
+	fv.fv_t = t;
+
+	vars[name] = fv;
 	return true;
 }
 
@@ -374,10 +407,8 @@ static bool gen_func_code_args(
 
 void Func::genCode(void) const
 {
-	EvalCtx*			ectx;
 	llvm::Function			*llvm_f;
 	llvm::BasicBlock		*f_bb;
-	FuncArgs			*fargs;
 
 	llvm_f = code_builder->getModule()->getFunction(getName());
 	if (llvm_f == NULL) {
@@ -386,11 +417,6 @@ void Func::genCode(void) const
 		return;
 	}
 
-	fargs = new FuncArgs(getArgs());
-
-	/* scope takes args */
-	ectx = new EvalCtx(fargs);
-	
 	f_bb = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", llvm_f);
 
@@ -404,13 +430,10 @@ void Func::genCode(void) const
 	genLoadArgs();
 
 	/* gen rest of code */
-	block->codeGen(ectx);
+	block->codeGen();
 
 	gen_func = NULL;
 	gen_func_block = NULL;
-
-	delete ectx;
-	delete fargs;
 }
 
 

@@ -147,6 +147,12 @@ static void select_field(struct type_info* cur, int field_idx)
 	typeinfo_free(ti_next);
 }
 
+static void select_virt(struct type_info* cur, int pt_idx)
+{
+	assert (0 == 1 && "SELECT VIRT STUB");
+}
+
+
 #define MCMD_DUMP	-1
 
 /**
@@ -177,6 +183,12 @@ static bool handle_menu_choice(
 	choice -= tt->tt_fieldall_c;
 	if (choice < tt->tt_pointsto_c) {
 		select_pointsto(cur, choice);
+		return true;
+	}
+
+	choice -= tt->tt_pointsto_c;
+	if (choice < tt->tt_virt_c) {
+		select_virt(cur, choice);
 		return true;
 	}
 

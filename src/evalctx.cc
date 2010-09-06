@@ -176,7 +176,7 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	bool				found_expr;
 
 	assert (ids != NULL);
-	
+
 	if (toName(ids->front(), name, idx) == false)
 		return NULL;
 
@@ -207,7 +207,7 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 			found_expr = resolveTail(tb, ids, ++(ids->begin()));
 		}
 	}
-	
+
 	if (!found_expr && idx != NULL) {
 		/* idx on top level only permitted for expressions 
 		 * being resolved within the type scope */
@@ -216,11 +216,13 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 		return NULL;
 	}
 
-	if (func_args != NULL) {
+	if (cur_func_blk != NULL) {
 		/* function scoped */
 		/* pull the typepass our of the function arguments */
 		tb.tb_lastsym = NULL;
-		tb.tb_type = func_args->getType(name);
+		tb.tb_type = cur_func->getArgs()->getType(name);
+		if (tb.tb_type == NULL)
+			tb.tb_type = cur_func_blk->getVarType(name);
 		if (tb.tb_type != NULL) {
 			tb.tb_symtab = symtabByName(tb.tb_type->getName());
 			tb.tb_diskoff = new FCall(
@@ -304,8 +306,8 @@ Expr* EvalCtx::resolve(const Id* id) const
 				offset,
 				tf->getSize()->copyFCall());
 		}
-	} else if (func_args != NULL) {
-		if (func_args->hasField(id->getName())) {
+	} else if (cur_func != NULL) {
+		if (cur_func->getArgs()->hasField(id->getName())) {
 			/* pass-through */
 			return id->copy();
 		}
@@ -428,11 +430,10 @@ const Type* EvalCtx::getTypeId(const Id* id) const
 		}
 	}
 
-	if (func_args != NULL) {
+	if (cur_func != NULL) {
 		string	type_name;
-		if (func_args->lookupType(id->getName(), type_name)) {
+		if (cur_func->getArgs()->lookupType(id->getName(), type_name))
 			return types_map[type_name];
-		}
 	}
 
 	return types_map[id->getName()];
@@ -495,13 +496,14 @@ const Type* EvalCtx::getType(const Expr* e) const
 	fc = dynamic_cast<const FCall*>(e);
 	if (fc != NULL) {
 		const Func*	f;
+		const Type*	t;
 
 		f = funcs_map[fc->getName()];
-		if (f == NULL) {
+		if (f == NULL)
 			return NULL;
-		}
 
-		return types_map[f->getRet()];
+		t = types_map[f->getRet()];
+		return t;
 	}
 
 	id = dynamic_cast<const Id*>(e);

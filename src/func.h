@@ -12,15 +12,24 @@
 
 extern int yylineno;
 
+struct FuncVar
+{
+	const Type*		fv_t;
+	llvm::AllocaInst*	fv_ai;
+};
+
+
 typedef std::map<std::string, class Func*>		func_map;
 typedef std::list<class Func*>				func_list;
+typedef std::map<std::string, struct FuncVar>		funcvar_map;
+
 
 class FuncStmt 
 {
 public:
 	virtual ~FuncStmt() {}
 	unsigned int getLineNo() const { return lineno; }
-	virtual llvm::Value* codeGen(const class EvalCtx*) const = 0;
+	virtual llvm::Value* codeGen() const = 0;
 	virtual void setOwner(class FuncBlock* o) 
 		{ assert (owner == NULL); owner = o; }
 	class FuncBlock* getOwner(void) const { return owner; }
@@ -41,7 +50,7 @@ class FuncBlock : public FuncStmt, public PtrList<FuncStmt>
 public:
 	FuncBlock() {}
 	virtual ~FuncBlock() {}
-	llvm::Value* codeGen(const class EvalCtx*) const;
+	llvm::Value* codeGen() const;
 	virtual void add(FuncStmt* fs) 
 	{
 		fs->setOwner(this);
@@ -49,10 +58,11 @@ public:
 	}
 
 	llvm::AllocaInst* getVar(const std::string& s) const;
-	bool addVar(const std::string& name, llvm::AllocaInst* ai);
+	const Type* getVarType(const std::string& s) const;
+	bool addVar(const Type*, const std::string& name, llvm::AllocaInst* ai);
 
 private:
-	llvm_var_map	vars;
+	funcvar_map	vars;
 };
 
 class FuncCondStmt : public FuncStmt
@@ -79,7 +89,7 @@ public:
 		if (is_false != NULL) is_false->setOwner(o);
 	}
 
-	llvm::Value* codeGen(const class EvalCtx*) const;
+	llvm::Value* codeGen() const;
 private:
 	CondExpr	*cond;
 	FuncStmt	*is_true;
@@ -92,7 +102,7 @@ public:
 	FuncRet(Expr* ret_expr) : expr(ret_expr) { assert (expr != NULL); }
 	virtual ~FuncRet() { delete expr; }
 
-	llvm::Value* codeGen(const class EvalCtx*) const;
+	llvm::Value* codeGen() const;
 private:
 	Expr	*expr;
 };
@@ -121,7 +131,7 @@ public:
 		delete expr;
 	}
 
-	llvm::Value* codeGen(const class EvalCtx*) const;
+	llvm::Value* codeGen() const;
 private:
 	Id	*scalar;
 	IdArray	*array;
@@ -151,7 +161,7 @@ public:
 		if (array != NULL) delete array;
 	}
 
-	llvm::Value* codeGen(const class EvalCtx*) const;
+	llvm::Value* codeGen() const;
 private:
 	Id	*type;
 	Id	*scalar;

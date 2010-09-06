@@ -137,7 +137,7 @@ void CodeBuilder::genCode(
 	const Type* type,
 	const string& fname,
 	const Expr* raw_expr,
-	const FuncArgs* extra_args)
+	const ArgsList* extra_args)
 {
 	llvm::Function		*f_bits;
 	llvm::BasicBlock	*bb_bits;
@@ -188,7 +188,7 @@ void CodeBuilder::genCodeEmpty(const std::string& name)
 void CodeBuilder::genThunkHeaderArgs(
 	llvm::Function* f, 
 	const Type* t,
-	const FuncArgs* extra_args)
+	const ArgsList* extra_args)
 {
 	const llvm::Type		*l_t;
 	llvm::AllocaInst		*allocai;
@@ -224,9 +224,8 @@ void CodeBuilder::genThunkHeaderArgs(
 
 	/* create the rest of the arguments */
 	genTypeArgs(t, &tmpB);
-	if (extra_args != NULL) {
-		genArgs(ai, &tmpB, extra_args->getArgsList());
-	}
+	if (extra_args != NULL)
+		genArgs(ai, &tmpB, extra_args);
 }
 
 void CodeBuilder::genTypeArgs(
@@ -494,7 +493,17 @@ llvm::AllocaInst* CodeBuilder::createTmpI64(void)
 llvm::AllocaInst* CodeBuilder::createTmpTypePass(
 	const Type* t, const std::string& name)
 {
-	assert (0 == 1);
+	llvm::AllocaInst	*ai, *p_ai;
+
+	ai = builder->CreateAlloca(getTypePassStruct(), 0, name);
+	if (t->getNumArgs() == 0)
+		return ai;
+
+
+	p_ai = createPrivateTmpI64Array(t->getNumArgs(), name + "_params");
+	builder->CreateInsertValue(ai, p_ai, 1);
+
+	return ai;
 }
 
 llvm::AllocaInst* CodeBuilder::createPrivateTmpI64Array(

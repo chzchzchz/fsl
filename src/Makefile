@@ -22,11 +22,11 @@ OBJS=	parser.o		\
 	thunk_params.o		\
 	thunk_fieldoffset_cond.o\
 	thunk_fieldfunc.o	\
-	func_args.o		\
 	preamble.o		\
 	points.o		\
 	asserts.o		\
 	runtime_interface.o	\
+	args.o			\
 	virt.o
 
 RTOBJS= runtime.o type_info.o
@@ -47,6 +47,7 @@ scantool: lang
  
 lang:  $(OBJS) $(RTOBJS) $(TOOLOBJS)
 	g++ $(DEBUG_FLAG) -O3 $(OBJS) $(LLVM_FLAGS) -o $@
+	cd tool && make clean
 
 parser.hh: parser.cc
 

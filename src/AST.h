@@ -145,62 +145,7 @@ private:
 	Id	*type;
 };
 
-
-
-class ArgsList	 
-{
-public:
-	ArgsList() {}
-	virtual ~ArgsList() 
-	{
-		for (unsigned int i = 0; i < types.size(); i++) {
-			delete types[i];
-			delete names[i];
-		}
-	}
-
-	void add(Id* type_name, Id* arg_name) 
-	{
-		types.push_back(type_name);
-		names.push_back(arg_name);
-	}
-
-	unsigned int size(void) const { return types.size(); }
-
-	std::pair<Id*, Id*> get(unsigned int i) const
-	{
-		return std::pair<Id*, Id*>(types[i], names[i]);
-	}
-
-	const Id* findType(const std::string& param_name) const
-	{
-		for (unsigned int i = 0; i < size(); i++) {
-			std::pair<Id*, Id*>	p(get(i));
-
-			if (param_name == (p.second)->getName()) {
-				return p.first;
-			}
-		}
-
-		return NULL;
-	}
-
-	ArgsList* copy(void) const
-	{
-		ArgsList*	ret = new ArgsList();
-
-		for (unsigned int i = 0; i < size(); i++) {
-			std::pair<Id*, Id*>	p(get(i));
-			ret->add(p.first->copy(), p.second->copy());
-		}
-
-		return ret;
-	}
-private:
-	std::vector<Id*>	types;
-	std::vector<Id*>	names;
-
-};
+#include "args.h"
 
 static inline std::ostream& operator<<(std::ostream& in, const GlobalStmt& gs)
 {

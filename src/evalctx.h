@@ -3,8 +3,9 @@
 
 #include "symtab.h"
 #include "type.h"
+#include "args.h"
 #include "expr.h"
-#include "func_args.h"
+#include "func.h"
 
 struct TypeBase
 {
@@ -26,24 +27,25 @@ class EvalCtx
 public:
 	/* evaluating for a type */
 	EvalCtx(const SymbolTable* in_cur_scope)
-	: func_args(NULL),
+	: cur_func_blk(NULL),
+	  cur_func(NULL),
 	  cur_scope(in_cur_scope)
 	{
 		assert (in_cur_scope != NULL);
 	}
 
 	/* evaluating for a function */
-	EvalCtx(const FuncArgs* in_func_args)
-	:	func_args(in_func_args),
+	EvalCtx(const FuncBlock* in_func)
+	:	cur_func_blk(in_func),
 		cur_scope(NULL)
 	{
+		assert (cur_func_blk != NULL);
+		cur_func = cur_func_blk->getFunc();
+		assert (cur_func != NULL);
 	}
 		
 
 	virtual ~EvalCtx() {}
-
-	const SymbolTable*	getCurrentScope() const { return cur_scope; }
-	const FuncArgs*		getFuncArgs(void) const { return func_args; }
 
 	/* given an expression that is either a scalar id or an array id,
 	 * return the name and (if applicable) the index into the type
@@ -66,7 +68,8 @@ private:
 
 
 protected:
-	const FuncArgs*		func_args;
+	const FuncBlock*	cur_func_blk;
+	const Func*		cur_func;
 	const SymbolTable*	cur_scope;
 
 	const SymbolTable*	symtabByName(const std::string& s) const;

@@ -70,11 +70,11 @@ WHITESPACE [ 	]
 "."		IN_TOKEN(TOKEN_DOT);
 "\n"		{ yyset_lineno(yyget_lineno() + 1); }
 "//"		{ BEGIN(COMMENT); }
-<COMMENT>[^\n]	
+<COMMENT>[^\n]	{ BEGIN(COMMENT); }
 <COMMENT>"\n"	{ BEGIN(INITIAL); yyset_lineno(yyget_lineno() + 1); }
 "/*"		{ BEGIN(COMMENT2); }
-<COMMENT2>"\n"	{ yyset_lineno( yyget_lineno() + 1); }
-<COMMENT2>[^*]	{ }
+<COMMENT2>"\n"	{ yyset_lineno( yyget_lineno() + 1); BEGIN(COMMENT2); }
+<COMMENT2>[^*]	{ BEGIN(COMMENT2); }
 <COMMENT2>"*/"	{ BEGIN(INITIAL);  }
 "::"		IN_TOKEN(TOKEN_DOUBLECOLON);
 "/"		IN_TOKEN(TOKEN_DIV);

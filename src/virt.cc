@@ -71,21 +71,23 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p)
 		return NULL;
 	}
 
-	xlated_type = ectx.getType(lookup_expr);
-	if (xlated_type == NULL) {
-		cerr << "Bad xlated type in virt '";
-		lookup_expr->print(cerr);
-		cerr << "' in type " << src_type->getName();
-		return NULL;
-	}
+
 
 	if (types_map.count(target_type_expr->getName()) == 0) {
-		cerr << "Bad xlated type in virt '";
+		cerr << "Bad xlated type in virt's first parameter:'";
 		lookup_expr->print(cerr);
-		cerr << "' in type " << src_type->getName();
+		cerr << "' in type " << src_type->getName() << endl;
 		return NULL;
 	}
 	target_type = types_map[target_type_expr->getName()];
+
+	xlated_type = ectx.getType(lookup_expr);
+	if (xlated_type == NULL) {
+		cerr << "Bad xlated type in virt's last parameter:'";
+		lookup_expr->print(cerr);
+		cerr << "' in type " << src_type->getName() << endl;
+		return NULL;
+	}
 
 	return new VirtualType(
 		src_type,

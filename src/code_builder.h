@@ -32,7 +32,7 @@ public:
 		const class Type* t,
 		const std::string& name, 
 		const class Expr* raw_expr,
-		const class FuncArgs* extra_args = NULL);
+		const class ArgsList* extra_args = NULL);
 
 	void genCodeEmpty(const std::string& name);
 
@@ -79,7 +79,7 @@ public:
 
 	void genThunkHeaderArgs(
 		llvm::Function* f, const Type* t, 
-		const FuncArgs* e_args = NULL);
+		const ArgsList* e_args = NULL);
 
 
 	void emitMemcpy64(

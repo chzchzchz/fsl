@@ -1,7 +1,6 @@
 #include "code_builder.h"
 #include "symtab.h"
 #include "evalctx.h"
-#include "func_args.h"
 #include "util.h"
 #include "runtime_interface.h"
 #include "eval.h"
