@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#include "runtime.h" 
+#include "runtime.h"
 #include "type_info.h"
 
 #define INPUT_BUF_SZ	1024
@@ -99,7 +99,7 @@ static uint64_t select_field_array(
 		typesize_t	array_off;
 
 		array_off = __computeArrayBits(
-			field->tf_typenum, 
+			field->tf_typenum,
 			next_diskoff,
 			next_params,
 			sel_elem);
@@ -141,7 +141,7 @@ static void select_field(struct type_info* cur, int field_idx)
 		field->tf_typenum, next_diskoff, params, field_idx, cur);
 	if (ti_next == NULL)
 		return;
-		
+
 	menu(ti_next);
 
 	typeinfo_free(ti_next);
@@ -234,5 +234,3 @@ void tool_entry(void)
 	typeinfo_free(origin_ti);
 	printf("Have a nice day.\n");
 }
-
-

@@ -22,7 +22,7 @@ static bool verify_asserts(const struct type_info *ti)
 		const struct fsl_rt_table_assert	*as;
 		as = &tt->tt_assert[i];
 		if (as->as_assertf(ti->ti_diskoff, ti->ti_params) == false) {
-			printf("!!! !!!Assert #%d failed on type %s!!! !!!\n", 
+			printf("!!! !!!Assert #%d failed on type %s!!! !!!\n",
 				i, tt->tt_name);
 			return false;
 		}
@@ -69,15 +69,15 @@ static void print_field(
 	}
 
 	if (num_elems == 1 && field_sz <= 64) {
-		printf(" = %"PRIu64 " (0x%"PRIx64")", 
+		printf(" = %"PRIu64 " (0x%"PRIx64")",
 			__getLocal(field_off, field_sz),
 			__getLocal(field_off, field_sz));
 	} else {
 #ifdef PRINT_BITS
-		printf("@%"PRIu64"--%"PRIu64, 
+		printf("@%"PRIu64"--%"PRIu64,
 			field_off, field_off + field_sz);
 #else
-		printf("@%"PRIu64"--%"PRIu64, 
+		printf("@%"PRIu64"--%"PRIu64,
 			field_off/8, (field_off + field_sz)/8);
 #endif
 	}
@@ -97,14 +97,14 @@ void typeinfo_print(const struct type_info* ti)
 		len = tt->tt_size(ti->ti_diskoff, ti->ti_params);
 
 #ifdef PRINT_BITS
-		printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)", 
-			tt_by_ti(ti)->tt_name, 
+		printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
+			tt_by_ti(ti)->tt_name,
 			ti->ti_diskoff,
 			ti->ti_diskoff + len,
 			len);
 #else
-		printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bytes)", 
-			tt_by_ti(ti)->tt_name, 
+		printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bytes)",
+			tt_by_ti(ti)->tt_name,
 			ti->ti_diskoff/8,
 			(ti->ti_diskoff + len)/8,
 			len/8);
@@ -172,7 +172,7 @@ void typeinfo_print_pointsto(const struct type_info* ti)
 			none_seen = false;
 		}
 
-		printf("%02d. (%s)\n", 
+		printf("%02d. (%s)\n",
 			tt->tt_fieldall_c + i,
 			tt_by_num(pt->pt_type_dst)->tt_name);
 
@@ -196,7 +196,7 @@ void typeinfo_print_fields(const struct type_info* ti)
 		struct fsl_rt_table_field	*field;
 		bool				is_present;
 
-		field = &tt->tt_fieldall_thunkoff[i]; 
+		field = &tt->tt_fieldall_thunkoff[i];
 		if (field->tf_cond == NULL)
 			is_present = true;
 		else
@@ -321,7 +321,7 @@ struct type_info* typeinfo_alloc(
 		ti_typenum, ti_diskoff, ti_params, ti_prev);
 	if (ret == NULL)
 		return NULL;
-	
+
 	ret->ti_pointsto = false;
 	ret->ti_fieldidx = ti_fieldidx;
 

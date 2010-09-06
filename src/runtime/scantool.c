@@ -3,7 +3,7 @@
 #include <inttypes.h>
 #include <assert.h>
 
-#include "runtime.h" 
+#include "runtime.h"
 #include "type_info.h"
 
 
@@ -11,7 +11,7 @@
 
 static void print_indent(unsigned int depth);
 static void scan_type_pointsto(
-	const struct type_info* ti, 
+	const struct type_info* ti,
 	unsigned int pt_idx);
 static void scan_type_pointsto_all(const struct type_info* ti);
 static void scan_type_strongtypes(const struct type_info* ti);
@@ -26,7 +26,7 @@ static void print_indent(unsigned int depth)
 }
 
 static void scan_type_pointsto(
-	const struct type_info* ti, 
+	const struct type_info* ti,
 	unsigned int pt_idx)
 {
 	struct fsl_rt_table_pointsto	*pt;
@@ -82,14 +82,14 @@ static void dump_field(
 	printf("%s::", field->tf_fieldname);
 	printf("%s",
 		(field->tf_typenum != ~0) ?
-			tt_by_num(field->tf_typenum)->tt_name : 
+			tt_by_num(field->tf_typenum)->tt_name :
 			"ANONYMOUS");
 
 	printf("@offset=0x%" PRIx64 " (%" PRIu64 ")\n", bitoff, bitoff);
 }
 
 static void handle_field(
-	const struct type_info* ti, 
+	const struct type_info* ti,
 	unsigned int field_idx)
 {
 	struct type_info*		new_ti;
@@ -98,7 +98,7 @@ static void handle_field(
 	uint64_t			num_elems;
 	unsigned int			param_c;
 	unsigned int			i;
-	
+
 	field = &tt_by_ti(ti)->tt_field_thunkoff[field_idx];
 	bitoff = field->tf_fieldbitoff(ti->ti_diskoff, ti->ti_params);
 	num_elems = field->tf_elemcount(ti->ti_diskoff, ti->ti_params);
@@ -115,7 +115,7 @@ static void handle_field(
 		/* dump data */
 		print_indent(typeinfo_get_depth(ti));
 		dump_field(field, bitoff);
-		if (field->tf_typenum == ~0) 
+		if (field->tf_typenum == ~0)
 			return;
 
 		/* recurse */
@@ -153,7 +153,7 @@ static void scan_type(const struct type_info* ti)
 	unsigned int i;
 
 	print_indent(typeinfo_get_depth(ti));
-	printf("scanning: %s (%d usertypes)\n", 
+	printf("scanning: %s (%d usertypes)\n",
 		tt_by_ti(ti)->tt_name,
 		tt_by_ti(ti)->tt_field_c);
 	scan_type_strong_types(ti);
@@ -172,7 +172,7 @@ void tool_entry(void)
 		printf("Could not open origin type\n");
 		return;
 	}
-	
+
 	typeinfo_set_depth(origin_ti, 1);
 
 	scan_type(origin_ti);
@@ -181,5 +181,3 @@ void tool_entry(void)
 
 	printf("Have a nice day\n");
 }
-
-

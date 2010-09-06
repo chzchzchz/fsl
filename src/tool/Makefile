@@ -4,8 +4,8 @@ VFAT_OBJS= fsl.vfat.table.o fsl.vfat.types.o
 VFAT_TOOLS= scantool-vfat browser-vfat
 NILFS_OBJS= fsl.nilfs.table.o fsl.nilfs.types.o
 NILFS_TOOLS= scantool-nilfs browser-nilfs
-SCANTOOL_OBJS=../scantool.o ../runtime.o ../type_info.o
-BROWSER_OBJS=../browser.o ../runtime.o ../type_info.o
+SCANTOOL_OBJS=../runtime/scantool.o ../runtime/runtime.o ../runtime/type_info.o
+BROWSER_OBJS=../runtime/browser.o ../runtime/runtime.o ../runtime/type_info.o
 
 all: $(EXT2_TOOLS) $(VFAT_TOOLS) $(NILFS_TOOLS)
 
@@ -48,7 +48,7 @@ fsl.ext2.table.c: ../../fs/ext2.fsl
 	../lang ext2 <$^
 
 fsl.ext2.table.o: fsl.ext2.table.c
-	gcc -O3 -c $^ -o $@
+	gcc -O3 -I.. -c $^ -o $@
 
 
 
@@ -68,7 +68,7 @@ fsl.vfat.table.c: ../../fs/vfat.fsl
 	../lang vfat <$^
 
 fsl.vfat.table.o: fsl.vfat.table.c
-	gcc -O3 -c $^ -o $@
+	gcc -O3 -I.. -c $^ -o $@
 
 
 fsl.nilfs.types.o: fsl.nilfs.types.s
@@ -87,5 +87,5 @@ fsl.nilfs.table.c: ../../fs/nilfs2.fsl
 	../lang nilfs <$^
 
 fsl.nilfs.table.o: fsl.nilfs.table.c
-	gcc -O3 -c $^ -o $@
+	gcc -O3 -I.. -c $^ -o $@
 

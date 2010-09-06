@@ -298,7 +298,7 @@ void TableGen::genTable_fsl_rt_table(void)
 void TableGen::genTableHeaders(void)
 {
 	out << "#include <stdint.h>" << endl;
-	out << "#include \"../runtime.h\"" << endl;
+	out << "#include \"runtime/runtime.h\"" << endl;
 }
 
 void TableGen::genInstanceAssertion(const Assertion* as)

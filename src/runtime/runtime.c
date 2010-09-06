@@ -32,12 +32,12 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 	}
 
 	if ((bit_off % 8) != 0) {
-		fprintf(stderr, 
+		fprintf(stderr,
 			"NOT SUPPORTED: UNALIGNED ACCESS bit_off=%"PRIx64"\n",
 			bit_off);
 		exit(-3);
 	}
-	
+
 	br = fread(buf, (num_bits + 7) / 8, 1, env->fctx_backing);
 	if (br != 1) {
 		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64"\n", bit_off);
@@ -59,7 +59,7 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 }
 
 uint64_t __getLocalArray(
-	uint64_t idx, uint64_t bits_in_type, 
+	uint64_t idx, uint64_t bits_in_type,
 	uint64_t base_offset, uint64_t bits_in_array)
 {
 	uint64_t	real_off, array_off;
@@ -68,7 +68,7 @@ uint64_t __getLocalArray(
 
 	array_off = bits_in_type * idx;
 	if (array_off > bits_in_array) {
-		fprintf(stderr, 
+		fprintf(stderr,
 			"ARRAY OVERFLOW: idx=%"PRIu64
 			",bit=%"PRIu64",bia=%"PRIu64"\n",
 			idx, bits_in_type, bits_in_array);
@@ -137,7 +137,7 @@ uint64_t __max3(uint64_t a0, uint64_t a1, uint64_t a2)
 		return a1;
 	return a2;
 }
-		
+
 uint64_t __max4(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3)
 {
 	if (a0 >= a1 && a0 >= a2 && a0 >= a3)
@@ -179,7 +179,7 @@ uint64_t fsl_fail(void)
 }
 
 /* compute the number of bits in a given array */
-/* TODO: need a way to handle parent type values if we're computing 
+/* TODO: need a way to handle parent type values if we're computing
  * some sort of parameterized type.. */
 typesize_t __computeArrayBits(
 	uint64_t elem_type,
@@ -245,7 +245,6 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 
 		fsl_ctx->fctx_type_params[i] = param_ptr;
 	}
-	
 
 	return fsl_ctx;
 }
@@ -270,7 +269,7 @@ int main(int argc, char* argv[])
 	if (argc != 2) {
 		fprintf(stderr, "Usage: %s filename\n", argv[0]);
 		return -1;
-	}	
+	}
 
 	env = fsl_rt_init(argv[1]);
 	if (env == NULL) {
@@ -297,5 +296,3 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	__FROM_OS_BDEV_BLOCK_BYTES = 512;
 	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
 }
-
-

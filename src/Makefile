@@ -19,18 +19,18 @@ OBJS=	parser.o		\
 	thunk_fieldsize.o	\
 	thunk_size.o		\
 	thunk_func.o		\
-	thunk_params.o		\
-	thunk_fieldoffset_cond.o\
-	thunk_fieldfunc.o	\
-	preamble.o		\
-	points.o		\
-	asserts.o		\
-	runtime_interface.o	\
-	args.o			\
+	thunk_params.o			\
+	thunk_fieldoffset_cond.o	\
+	thunk_fieldfunc.o		\
+	preamble.o			\
+	points.o			\
+	asserts.o			\
+	runtime_interface.o		\
+	args.o				\
 	virt.o
 
-RTOBJS= runtime.o type_info.o
-TOOLOBJS= scantool.o browser.o
+RTOBJS= runtime/runtime.o runtime/type_info.o
+TOOLOBJS= runtime/scantool.o runtime/browser.o
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core) 
@@ -42,12 +42,11 @@ CFLAGS= $(DEBUG_FLAG) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
 all: lang
 
 scantool: lang
-	cd tool
-	make all
+	cd tool && make all
  
 lang:  $(OBJS) $(RTOBJS) $(TOOLOBJS)
 	g++ $(DEBUG_FLAG) -O3 $(OBJS) $(LLVM_FLAGS) -o $@
-	cd tool && make clean
+	cd tool && make clean	# outdated now..
 
 parser.hh: parser.cc
 
@@ -64,5 +63,5 @@ lex.yy.cc: lang.lex parser.hh
 	gcc $(DEFINE_FLAGS) $(DEBUG_FLAG) -O3 -c $< -o $@
 
 clean: 
-	rm -f  lang lex.yy.cc y.tab.h parser.cc parser.hh *.o fsl.table.c *.ll
+	rm -f  lang lex.yy.cc y.tab.h parser.cc parser.hh $(OBJS) $(RTOBJS) $(TOOLOBJS)  fsl.table.c *.ll
 	cd tool && make clean
