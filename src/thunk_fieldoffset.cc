@@ -1,8 +1,5 @@
-#include "code_builder.h"
 #include "thunk_fieldoffset.h"
 #include "thunk_type.h"
-
-extern CodeBuilder*	code_builder;
 
 ThunkFieldOffset* ThunkFieldOffset::copy(void) const
 {

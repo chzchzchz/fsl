@@ -14,9 +14,7 @@
 static char input_buf[INPUT_BUF_SZ];
 
 static void menu(struct type_info* cur);
-static bool handle_menu_choice(
-	struct type_info* cur,
-	int choice);
+static bool handle_menu_choice(struct type_info* cur, int choice);
 
 static int get_sel_elem(int min_v, int max_v);
 static void select_field(struct type_info* cur, int field_num);
@@ -26,16 +24,15 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 {
 	struct fsl_rt_table_pointsto	*pt;
 	struct type_info		*ti_next;
-	struct fsl_rt_table_type	*tt_out;
-	diskoff_t			pt_off;
-	int				min_idx, max_idx;
+	struct type_desc		next_td;
 	int				pt_elem_idx;
+	unsigned int			min_idx, max_idx;
 
 	pt = &(tt_by_ti(cur)->tt_pointsto[pt_idx]);
 
 	/* get the range element idx */
-	min_idx = pt->pt_min(cur->ti_diskoff, cur->ti_params);
-	max_idx = pt->pt_max(cur->ti_diskoff, cur->ti_params);
+	min_idx = pt->pt_min(ti_to_thunk(cur));
+	max_idx = pt->pt_max(ti_to_thunk(cur));
 	if (min_idx != max_idx) {
 		pt_elem_idx = get_sel_elem(min_idx, max_idx);
 		if (pt_elem_idx == INT_MIN)
@@ -45,15 +42,15 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 		pt_elem_idx = min_idx;
 	}
 
-	tt_out = tt_by_num(pt->pt_type_dst);
-	uint64_t	params[tt_out->tt_param_c];
+	uint64_t	params[tt_by_num(pt->pt_type_dst)->tt_param_c];
 
 	/* jump to it */
-	pt_off = pt->pt_range(
-		cur->ti_diskoff, cur->ti_params, pt_elem_idx, params);
-	ti_next = typeinfo_alloc_pointsto(
-		pt->pt_type_dst, pt_off, params,
-		pt_idx, pt_elem_idx, cur);
+	next_td.td_diskoff = pt->pt_range(
+		ti_to_thunk(cur), pt_elem_idx, params);
+	next_td.td_typenum = pt->pt_type_dst;
+	next_td.td_params = params;
+
+	ti_next = typeinfo_alloc_pointsto(&next_td, pt_idx, pt_elem_idx, cur);
 	if (ti_next == NULL)
 		return;
 
@@ -107,7 +104,7 @@ static uint64_t select_field_array(
 		next_diskoff += array_off;
 	} else {
 		typesize_t	fsz;
-		fsz = field->tf_typesize(cur->ti_diskoff, cur->ti_params);
+		fsz = field->tf_typesize(ti_to_thunk(cur));
 		next_diskoff += sel_elem * fsz;
 	}
 
@@ -120,7 +117,7 @@ static void select_field(struct type_info* cur, int field_idx)
 	struct type_info		*ti_next;
 	uint64_t			num_elems;
 	uint64_t			params[tt_by_ti(cur)->tt_param_c];
-	diskoff_t			next_diskoff;
+	struct type_desc		next_td;
 
 	field = &(tt_by_ti(cur)->tt_fieldall_thunkoff[field_idx]);
 	if (field->tf_typenum == ~0) {
@@ -128,17 +125,18 @@ static void select_field(struct type_info* cur, int field_idx)
 		return;
 	}
 
-	num_elems = field->tf_elemcount(cur->ti_diskoff, cur->ti_params);
-	next_diskoff = field->tf_fieldbitoff(cur->ti_diskoff, cur->ti_params);
-	field->tf_params(cur->ti_diskoff, cur->ti_params, params);
+	next_td.td_typenum = field->tf_typenum;
+	next_td.td_diskoff = field->tf_fieldbitoff(ti_to_thunk(cur));
+	field->tf_params(ti_to_thunk(cur), params);
+	next_td.td_params = params;
 
+	num_elems = field->tf_elemcount(ti_to_thunk(cur));
 	if (num_elems > 1) {
-		next_diskoff = select_field_array(
-			cur, field, num_elems, next_diskoff, params);
+		next_td.td_diskoff = select_field_array(
+			cur, field, num_elems, next_td.td_diskoff, params);
 	}
 
-	ti_next = typeinfo_alloc(
-		field->tf_typenum, next_diskoff, params, field_idx, cur);
+	ti_next = typeinfo_alloc(&next_td, field_idx, cur);
 	if (ti_next == NULL)
 		return;
 
@@ -221,10 +219,11 @@ static void menu(struct type_info* cur)
 void tool_entry(void)
 {
 	struct type_info	*origin_ti;
+	struct type_desc	init_td = {fsl_rt_origin_typenum, 0, NULL};
 
 	printf("Welcome to fsl browser. Browse mode: \"%s\"\n", fsl_rt_fsname);
 
-	origin_ti = typeinfo_alloc(fsl_rt_origin_typenum, 0, NULL, 0, NULL);
+	origin_ti = typeinfo_alloc(&init_td, 0, NULL);
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
 		return;

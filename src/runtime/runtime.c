@@ -16,6 +16,7 @@ static struct fsl_rt_ctx* 	env;
 int				fsl_rt_debug = 0;
 
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
+static uint64_t fsl_virt_xlate(uint64_t bit_off);
 
 uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 {
@@ -25,6 +26,16 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 	size_t		br;
 
 	assert (num_bits <= 64);
+
+	if (env->fctx_virt != NULL) {
+		uint64_t	bit_off_old, bit_off_last;
+
+		bit_off_old = bit_off;
+		bit_off = fsl_virt_xlate(bit_off);
+		bit_off_last = fsl_virt_xlate(bit_off + (num_bits - 1));
+		assert ((bit_off + (num_bits-1)) == (bit_off_last) &&
+			"Discontiguous getLocal not permitted");
+	}
 
 	if (fseeko(env->fctx_backing, bit_off / 8, SEEK_SET) != 0) {
 		fprintf(stderr, "BAD SEEK! bit_off=%"PRIx64"\n", bit_off);
@@ -246,7 +257,16 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 		fsl_ctx->fctx_type_params[i] = param_ptr;
 	}
 
+	fsl_ctx->fctx_virt = NULL;
+
 	return fsl_ctx;
+}
+
+static void fsl_virt_free(struct fsl_rt_virt* rtv)
+{
+	if (rtv->rtv_params != NULL)
+		free(rtv->rtv_params);
+	free(rtv);
 }
 
 void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
@@ -257,11 +277,61 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 	fclose(fctx->fctx_backing);
 	free(fctx->fctx_type_offsets);
 
+	if (fctx->fctx_virt != NULL)
+		fsl_virt_free(fctx->fctx_virt);
+
 	for (i = 0; i < fsl_num_types; i++)
 		free(fctx->fctx_type_params[i]);
 	free(fctx->fctx_type_params);
 
 	free(fctx);
+}
+
+static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
+{
+	assert (fctx != NULL);
+	assert (fctx->fctx_backing != NULL);
+
+	fseeko(fctx->fctx_backing, 0, SEEK_END);
+	__FROM_OS_BDEV_BYTES = ftello(fctx->fctx_backing);
+	__FROM_OS_BDEV_BLOCK_BYTES = 512;
+	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
+}
+
+void fsl_virt_set(
+	typenum_t src_typenum, diskoff_t src_off, parambuf_t src_params,
+	const struct fsl_rt_table_virt* vt)
+{
+	struct fsl_rt_table_type	*tt;
+	struct fsl_rt_virt		*rtv;
+
+	assert (env->fctx_virt == NULL);
+
+	rtv = malloc(sizeof(*rtv));
+	rtv->rtv_off = src_off;
+
+	tt = tt_by_num(src_typenum);
+	if (tt->tt_param_c > 0) {
+		unsigned int len;
+		len = sizeof(uint64_t)*tt->tt_param_c;
+		rtv->rtv_params = malloc(len);
+		memcpy(rtv->rtv_params, src_params, len);
+	} else
+		rtv->rtv_params = NULL;
+
+	env->fctx_virt = rtv;
+}
+
+void fsl_virt_clear(void)
+{
+	assert (env->fctx_virt != NULL);
+	fsl_virt_free(env->fctx_virt);
+	env->fctx_virt = NULL;
+}
+
+static uint64_t fsl_virt_xlate(uint64_t bit_off)
+{
+	assert (0 == 1 && "STUB!");
 }
 
 int main(int argc, char* argv[])
@@ -284,15 +354,4 @@ int main(int argc, char* argv[])
 	fsl_rt_uninit(env);
 
 	return 0;
-}
-
-static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
-{
-	assert (fctx != NULL);
-	assert (fctx->fctx_backing != NULL);
-
-	fseeko(fctx->fctx_backing, 0, SEEK_END);
-	__FROM_OS_BDEV_BYTES = ftello(fctx->fctx_backing);
-	__FROM_OS_BDEV_BLOCK_BYTES = 512;
-	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
 }

@@ -39,21 +39,20 @@ static void scan_type_pointsto(
 
 	tt = tt_by_num(pt->pt_type_dst);
 
-	min_idx = pt->pt_min(ti->ti_diskoff, ti->ti_params);
-	max_idx = pt->pt_max(ti->ti_diskoff, ti->ti_params);
+	min_idx = pt->pt_min(ti_to_thunk(ti));
+	max_idx = pt->pt_max(ti_to_thunk(ti));
 	if (min_idx != max_idx)
 		printf("[%d,%d]\n", min_idx, max_idx);
 	for (k = min_idx; k <= max_idx; k++) {
 		struct type_info	*new_ti;
+		struct type_desc	next_td;
 		uint64_t		params[tt->tt_param_c];
 
-		new_ti = typeinfo_alloc_pointsto(
-			pt->pt_type_dst,
-			pt->pt_range(ti->ti_diskoff, ti->ti_params, k, params),
-			params,
-			pt_idx,
-			k,
-			ti);
+		next_td.td_typenum = pt->pt_type_dst;
+		next_td.td_diskoff = pt->pt_range(ti_to_thunk(ti), k, params);
+		next_td.td_params = params;
+
+		new_ti = typeinfo_alloc_pointsto(&next_td, pt_idx, k, ti);
 		if (new_ti == NULL)
 			continue;
 
@@ -94,33 +93,33 @@ static void handle_field(
 {
 	struct type_info*		new_ti;
 	struct fsl_rt_table_field*	field;
-	uint64_t			bitoff;
+	struct type_desc		next_td;
 	uint64_t			num_elems;
 	unsigned int			param_c;
 	unsigned int			i;
 
 	field = &tt_by_ti(ti)->tt_field_thunkoff[field_idx];
-	bitoff = field->tf_fieldbitoff(ti->ti_diskoff, ti->ti_params);
-	num_elems = field->tf_elemcount(ti->ti_diskoff, ti->ti_params);
-
+	next_td.td_typenum = field->tf_typenum;
+	next_td.td_diskoff = field->tf_fieldbitoff(ti_to_thunk(ti));
 	if (field->tf_typenum != ~0)
 		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
 	else
 		param_c = 0;
 	uint64_t params[param_c];
 
-	field->tf_params(ti->ti_diskoff, ti->ti_params, params);
+	field->tf_params(ti_to_thunk(ti), params);
+	next_td.td_params = params;
 
+	num_elems = field->tf_elemcount(ti_to_thunk(ti));
 	for (i = 0; i < num_elems; i++) {
 		/* dump data */
 		print_indent(typeinfo_get_depth(ti));
-		dump_field(field, bitoff);
-		if (field->tf_typenum == ~0)
+		dump_field(field, next_td.td_diskoff);
+		if (next_td.td_typenum == ~0)
 			return;
 
 		/* recurse */
-		new_ti = typeinfo_alloc(
-			field->tf_typenum, bitoff, params, field_idx, ti);
+		new_ti = typeinfo_alloc(&next_td, field_idx, ti);
 		if (new_ti == NULL)
 			continue;
 
@@ -128,8 +127,8 @@ static void handle_field(
 
 		if (i < num_elems - 1) {
 			/* more to next element */
-			bitoff += tt_by_ti(new_ti)->tt_size(
-				new_ti->ti_diskoff, new_ti->ti_params);
+			next_td.td_diskoff += tt_by_ti(new_ti)->tt_size(
+				ti_to_thunk(new_ti));
 		}
 
 		typeinfo_free(new_ti);
@@ -163,11 +162,12 @@ static void scan_type(const struct type_info* ti)
 void tool_entry(void)
 {
 	struct type_info	*origin_ti;
+	struct type_desc	init_td = {fsl_rt_origin_typenum, 0, NULL};
 	unsigned int 		i;
 
 	printf("Welcome to fsl scantool. Scan mode: \"%s\"\n", fsl_rt_fsname);
 
-	origin_ti = typeinfo_alloc(fsl_rt_origin_typenum, 0, NULL, 0, NULL);
+	origin_ti = typeinfo_alloc(&init_td, 0, NULL);
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
 		return;

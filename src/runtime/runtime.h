@@ -10,21 +10,29 @@
 
 #define tt_by_num(x)	(&fsl_rt_table[x])
 
-
-struct fsl_rt_ctx
-{
-	unsigned int	fctx_num_types;
-	uint64_t	*fctx_type_offsets;
-	uint64_t	**fctx_type_params;
-	FILE		*fctx_backing;
-};
-
-
 typedef uint64_t	diskoff_t;
 typedef uint64_t	typeoff_t;
 typedef uint64_t	typesize_t;
 typedef unsigned int	typenum_t;
 typedef uint64_t*	parambuf_t;
+
+struct fsl_rt_ctx
+{
+	unsigned int		fctx_num_types;
+	uint64_t		*fctx_type_offsets;
+	uint64_t		**fctx_type_params;
+	FILE			*fctx_backing;
+	struct fsl_rt_virt	*fctx_virt;
+};
+
+/* virtual type mapping */
+struct fsl_rt_virt
+{
+	diskoff_t			rtv_off;
+	parambuf_t			rtv_params;
+	const struct fsl_rt_table_virt	*rtv_f;
+	/* XXX needs some smart data structure here */
+};
 
 #define TYPENUM_INVALID	(~0)
 
@@ -159,6 +167,12 @@ uint64_t fsl_fail(void);
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
 void fsl_rt_dump_dyn(void);
+void fsl_virt_set(
+	typenum_t src_typenum, /* parameters for parent type instance */
+	diskoff_t src_off,
+	parambuf_t src_params,
+	const struct fsl_rt_table_virt* );
+void fsl_virt_clear(void);
 
 /* implemented by tool: */
 void tool_entry(void);
