@@ -16,20 +16,34 @@ typedef uint64_t	typesize_t;
 typedef unsigned int	typenum_t;
 typedef uint64_t*	parambuf_t;
 
+struct fsl_rt_stat
+{
+	unsigned int	s_access_c;
+	uint64_t	s_bits_read;
+};
+
 struct fsl_rt_ctx
 {
 	unsigned int		fctx_num_types;
 	uint64_t		*fctx_type_offsets;
 	uint64_t		**fctx_type_params;
 	FILE			*fctx_backing;
+	struct fsl_rt_stat	fctx_stat;
 	struct fsl_rt_virt	*fctx_virt;
+	unsigned int		fctx_vdepth;
 };
+
+#define rtv_to_thunk(x)	((x)->rtv_off), ((x)->rtv_params)
 
 /* virtual type mapping */
 struct fsl_rt_virt
 {
 	diskoff_t			rtv_off;
 	parambuf_t			rtv_params;
+	uint64_t			rtv_cached_minidx;
+	uint64_t			rtv_cached_maxidx;
+	uint64_t			rtv_cached_srcsz;
+
 	const struct fsl_rt_table_virt	*rtv_f;
 	/* XXX needs some smart data structure here */
 };
@@ -160,8 +174,9 @@ uint64_t __max6(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 		uint64_t a5);
 uint64_t __max7(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 		uint64_t a5, uint64_t a6);
-
 uint64_t fsl_fail(void);
+void __enterDynCall(void);
+void __leaveDynCall(void);
 
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
@@ -175,7 +190,7 @@ void fsl_virt_set(
 void fsl_virt_clear(void);
 
 /* implemented by tool: */
-void tool_entry(void);
+void tool_entry(int argc, char* argv[]);
 
 
 #endif

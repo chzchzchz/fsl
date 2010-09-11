@@ -18,6 +18,9 @@ public:
 	Expr*	getDynOffset(const class Type* user_type);
 	Expr*	getDynParams(const class Type* user_type);
 
+	Expr*	getEnterDynCall(void) const;
+	Expr*	getLeaveDynCall(void) const;
+
 	Expr*	getThunkArgOffset(void);
 	Expr*	getThunkArgParamPtr(void);
 

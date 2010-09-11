@@ -8,19 +8,21 @@
 
 using namespace std;
 
-#define NUM_RUNTIME_FUNCS	10
+#define NUM_RUNTIME_FUNCS	12
 
 /* TODO: __max should be a proper vararg function */
 static const char*	rt_func_names[] = {	
 	"__getLocal", "__getLocalArray", "__getDynOffset", "fsl_fail", 
 	"__max2", "__max3", "__max4", "__max5",
-	"__max6", "__max7"
+	"__max6", "__max7",
+	"__enterDynCall", "__leaveDynCall",
 };
 
 static int rt_func_arg_c[] = {
 	2,4,1,0, 
 	2,3,4,5,
-	6, 7};
+	6, 7,
+	0, 0};
 
 /**
  * insert run-time functions into the llvm module so that they resolve
@@ -109,6 +111,17 @@ Expr* RTInterface::getLocalArray(
 
 	return new FCall(new Id("__getLocalArray"), exprs);
 }
+
+Expr* RTInterface::getEnterDynCall(void) const
+{
+	return new FCall(new Id("__enterDynCall"), new ExprList());
+}
+
+Expr* RTInterface::getLeaveDynCall(void) const
+{
+	return new FCall(new Id("__leaveDynCall"), new ExprList());
+}
+
 
 Expr* RTInterface::getDynOffset(const Type* user_type)
 {

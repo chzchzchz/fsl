@@ -172,6 +172,9 @@ void TableGen::genInstanceType(const Type *t)
 	sw.write("tt_fieldtypes_c", st_types->size());
 	sw.write("tt_fieldtypes_thunkoff","__rt_tab_thunkstypes_"+t->getName());
 
+	sw.write("tt_virt_c", typevirts_map[t->getName()]->getNumVirts() );
+	sw.write("tt_virt", "__rt_tab_virt_" + t->getName());
+
 	delete size_fc;
 	delete st_types;
 	delete st_all;

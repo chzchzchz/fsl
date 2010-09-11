@@ -22,6 +22,7 @@ public:
 
 	const virt_list* getVirts(void) const { return &virts; }
 	const Type* getType(void) const { return src_type; }
+	unsigned int getNumVirts(void) const { return virts.size(); }
 private:
 	void loadVirtuals(void);
 	VirtualType* loadVirtual(const Preamble* p);

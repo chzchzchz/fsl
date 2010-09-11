@@ -66,6 +66,9 @@ static int get_sel_elem(int min_v, int max_v)
 	assert (min_v > INT_MIN);
 	assert (max_v < INT_MAX);
 
+	if (min_v > max_v) return INT_MAX;
+	if (min_v == max_v) return min_v;
+
 	sel_elem = INT_MIN;
 	while (sel_elem < min_v || sel_elem > max_v) {
 		ssize_t	br;
@@ -145,11 +148,20 @@ static void select_field(struct type_info* cur, int field_idx)
 	typeinfo_free(ti_next);
 }
 
-static void select_virt(struct type_info* cur, int pt_idx)
+static void select_virt(struct type_info* cur, int vt_idx)
 {
-	assert (0 == 1 && "SELECT VIRT STUB");
-}
+	struct type_info*		ti_next;
+	struct fsl_rt_table_virt*	vt;
 
+	vt = &tt_by_ti(cur)->tt_virt[vt_idx];
+	ti_next = typeinfo_alloc_virt(vt, cur);
+	if (ti_next == NULL)
+		return;
+
+	menu(ti_next);
+
+	typeinfo_free(ti_next);
+}
 
 #define MCMD_DUMP	-1
 
@@ -202,12 +214,13 @@ static void menu(struct type_info* cur)
 
 		printf("Current: ");
 		typeinfo_print(cur);
-		printf("\n");
+		printf("..OK1.\n");
 		typeinfo_print_path(cur);
-		printf("\n");
+		printf("..OK2.\n");
 
 		typeinfo_print_fields(cur);
 		typeinfo_print_pointsto(cur);
+		typeinfo_print_virt(cur);
 
 		printf(">> ");
 		br = fscanf(stdin, "%d", &choice);
@@ -216,7 +229,7 @@ static void menu(struct type_info* cur)
 	} while(1);
 }
 
-void tool_entry(void)
+void tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
 	struct type_desc	init_td = {fsl_rt_origin_typenum, 0, NULL};

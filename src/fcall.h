@@ -69,12 +69,14 @@ private:
 	bool handleSpecialForms(llvm::Value* &ret) const;
 
 	llvm::Value*	codeGenParams(std::vector<llvm::Value*>& args) const;
+	llvm::Value*	codeGen(std::vector<llvm::Value*>& args) const;
 	llvm::Value*	codeGenNormalFunc() const;
 	llvm::Value*	codeGenTypeFunc() const;
 	llvm::Value*	codeGenLet(void) const;
 	llvm::Value*	codeGenDynParams(void) const;
 	llvm::Value*	codeGenMkTypePass(void) const;
 	llvm::Value* 	codeGenParamsAllocaByCount(void) const;
+	llvm::Value* 	codeGenIntermedDynExpr(void) const;
 	llvm::Value*	codeGenTypePassCall(
 		std::vector<llvm::Value*>& args) const;
 

@@ -159,7 +159,7 @@ static void scan_type(const struct type_info* ti)
 	scan_type_pointsto_all(ti);
 }
 
-void tool_entry(void)
+void tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
 	struct type_desc	init_td = {fsl_rt_origin_typenum, 0, NULL};

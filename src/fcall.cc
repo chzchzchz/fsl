@@ -11,6 +11,7 @@
 #include "func.h"
 #include "expr.h"
 #include "util.h"
+#include "runtime_interface.h"
 
 using namespace std;
 using namespace llvm;
@@ -19,7 +20,9 @@ extern CodeBuilder	*code_builder;
 extern const Func	*gen_func;
 extern const FuncBlock	*gen_func_block;
 extern type_map		types_map;
+extern typenum_map	typenums_map;
 extern func_map		funcs_map;
+extern RTInterface	rt_glue;
 
 
 llvm::Value* FCall::codeGenLet(void) const
@@ -121,16 +124,19 @@ llvm::Value* FCall::codeGenDynParams(void) const
 	Number			*n;
 	FCall			*new_call;
 	llvm::IRBuilder<>	*builder;
+	unsigned long		type_num;
 
 	assert (exprs->size() == 1);
 
 	n = dynamic_cast<Number*>(exprs->front());
 	assert (n != NULL);
+	type_num = n->getValue();
 
 	builder = code_builder->getBuilder();
 
 	parambuf = code_builder->createPrivateTmpI64Array(
-		n->getValue(), "dynparam");
+		typenums_map[type_num]->getNumArgs(),
+		"dynparam");
 
 	parambuf_ptr = code_builder->createTmpI64Ptr();
 	builder->CreateStore(
@@ -253,6 +259,29 @@ llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 	return params_ret;
 }
 
+
+llvm::Value* FCall::codeGenIntermedDynExpr(void) const
+{
+	llvm::Value		*ret;
+	Expr			*enter_fc, *leave_fc;
+	const Expr		*dyn_expr;
+
+	assert (exprs->size() == 1);
+
+	enter_fc = rt_glue.getEnterDynCall();
+	leave_fc = rt_glue.getLeaveDynCall();
+	dyn_expr = exprs->front();
+
+	enter_fc->codeGen();
+	ret = dyn_expr->codeGen();
+	leave_fc->codeGen();
+
+	delete enter_fc;
+	delete leave_fc;
+
+	return ret;
+}
+
 bool FCall::handleSpecialForms(llvm::Value* &ret) const
 {
 	string	call_name(id->getName());
@@ -269,6 +298,8 @@ bool FCall::handleSpecialForms(llvm::Value* &ret) const
 		ret = codeGenMkTypePass();
 	else if (call_name == "paramsAllocaByCount")
 		ret = codeGenParamsAllocaByCount();
+	else if (call_name == "__intermed_dynExpr")
+		ret = codeGenIntermedDynExpr();
 	else
 		return false;
 

@@ -173,23 +173,22 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	struct TypeBase			tb;
 	string				name;
 	Expr				*idx;
+	Expr				*ret;
 	bool				found_expr;
+	bool				needs_wrap;
 
 	assert (ids != NULL);
 
 	if (toName(ids->front(), name, idx) == false)
 		return NULL;
 
+	needs_wrap = false;
 	found_expr = false;
 	if (cur_scope != NULL) {
 		/* type scoped */
 		/* two cases:
 		 * 	1. reference to current type (e.g. ext2_inode.ino_num)
 		 * 	2. reference to internal field (e.g. ino_num)
-		 *
-		 * Note: Since (1) is a global type reference, we can
-		 * defer execution until later on.
-		 * 
 		 */
 		tb.tb_lastsym = cur_scope->lookup(name);
 		if (tb.tb_lastsym != NULL) {
@@ -205,6 +204,16 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 			setNewOffsets(tb, idx);
 
 			found_expr = resolveTail(tb, ids, ++(ids->begin()));
+		} else if ((t = typeByName(name)) != NULL) {
+			/* typename? get from global scope */
+			/* NOTE: This is not handled by the generic global code
+			 * because we want virtual types to work with
+			 * self-reference */
+			tb.tb_lastsym = NULL;
+			tb.tb_type = t;
+			tb.tb_symtab = symtabByName(t->getName());
+			tb.tb_diskoff = rt_glue.getDynOffset(t);
+			tb.tb_parambuf = rt_glue.getDynParams(t);
 		}
 	}
 
@@ -236,7 +245,8 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	}
 
 	if (!found_expr && (t = typeByName(name)) != NULL) {
-		/* global scoped */
+		/* Global scoped. We need to tell the run-time that we're
+		 * entering a global expression. */
 		tb.tb_lastsym = NULL;
 		tb.tb_type = t;
 		tb.tb_symtab = symtabByName(t->getName());
@@ -244,17 +254,27 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 		tb.tb_parambuf = rt_glue.getDynParams(t);
 
 		found_expr = resolveTail(tb, ids, ++(ids->begin()));
+		needs_wrap = true;
 	}
 
 	/* nothing found, return error. */
 	if (!found_expr) return NULL;
 
-	/* massage the result into something we can use-- either a disk read or 
-	 * a type offset */
+	/* massage the result into something we can use-- disk read or typepass */
 
 	/* return typepass if we are returning a user type */
 	thunk_field = tb.tb_lastsym->getFieldThunk();
 	if (thunk_field->getType() != NULL) {
+		if (needs_wrap) {
+			tb.tb_diskoff = new FCall(
+				new Id("__intermed_dynExpr"),
+				new ExprList(tb.tb_diskoff));
+			tb.tb_parambuf = new FCall(
+				new Id("__intermed_dynExpr"),
+				new ExprList(tb.tb_parambuf));
+			cerr << "XXX: BUSTED: wrapping mktypepass" << endl;
+		}
+
 		return new FCall(
 			new Id("__mktypepass"), 
 			new ExprList(tb.tb_diskoff, tb.tb_parambuf));
@@ -265,9 +285,16 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	 * parameters for the size function-- inline it! */
 	delete tb.tb_parambuf;
 
-	return rt_glue.getLocal(
+	ret = rt_glue.getLocal(
 		tb.tb_diskoff,
 		thunk_field->getSize()->copyConstValue());
+	if (needs_wrap) {
+		ret = new FCall(
+			new Id("__intermed_dynExpr"),
+			new ExprList(ret));
+	}
+
+	return ret;
 }
 
 /** convert an id into a constant or convert to 

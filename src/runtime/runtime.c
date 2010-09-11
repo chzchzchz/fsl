@@ -27,9 +27,15 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 
 	assert (num_bits <= 64);
 
-	if (env->fctx_virt != NULL) {
+	printf("__gL FROM %"PRIu64" (vdepth=%d)\n", bit_off, env->fctx_vdepth);
+
+	env->fctx_stat.s_access_c++;
+	env->fctx_stat.s_bits_read += num_bits;
+
+	if (env->fctx_virt != NULL && env->fctx_vdepth == 0) {
 		uint64_t	bit_off_old, bit_off_last;
 
+		printf("resolving with xlate. bit_off=%"PRIu64"\n", bit_off);
 		bit_off_old = bit_off;
 		bit_off = fsl_virt_xlate(bit_off);
 		bit_off_last = fsl_virt_xlate(bit_off + (num_bits - 1));
@@ -94,6 +100,8 @@ uint64_t __getDynOffset(uint64_t type_num)
 {
 	assert (type_num < env->fctx_num_types);
 	assert (env->fctx_type_offsets[type_num] != ~0);
+
+	printf("getDynOffset: %s\n", tt_by_num(type_num)->tt_name);
 
 	return env->fctx_type_offsets[type_num];
 }
@@ -182,6 +190,18 @@ uint64_t __max7(
 	return (m > a6) ? m : a6;
 }
 
+void __enterDynCall(void)
+{
+	printf("env: entered dyncall %d\n", env->fctx_vdepth);
+	env->fctx_vdepth++;
+}
+
+void __leaveDynCall(void)
+{
+	env->fctx_vdepth--;
+	printf("env: leaving dyncall %d\n", env->fctx_vdepth);
+}
+
 /* TODO FSL_FAILED should have some unique number so we know why we failed */
 uint64_t fsl_fail(void)
 {
@@ -235,6 +255,7 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 	fsl_ctx->fctx_backing = f;
 	fsl_ctx->fctx_num_types = fsl_num_types;
 	fsl_ctx->fctx_type_offsets = malloc(sizeof(uint64_t) * fsl_num_types);
+	fsl_ctx->fctx_vdepth = 0;
 	memset(	fsl_ctx->fctx_type_offsets,
 		0xff,
 		sizeof(uint64_t) * fsl_num_types);
@@ -257,6 +278,8 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 		fsl_ctx->fctx_type_params[i] = param_ptr;
 	}
 
+	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
+
 	fsl_ctx->fctx_virt = NULL;
 
 	return fsl_ctx;
@@ -274,6 +297,12 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 	unsigned int	i;
 
 	assert (fctx != NULL);
+
+	printf("stats\n");
+	printf("accesses: %d\n", fctx->fctx_stat.s_access_c);
+	printf("bytes read: %"PRIu64"\n", fctx->fctx_stat.s_bits_read / 8);
+
+
 	fclose(fctx->fctx_backing);
 	free(fctx->fctx_type_offsets);
 
@@ -304,11 +333,14 @@ void fsl_virt_set(
 {
 	struct fsl_rt_table_type	*tt;
 	struct fsl_rt_virt		*rtv;
+	diskoff_t			first_type_off;
 
 	assert (env->fctx_virt == NULL);
 
+	printf("virt set!!!\n");
 	rtv = malloc(sizeof(*rtv));
 	rtv->rtv_off = src_off;
+	rtv->rtv_f = vt;
 
 	tt = tt_by_num(src_typenum);
 	if (tt->tt_param_c > 0) {
@@ -318,6 +350,17 @@ void fsl_virt_set(
 		memcpy(rtv->rtv_params, src_params, len);
 	} else
 		rtv->rtv_params = NULL;
+
+	rtv->rtv_cached_minidx = rtv->rtv_f->vt_min(rtv_to_thunk(rtv));
+	rtv->rtv_cached_maxidx = rtv->rtv_f->vt_max(rtv_to_thunk(rtv));
+
+	uint64_t	params[tt_by_num(vt->vt_type_src)->tt_param_c];
+	first_type_off = vt->vt_range(
+		rtv_to_thunk(rtv), rtv->rtv_cached_minidx, params);
+
+	/* XXX not always correct */
+	rtv->rtv_cached_srcsz = tt_by_num(vt->vt_type_src)->tt_size(
+		first_type_off, params);
 
 	env->fctx_virt = rtv;
 }
@@ -331,7 +374,38 @@ void fsl_virt_clear(void)
 
 static uint64_t fsl_virt_xlate(uint64_t bit_off)
 {
-	assert (0 == 1 && "STUB!");
+	struct fsl_rt_virt	*rtv;
+	uint64_t		total_bits;
+	uint64_t		idx, off;
+	diskoff_t		base;
+
+	/* sloppy implementation: improve later
+	 * (read: never. research qualityyyyyy) */
+	rtv = env->fctx_virt;
+	assert (rtv != NULL);
+
+	total_bits = 1+(rtv->rtv_cached_maxidx - rtv->rtv_cached_minidx);
+	total_bits *= rtv->rtv_cached_srcsz;
+	printf("xlate: cached_srcsz=%"PRIu64". Min=%"PRIu64". Max=%"PRIu64"\n",
+		rtv->rtv_cached_srcsz,
+		rtv->rtv_cached_minidx,
+		rtv->rtv_cached_maxidx);
+
+	printf("%"PRIu64" < %"PRIu64"\n", bit_off, total_bits);
+
+	assert (bit_off < total_bits);
+
+	idx = bit_off / rtv->rtv_cached_srcsz;
+	off = bit_off % rtv->rtv_cached_srcsz;
+
+	/* disable virtual types */
+	/* XXX-- this should really be a stack pop */
+	env->fctx_virt = NULL;
+	uint64_t params[tt_by_num(rtv->rtv_f->vt_type_src)->tt_param_c];
+	base = rtv->rtv_f->vt_range(rtv_to_thunk(rtv), idx, params);
+	env->fctx_virt = rtv;
+
+	return base + off;
 }
 
 int main(int argc, char* argv[])
@@ -349,7 +423,7 @@ int main(int argc, char* argv[])
 
 	fsl_vars_from_env(env);
 
-	tool_entry();
+	tool_entry(argc, argv);
 
 	fsl_rt_uninit(env);
 
