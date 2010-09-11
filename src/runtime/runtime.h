@@ -48,6 +48,24 @@ struct fsl_rt_virt
 	/* XXX needs some smart data structure here */
 };
 
+struct fsl_rt_mapping;
+
+struct fsl_rt_closure
+{
+	diskoff_t			clo_offset; /* virtual offset of type */
+	parambuf_t			clo_params; /* params into type */
+	struct fsl_rt_mapping		*clo_xlate; /* "page table"/address space */
+
+};
+
+struct fsl_rt_mapping
+{
+	struct fsl_rt_closure* 		rtm_clo; 	/* for eval rtm_virt */
+	struct fsl_rt_table_virt* 	rtm_virt;	/* off_v -> off_phys */
+};
+
+
+
 #define TYPENUM_INVALID	(~0)
 
 /* XXX these should take a thunkvar when we support args */
