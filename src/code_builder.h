@@ -53,15 +53,21 @@ public:
 
 	unsigned int getTmpVarCount(void) const { return tmp_var_map.size(); }
 	llvm::AllocaInst* getTmpAllocaInst(const std::string& s) const;
+	void printTmpVars(void) const;
 	llvm::AllocaInst* createTmpI64(const std::string& name);
 	llvm::AllocaInst* createTmpI64(void);
 	llvm::AllocaInst* createPrivateTmpI64Array(
 		unsigned int num_elems,
 		const std::string& name);
 
-	llvm::AllocaInst* createTmpTypePass(
+	llvm::Value* getNullPtrI64(void);
+	llvm::Value* getNullPtrI8(void);
+
+	llvm::AllocaInst* createPrivateClosure(const Type* t);
+
+	llvm::AllocaInst* createTmpClosure(
 		const Type* t,
-		const std::string& name);
+		const std::string& name = "");
 
 	llvm::AllocaInst* createTmpI64Ptr(void);
 	
@@ -71,10 +77,11 @@ public:
 	void setDebug(bool b) { debug_output = b; }
 
 
-	llvm::Type* getTypePassStruct(void);
-	llvm::Type* getTypePassStructPtr(void);
+	llvm::Type* getClosureTy(void) { return closure_struct; }
 
-	void copyTypePassStruct(const Type* t,
+	llvm::Type* getClosureTyPtr(void);
+
+	void copyClosure(const Type* t,
 		llvm::Value *src, llvm::Value *dst_ptr);
 
 	void genThunkHeaderArgs(
@@ -86,8 +93,7 @@ public:
 		llvm::Value* dst, llvm::Value* src, 
 		unsigned int elems);
 private:
-	void makeTypePassStruct(void);
-
+	void makeClosureTy(void);
 
 	void genArgs(
 		llvm::Function::arg_iterator	&ai,
@@ -102,7 +108,7 @@ private:
 	CodeBuilder() {}
 	llvm::Module		*mod;
 	llvm::IRBuilder<> 	*builder;
-	llvm::Type		*typepass_struct;
+	llvm::Type		*closure_struct;
 	llvm_var_map		tmp_var_map;
 	bool			debug_output;
 	unsigned int		tmp_c;	

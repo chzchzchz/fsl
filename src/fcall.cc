@@ -64,7 +64,8 @@ llvm::Value* FCall::codeGenLet(void) const
 llvm::Value* FCall::codeGenExtractOff(void) const
 {
 	Expr		*expr;
-	llvm::Value	*typepass_val;
+	llvm::Value	*closure_val;
+	llvm::Value	*ret;
 
 	assert (id->getName() == "__extractOff");
 
@@ -75,20 +76,24 @@ llvm::Value* FCall::codeGenExtractOff(void) const
 
 	/* we were passed expr that is a TypePassStruct */
 	expr = exprs->front();
-	typepass_val = expr->codeGen();
-	if (typepass_val == NULL) {
-		cerr << "__extractOff could not get typepass" << endl;
+	closure_val = expr->codeGen();
+	if (closure_val == NULL) {
+		cerr << "__extractOff could not get closure" << endl;
 		return NULL;
 	}
 
-	return code_builder->getBuilder()->CreateExtractValue(
-		typepass_val, 0, "offset");
+	ret = code_builder->getBuilder()->CreateExtractValue(
+		code_builder->getBuilder()->CreateLoad(closure_val),
+		0,
+		"offset");
+
+	return ret;
 }
 
 llvm::Value* FCall::codeGenExtractParam(void) const
 {
 	Expr		*expr;
-	llvm::Value	*typepass_val;
+	llvm::Value	*closure_val;
 
 	assert (id->getName() == "__extractParam");
 
@@ -99,15 +104,50 @@ llvm::Value* FCall::codeGenExtractParam(void) const
 
 	/* we were passed expr that is a TypePassStruct */
 	expr = exprs->front();
-	typepass_val = expr->codeGen();
-	if (typepass_val == NULL) {
-		cerr << "__extractParam could not get typepass";
+	closure_val = expr->codeGen();
+	if (closure_val == NULL) {
+		cerr << "__extractParam could not get closure";
 		return NULL;
 	}
 
 	return code_builder->getBuilder()->CreateExtractValue(
-		typepass_val, 1, "params");
+		code_builder->getBuilder()->CreateLoad(closure_val),
+		1,
+		"params");
 }
+
+llvm::Value* FCall::codeGenDynClosure(void) const
+{
+	/* allocates a temporary closure structure that we can copy
+	 * data into! */
+	llvm::AllocaInst	*closure;
+	Number			*n;
+	FCall			*new_call;
+	llvm::IRBuilder<>	*builder;
+	unsigned long		type_num;
+
+	assert (exprs->size() == 1);
+
+	n = dynamic_cast<Number*>(exprs->front());
+	assert (n != NULL);
+	type_num = n->getValue();
+
+	builder = code_builder->getBuilder();
+	closure = code_builder->createTmpClosure(typenums_map[type_num]);
+
+	new_call = new FCall(
+		new Id("__getDynClosure"),
+		new ExprList(n->copy(), new Id(closure->getName())));
+
+	new_call->codeGen();
+	delete new_call;
+
+	if (new_call == NULL)
+		return NULL;
+
+	return builder->CreateLoad(closure);
+}
+
 
 /**
  * returns a pointer to array of params as the value
@@ -159,13 +199,13 @@ llvm::Value* FCall::codeGenDynParams(void) const
 	return builder->CreateLoad(parambuf_ptr);
 }
 
-llvm::Value* FCall::codeGenMkTypePass(void) const
+llvm::Value* FCall::codeGenMkClosure(void) const
 {
 	llvm::Value			*diskoff;
 	llvm::Value			*params;
 	llvm::Type			*ret_type;
-	llvm::AllocaInst 		*typepass;
-	llvm::Value			*typepass_loaded;
+	llvm::AllocaInst 		*closure;
+	llvm::Value			*closure_loaded;
 	llvm::IRBuilder<>		*builder;
 	ExprList::const_iterator	it;
 
@@ -185,18 +225,20 @@ llvm::Value* FCall::codeGenMkTypePass(void) const
 	}
 
 	builder = code_builder->getBuilder();
-	ret_type = code_builder->getTypePassStruct();
-	typepass = builder->CreateAlloca(ret_type, 0, "mkpasser");
+	ret_type = code_builder->getClosureTy();
+	closure = builder->CreateAlloca(ret_type, 0, "mkpasser");
 	
-	typepass_loaded = builder->CreateLoad(typepass);
+	closure_loaded = builder->CreateLoad(closure);
 	builder->CreateStore(
 		builder->CreateInsertValue(
 			builder->CreateInsertValue(
-				typepass_loaded, params, 1),
-			diskoff, 0),
-		typepass);
+				builder->CreateInsertValue(
+					closure_loaded, params, 1),
+				diskoff, 0),
+			code_builder->getNullPtrI8(), 2),
+		closure);
 	
-	return builder->CreateLoad(typepass);
+	return closure;
 }
 
 llvm::Value* FCall::codeGenParamsAllocaByCount(void) const
@@ -215,6 +257,9 @@ llvm::Value* FCall::codeGenParamsAllocaByCount(void) const
 	return parambuf;
 }	
 
+/**
+ * generate paramters to pass into the function call
+ */
 llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 {
 	ExprList::const_iterator	it;
@@ -260,28 +305,6 @@ llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 }
 
 
-llvm::Value* FCall::codeGenIntermedDynExpr(void) const
-{
-	llvm::Value		*ret;
-	Expr			*enter_fc, *leave_fc;
-	const Expr		*dyn_expr;
-
-	assert (exprs->size() == 1);
-
-	enter_fc = rt_glue.getEnterDynCall();
-	leave_fc = rt_glue.getLeaveDynCall();
-	dyn_expr = exprs->front();
-
-	enter_fc->codeGen();
-	ret = dyn_expr->codeGen();
-	leave_fc->codeGen();
-
-	delete enter_fc;
-	delete leave_fc;
-
-	return ret;
-}
-
 bool FCall::handleSpecialForms(llvm::Value* &ret) const
 {
 	string	call_name(id->getName());
@@ -294,12 +317,12 @@ bool FCall::handleSpecialForms(llvm::Value* &ret) const
 		ret = codeGenExtractParam();
 	else if (call_name == "__getDynParams_preAlloca")
 		ret = codeGenDynParams();
-	else if (call_name == "__mktypepass")
-		ret = codeGenMkTypePass();
+	else if (call_name == "__mkClosure")
+		ret = codeGenMkClosure();
 	else if (call_name == "paramsAllocaByCount")
 		ret = codeGenParamsAllocaByCount();
-	else if (call_name == "__intermed_dynExpr")
-		ret = codeGenIntermedDynExpr();
+	else if (call_name =="__getDynClosure_preAlloca")
+		ret = codeGenDynClosure();
 	else
 		return false;
 
@@ -307,11 +330,11 @@ bool FCall::handleSpecialForms(llvm::Value* &ret) const
 }
 
 /**
- * We have a function call that is returning a typepass.
+ * We have a function call that is returning a closure.
  * BUT we convert the function to use a parameter for returns to avoid 
  * any scoping issues with the parambuf. 
  */
-Value* FCall::codeGenTypePassCall(std::vector<llvm::Value*>& args) const
+Value* FCall::codeGenClosureRetCall(std::vector<llvm::Value*>& args) const
 {
 	const Func		*callee_func;
 	IRBuilder<>		*builder;
@@ -326,7 +349,7 @@ Value* FCall::codeGenTypePassCall(std::vector<llvm::Value*>& args) const
 
 	param_c = types_map[callee_func->getRet()]->getNumArgs();
 	
-	tmp_tp = builder->CreateAlloca(code_builder->getTypePassStruct());
+	tmp_tp = builder->CreateAlloca(code_builder->getClosureTy());
 	tmp_params = code_builder->createPrivateTmpI64Array(
 		param_c, "BURRITOS"); 
 	builder->CreateInsertValue(
@@ -338,7 +361,7 @@ Value* FCall::codeGenTypePassCall(std::vector<llvm::Value*>& args) const
 		code_builder->getModule()->getFunction(id->getName()), 
 		args.begin(), args.end());
 
-	return builder->CreateLoad(tmp_tp);
+	return tmp_tp;
 }
 
 Value* FCall::codeGen() const
@@ -349,7 +372,7 @@ Value* FCall::codeGen() const
 	string				call_name(id->getName());
 	Value				*params_ret;
 	Value				*ret;
-	bool				is_ret_typepass;
+	bool				is_ret_closure;
 	unsigned int			expected_arg_c;
 	IRBuilder<>			*builder;
 
@@ -366,11 +389,11 @@ Value* FCall::codeGen() const
 
 	if (funcs_map.count(call_name) != 0) {
 		callee_func = funcs_map[call_name];
-		is_ret_typepass = (types_map.count(callee_func->getRet()) > 0);
+		is_ret_closure = (types_map.count(callee_func->getRet()) > 0);
 	} else
-		is_ret_typepass = false;
+		is_ret_closure = false;
 
-	expected_arg_c = callee->arg_size() - ((is_ret_typepass) ? 1 : 0);
+	expected_arg_c = callee->arg_size() - ((is_ret_closure) ? 1 : 0);
 	if (expected_arg_c != exprs->size()) {
 		return ErrorV(
 			(string("wrong number of function arguments in ") + 
@@ -382,8 +405,8 @@ Value* FCall::codeGen() const
 
 	params_ret = codeGenParams(args);
 
-	if (is_ret_typepass) {
-		ret = codeGenTypePassCall(args);
+	if (is_ret_closure) {
+		ret = codeGenClosureRetCall(args);
 		assert (params_ret == NULL);
 	} else {
 		ret = builder->CreateCall(callee, args.begin(), args.end());

@@ -58,7 +58,7 @@ void Func::genLoadArgs(void) const
 		is_user_type = (types_map.count(type_name) > 0);
 		if (is_user_type) {
 			user_type = types_map[type_name];
-			t = code_builder->getTypePassStruct();
+			t = code_builder->getClosureTyPtr();
 		} else {
 			user_type = NULL;
 			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
@@ -74,10 +74,10 @@ void Func::genLoadArgs(void) const
 		AllocaInst		*allocai;
 		const llvm::Type	*t;
 
-		t = code_builder->getTypePassStructPtr();
+		t = code_builder->getClosureTyPtr();
 
-		allocai = tmpB.CreateAlloca(t, 0, "__ret_typepass");
-		block->addVar(types_map[getRet()], "__ret_typepass", allocai);
+		allocai = tmpB.CreateAlloca(t, 0, "__ret_closure");
+		block->addVar(types_map[getRet()], "__ret_closure", allocai);
 		code_builder->getBuilder()->CreateStore(ai, allocai);
 	}
 }
@@ -95,9 +95,8 @@ Value* FuncDecl::codeGen(void) const
 
 	if (types_map.count(type->getName()) != 0) {
 		user_type = types_map[type->getName()];
-		ai = code_builder->createTmpTypePass(
-			user_type,
-			scalar->getName());
+		ai = code_builder->createTmpClosure(
+			user_type, scalar->getName());
 	} else if (ctypes_map.count(type->getName()) != 0) {
 		const llvm::Type	*t;
 		t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
@@ -123,6 +122,7 @@ Value* FuncAssign::codeGen(void) const
 	Value			*e_v;
 	llvm::AllocaInst*	var_loc;
 	EvalCtx			ectx(getOwner());
+	IRBuilder<>		*builder;
 
 	e_v = evalAndGen(ectx, expr);
 	if (e_v == NULL) {
@@ -137,7 +137,22 @@ Value* FuncAssign::codeGen(void) const
 	assert (array == NULL && "Can't assign to arrays yet");
 
 	var_loc = getOwner()->getVar(scalar->getName());
-	code_builder->getBuilder()->CreateStore(e_v, var_loc);
+	assert (var_loc != NULL);
+
+	builder = code_builder->getBuilder();
+	if (e_v->getType() == code_builder->getClosureTy()) {
+		cerr << "AAAAAAAAA" << endl;
+		code_builder->copyClosure(
+			getOwner()->getVarType(scalar->getName()),
+			builder->CreateGEP(e_v,
+				llvm::ConstantInt::get(
+					llvm::getGlobalContext(),
+					llvm::APInt(32, 0))),
+			builder->CreateLoad(var_loc));
+		cerr << "BBBBBB" << endl;
+	} else {
+		builder->CreateStore(e_v /* src */, var_loc /* dst */);
+	}
 
 	return e_v;
 }
@@ -171,11 +186,11 @@ Value* FuncRet::codeGen(void) const
 		llvm::Value			*tp_elem_ptr;
 		AllocaInst			*allocai;
 
-		allocai = getOwner()->getVar("__ret_typepass");
+		allocai = getOwner()->getVar("__ret_closure");
 		assert (allocai != NULL);
 		tp_elem_ptr = builder->CreateLoad(allocai);
 
-		code_builder->copyTypePassStruct(
+		code_builder->copyClosure(
 			types_map[getFunc()->getRet()],
 			e_v, tp_elem_ptr);
 
@@ -388,7 +403,7 @@ static bool gen_func_code_args(
 		}
 
 		if (is_user_type) {
-			t = code_builder->getTypePassStruct();
+			t = code_builder->getClosureTyPtr();
 		} else {
 			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 		}
@@ -398,7 +413,7 @@ static bool gen_func_code_args(
 
 	if (is_ret_user_type) {
 		/* hidden return value */
-		llvm_args.push_back(code_builder->getTypePassStructPtr());
+		llvm_args.push_back(code_builder->getClosureTyPtr());
 	}
 
 

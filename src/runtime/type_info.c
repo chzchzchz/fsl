@@ -19,8 +19,10 @@ static bool verify_asserts(const struct type_info *ti)
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_assert_c; i++) {
 		const struct fsl_rt_table_assert	*as;
+		TI_INTO_CLO(ti);
+
 		as = &tt->tt_assert[i];
-		if (as->as_assertf(ti_to_thunk(ti)) == false) {
+		if (as->as_assertf(clo) == false) {
 			printf("!!! !!!Assert #%d failed on type %s!!! !!!\n",
 				i, tt->tt_name);
 			return false;
@@ -39,38 +41,39 @@ static void print_field(
 	typenum_t			field_typenum;
 	diskoff_t			field_off;
 	unsigned int			param_c;
+	TI_INTO_CLO(ti);
 
-	num_elems = field->tf_elemcount(ti_to_thunk(ti));
+	num_elems = field->tf_elemcount(clo);
 	printf("%s", field->tf_fieldname);
 	if (num_elems > 1) {
 		printf("[%"PRIu64"]", num_elems);
 	}
 
-	field_off = field->tf_fieldbitoff(ti_to_thunk(ti));
+	field_off = field->tf_fieldbitoff(clo);
 
 	field_typenum = field->tf_typenum;
 	if (num_elems > 1 && field_typenum != TYPENUM_INVALID && !field->tf_constsize) {
 		unsigned int param_c = tt_by_num(field->tf_typenum)->tt_param_c;
 		uint64_t field_params[param_c];
+		NEW_CLO(field_closure, field_off, field_params);
 
-		field->tf_params(ti_to_thunk(ti), field_params);
+		field->tf_params(clo, field_params);
 
 		/* non-constant width.. */
 		field_sz = __computeArrayBits(
-			field_typenum,
-			field_off,
-			field_params,
-			num_elems);
+			field_typenum, &field_closure, num_elems);
 	} else {
 		/* constant width */
-		field_sz = field->tf_typesize(ti_to_thunk(ti));
+		field_sz = field->tf_typesize(clo);
 		field_sz *= num_elems;
 	}
 
+	NEW_CLO(last_field_clo, field_off, NULL);
+
 	if (num_elems == 1 && field_sz <= 64) {
-		printf(" = %"PRIu64 " (0x%"PRIx64")",
-			__getLocal(field_off, field_sz),
-			__getLocal(field_off, field_sz));
+		uint64_t	v;
+		v = __getLocal(&last_field_clo, field_off, field_sz);
+		printf(" = %"PRIu64 " (0x%"PRIx64")", v, v);
 	} else {
 #ifdef PRINT_BITS
 		printf("@%"PRIu64"--%"PRIu64,
@@ -88,28 +91,27 @@ static void typeinfo_print_type(const struct type_info* ti)
 {
 	struct fsl_rt_table_type	*tt;
 	uint64_t			len;
+	TI_INTO_CLO			(ti);
 
 	tt = tt_by_ti(ti);
 	if (ti->ti_is_virt) {
 		printf("It's a virt!\n");
 	}
+
 	/* should not be resolving with xlate!*/
-	printf("type=%s/off=%"PRIu64"\n",
-		tt->tt_name,  ti->ti_td.td_diskoff);
-	len = tt->tt_size(ti_to_thunk(ti));
-	printf("GOT SIZE!\n");
+	len = tt->tt_size(clo);
 
 #ifdef PRINT_BITS
 	printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
 		tt_by_ti(ti)->tt_name,
-		ti->ti_td.td_diskoff,
-		ti->ti_td.td_diskoff + len,
+		ti_offset(ti),
+		ti_offset(ti) + len,
 		len);
 #else
 	printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bytes)",
 		tt_by_ti(ti)->tt_name,
-		ti->ti_td.td_diskoff/8,
-		(ti->ti_td.td_diskoff + len)/8,
+		ti_offset(ti)/8,
+		(ti_offset(ti) + len)/8,
 		len/8);
 #endif
 }
@@ -119,23 +121,24 @@ static void typeinfo_print_field(const struct type_info* ti)
 	struct fsl_rt_table_type	*tt;
 	struct fsl_rt_table_field	*field;
 	uint64_t			len;
+	TI_INTO_CLO			(ti->ti_prev);
 
 	tt = tt_by_ti(ti->ti_prev);
 	field = &tt->tt_field_thunkoff[ti->ti_fieldidx];
-	len = field->tf_typesize(ti_to_thunk(ti->ti_prev));
+	len = field->tf_typesize(clo);
 #ifdef PRINT_BITS
 	printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
 		tt->tt_name,
 		field->tf_fieldname,
-		ti->ti_td.td_diskoff,
-		ti->ti_td.td_diskoff + len,
+		ti_offset(ti),
+		ti_offset(ti) + len,
 		len);
 #else
-	printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bytse)",
+	printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bytes)",
 		tt->tt_name,
 		field->tf_fieldname,
-		ti->ti_td.td_diskoff/8,
-		(ti->ti_td.td_diskoff + len)/8,
+		ti_offset(ti)/8,
+		(ti_offset(ti) + len)/8,
 		len/8);
 #endif
 }
@@ -169,10 +172,11 @@ void typeinfo_print_virt(const struct type_info* ti)
 	for (i = 0; i < tt->tt_virt_c; i++) {
 		struct fsl_rt_table_virt	*vt;
 		uint64_t			vt_min, vt_max;
+		TI_INTO_CLO			(ti);
 
 		vt = &tt->tt_virt[i];
-		vt_min = vt->vt_min(ti_to_thunk(ti));
-		vt_max = vt->vt_max(ti_to_thunk(ti));
+		vt_min = vt->vt_min(clo);
+		vt_max = vt->vt_max(clo);
 		if (vt_min > vt_max)
 			continue;
 
@@ -203,10 +207,11 @@ void typeinfo_print_pointsto(const struct type_info* ti)
 	for (i = 0; i < tt->tt_pointsto_c; i++) {
 		struct fsl_rt_table_pointsto	*pt;
 		uint64_t			pt_min, pt_max;
+		TI_INTO_CLO			(ti);
 
 		pt = &tt->tt_pointsto[i];
-		pt_min = pt->pt_min(ti_to_thunk(ti));
-		pt_max = pt->pt_max(ti_to_thunk(ti));
+		pt_min = pt->pt_min(clo);
+		pt_max = pt->pt_max(clo);
 		if (pt_min > pt_max) {
 			/* failed some condition, don't display. */
 			continue;
@@ -240,12 +245,13 @@ void typeinfo_print_fields(const struct type_info* ti)
 	for (i = 0; i < tt->tt_fieldall_c; i++) {
 		struct fsl_rt_table_field	*field;
 		bool				is_present;
+		TI_INTO_CLO			(ti);
 
 		field = &tt->tt_fieldall_thunkoff[i];
 		if (field->tf_cond == NULL)
 			is_present = true;
 		else
-			is_present = field->tf_cond(ti_to_thunk(ti));
+			is_present = field->tf_cond(clo);
 
 		if (is_present == false)
 			continue;
@@ -262,8 +268,8 @@ void typeinfo_print_fields(const struct type_info* ti)
 
 void typeinfo_free(struct type_info* ti)
 {
-	if (ti->ti_td.td_params != NULL) free(ti->ti_td.td_params);
-	if (ti->ti_is_virt == true) fsl_virt_clear();
+	if (ti->ti_td.td_clo.clo_params != NULL)
+		free(ti->ti_td.td_clo.clo_params);
 	free(ti);
 }
 
@@ -271,8 +277,9 @@ void typeinfo_dump_data(const struct type_info* ti)
 {
 	uint64_t			type_sz;
 	unsigned int			i;
+	TI_INTO_CLO			(ti);
 
-	type_sz = tt_by_ti(ti)->tt_size(ti_to_thunk(ti));
+	type_sz = tt_by_ti(ti)->tt_size(clo);
 
 	for (i = 0; i < type_sz / 8; i++) {
 		uint8_t	c;
@@ -281,7 +288,7 @@ void typeinfo_dump_data(const struct type_info* ti)
 			if (i != 0) printf("\n");
 			printf("%04x: ", i);
 		}
-		c = __getLocal(ti->ti_td.td_diskoff + (i*8), 8);
+		c = __getLocal(clo, ti_offset(ti) + (i*8), 8);
 		printf("%c%c ", hexmap[(c >> 4) & 0xf], hexmap[c & 0xf]);
 
 	}
@@ -304,13 +311,13 @@ static struct type_info* typeinfo_alloc_generic(
 	tt = tt_by_num(ti_typenum(ret));
 	if (tt->tt_param_c > 0) {
 		unsigned int	len;
-		assert (ti_td->td_params != NULL);
+		assert (ti_td->td_clo.clo_params != NULL);
 
 		len = sizeof(uint64_t) * tt->tt_param_c;
-		ret->ti_td.td_params = malloc(len);
-		memcpy(ret->ti_td.td_params, ti_td->td_params, len);
+		ti_params(ret) = malloc(len);
+		memcpy(ti_params(ret), ti_td->td_clo.clo_params, len);
 	} else
-		ret->ti_td.td_params = NULL;
+		ti_params(ret) = NULL;
 
 	ret->ti_prev = ti_prev;
 	if (ti_prev != NULL) {
@@ -380,8 +387,8 @@ struct type_info* typeinfo_alloc_virt(
 	assert (tt_by_num(virt->vt_type_virttype)->tt_param_c == 0);
 
 	td.td_typenum = virt->vt_type_virttype;
-	td.td_diskoff = 0;
-	td.td_params = NULL;
+	td.td_clo.clo_offset = 0;
+	td.td_clo.clo_params = NULL;
 	ret = typeinfo_alloc_generic(&td, ti_prev);
 	if (ret == NULL)
 		return NULL;
@@ -389,8 +396,6 @@ struct type_info* typeinfo_alloc_virt(
 	ret->ti_is_virt = true;
 	ret->ti_pointsto = false;
 	ret->ti_virttype_c = 0;	/* XXX */
-
-	fsl_virt_set(td_explode(&ti_prev->ti_td), virt);
 
 	typeinfo_set_dyn(ret);
 	if (verify_asserts(ret) == false) {
@@ -403,6 +408,7 @@ struct type_info* typeinfo_alloc_virt(
 
 void typeinfo_set_dyn(const struct type_info* ti)
 {
+	TI_INTO_CLO			(ti);
 	struct fsl_rt_table_type	*tt;
 	unsigned int			i;
 
@@ -421,9 +427,11 @@ void typeinfo_set_dyn(const struct type_info* ti)
 		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
 		uint64_t	params[param_c];
 
-		diskoff = field->tf_fieldbitoff(ti_to_thunk(ti));
-		field->tf_params(ti_to_thunk(ti), params);
-		__setDyn(field->tf_typenum, diskoff, params);
+		diskoff = field->tf_fieldbitoff(clo);
+		field->tf_params(clo, params);
+
+		NEW_CLO				(new_clo, diskoff, params);
+		__setDyn(field->tf_typenum, &new_clo);
 	}
 }
 

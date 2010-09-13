@@ -25,12 +25,10 @@ struct fsl_rt_stat
 struct fsl_rt_ctx
 {
 	unsigned int		fctx_num_types;
-	uint64_t		*fctx_type_offsets;
-	uint64_t		**fctx_type_params;
+	struct fsl_rt_closure	*fctx_dyn_closures;
 	FILE			*fctx_backing;
 	struct fsl_rt_stat	fctx_stat;
 	struct fsl_rt_virt	*fctx_virt;
-	unsigned int		fctx_vdepth;
 };
 
 #define rtv_to_thunk(x)	((x)->rtv_off), ((x)->rtv_params)
@@ -58,6 +56,12 @@ struct fsl_rt_closure
 
 };
 
+#define NEW_CLO(x,y,z)	struct fsl_rt_closure x;		\
+			x.clo_offset = y;			\
+			x.clo_params = z;			\
+			x.clo_xlate = NULL
+
+
 struct fsl_rt_mapping
 {
 	struct fsl_rt_closure* 		rtm_clo; 	/* for eval rtm_virt */
@@ -69,16 +73,16 @@ struct fsl_rt_mapping
 #define TYPENUM_INVALID	(~0)
 
 /* XXX these should take a thunkvar when we support args */
-typedef diskoff_t(*thunkf_t)(diskoff_t, parambuf_t );
-typedef typesize_t(*sizef_t)(diskoff_t, parambuf_t );
-typedef uint64_t(*elemsf_t)(diskoff_t, parambuf_t );
-typedef uint64_t(*points_minf_t)(diskoff_t, parambuf_t );
-typedef uint64_t(*points_maxf_t)(diskoff_t, parambuf_t );
+typedef diskoff_t(*thunkf_t)(const struct fsl_rt_closure*);
+typedef typesize_t(*sizef_t)(const struct fsl_rt_closure*);
+typedef uint64_t(*elemsf_t)(const struct fsl_rt_closure*);
+typedef uint64_t(*points_minf_t)(const struct fsl_rt_closure*);
+typedef uint64_t(*points_maxf_t)(const struct fsl_rt_closure*);
 typedef diskoff_t(*points_rangef_t)(
-	diskoff_t, parambuf_t , uint64_t /* idx */, parambuf_t /* out */);
-typedef void(*paramsf_t)(diskoff_t, parambuf_t /* in */, parambuf_t /* out */);
-typedef bool(*condf_t)(diskoff_t, parambuf_t);
-typedef bool(*assertf_t)(diskoff_t, parambuf_t);
+	const struct fsl_rt_closure*, uint64_t /* idx */, parambuf_t /* out */);
+typedef void(*paramsf_t)(const struct fsl_rt_closure*, parambuf_t /* out */);
+typedef bool(*condf_t)(const struct fsl_rt_closure*);
+typedef bool(*assertf_t)(const struct fsl_rt_closure*);
 
 
 struct fsl_rt_thunk_var
@@ -172,17 +176,19 @@ extern int				fsl_rt_debug;
 /* exposed to llvm */
 typesize_t __computeArrayBits(
 	uint64_t elem_type,
-	diskoff_t off,
-	parambuf_t params,
+	struct fsl_rt_closure* clo,
 	uint64_t num_elems);
 
-uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits);
+uint64_t __getLocal(
+	const struct fsl_rt_closure*, uint64_t bit_off, uint64_t num_bits);
 uint64_t __getLocalArray(
+	const struct fsl_rt_closure*,
 	uint64_t idx, uint64_t bits_in_type,
 	uint64_t base_offset, uint64_t bits_in_array);
 uint64_t __getDynOffset(uint64_t type_num);
+void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo);
 void __getDynParams(uint64_t typenum, parambuf_t params_out);
-void __setDyn(uint64_t type_num, diskoff_t offset, parambuf_t params);
+void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo);
 uint64_t __max2(
 	uint64_t a0, uint64_t a1);
 uint64_t __max3(uint64_t a0, uint64_t a1, uint64_t a2);
@@ -193,19 +199,11 @@ uint64_t __max6(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 uint64_t __max7(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 		uint64_t a5, uint64_t a6);
 uint64_t fsl_fail(void);
-void __enterDynCall(void);
-void __leaveDynCall(void);
 
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
 void fsl_rt_dump_dyn(void);
-void fsl_virt_set(
-	typenum_t src_typenum, /* parameters for parent type instance */
-	diskoff_t src_off,
-	parambuf_t src_params,
-	const struct fsl_rt_table_virt* );
-void fsl_virt_clear(void);
 
 /* implemented by tool: */
 void tool_entry(int argc, char* argv[]);

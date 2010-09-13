@@ -27,7 +27,7 @@ CodeBuilder::CodeBuilder(const char* mod_name) : tmp_c(0)
 	builder = new llvm::IRBuilder<>(llvm::getGlobalContext());
 	mod = new llvm::Module(mod_name, llvm::getGlobalContext());
 	debug_output = false;
-	makeTypePassStruct();
+	makeClosureTy();
 }
 
 CodeBuilder::~CodeBuilder(void)
@@ -102,11 +102,7 @@ void CodeBuilder::genThunkProto(
 	llvm::FunctionType		*ft;
 	vector<const llvm::Type*>	args;
 
-	/* diskoff_t */
-	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
-
-	/* parambuf_t */
-	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
+	args.push_back(getClosureTyPtr());
 
 	ft = llvm::FunctionType::get(ret_type, args, false);
 	f = llvm::Function::Create(
@@ -152,11 +148,6 @@ void CodeBuilder::genCode(
 	assert (local_syms != NULL);
 
 	expr_eval_bits = eval(EvalCtx(local_syms), raw_expr);
-	if (debug_output) {
-		cerr << "DEBUG: " << fname << endl;
-		expr_eval_bits->print(cerr);
-		cerr << endl;
-	}
 
 	bb_bits = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f_bits);
@@ -203,23 +194,33 @@ void CodeBuilder::genThunkHeaderArgs(
 	ai = f->arg_begin();
 
 	/* create the hidden argument __thunk_off_arg */
-	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+	l_t = builder->getInt64Ty();
 	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgOffsetName());
 	tmp_var_map[rt_glue.getThunkArgOffsetName()] = allocai;
-	tmp_var_map[t->getName()] = allocai;	/* alias for typename */
-	builder->CreateStore(ai, allocai);
+	builder->CreateStore(
+		builder->CreateExtractValue(
+			builder->CreateLoad(ai), 0, "t_offset"),
+		allocai);
 
-	/* skip over __thunk_off_arg */
-	ai++;
 
+	/* __thunk_params */
 	l_t = llvm::Type::getInt64PtrTy(llvm::getGlobalContext());
 	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgParamPtrName());
-
 	tmp_var_map[rt_glue.getThunkArgParamPtrName()] = allocai;
 	tmp_var_map[t->getName() + "_params"] = allocai;
+	builder->CreateStore(
+		builder->CreateExtractValue(
+			builder->CreateLoad(ai), 1, "t_params"),
+		allocai);
+
+	/* __thunk_closure */
+	allocai = tmpB.CreateAlloca(
+		getClosureTyPtr(), 0, rt_glue.getThunkClosureName());
+	tmp_var_map[rt_glue.getThunkClosureName()] = allocai;
 	builder->CreateStore(ai, allocai);
 
-	/* skip over param pointer */
+
+	/* get past the closure pointer */
 	ai++;
 
 	/* create the rest of the arguments */
@@ -282,8 +283,8 @@ void CodeBuilder::genTypeArgs(
 	}
 }
 
-void CodeBuilder::copyTypePassStruct(
-	const Type* copy_type, llvm::Value *src, llvm::Value *dst_ptr)
+void CodeBuilder::copyClosure(
+	const Type* copy_type, llvm::Value *src_ptr, llvm::Value *dst_ptr)
 {
 	llvm::Value	*dst_params_ptr;
 	llvm::Value	*src_params_ptr;
@@ -292,11 +293,13 @@ void CodeBuilder::copyTypePassStruct(
 	builder->CreateStore(
 		builder->CreateInsertValue(
 			builder->CreateLoad(dst_ptr),
-			builder->CreateExtractValue(src, 0, "cb_copy_offset"),
+			builder->CreateExtractValue(
+				builder->CreateLoad(src_ptr), 0, "cb_copy_offset"),
 			0),
 		dst_ptr);
 
-	src_params_ptr = builder->CreateExtractValue(src, 1, "src_params");
+	src_params_ptr = builder->CreateExtractValue(
+		builder->CreateLoad(src_ptr), 1, "src_params");
 	dst_params_ptr = builder->CreateExtractValue(
 		builder->CreateLoad(dst_ptr), 1, "dst_params");
 
@@ -396,35 +399,25 @@ void CodeBuilder::write(std::string& os)
 }
 
 
-llvm::Type* CodeBuilder::getTypePassStructPtr(void)
+llvm::Type* CodeBuilder::getClosureTyPtr(void)
 {
-	llvm::Type*	ret;
-
-	ret = llvm::PointerType::get(typepass_struct, 0);
-
-	return ret;
+	return llvm::PointerType::get(closure_struct, 0);
 }
 
-llvm::Type* CodeBuilder::getTypePassStruct(void)
-{
-	return typepass_struct;
-}
-
-void CodeBuilder::makeTypePassStruct(void)
+void CodeBuilder::makeClosureTy(void)
 {
 	vector<const llvm::Type*>	types;
+	llvm::LLVMContext		&gctx(llvm::getGlobalContext());
 
 	/* diskoffset */
-	types.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
+	types.push_back(llvm::Type::getInt64Ty(gctx));
 	/* param array */
-	types.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
+	types.push_back(llvm::Type::getInt64PtrTy(gctx));
+	/* clo_xlate ptr-- voidptr; opaque to llvm */
+	types.push_back(llvm::Type::getInt8PtrTy(gctx));
 
-	typepass_struct = llvm::StructType::get(
-		llvm::getGlobalContext(), 
-		types,
-		"typepass");
+	closure_struct = llvm::StructType::get(gctx, types, "closure");
 }
-
 
 llvm::AllocaInst* CodeBuilder::createTmpI64Ptr(void)
 {
@@ -448,6 +441,18 @@ llvm::AllocaInst* CodeBuilder::getTmpAllocaInst(const std::string& s) const
 		return NULL;
 
 	return (*it).second;
+}
+
+void CodeBuilder::printTmpVars(void) const
+{
+	cerr << "DUmping tmpvars" << endl;
+	for (	llvm_var_map::const_iterator it = tmp_var_map.begin();
+		it != tmp_var_map.end();
+		it++)
+	{
+		cerr << (*it).first << endl;
+	}
+	cerr << "Done dumping." << endl;
 }
 
 llvm::AllocaInst* CodeBuilder::createTmpI64(const std::string& name)
@@ -490,20 +495,57 @@ llvm::AllocaInst* CodeBuilder::createTmpI64(void)
 	return createTmpI64("__BBB" + int_to_string(tmp_c++));
 }
 
-llvm::AllocaInst* CodeBuilder::createTmpTypePass(
+llvm::Value* CodeBuilder::getNullPtrI64(void)
+{
+	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
+	llvm::Value		*ret;
+	ret = llvm::ConstantExpr::getIntToPtr(
+		llvm::ConstantInt::get(llvm::Type::getInt64Ty(gctx), 0),
+		llvm::PointerType::getUnqual(
+			llvm::Type::getInt64Ty(gctx)));
+	return ret;
+}
+
+llvm::Value* CodeBuilder::getNullPtrI8(void)
+{
+	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
+	llvm::Value		*ret;
+	ret = llvm::ConstantExpr::getIntToPtr(
+		llvm::ConstantInt::get(llvm::Type::getInt64Ty(gctx), 0),
+		llvm::PointerType::getUnqual(
+			llvm::Type::getInt8Ty(gctx)));
+	return ret;
+}
+
+static unsigned int closure_c = 0;
+llvm::AllocaInst* CodeBuilder::createTmpClosure(
 	const Type* t, const std::string& name)
 {
-	llvm::AllocaInst	*ai, *p_ai;
+	llvm::AllocaInst	*ai, *p_ai, *ai_ptr;
+	string			our_name, our_name_ptr;
 
-	ai = builder->CreateAlloca(getTypePassStruct(), 0, name);
+	if (name == "") {
+		our_name = "__clo_" + int_to_string(closure_c);
+		our_name_ptr = "__ptr_" + our_name;
+		closure_c++;
+	} else {
+		our_name = name;
+		our_name_ptr = "__ptr_" + name;
+	}
+
+	ai = builder->CreateAlloca(getClosureTy(), 0, our_name);
+
+	ai_ptr = builder->CreateAlloca(getClosureTyPtr(), 0, our_name_ptr);
+	builder->CreateStore(ai, ai_ptr);
+	tmp_var_map[ai_ptr->getName()] = ai_ptr;
+
 	if (t->getNumArgs() == 0)
-		return ai;
+		return ai_ptr;
 
-
-	p_ai = createPrivateTmpI64Array(t->getNumArgs(), name + "_params");
+	p_ai = createPrivateTmpI64Array(t->getNumArgs(), our_name + "_params");
 	builder->CreateInsertValue(ai, p_ai, 1);
 
-	return ai;
+	return ai_ptr;
 }
 
 llvm::AllocaInst* CodeBuilder::createPrivateTmpI64Array(

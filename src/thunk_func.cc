@@ -34,7 +34,5 @@ void ThunkFunc::setOwner(const ThunkType* tt)
 
 FCall* ThunkFunc::copyFCall(void) const
 {
-	return new FCall(
-		new Id(getFCallName()),
-		getOwner()->copyExprList());
+	return new FCall(new Id(getFCallName()), getOwner()->copyExprList());
 }

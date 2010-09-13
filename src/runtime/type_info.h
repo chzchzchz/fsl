@@ -5,9 +5,8 @@
 
 struct type_desc
 {
-	typenum_t	td_typenum;
-	diskoff_t	td_diskoff;
-	parambuf_t	td_params;
+	typenum_t			td_typenum;
+	struct fsl_rt_closure		td_clo;
 };
 
 struct type_info
@@ -29,11 +28,25 @@ struct type_info
 };
 
 #define ti_typenum(x)	(x)->ti_td.td_typenum
+#define ti_offset(x)	(x)->ti_td.td_clo.clo_offset
+#define ti_params(x)	(x)->ti_td.td_clo.clo_params
 #define ti_to_thunk(x)	td_to_thunk(&((x)->ti_td))
-#define td_to_thunk(x)	((x)->td_diskoff), ((x)->td_params)
-#define td_explode(x)	((x)->td_typenum), ((x)->td_diskoff), ((x)->td_params)
+#define TI_INTO_CLO(x)	TD_INTO_CLO(&(x)->ti_td)
+#define TI_INTO_CLO_DECL(x,y) TD_INTO_CLO_DECL(x, &((y)->ti_td))
+
+#define TD_INTO_CLO_DECL(x,y)					\
+			struct fsl_rt_closure x;		\
+			x.clo_offset = (y)->td_clo.clo_offset;	\
+			x.clo_params = (y)->td_clo.clo_params;	\
+			x.clo_xlate = NULL
+
+#define TD_INTO_CLO(x)	const struct fsl_rt_closure *clo = &((x)->td_clo);
+
+#define td_explode(x)	((x)->td_typenum), (&((x)->td_clo))
 #define td_by_ti(x)	(&((x)->ti_td))
 #define tt_by_ti(x)	tt_by_num(ti_typenum(x))
+#define td_offset(x)	(x)->td_clo.clo_offset
+#define td_params(x)	(x)->td_clo.clo_params
 
 #define typeinfo_set_depth(x,y)	do { (x)->ti_depth = (y); } while (0)
 #define typeinfo_get_depth(x)	(x)->ti_depth

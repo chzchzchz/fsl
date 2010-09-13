@@ -33,14 +33,15 @@ static void scan_type_pointsto(
 	struct fsl_rt_table_type	*tt;
 	unsigned int			k;
 	unsigned int			min_idx, max_idx;
+	TI_INTO_CLO			(ti);
 
 	pt = pt_from_idx(ti, pt_idx);
 	assert (pt->pt_range != NULL);
 
 	tt = tt_by_num(pt->pt_type_dst);
 
-	min_idx = pt->pt_min(ti_to_thunk(ti));
-	max_idx = pt->pt_max(ti_to_thunk(ti));
+	min_idx = pt->pt_min(clo);
+	max_idx = pt->pt_max(clo);
 	if (min_idx != max_idx)
 		printf("[%d,%d]\n", min_idx, max_idx);
 	for (k = min_idx; k <= max_idx; k++) {
@@ -49,8 +50,8 @@ static void scan_type_pointsto(
 		uint64_t		params[tt->tt_param_c];
 
 		next_td.td_typenum = pt->pt_type_dst;
-		next_td.td_diskoff = pt->pt_range(ti_to_thunk(ti), k, params);
-		next_td.td_params = params;
+		td_offset(&next_td) = pt->pt_range(clo, k, params);
+		td_params(&next_td) = params;
 
 		new_ti = typeinfo_alloc_pointsto(&next_td, pt_idx, k, ti);
 		if (new_ti == NULL)
@@ -97,24 +98,26 @@ static void handle_field(
 	uint64_t			num_elems;
 	unsigned int			param_c;
 	unsigned int			i;
+	TI_INTO_CLO			(ti);
 
 	field = &tt_by_ti(ti)->tt_field_thunkoff[field_idx];
 	next_td.td_typenum = field->tf_typenum;
-	next_td.td_diskoff = field->tf_fieldbitoff(ti_to_thunk(ti));
+	td_offset(&next_td) = field->tf_fieldbitoff(clo);
 	if (field->tf_typenum != ~0)
 		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
 	else
 		param_c = 0;
 	uint64_t params[param_c];
 
-	field->tf_params(ti_to_thunk(ti), params);
-	next_td.td_params = params;
+	field->tf_params(clo, params);
+	td_params(&next_td) = params;
 
-	num_elems = field->tf_elemcount(ti_to_thunk(ti));
+	num_elems = field->tf_elemcount(clo);
 	for (i = 0; i < num_elems; i++) {
+
 		/* dump data */
 		print_indent(typeinfo_get_depth(ti));
-		dump_field(field, next_td.td_diskoff);
+		dump_field(field, td_offset(&next_td));
 		if (next_td.td_typenum == ~0)
 			return;
 
@@ -124,11 +127,10 @@ static void handle_field(
 			continue;
 
 		scan_type(new_ti);
-
+		TI_INTO_CLO_DECL(new_clo, new_ti);
 		if (i < num_elems - 1) {
 			/* more to next element */
-			next_td.td_diskoff += tt_by_ti(new_ti)->tt_size(
-				ti_to_thunk(new_ti));
+			td_offset(&next_td) += tt_by_ti(new_ti)->tt_size(&new_clo);
 		}
 
 		typeinfo_free(new_ti);

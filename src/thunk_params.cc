@@ -18,10 +18,8 @@ FCall* ThunkParams::copyFCall(void) const
 
 	t = getOwner()->getType();
 
-	fc_exprs = new ExprList();
-	fc_exprs->add(rt_glue.getThunkArgOffset());
-	fc_exprs->add(rt_glue.getThunkArgParamPtr());
-	fc_exprs->add(
+	fc_exprs = new ExprList(
+		rt_glue.getThunkClosure(),
 		new FCall(
 			new Id("paramsAllocaByCount"), 
 			new ExprList(
@@ -80,8 +78,7 @@ bool ThunkParams::genProtoByName(const string& name)
 	vector<const llvm::Type*>	args;
 
 	/* diskoff,  parent's params, out params */
-	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
-	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
+	args.push_back(code_builder->getClosureTyPtr());
 	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
 
 	ft = llvm::FunctionType::get(
@@ -142,8 +139,7 @@ bool ThunkParams::genCodeExprs(void) const
 	/* load n parameters */
 	code_builder->genThunkHeaderArgs(f, getOwner()->getType());
 
-	arg_it = f->arg_begin();	/* diskoff */
-	arg_it++;			/* param (in) */
+	arg_it = f->arg_begin();	/* closure */
 	arg_it++;			/* params (out) */
 
 	params_out_ptr = builder->CreateAlloca(

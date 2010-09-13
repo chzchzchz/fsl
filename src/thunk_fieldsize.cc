@@ -49,6 +49,7 @@ bool ThunkFieldSize::genCode(void) const
 		const SymbolTableEnt	*st_ent;
 		const ThunkType		*tt;
 		const ThunkFieldOffset	*tf_off;
+		const ThunkParams	*tf_params;
 		Expr			*gen_expr;
 
 		st = symtabs[t->getName()];
@@ -62,13 +63,18 @@ bool ThunkFieldSize::genCode(void) const
 		st_ent = st_owner->lookup(getFieldName());
 		assert (st_ent != NULL);
 		tf_off = st_ent->getFieldThunk()->getOffset();
+		tf_params = st_ent->getFieldThunk()->getParams();
 
 		/* replace getSize fcall's thunk_offset with
 		 * our offset. */
 		gen_expr = Expr::rewriteReplace(
 				gen_expr,
-				rt_glue.getThunkArgOffset(),
-				tf_off->copyFCall());
+				rt_glue.getThunkClosure(),
+				new FCall(
+					new Id("__mkClosure"),
+					new ExprList(
+						tf_off->copyFCall(),
+						tf_params->copyFCall())));
 		code_builder->genCode(
 			getOwner()->getType(),
 			getFCallName(), 

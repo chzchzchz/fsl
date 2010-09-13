@@ -26,6 +26,10 @@ Value* Expr::ErrorV(const string& s) const
 	cerr << "expr error: " << s << " in the expression \"";
 	print(cerr);
 	cerr << "\"" << endl;
+
+	cerr << "LLVM DUMP:" << endl;
+	code_builder->getBuilder()->GetInsertBlock()->getParent()->dump();
+
 	assert (0 == 1);
 	return NULL;
 }
@@ -36,15 +40,8 @@ Value* Id::codeGen() const
 	AllocaInst		*ai = NULL;
 	GlobalVariable		*gv;
 
-	if (getName() == "__NULLPTR") {
-		llvm::LLVMContext	&gctx(llvm::getGlobalContext());
-		llvm::Value		*ret;
-		ret = llvm::ConstantExpr::getIntToPtr(
-			llvm::ConstantInt::get(llvm::Type::getInt64Ty(gctx), 0),
-			llvm::PointerType::getUnqual(
-				llvm::Type::getInt64Ty(gctx))); 
-		return ret;
-	}
+	if (getName() == "__NULLPTR")
+		return code_builder->getNullPtrI64();
 
 	/* load.. */
 	if (gen_func_block == NULL && code_builder->getTmpVarCount() == 0) {
@@ -63,6 +60,7 @@ Value* Id::codeGen() const
 		ai = code_builder->getTmpAllocaInst(getName());
 
 	if (ai == NULL) {
+		code_builder->printTmpVars();
 		return ErrorV(
 			string("Could not find variable ") + 
 			getName());

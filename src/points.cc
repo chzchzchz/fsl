@@ -261,8 +261,7 @@ void PointsRange::genCodeRange(void) const
 	builder->SetInsertPoint(bb_bits);
 	code_builder->genThunkHeaderArgs(f, src_type);
 
-	ai = f->arg_begin();	/* diskoff */
-	ai++;			/* parambuf */
+	ai = f->arg_begin();	/* closure */
 	ai++;			/* idx */
 
 	/* gen s for idx and output parambuf */
@@ -272,14 +271,17 @@ void PointsRange::genCodeRange(void) const
 
 	ret_typepass = expr_eval_bits->codeGen();
 	assert (ret_typepass != NULL);
-	assert (ret_typepass->getType() == code_builder->getTypePassStruct());
+
+	assert (ret_typepass->getType() == code_builder->getClosureTyPtr());
 	/* output value should be a typepass struct */
 
-	ret_params = builder->CreateExtractValue(ret_typepass, 1, "params");
+	ret_params = builder->CreateExtractValue(
+		builder->CreateLoad(ret_typepass), 1, "params");
 	ai++;	/* parambuf output */
 	code_builder->emitMemcpy64(ai, ret_params, dst_type->getNumArgs());
 
-	ret_off = builder->CreateExtractValue(ret_typepass, 0, "offset");
+	ret_off = builder->CreateExtractValue(
+		builder->CreateLoad(ret_typepass), 0, "offset");
 	builder->CreateRet(ret_off);
 }
 
@@ -288,18 +290,13 @@ void PointsRange::genProto(void) const
 	const ThunkType	*tt;
 
 	tt = symtabs[src_type->getName()]->getThunkType();
-//	code_builder->genProto(
-//		getFCallName(), tt->getThunkArgCount() + 1 /*binding sym*/);
-	{
+{
 	llvm::Function			*f;
 	llvm::FunctionType		*ft;
 	vector<const llvm::Type*>	args;
 
 	/* diskoff_t */
-	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
-
-	/* parambuf_t */
-	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
+	args.push_back(code_builder->getClosureTyPtr());
 
 	/* binding sym */
 	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
@@ -395,9 +392,7 @@ PointsIf::PointsIf(
 	new Number(1),
 	new FCall(
 		new Id(getWrapperFCallName(in_src_type->getName(), in_seq)),
-		new ExprList(
-			rt_glue.getThunkArgOffset(), 
-			rt_glue.getThunkArgParamPtr())),
+		new ExprList(rt_glue.getThunkClosure())),
 	in_points_expr,
 	in_seq),
 	cond_expr(in_cond_expr)
@@ -439,5 +434,4 @@ void PointsIf::genProto(void) const
 			getSrcType()->getName(), getSeqNum()));
 	PointsRange::genProto();
 }
-
 

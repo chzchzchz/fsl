@@ -12,11 +12,17 @@ extern RTInterface	rt_glue;
 
 using namespace std;
 
-static Expr* replaceThunkArgs(Expr* in_expr, Expr* diskoff, Expr* params)
+static Expr* replaceClosure(Expr* in_expr, Expr* diskoff, Expr* params)
 {
 	Expr	*ret = in_expr;
-	ret = Expr::rewriteReplace(ret, rt_glue.getThunkArgOffset(), diskoff);
-	ret = Expr::rewriteReplace(ret, rt_glue.getThunkArgParamPtr(), params);
+
+	Expr::rewriteReplace(
+		ret,
+		rt_glue.getThunkClosure(),
+		new FCall(
+			new Id("__mkClosure"),
+			new ExprList(diskoff, params)));
+
 	return ret;
 }
 
@@ -41,12 +47,12 @@ bool EvalCtx::setNewOffsets(
 	offset_fc = tf->getOffset()->copyFCall();
 	assert (offset_fc != NULL);
 
-	new_base = replaceThunkArgs(
+	new_base = replaceClosure(
 		offset_fc,
 		tb.tb_diskoff->simplify(),
 		tb.tb_parambuf->simplify());
 
-	new_params = replaceThunkArgs(
+	new_params = replaceClosure(
 		tf->getParams()->copyFCall(),
 		tb.tb_diskoff->simplify(),
 		tb.tb_parambuf->simplify());
@@ -70,7 +76,7 @@ bool EvalCtx::setNewOffsets(
 				Expr	*sz;
 
 				sz = new AOPMul(
-					replaceThunkArgs(
+					replaceClosure(
 						tf->getSize()->copyFCall(),
 						tb.tb_diskoff->simplify(),
 						tb.tb_parambuf->simplify()),
@@ -83,7 +89,7 @@ bool EvalCtx::setNewOffsets(
 			Expr	*field_size;
 			Expr	*array_off;
 
-			field_size = replaceThunkArgs(
+			field_size = replaceClosure(
 				tf->getSize()->copyFCall(),
 				tb.tb_diskoff->simplify(),
 				tb.tb_parambuf->simplify());
@@ -166,6 +172,68 @@ cleanup_err:
 	return false;
 }
 
+bool EvalCtx::resolveIdStructCurScope(
+		const IdStruct* ids,
+		const std::string& name,
+		const Expr* idx,
+		struct TypeBase& tb) const
+{
+	if (cur_scope == NULL)
+		return false;
+
+	/* type scoped */
+	/* two cases:
+	 * 	1. reference to current type (e.g. ext2_inode.ino_num)
+	 * 	2. reference to internal field (e.g. ino_num)
+	 */
+	tb.tb_lastsym = cur_scope->lookup(name);
+	if (tb.tb_lastsym == NULL)
+		return false;
+
+	tb.tb_type = tb.tb_lastsym->getType();
+	if (tb.tb_type != NULL)
+		tb.tb_symtab = symtabByName(
+			tb.tb_type->getName());
+	else
+		tb.tb_symtab = NULL;
+
+	tb.tb_diskoff = rt_glue.getThunkArgOffset();
+	tb.tb_parambuf = rt_glue.getThunkArgParamPtr();
+	setNewOffsets(tb, idx);
+
+	return resolveTail(tb, ids, ++(ids->begin()));
+}
+
+bool EvalCtx::resolveIdStructFunc(
+		const IdStruct* ids,
+		const std::string& name,
+		const Expr* idx,
+		struct TypeBase& tb) const
+{
+	/* function scoped */
+	/* pull the typepass our of the function arguments */
+
+	if (cur_func_blk == NULL)
+		return false;
+
+	tb.tb_lastsym = NULL;
+	tb.tb_type = cur_func->getArgs()->getType(name);
+	if (tb.tb_type == NULL)
+		tb.tb_type = cur_func_blk->getVarType(name);
+
+	if (tb.tb_type == NULL)
+		return false;
+	tb.tb_symtab = symtabByName(tb.tb_type->getName());
+	tb.tb_diskoff = new FCall(
+		new Id("__extractOff"),
+		new ExprList(new Id(name)));
+	tb.tb_parambuf = new FCall(
+		new Id("__extractParam"),
+		new ExprList(new Id(name)));
+	return resolveTail(tb, ids, ++(ids->begin()));
+}
+
+
 Expr* EvalCtx::resolve(const IdStruct* ids) const
 {
 	const ThunkField		*thunk_field;
@@ -174,47 +242,20 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	string				name;
 	Expr				*idx;
 	Expr				*ret;
+	Expr				*parent_closure;
 	bool				found_expr;
-	bool				needs_wrap;
 
 	assert (ids != NULL);
 
 	if (toName(ids->front(), name, idx) == false)
 		return NULL;
 
-	needs_wrap = false;
 	found_expr = false;
-	if (cur_scope != NULL) {
-		/* type scoped */
-		/* two cases:
-		 * 	1. reference to current type (e.g. ext2_inode.ino_num)
-		 * 	2. reference to internal field (e.g. ino_num)
-		 */
-		tb.tb_lastsym = cur_scope->lookup(name);
-		if (tb.tb_lastsym != NULL) {
-			tb.tb_type = tb.tb_lastsym->getType();
-			if (tb.tb_type != NULL)
-				tb.tb_symtab = symtabByName(
-					tb.tb_type->getName());
-			else
-				tb.tb_symtab = NULL;
 
-			tb.tb_diskoff = rt_glue.getThunkArgOffset();
-			tb.tb_parambuf = rt_glue.getThunkArgParamPtr();
-			setNewOffsets(tb, idx);
-
-			found_expr = resolveTail(tb, ids, ++(ids->begin()));
-		} else if ((t = typeByName(name)) != NULL) {
-			/* typename? get from global scope */
-			/* NOTE: This is not handled by the generic global code
-			 * because we want virtual types to work with
-			 * self-reference */
-			tb.tb_lastsym = NULL;
-			tb.tb_type = t;
-			tb.tb_symtab = symtabByName(t->getName());
-			tb.tb_diskoff = rt_glue.getDynOffset(t);
-			tb.tb_parambuf = rt_glue.getDynParams(t);
-		}
+	found_expr = resolveIdStructCurScope(ids, name, idx, tb);
+	if (found_expr) {
+		/* closure is from parent type.. */
+		parent_closure = rt_glue.getThunkClosure();
 	}
 
 	if (!found_expr && idx != NULL) {
@@ -225,22 +266,11 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 		return NULL;
 	}
 
-	if (cur_func_blk != NULL) {
-		/* function scoped */
-		/* pull the typepass our of the function arguments */
-		tb.tb_lastsym = NULL;
-		tb.tb_type = cur_func->getArgs()->getType(name);
-		if (tb.tb_type == NULL)
-			tb.tb_type = cur_func_blk->getVarType(name);
-		if (tb.tb_type != NULL) {
-			tb.tb_symtab = symtabByName(tb.tb_type->getName());
-			tb.tb_diskoff = new FCall(
-				new Id("__extractOff"), 
-				new ExprList(new Id(name)));
-			tb.tb_parambuf = new FCall(
-				new Id("__extractParam"), 
-				new ExprList(new Id(name)));
-			found_expr = resolveTail(tb, ids, ++(ids->begin()));
+	if (!found_expr) {
+		found_expr = resolveIdStructFunc(ids, name, idx, tb);
+		if (found_expr) {
+			/* closure is from head of idstruct */
+			parent_closure = new Id(name);
 		}
 	}
 
@@ -254,7 +284,9 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 		tb.tb_parambuf = rt_glue.getDynParams(t);
 
 		found_expr = resolveTail(tb, ids, ++(ids->begin()));
-		needs_wrap = true;
+		if (found_expr) {
+			parent_closure = rt_glue.getDynClosure(t);
+		}
 	}
 
 	/* nothing found, return error. */
@@ -265,19 +297,13 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	/* return typepass if we are returning a user type */
 	thunk_field = tb.tb_lastsym->getFieldThunk();
 	if (thunk_field->getType() != NULL) {
-		if (needs_wrap) {
-			tb.tb_diskoff = new FCall(
-				new Id("__intermed_dynExpr"),
-				new ExprList(tb.tb_diskoff));
-			tb.tb_parambuf = new FCall(
-				new Id("__intermed_dynExpr"),
-				new ExprList(tb.tb_parambuf));
-			cerr << "XXX: BUSTED: wrapping mktypepass" << endl;
-		}
+		ExprList	*exprs = new ExprList();
 
-		return new FCall(
-			new Id("__mktypepass"), 
-			new ExprList(tb.tb_diskoff, tb.tb_parambuf));
+		exprs->add(tb.tb_diskoff);
+		exprs->add(tb.tb_parambuf);
+		//exprs->add(parent_closure);
+
+		return new FCall(new Id("__mkClosure"), exprs);
 	}
 
 	/* not returning a user type-- we know that the size to 
@@ -286,14 +312,9 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	delete tb.tb_parambuf;
 
 	ret = rt_glue.getLocal(
+		parent_closure,
 		tb.tb_diskoff,
 		thunk_field->getSize()->copyConstValue());
-	if (needs_wrap) {
-		ret = new FCall(
-			new Id("__intermed_dynExpr"),
-			new ExprList(ret));
-	}
-
 	return ret;
 }
 
@@ -322,7 +343,7 @@ Expr* EvalCtx::resolve(const Id* id) const
 			tf = st_ent->getFieldThunk();
 			if (tf->getType() != NULL) {
 				return new FCall(
-					new Id("__mktypepass"),
+					new Id("__mkClosure"),
 					new ExprList(
 						tf->getOffset()->copyFCall(),
 						tf->getParams()->copyFCall()));
@@ -330,6 +351,7 @@ Expr* EvalCtx::resolve(const Id* id) const
 
 			offset = tf->getOffset()->copyFCall();
 			return rt_glue.getLocal(
+				rt_glue.getThunkClosure(),
 				offset,
 				tf->getSize()->copyFCall());
 		}
@@ -343,7 +365,7 @@ Expr* EvalCtx::resolve(const Id* id) const
 	/* support for access of dynamic types.. gets base bits for type */
 	if ((t = typeByName(id->getName())) != NULL) {
 		return new FCall(
-			new Id("__mktypepass"),
+			new Id("__mkClosure"),
 			new ExprList(
 				rt_glue.getDynOffset(t), 
 				rt_glue.getDynParams(t)));
@@ -377,6 +399,7 @@ Expr* EvalCtx::resolveArrayInType(const IdArray* ida) const
 
 	/* convert into __getLocalArray call */
 	return rt_glue.getLocalArray(
+		rt_glue.getThunkClosure(),
 		evaled_idx,
 		thunk_field->getSize()->copyFCall(),
 		thunk_field->getOffset()->copyFCall(),

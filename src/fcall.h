@@ -74,10 +74,10 @@ private:
 	llvm::Value*	codeGenTypeFunc() const;
 	llvm::Value*	codeGenLet(void) const;
 	llvm::Value*	codeGenDynParams(void) const;
-	llvm::Value*	codeGenMkTypePass(void) const;
+	llvm::Value*	codeGenDynClosure(void) const;
+	llvm::Value*	codeGenMkClosure(void) const;
 	llvm::Value* 	codeGenParamsAllocaByCount(void) const;
-	llvm::Value* 	codeGenIntermedDynExpr(void) const;
-	llvm::Value*	codeGenTypePassCall(
+	llvm::Value*	codeGenClosureRetCall(
 		std::vector<llvm::Value*>& args) const;
 
 	llvm::Value* 	codeGenExtractOff(void) const;

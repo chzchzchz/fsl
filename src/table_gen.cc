@@ -205,22 +205,22 @@ void TableGen::printExternFuncThunk(
 	const std::string& funcname,
 	const char* return_type)
 {
-	const string args[] = {"uint64_t", "uint64_t*"};
+	const string args[] = {"const struct fsl_rt_closure*"};
 	printExternFunc(
 		funcname, 
-		vector<string>(args, args+2),
+		vector<string>(args, args+1),
 		return_type);
 }
 
 void TableGen::printExternFuncThunkParams(const ThunkParams* tp)
 {
-	const string args[] = {"uint64_t", "uint64_t*", "uint64_t*"};
+	const string args[] = {"const struct fsl_rt_closure*", "uint64_t*"};
 	FCall	*fc;
 
 	fc = tp->copyFCall();
 	printExternFunc(
 		fc->getName(),
-		vector<string>(args, args+3),
+		vector<string>(args, args+2),
 		"void");
 	delete fc;
 }
@@ -335,22 +335,23 @@ void TableGen::genExternsAsserts(const Asserts* as)
 
 void TableGen::printExternPointsRange(const PointsRange* pr)
 {
-	string	args_pr[] = {"uint64_t", "uint64_t*", "uint64_t", "uint64_t*"};
-	string	args_bound[] = {"uint64_t", "uint64_t*"};
+	string	args_pr[] = {
+		"const struct fsl_rt_closure*", "uint64_t", "uint64_t*"};
+	string	args_bound[] = {"const struct fsl_rt_closure*"};
 
 	printExternFunc(
 		pr->getFCallName(),
-		vector<string>(args_pr,args_pr+4),
+		vector<string>(args_pr,args_pr+3),
 		"uint64_t");
 
 	printExternFunc(
 		pr->getMinFCallName(),
-		vector<string>(args_bound,args_bound+2),
+		vector<string>(args_bound,args_bound+1),
 		"uint64_t");
 
 	printExternFunc(
 		pr->getMaxFCallName(),
-		vector<string>(args_bound,args_bound+2),
+		vector<string>(args_bound,args_bound+1),
 		"uint64_t");
 }
 
@@ -402,6 +403,7 @@ void TableGen::genPointsTable(const Points* pt)
 		genInstancePointsRange(*it);
 	}
 }
+
 
 void TableGen::genPointsTables(void)
 {

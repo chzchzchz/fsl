@@ -66,6 +66,18 @@ private:
 	bool setNewOffsets(
 		struct TypeBase& current_base, const Expr* idx) const;
 
+	bool resolveIdStructCurScope(
+		const IdStruct* ids,
+		const std::string& name,
+		const Expr* idx,
+		struct TypeBase& tb) const;
+
+	bool resolveIdStructFunc(
+		const IdStruct* ids,
+		const std::string& name,
+		const Expr* idx,
+		struct TypeBase& tb) const;
+
 
 protected:
 	const FuncBlock*	cur_func_blk;

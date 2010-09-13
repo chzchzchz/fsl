@@ -9,6 +9,7 @@
 #include "runtime.h"
 
 #define DYN_INVALID_TYPE	(~((uint64_t)0))
+#define env_get_dyn_clo(x)	(&(env->fctx_dyn_closures[(x)]))
 
 extern uint64_t fsl_num_types;
 
@@ -18,7 +19,9 @@ int				fsl_rt_debug = 0;
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
 static uint64_t fsl_virt_xlate(uint64_t bit_off);
 
-uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
+uint64_t __getLocal(
+	const struct fsl_rt_closure* clo,
+	uint64_t bit_off, uint64_t num_bits)
 {
 	uint8_t		buf[10];
 	uint64_t	ret;
@@ -26,15 +29,15 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 	size_t		br;
 
 	assert (num_bits <= 64);
-
-	printf("__gL FROM %"PRIu64" (vdepth=%d)\n", bit_off, env->fctx_vdepth);
+	assert (num_bits > 0);
 
 	env->fctx_stat.s_access_c++;
 	env->fctx_stat.s_bits_read += num_bits;
 
-	if (env->fctx_virt != NULL && env->fctx_vdepth == 0) {
+	if (clo->clo_xlate != NULL) {
 		uint64_t	bit_off_old, bit_off_last;
 
+		assert (0 == 1 && "XLATE NOT HANDLED YET");
 		printf("resolving with xlate. bit_off=%"PRIu64"\n", bit_off);
 		bit_off_old = bit_off;
 		bit_off = fsl_virt_xlate(bit_off);
@@ -57,7 +60,8 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 
 	br = fread(buf, (num_bits + 7) / 8, 1, env->fctx_backing);
 	if (br != 1) {
-		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64"\n", bit_off);
+		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64" br=%d. bits=%d\n",
+			bit_off, br, num_bits);
 		exit(-4);
 	}
 
@@ -76,11 +80,13 @@ uint64_t __getLocal(uint64_t bit_off, uint64_t num_bits)
 }
 
 uint64_t __getLocalArray(
+	const struct fsl_rt_closure* clo,
 	uint64_t idx, uint64_t bits_in_type,
 	uint64_t base_offset, uint64_t bits_in_array)
 {
 	uint64_t	real_off, array_off;
 
+	assert (0 == 1 && "NEW: CLOSURE");
 	assert (bits_in_type <= 64);
 
 	array_off = bits_in_type * idx;
@@ -93,17 +99,21 @@ uint64_t __getLocalArray(
 	}
 
 	real_off = base_offset + (bits_in_type * idx);
-	return __getLocal(real_off, bits_in_type);
+	assert (0 == 1 && "WTF???");
+//	return __getLocal(real_off, bits_in_type);
+	return ~0; /* fake it for now */
 }
 
 uint64_t __getDynOffset(uint64_t type_num)
 {
+	const struct fsl_rt_closure	*src_clo;
+
 	assert (type_num < env->fctx_num_types);
-	assert (env->fctx_type_offsets[type_num] != ~0);
 
-	printf("getDynOffset: %s\n", tt_by_num(type_num)->tt_name);
+	src_clo = env_get_dyn_clo(type_num);
+	assert (src_clo->clo_offset != ~0);
 
-	return env->fctx_type_offsets[type_num];
+	return src_clo->clo_offset;
 }
 
 void __getDynParams(uint64_t typenum, parambuf_t params_out)
@@ -111,23 +121,42 @@ void __getDynParams(uint64_t typenum, parambuf_t params_out)
 	struct fsl_rt_table_type	*tt;
 
 	assert (typenum < env->fctx_num_types);
-	assert (env->fctx_type_offsets[typenum] != ~0);
 
 	tt = tt_by_num(typenum);
 	if (tt->tt_param_c == 0) return;
 
-	memcpy(params_out, env->fctx_type_params[typenum], tt->tt_param_c*8);
+	memcpy(	params_out,
+		env_get_dyn_clo(typenum)->clo_params,
+		sizeof(uint64_t)*tt->tt_param_c);
 }
 
-void __setDyn(uint64_t type_num, diskoff_t offset, parambuf_t params)
+void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
+{
+	const struct fsl_rt_closure*	src_clo;
+
+	assert (typenum < env->fctx_num_types);
+	assert (clo != NULL);
+
+	src_clo = env_get_dyn_clo(typenum);
+	clo->clo_offset = src_clo->clo_offset;
+	memcpy(	clo->clo_params,
+		src_clo->clo_params,
+		sizeof(uint64_t)*tt_by_num(typenum)->tt_param_c);
+	clo->clo_xlate = src_clo->clo_xlate;
+}
+
+void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
 {
 	struct fsl_rt_table_type	*tt;
+	struct fsl_rt_closure		*dst_clo;
 
 	assert (type_num < env->fctx_num_types);
-	env->fctx_type_offsets[type_num] = offset;
-
 	tt = tt_by_num(type_num);
-	memcpy(env->fctx_type_params[type_num], params, 8*tt->tt_param_c);
+
+	dst_clo = env_get_dyn_clo(type_num);
+	dst_clo->clo_offset = clo->clo_offset;
+	memcpy(dst_clo->clo_params, clo->clo_params, 8*tt->tt_param_c);
+	dst_clo->clo_xlate = clo->clo_xlate;
 }
 
 void fsl_rt_dump_dyn(void)
@@ -139,7 +168,7 @@ void fsl_rt_dump_dyn(void)
 		printf("type %2d (%s): %"PRIu64"\n",
 			i,
 			tt_by_num(i)->tt_name,
-			env->fctx_type_offsets[i]);
+			env_get_dyn_clo(i)->clo_offset);
 	}
 }
 
@@ -190,18 +219,6 @@ uint64_t __max7(
 	return (m > a6) ? m : a6;
 }
 
-void __enterDynCall(void)
-{
-	printf("env: entered dyncall %d\n", env->fctx_vdepth);
-	env->fctx_vdepth++;
-}
-
-void __leaveDynCall(void)
-{
-	env->fctx_vdepth--;
-	printf("env: leaving dyncall %d\n", env->fctx_vdepth);
-}
-
 /* TODO FSL_FAILED should have some unique number so we know why we failed */
 uint64_t fsl_fail(void)
 {
@@ -214,8 +231,7 @@ uint64_t fsl_fail(void)
  * some sort of parameterized type.. */
 typesize_t __computeArrayBits(
 	uint64_t elem_type,
-	diskoff_t off,
-	parambuf_t params,
+	struct fsl_rt_closure* clo,
 	uint64_t num_elems)
 {
 	struct fsl_rt_table_type	*tt;
@@ -224,15 +240,17 @@ typesize_t __computeArrayBits(
 	typesize_t			total_bits;
 
 	assert (elem_type < fsl_rt_table_entries);
+	assert (clo->clo_xlate == NULL);
 
 	total_bits = 0;
-	cur_off = off;
+	cur_off = clo->clo_offset;;
 	tt = tt_by_num(elem_type);
 	for (i = 0; i < num_elems; i++) {
 		typesize_t		cur_size;
+		NEW_CLO			(new_clo, cur_off, clo->clo_params);
 
-		__setDyn(elem_type, cur_off, params);
-		cur_size = tt->tt_size(cur_off, params);
+		__setDyn(elem_type, &new_clo);
+		cur_size = tt->tt_size(&new_clo);
 		total_bits += cur_size;
 		cur_off += cur_size;
 	}
@@ -254,17 +272,16 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 	fsl_ctx = malloc(sizeof(struct fsl_rt_ctx));
 	fsl_ctx->fctx_backing = f;
 	fsl_ctx->fctx_num_types = fsl_num_types;
-	fsl_ctx->fctx_type_offsets = malloc(sizeof(uint64_t) * fsl_num_types);
-	fsl_ctx->fctx_vdepth = 0;
-	memset(	fsl_ctx->fctx_type_offsets,
-		0xff,
-		sizeof(uint64_t) * fsl_num_types);
+	fsl_ctx->fctx_dyn_closures = malloc(
+		sizeof(struct fsl_rt_closure)*fsl_num_types);
 
-	fsl_ctx->fctx_type_params = malloc(sizeof(uint64_t*) * fsl_num_types);
+	/* initialize all dynamic closures */
 	for (i = 0; i < fsl_num_types; i++) {
 		struct fsl_rt_table_type	*tt;
+		struct fsl_rt_closure		*cur_clo;
 		uint64_t			*param_ptr;
 
+		cur_clo = &fsl_ctx->fctx_dyn_closures[i];
 		tt = tt_by_num(i);
 		if (tt->tt_param_c == 0) {
 			param_ptr = NULL;
@@ -275,12 +292,12 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 			memset(param_ptr, 0xff, param_byte_c);
 		}
 
-		fsl_ctx->fctx_type_params[i] = param_ptr;
+		cur_clo->clo_offset = ~0;	/* invalid offset*/
+		cur_clo->clo_params = param_ptr;
+		cur_clo->clo_xlate = NULL;
 	}
 
 	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
-
-	fsl_ctx->fctx_virt = NULL;
 
 	return fsl_ctx;
 }
@@ -302,16 +319,15 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 	printf("accesses: %d\n", fctx->fctx_stat.s_access_c);
 	printf("bytes read: %"PRIu64"\n", fctx->fctx_stat.s_bits_read / 8);
 
-
 	fclose(fctx->fctx_backing);
-	free(fctx->fctx_type_offsets);
 
-	if (fctx->fctx_virt != NULL)
-		fsl_virt_free(fctx->fctx_virt);
-
-	for (i = 0; i < fsl_num_types; i++)
-		free(fctx->fctx_type_params[i]);
-	free(fctx->fctx_type_params);
+	for (i = 0; i < fsl_num_types; i++) {
+		struct fsl_rt_closure*	clo;
+		clo = &fctx->fctx_dyn_closures[i];
+		if (clo->clo_params != NULL)
+			free(clo->clo_params);
+	}
+	free(fctx->fctx_dyn_closures);
 
 	free(fctx);
 }
@@ -327,51 +343,6 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
 }
 
-void fsl_virt_set(
-	typenum_t src_typenum, diskoff_t src_off, parambuf_t src_params,
-	const struct fsl_rt_table_virt* vt)
-{
-	struct fsl_rt_table_type	*tt;
-	struct fsl_rt_virt		*rtv;
-	diskoff_t			first_type_off;
-
-	assert (env->fctx_virt == NULL);
-
-	printf("virt set!!!\n");
-	rtv = malloc(sizeof(*rtv));
-	rtv->rtv_off = src_off;
-	rtv->rtv_f = vt;
-
-	tt = tt_by_num(src_typenum);
-	if (tt->tt_param_c > 0) {
-		unsigned int len;
-		len = sizeof(uint64_t)*tt->tt_param_c;
-		rtv->rtv_params = malloc(len);
-		memcpy(rtv->rtv_params, src_params, len);
-	} else
-		rtv->rtv_params = NULL;
-
-	rtv->rtv_cached_minidx = rtv->rtv_f->vt_min(rtv_to_thunk(rtv));
-	rtv->rtv_cached_maxidx = rtv->rtv_f->vt_max(rtv_to_thunk(rtv));
-
-	uint64_t	params[tt_by_num(vt->vt_type_src)->tt_param_c];
-	first_type_off = vt->vt_range(
-		rtv_to_thunk(rtv), rtv->rtv_cached_minidx, params);
-
-	/* XXX not always correct */
-	rtv->rtv_cached_srcsz = tt_by_num(vt->vt_type_src)->tt_size(
-		first_type_off, params);
-
-	env->fctx_virt = rtv;
-}
-
-void fsl_virt_clear(void)
-{
-	assert (env->fctx_virt != NULL);
-	fsl_virt_free(env->fctx_virt);
-	env->fctx_virt = NULL;
-}
-
 static uint64_t fsl_virt_xlate(uint64_t bit_off)
 {
 	struct fsl_rt_virt	*rtv;
@@ -379,6 +350,8 @@ static uint64_t fsl_virt_xlate(uint64_t bit_off)
 	uint64_t		idx, off;
 	diskoff_t		base;
 
+	assert (0 == 1 && "MUCH HAS CHANGED. USE CLOSURES");
+#if 0
 	/* sloppy implementation: improve later
 	 * (read: never. research qualityyyyyy) */
 	rtv = env->fctx_virt;
@@ -404,8 +377,10 @@ static uint64_t fsl_virt_xlate(uint64_t bit_off)
 	uint64_t params[tt_by_num(rtv->rtv_f->vt_type_src)->tt_param_c];
 	base = rtv->rtv_f->vt_range(rtv_to_thunk(rtv), idx, params);
 	env->fctx_virt = rtv;
-
 	return base + off;
+#else
+	return ~0;
+#endif
 }
 
 int main(int argc, char* argv[])

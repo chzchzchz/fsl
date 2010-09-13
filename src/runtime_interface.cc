@@ -8,21 +8,103 @@
 
 using namespace std;
 
-#define NUM_RUNTIME_FUNCS	12
+extern CodeBuilder* code_builder;
 
-/* TODO: __max should be a proper vararg function */
-static const char*	rt_func_names[] = {	
-	"__getLocal", "__getLocalArray", "__getDynOffset", "fsl_fail", 
-	"__max2", "__max3", "__max4", "__max5",
-	"__max6", "__max7",
-	"__enterDynCall", "__leaveDynCall",
+#define RTF_TYPE_VOID		0
+#define RTF_TYPE_CLOSURE	1
+#define RTF_TYPE_INT64		2
+#define RTF_TYPE_INT64PTR	3
+
+#define RTF_MAX_PARAMS		7
+
+typedef unsigned int rtftype_t;
+struct rt_func
+{
+	const char*	rtf_name;
+	rtftype_t	rtf_ret;
+	unsigned int	rtf_param_c;
+	rtftype_t	rtf_params[RTF_MAX_PARAMS];
 };
 
-static int rt_func_arg_c[] = {
-	2,4,1,0, 
-	2,3,4,5,
-	6, 7,
-	0, 0};
+/* TODO: __max should be a proper vararg function */
+struct rt_func rt_funcs[] =
+{
+	{ 	"__getLocal",
+		RTF_TYPE_INT64,
+		3,
+		{ RTF_TYPE_CLOSURE, RTF_TYPE_INT64, RTF_TYPE_INT64}
+	},
+	{	"__getLocalArray",
+		RTF_TYPE_INT64,
+		5,
+		{RTF_TYPE_CLOSURE, RTF_TYPE_INT64, RTF_TYPE_INT64,
+		 RTF_TYPE_INT64, RTF_TYPE_INT64},
+	},
+	{"__getDynParams",
+		RTF_TYPE_VOID, 2, {RTF_TYPE_INT64, RTF_TYPE_INT64PTR}},
+	{"__getDynOffset",  RTF_TYPE_INT64,  1, {RTF_TYPE_INT64} },
+	{"__getDynClosure",  RTF_TYPE_VOID,  2, {RTF_TYPE_INT64, RTF_TYPE_CLOSURE} },
+	{"fsl_fail" , RTF_TYPE_INT64 /* fake it */, 0 },
+	{ "__max2", RTF_TYPE_INT64,  2, {RTF_TYPE_INT64, RTF_TYPE_INT64} },
+	{"__max3",
+		RTF_TYPE_INT64,
+		3,
+		{RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64}
+	},
+	{"__max4",
+		 RTF_TYPE_INT64,
+		4,
+		{RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64}
+	},
+	{"__max5",
+		 RTF_TYPE_INT64,
+		5,
+		{RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64,
+		 RTF_TYPE_INT64}
+	},
+	{"__max6",
+		 RTF_TYPE_INT64,
+		6,
+		{RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64,
+		RTF_TYPE_INT64,RTF_TYPE_INT64}
+	},
+	{"__max7",
+		 RTF_TYPE_INT64,
+		7,
+		{RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64,
+		 RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64}
+	},
+	{"__computeArrayBits",
+		 RTF_TYPE_INT64,
+		3,
+		{RTF_TYPE_INT64, RTF_TYPE_CLOSURE, RTF_TYPE_INT64}
+	},
+	{ NULL }
+};
+
+static const llvm::Type* rtf_type2llvm(rtftype_t t)
+{
+	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
+
+	switch (t) {
+	case RTF_TYPE_VOID:	return llvm::Type::getVoidTy(gctx);
+	case RTF_TYPE_CLOSURE:	return code_builder->getClosureTyPtr();
+	case RTF_TYPE_INT64:	return llvm::Type::getInt64Ty(gctx);
+	case RTF_TYPE_INT64PTR:	return llvm::Type::getInt64PtrTy(gctx);
+	}
+
+	assert (0 == 1);
+	return NULL;
+}
+static void rt_func_args(
+	const struct rt_func* rtf,
+	vector<const llvm::Type*>& args)
+{
+	args.clear();
+	for (unsigned int i = 0; i < rtf->rtf_param_c; i++) {
+		args.push_back(rtf_type2llvm(rtf->rtf_params[i]));
+	}
+}
 
 /**
  * insert run-time functions into the llvm module so that they resolve
@@ -33,77 +115,50 @@ void RTInterface::loadRunTimeFuncs(CodeBuilder* cb)
 	vector<const llvm::Type*>	args;
 	llvm::FunctionType		*ft;
 	llvm::Function			*f;
-	llvm::LLVMContext		&gctx(llvm::getGlobalContext());
 
-
-	for (int i = 0; i < NUM_RUNTIME_FUNCS; i++) {
-		args = vector<const llvm::Type*>(
-			rt_func_arg_c[i], 
-			llvm::Type::getInt64Ty(gctx));
-
+	for (unsigned int k = 0; rt_funcs[k].rtf_name != NULL; k++) {
+		rt_func_args(&rt_funcs[k], args);
 		ft = llvm::FunctionType::get(
-			llvm::Type::getInt64Ty(gctx),
+			rtf_type2llvm(rt_funcs[k].rtf_ret),
 			args,
 			false);
 	
 		f = llvm::Function::Create(
 			ft,
 			llvm::Function::ExternalLinkage, 
-			rt_func_names[i],
+			rt_funcs[k].rtf_name,
 			cb->getModule());
 	}
-
-	/* add getDynParams -- it has a specila form */
-	args.clear();
-	args.push_back(llvm::Type::getInt64Ty(gctx));
-	args.push_back(llvm::Type::getInt64PtrTy(gctx));
-	ft = llvm::FunctionType::get(
-		llvm::Type::getVoidTy(gctx),
-		args,
-		false);
-	
-	llvm::Function::Create(ft,
-		llvm::Function::ExternalLinkage,
-		"__getDynParams", 
-		cb->getModule());
-
-	args.clear();
-	args.push_back(llvm::Type::getInt64Ty(gctx));
-	args.push_back(llvm::Type::getInt64Ty(gctx));
-	args.push_back(llvm::Type::getInt64PtrTy(gctx));
-	args.push_back(llvm::Type::getInt64Ty(gctx));
-	ft = llvm::FunctionType::get(
-		llvm::Type::getInt64Ty(gctx),
-		args,
-		false);
-	llvm::Function::Create(ft,
-		llvm::Function::ExternalLinkage,
-		"__computeArrayBits", 
-		cb->getModule());
-
 }
 
 
-Expr* RTInterface::getLocal(Expr* disk_bit_offset, Expr* num_bits)
+Expr* RTInterface::getLocal(Expr* closure, Expr* disk_bit_offset, Expr* num_bits)
 {
+	ExprList	*exprs = new ExprList();
+
 	assert (disk_bit_offset != NULL);
 	assert (num_bits != NULL);
+
+	exprs->add(closure);
+	exprs->add(disk_bit_offset);
+	exprs->add(num_bits);
 	
-	return new FCall(
-		new Id("__getLocal"), 
-		new ExprList(disk_bit_offset, num_bits));
+	return new FCall(new Id("__getLocal"), exprs);
 }
 
 Expr* RTInterface::getLocalArray(
+	Expr* clo,
 	Expr* idx, Expr* bits_in_type, Expr* base_offset, Expr* bits_in_array)
 {
 	ExprList	*exprs = new ExprList();
 
+	assert (clo != NULL);
 	assert (idx != NULL);
 	assert (bits_in_type != NULL);
 	assert (base_offset != NULL);
 	assert (bits_in_array != NULL);
 
+	exprs->add(clo);
 	exprs->add(idx);
 	exprs->add(bits_in_type);
 	exprs->add(base_offset);
@@ -112,16 +167,13 @@ Expr* RTInterface::getLocalArray(
 	return new FCall(new Id("__getLocalArray"), exprs);
 }
 
-Expr* RTInterface::getEnterDynCall(void) const
-{
-	return new FCall(new Id("__enterDynCall"), new ExprList());
-}
 
-Expr* RTInterface::getLeaveDynCall(void) const
+Expr* RTInterface::getDynClosure(const Type* user_type)
 {
-	return new FCall(new Id("__leaveDynCall"), new ExprList());
+	return new FCall(
+		new Id("__getDynClosure_preAlloca"),
+		new ExprList(new Number(user_type->getTypeNum())));
 }
-
 
 Expr* RTInterface::getDynOffset(const Type* user_type)
 {
@@ -139,6 +191,10 @@ Expr* RTInterface::getDynParams(const Type* user_type)
 		new ExprList(new Number(user_type->getTypeNum())));
 }
 
+Expr* RTInterface::getThunkClosure(void)
+{
+	return new Id(getThunkClosureName());
+}
 
 Expr* RTInterface::getThunkArgOffset(void)
 {
@@ -148,6 +204,11 @@ Expr* RTInterface::getThunkArgOffset(void)
 Expr*	RTInterface::getThunkArgParamPtr(void)
 {
 	return new Id(getThunkArgParamPtrName());
+}
+
+const std::string RTInterface::getThunkClosureName(void)
+{
+	return "__thunk_closure";
 }
 
 const std::string RTInterface::getThunkArgOffsetName(void)
@@ -188,8 +249,13 @@ Expr* RTInterface::computeArrayBits(const ThunkField* tf)
 
 	exprs = new ExprList();
 	exprs->add(new Number(tf->getType()->getTypeNum()));
-	exprs->add(tf->getOffset()->copyFCall());
-	exprs->add(tf->getParams()->copyFCall());
+
+	exprs->add(new FCall(
+		new Id("__mkClosure"),
+		new ExprList(
+			tf->getOffset()->copyFCall(),
+			tf->getParams()->copyFCall())));
+
 	exprs->add(tf->getElems()->copyFCall());
 
 	return new FCall(new Id("__computeArrayBits"), exprs);
@@ -207,8 +273,11 @@ Expr* RTInterface::computeArrayBits(
 
 	exprs = new ExprList();
 	exprs->add(new Number(t->getTypeNum()));
-	exprs->add(diskoff->copy());
-	exprs->add(params->copy());
+
+	exprs->add(new FCall(
+		new Id("__mkClosure"),
+		new ExprList(diskoff->copy(), params->copy())));
+
 	exprs->add(idx->copy());
 
 	return new FCall(new Id("__computeArrayBits"), exprs);

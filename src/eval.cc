@@ -174,14 +174,14 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 	}
 
 	ret_size = st->getThunkType()->getSize()->copyFCall();
+
+	/* XXX FIXME */
 	ret_size = Expr::rewriteReplace(
 		ret_size,
-		rt_glue.getThunkArgOffset(),
-		new Number(0));
-	ret_size = Expr::rewriteReplace(
-		ret_size,
-		rt_glue.getThunkArgParamPtr(),
-		new Id("__NULLPTR"));
+		rt_glue.getThunkClosure(),
+		new FCall(
+			new Id("__mkClosure"),
+			new ExprList(new Number(0), new Id("__NULLPTR"))));
 
 	if (bits == false) {
 		/* convert bits to bytes */

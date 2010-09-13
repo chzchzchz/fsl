@@ -90,6 +90,5 @@ bool ThunkFieldOffsetCond::genCode(void) const
 		delete present_expr;
 	}
 		
-
 	return true;
 }
