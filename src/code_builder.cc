@@ -544,6 +544,7 @@ llvm::AllocaInst* CodeBuilder::createTmpClosure(
 
 	p_ai = createPrivateTmpI64Array(t->getNumArgs(), our_name + "_params");
 	builder->CreateInsertValue(ai, p_ai, 1);
+	builder->CreateInsertValue(ai, getNullPtrI8(), 2);
 
 	return ai_ptr;
 }

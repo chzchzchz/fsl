@@ -37,6 +37,7 @@ uint64_t __getLocal(
 	if (clo->clo_xlate != NULL) {
 		uint64_t	bit_off_old, bit_off_last;
 
+		printf("OOPS! xlate=%p off=%"PRIu64"\n", clo->clo_xlate, clo->clo_offset);
 		assert (0 == 1 && "XLATE NOT HANDLED YET");
 		printf("resolving with xlate. bit_off=%"PRIu64"\n", bit_off);
 		bit_off_old = bit_off;
@@ -76,6 +77,7 @@ uint64_t __getLocal(
 			bit_off, num_bits, ret);
 	}
 
+	//printf("GOT: off=%"PRIu64" / val=%"PRIu64" / bits=%d\n", bit_off, ret, num_bits);
 	return ret;
 }
 

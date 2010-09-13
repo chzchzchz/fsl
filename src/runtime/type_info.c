@@ -306,8 +306,12 @@ static struct type_info* typeinfo_alloc_generic(
 	struct type_info		*ret;
 
 	ret = malloc(sizeof(struct type_info));
-	memcpy(&ret->ti_td, ti_td, sizeof(*ti_td));
 
+	/* set typenum */
+	ti_typenum(ret) = ti_td->td_typenum;
+	/* set offset */
+	ti_offset(ret) = td_offset(ti_td);
+	/* set params */
 	tt = tt_by_num(ti_typenum(ret));
 	if (tt->tt_param_c > 0) {
 		unsigned int	len;
@@ -319,10 +323,15 @@ static struct type_info* typeinfo_alloc_generic(
 	} else
 		ti_params(ret) = NULL;
 
+	/* set xlate */
+	assert (ti_td->td_clo.clo_xlate == NULL);
+	ret->ti_td.td_clo.clo_xlate = NULL;
+
 	ret->ti_prev = ti_prev;
 	if (ti_prev != NULL) {
 		ret->ti_depth = ti_prev->ti_depth + 1;
 	}
+
 
 	return ret;
 }

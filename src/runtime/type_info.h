@@ -48,6 +48,13 @@ struct type_info
 #define td_offset(x)	(x)->td_clo.clo_offset
 #define td_params(x)	(x)->td_clo.clo_params
 
+#define td_init(x,t,y,z)	do {				\
+				(x)->td_typenum = t;		\
+				(x)->td_clo.clo_offset = y;	\
+				(x)->td_clo.clo_params = z;	\
+				(x)->td_clo.clo_xlate = NULL;	\
+			} while (0)
+
 #define typeinfo_set_depth(x,y)	do { (x)->ti_depth = (y); } while (0)
 #define typeinfo_get_depth(x)	(x)->ti_depth
 

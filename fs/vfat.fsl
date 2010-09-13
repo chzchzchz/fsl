@@ -216,13 +216,15 @@ uint get_cluster_count(bpb b)
 	uint	data_sectors;
 	uint	resv_sectors;
 	uint	cluster_c;
+	uint	bps;
 
 	fat_sectors = get_fat_sectors(b);
 	total_sectors  = get_total_sectors(b);
+	bps = b.bytes_per_sector;
 
 	root_dir_sectors = b.root_de_c * sizeof_bytes(fat_de);
-	root_dir_sectors += b.bytes_per_sector - 1;
-	root_dir_sectors /= b.bytes_per_sector;
+	root_dir_sectors += bps - 1;
+	root_dir_sectors /= bps;
 
 	resv_sectors = b.reserved_sector_c;
 	resv_sectors += b.fat_count*fat_sectors;

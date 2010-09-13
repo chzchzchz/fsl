@@ -46,9 +46,10 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 	uint64_t	params[tt_by_num(pt->pt_type_dst)->tt_param_c];
 
 	/* jump to it */
-	next_td.td_typenum = pt->pt_type_dst;
-	td_offset(&next_td) = pt->pt_range(clo, pt_elem_idx, params);
-	td_params(&next_td) = params;
+	td_init(&next_td,
+		pt->pt_type_dst,
+		pt->pt_range(clo, pt_elem_idx, params),
+		params);
 
 	ti_next = typeinfo_alloc_pointsto(&next_td, pt_idx, pt_elem_idx, cur);
 	if (ti_next == NULL)
@@ -120,6 +121,7 @@ static void select_field(struct type_info* cur, int field_idx)
 	uint64_t			num_elems;
 	uint64_t			params[tt_by_ti(cur)->tt_param_c];
 	struct type_desc		next_td;
+	diskoff_t			next_off;
 	TI_INTO_CLO			(cur);
 
 	field = &(tt_by_ti(cur)->tt_fieldall_thunkoff[field_idx]);
@@ -128,16 +130,16 @@ static void select_field(struct type_info* cur, int field_idx)
 		return;
 	}
 
-	next_td.td_typenum = field->tf_typenum;
-	td_offset(&next_td) = field->tf_fieldbitoff(clo);
 	field->tf_params(clo, params);
-	td_params(&next_td) = params;
-
+	next_off = field->tf_fieldbitoff(clo);
 	num_elems = field->tf_elemcount(clo);
+
 	if (num_elems > 1) {
-		td_offset(&next_td) = select_field_array(
-			cur, field, num_elems, td_offset(&next_td), params);
+		next_off = select_field_array(
+			cur, field, num_elems, next_off, params);
 	}
+
+	td_init(&next_td, field->tf_typenum, next_off, params);
 
 	ti_next = typeinfo_alloc(&next_td, field_idx, cur);
 	if (ti_next == NULL)
