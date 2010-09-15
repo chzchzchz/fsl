@@ -28,22 +28,6 @@ struct fsl_rt_ctx
 	struct fsl_rt_closure	*fctx_dyn_closures;
 	FILE			*fctx_backing;
 	struct fsl_rt_stat	fctx_stat;
-	struct fsl_rt_virt	*fctx_virt;
-};
-
-#define rtv_to_thunk(x)	((x)->rtv_off), ((x)->rtv_params)
-
-/* virtual type mapping */
-struct fsl_rt_virt
-{
-	diskoff_t			rtv_off;
-	parambuf_t			rtv_params;
-	uint64_t			rtv_cached_minidx;
-	uint64_t			rtv_cached_maxidx;
-	uint64_t			rtv_cached_srcsz;
-
-	const struct fsl_rt_table_virt	*rtv_f;
-	/* XXX needs some smart data structure here */
 };
 
 struct fsl_rt_mapping;
@@ -56,16 +40,22 @@ struct fsl_rt_closure
 
 };
 
-#define NEW_CLO(x,y,z)	struct fsl_rt_closure x;		\
+#define NEW_CLO(x,y,z)	NEW_VCLO(x,y,z,NULL)
+
+#define NEW_VCLO(x,y,z,t)					\
+			struct fsl_rt_closure x;		\
 			x.clo_offset = y;			\
 			x.clo_params = z;			\
-			x.clo_xlate = NULL
-
+			x.clo_xlate = t;
 
 struct fsl_rt_mapping
 {
+	/* may need reference counting */
 	struct fsl_rt_closure* 		rtm_clo; 	/* for eval rtm_virt */
 	struct fsl_rt_table_virt* 	rtm_virt;	/* off_v -> off_phys */
+	uint64_t			rtm_cached_minidx;
+	uint64_t			rtm_cached_maxidx;
+	uint64_t			rtm_cached_srcsz;
 };
 
 
@@ -83,13 +73,6 @@ typedef diskoff_t(*points_rangef_t)(
 typedef void(*paramsf_t)(const struct fsl_rt_closure*, parambuf_t /* out */);
 typedef bool(*condf_t)(const struct fsl_rt_closure*);
 typedef bool(*assertf_t)(const struct fsl_rt_closure*);
-
-
-struct fsl_rt_thunk_var
-{
-	diskoff_t	tv_offset;	/* disk offset in bits */
-	uint64_t	tv_args[];	/*  args (may be more thunk_vars) */
-};
 
 /* if you change a table struct, remember to update it in table_gen.cc!! */
 struct fsl_rt_table_type
@@ -146,8 +129,8 @@ struct fsl_rt_table_pointsto
 
 struct fsl_rt_table_virt
 {
-	typenum_t	vt_type_src;
-	typenum_t	vt_type_virttype;
+	typenum_t	vt_type_src;		/* ret type for range */
+	typenum_t	vt_type_virttype;	/* type we convert to */
 	points_rangef_t	vt_range;
 	points_minf_t	vt_min;
 	points_maxf_t	vt_max;
@@ -204,6 +187,13 @@ uint64_t fsl_fail(void);
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
 void fsl_rt_dump_dyn(void);
+
+/* virt functions */
+struct fsl_rt_mapping*  fsl_virt_alloc(
+	struct fsl_rt_closure* parent_clo, struct fsl_rt_table_virt* virt);
+uint64_t fsl_virt_xlate(
+	const struct fsl_rt_closure* clo, uint64_t bit_off);
+void fsl_virt_free(struct fsl_rt_mapping*);
 
 /* implemented by tool: */
 void tool_entry(int argc, char* argv[]);

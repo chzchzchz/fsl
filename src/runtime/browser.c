@@ -125,7 +125,7 @@ static void select_field(struct type_info* cur, int field_idx)
 	TI_INTO_CLO			(cur);
 
 	field = &(tt_by_ti(cur)->tt_fieldall_thunkoff[field_idx]);
-	if (field->tf_typenum == ~0) {
+	if (field->tf_typenum == TYPENUM_INVALID) {
 		printf("Given field number does not point to type.\n");
 		return;
 	}

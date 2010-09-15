@@ -111,7 +111,6 @@ ext2_data_block get_nth(uint n)
 {
 	u32	block_num;
 
-
 	if (n < EXT2_NDIR_BLOCKS) {
 		block_num = ext2_inode.i_block_direct[n];
 	} else if (n < EXT2_NDIR_BLOCKS+blocks_per_indir()) {
@@ -187,7 +186,7 @@ assert (? sb.s_inos_per_grp <= get_block_size()*8)
 	
 	union {
 		ext2_inode_block	ino_blk;
-		ext2_bmp_blk		blk_bmp;
+		ext2_bmp_blk		blk_bmp; /* 1 = used, 0 = free */
 		ext2_bmp_ino		ino_bmp;
 		ext2_data_block		data_blk;
 		ext2_indir_block	indir_blk;

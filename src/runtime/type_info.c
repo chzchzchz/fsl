@@ -268,8 +268,12 @@ void typeinfo_print_fields(const struct type_info* ti)
 
 void typeinfo_free(struct type_info* ti)
 {
-	if (ti->ti_td.td_clo.clo_params != NULL)
+	if (ti_params(ti) != NULL)
 		free(ti->ti_td.td_clo.clo_params);
+
+	if (ti_xlate(ti) != NULL) {
+		fsl_virt_free(ti_xlate(ti));
+	}
 	free(ti);
 }
 
@@ -308,7 +312,7 @@ static struct type_info* typeinfo_alloc_generic(
 	ret = malloc(sizeof(struct type_info));
 
 	/* set typenum */
-	ti_typenum(ret) = ti_td->td_typenum;
+	ti_typenum(ret) = td_typenum(ti_td);
 	/* set offset */
 	ti_offset(ret) = td_offset(ti_td);
 	/* set params */
@@ -323,9 +327,9 @@ static struct type_info* typeinfo_alloc_generic(
 	} else
 		ti_params(ret) = NULL;
 
-	/* set xlate */
-	assert (ti_td->td_clo.clo_xlate == NULL);
-	ret->ti_td.td_clo.clo_xlate = NULL;
+	/* set xlate -- if this is a virt type, its xlate is already
+	 * allocated by typeinfo_alloc_virt.. */
+	ret->ti_td.td_clo.clo_xlate = td_xlate(ti_td);
 
 	ret->ti_prev = ti_prev;
 	if (ti_prev != NULL) {
@@ -388,16 +392,19 @@ struct type_info* typeinfo_alloc(
 
 struct type_info* typeinfo_alloc_virt(
 	struct fsl_rt_table_virt* virt,
-	const struct type_info*	ti_prev)
+	struct type_info*	ti_prev)
 {
 	struct type_desc	td;
 	struct type_info*	ret;
 
+	td.td_typenum = virt->vt_type_virttype;
+	assert (td.td_typenum != TYPENUM_INVALID);
 	assert (tt_by_num(virt->vt_type_virttype)->tt_param_c == 0);
 
-	td.td_typenum = virt->vt_type_virttype;
-	td.td_clo.clo_offset = 0;
-	td.td_clo.clo_params = NULL;
+	td_offset(&td) = 0;
+	td_params(&td) = NULL;
+	td_xlate(&td) = fsl_virt_alloc(&ti_to_td(ti_prev)->td_clo, virt);
+
 	ret = typeinfo_alloc_generic(&td, ti_prev);
 	if (ret == NULL)
 		return NULL;
@@ -439,7 +446,9 @@ void typeinfo_set_dyn(const struct type_info* ti)
 		diskoff = field->tf_fieldbitoff(clo);
 		field->tf_params(clo, params);
 
-		NEW_CLO				(new_clo, diskoff, params);
+		NEW_VCLO		(new_clo,
+					 diskoff, params, ti_xlate(ti));
+
 		__setDyn(field->tf_typenum, &new_clo);
 	}
 }

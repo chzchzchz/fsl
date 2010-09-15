@@ -71,8 +71,6 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p)
 		return NULL;
 	}
 
-
-
 	if (types_map.count(target_type_expr->getName()) == 0) {
 		cerr << "Bad xlated type in virt's first parameter:'";
 		lookup_expr->print(cerr);

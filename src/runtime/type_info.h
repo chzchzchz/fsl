@@ -27,10 +27,9 @@ struct type_info
 	const struct type_info	*ti_prev;
 };
 
-#define ti_typenum(x)	(x)->ti_td.td_typenum
-#define ti_offset(x)	(x)->ti_td.td_clo.clo_offset
-#define ti_params(x)	(x)->ti_td.td_clo.clo_params
+
 #define ti_to_thunk(x)	td_to_thunk(&((x)->ti_td))
+#define ti_to_td(x)	(&((x)->ti_td))
 #define TI_INTO_CLO(x)	TD_INTO_CLO(&(x)->ti_td)
 #define TI_INTO_CLO_DECL(x,y) TD_INTO_CLO_DECL(x, &((y)->ti_td))
 
@@ -47,6 +46,7 @@ struct type_info
 #define tt_by_ti(x)	tt_by_num(ti_typenum(x))
 #define td_offset(x)	(x)->td_clo.clo_offset
 #define td_params(x)	(x)->td_clo.clo_params
+#define td_xlate(x)	(x)->td_clo.clo_xlate
 
 #define td_init(x,t,y,z)	do {				\
 				(x)->td_typenum = t;		\
@@ -54,6 +54,12 @@ struct type_info
 				(x)->td_clo.clo_params = z;	\
 				(x)->td_clo.clo_xlate = NULL;	\
 			} while (0)
+
+#define td_typenum(x)	(x)->td_typenum
+#define ti_typenum(x)	td_typenum(ti_to_td(x))
+#define ti_offset(x)	td_offset(ti_to_td(x))
+#define ti_params(x)	td_params(ti_to_td(x))
+#define ti_xlate(x)	td_xlate(ti_to_td(x))
 
 #define typeinfo_set_depth(x,y)	do { (x)->ti_depth = (y); } while (0)
 #define typeinfo_get_depth(x)	(x)->ti_depth
@@ -73,7 +79,7 @@ struct type_info* typeinfo_alloc_pointsto(
 
 struct type_info* typeinfo_alloc_virt(
 	struct fsl_rt_table_virt* virt,
-	const struct type_info*	ti_prev);
+	struct type_info*	ti_prev);
 
 
 void typeinfo_print_name(void);

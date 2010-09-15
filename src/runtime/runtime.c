@@ -17,7 +17,6 @@ static struct fsl_rt_ctx* 	env;
 int				fsl_rt_debug = 0;
 
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
-static uint64_t fsl_virt_xlate(uint64_t bit_off);
 
 uint64_t __getLocal(
 	const struct fsl_rt_closure* clo,
@@ -37,12 +36,9 @@ uint64_t __getLocal(
 	if (clo->clo_xlate != NULL) {
 		uint64_t	bit_off_old, bit_off_last;
 
-		printf("OOPS! xlate=%p off=%"PRIu64"\n", clo->clo_xlate, clo->clo_offset);
-		assert (0 == 1 && "XLATE NOT HANDLED YET");
-		printf("resolving with xlate. bit_off=%"PRIu64"\n", bit_off);
 		bit_off_old = bit_off;
-		bit_off = fsl_virt_xlate(bit_off);
-		bit_off_last = fsl_virt_xlate(bit_off + (num_bits - 1));
+		bit_off = fsl_virt_xlate(clo, bit_off_old);
+		bit_off_last = fsl_virt_xlate(clo, bit_off_old + (num_bits - 1));
 		assert ((bit_off + (num_bits-1)) == (bit_off_last) &&
 			"Discontiguous getLocal not permitted");
 	}
@@ -77,7 +73,7 @@ uint64_t __getLocal(
 			bit_off, num_bits, ret);
 	}
 
-	//printf("GOT: off=%"PRIu64" / val=%"PRIu64" / bits=%d\n", bit_off, ret, num_bits);
+//	printf("GOT: off=%"PRIu64" / val=%"PRIu64" / bits=%d (v=%p)\n", bit_off, ret, num_bits, clo->clo_xlate);
 	return ret;
 }
 
@@ -304,13 +300,6 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 	return fsl_ctx;
 }
 
-static void fsl_virt_free(struct fsl_rt_virt* rtv)
-{
-	if (rtv->rtv_params != NULL)
-		free(rtv->rtv_params);
-	free(rtv);
-}
-
 void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 {
 	unsigned int	i;
@@ -343,46 +332,6 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	__FROM_OS_BDEV_BYTES = ftello(fctx->fctx_backing);
 	__FROM_OS_BDEV_BLOCK_BYTES = 512;
 	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
-}
-
-static uint64_t fsl_virt_xlate(uint64_t bit_off)
-{
-	struct fsl_rt_virt	*rtv;
-	uint64_t		total_bits;
-	uint64_t		idx, off;
-	diskoff_t		base;
-
-	assert (0 == 1 && "MUCH HAS CHANGED. USE CLOSURES");
-#if 0
-	/* sloppy implementation: improve later
-	 * (read: never. research qualityyyyyy) */
-	rtv = env->fctx_virt;
-	assert (rtv != NULL);
-
-	total_bits = 1+(rtv->rtv_cached_maxidx - rtv->rtv_cached_minidx);
-	total_bits *= rtv->rtv_cached_srcsz;
-	printf("xlate: cached_srcsz=%"PRIu64". Min=%"PRIu64". Max=%"PRIu64"\n",
-		rtv->rtv_cached_srcsz,
-		rtv->rtv_cached_minidx,
-		rtv->rtv_cached_maxidx);
-
-	printf("%"PRIu64" < %"PRIu64"\n", bit_off, total_bits);
-
-	assert (bit_off < total_bits);
-
-	idx = bit_off / rtv->rtv_cached_srcsz;
-	off = bit_off % rtv->rtv_cached_srcsz;
-
-	/* disable virtual types */
-	/* XXX-- this should really be a stack pop */
-	env->fctx_virt = NULL;
-	uint64_t params[tt_by_num(rtv->rtv_f->vt_type_src)->tt_param_c];
-	base = rtv->rtv_f->vt_range(rtv_to_thunk(rtv), idx, params);
-	env->fctx_virt = rtv;
-	return base + off;
-#else
-	return ~0;
-#endif
 }
 
 int main(int argc, char* argv[])
