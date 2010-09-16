@@ -28,6 +28,13 @@ struct type_info
 };
 
 
+#define td_origin()	{.td_typenum = fsl_rt_origin_typenum, 	\
+			.td_clo = { 				\
+				.clo_offset = 0, 		\
+				.clo_params = NULL, 		\
+				.clo_xlate = NULL}}
+
+
 #define ti_to_thunk(x)	td_to_thunk(&((x)->ti_td))
 #define ti_to_td(x)	(&((x)->ti_td))
 #define TI_INTO_CLO(x)	TD_INTO_CLO(&(x)->ti_td)
@@ -60,6 +67,7 @@ struct type_info
 #define ti_offset(x)	td_offset(ti_to_td(x))
 #define ti_params(x)	td_params(ti_to_td(x))
 #define ti_xlate(x)	td_xlate(ti_to_td(x))
+#define ti_clo(x)	(ti_to_td(x))->td_clo
 
 #define typeinfo_set_depth(x,y)	do { (x)->ti_depth = (y); } while (0)
 #define typeinfo_get_depth(x)	(x)->ti_depth

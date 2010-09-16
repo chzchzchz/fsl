@@ -10,9 +10,6 @@
 #include "runtime.h"
 #include "type_info.h"
 
-#define INPUT_BUF_SZ	1024
-static char input_buf[INPUT_BUF_SZ];
-
 static void menu(struct type_info* cur);
 static bool handle_menu_choice(struct type_info* cur, int choice);
 
@@ -231,22 +228,22 @@ static void menu(struct type_info* cur)
 	} while(1);
 }
 
-void tool_entry(int argc, char* argv[])
+int tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
-	struct type_desc	init_td = {
-		.td_typenum = fsl_rt_origin_typenum,
-		.td_clo = { .clo_offset = 0, .clo_params = NULL, .clo_xlate = NULL}};
+	struct type_desc	init_td = td_origin();
 
 	printf("Welcome to fsl browser. Browse mode: \"%s\"\n", fsl_rt_fsname);
 
 	origin_ti = typeinfo_alloc(&init_td, 0, NULL);
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
-		return;
+		return -1;
 	}
 
 	menu(origin_ti);
 	typeinfo_free(origin_ti);
 	printf("Have a nice day.\n");
+
+	return 0;
 }

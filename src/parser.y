@@ -65,7 +65,7 @@ void yyerror(const char* s)
 
 %token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS TOKEN_ASSIGNDIV TOKEN_ASSIGNMUL TOKEN_ASSIGNMOD
 
-%token <token> TOKEN_WHEN TOKEN_TYPEDEF TOKEN_DOUBLECOLON
+%token <token> TOKEN_WHEN TOKEN_TYPEDEF TOKEN_DOUBLECOLON TOKEN_AS
 
 %token <text> TOKEN_ID
 %token <val> TOKEN_NUM
@@ -298,11 +298,15 @@ preamble_args_list	: preamble_args_list TOKEN_COMMA cond_or_expr
 
 preamble	: ident TOKEN_LPAREN preamble_args_list TOKEN_RPAREN
 		{
-			$$ = new Preamble($1, $3);
+			$$ = new Preamble($1, $3, NULL);
+		}
+		| ident TOKEN_LPAREN preamble_args_list TOKEN_RPAREN TOKEN_AS ident
+		{
+			$$ = new Preamble($1, $3, $6);
 		}
 		| ident TOKEN_LPAREN preamble_args_list TOKEN_RPAREN TOKEN_WHEN id_list
 		{
-			$$ = new Preamble($1, $3, $6);	
+			$$ = new Preamble($1, $3, NULL, $6);
 		}
 		| ident
 		{
@@ -310,7 +314,7 @@ preamble	: ident TOKEN_LPAREN preamble_args_list TOKEN_RPAREN
 		}
 		| ident TOKEN_WHEN id_list
 		{
-			$$ = new Preamble($1, $3);
+			$$ = new Preamble($1, NULL, $3);
 		}
 		;
 

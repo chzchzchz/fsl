@@ -57,7 +57,8 @@ void Points::loadPointsIf(void)
 			continue;
 		}
 
-		loadPointsIfInstance(cexpr, data_loc);
+		loadPointsIfInstance(
+			cexpr, data_loc, (*it)->getAddressableName());
 	}
 }
 
@@ -86,7 +87,7 @@ void Points::loadPoints(void)
 			continue;
 		}
 
-		loadPointsInstance(data_loc);
+		loadPointsInstance(data_loc, (*it)->getAddressableName());
 	}
 }
 
@@ -135,12 +136,14 @@ void Points::loadPointsRange(void)
 			continue;
 		}
 
-		loadPointsRangeInstance(bound_var, first_val, last_val, data);
+		loadPointsRangeInstance(
+			bound_var, first_val, last_val, data,
+			(*it)->getAddressableName());
 	}
 }
 
 void Points::loadPointsIfInstance(
-	const CondExpr* ce, const Expr* data_loc)
+	const CondExpr* ce, const Expr* data_loc, const Id* as_name)
 {
 	EvalCtx		ectx(symtabs[src_type->getName()]);
 	const Type	*dst_type;
@@ -158,10 +161,12 @@ void Points::loadPointsIfInstance(
 
 	points_range_elems.add(new PointsIf(
 		src_type, dst_type,
-		ce->copy(), data_loc->copy(), points_seq++));
+		ce->copy(), data_loc->copy(),
+		(as_name != NULL) ? as_name->copy() : NULL,
+		points_seq++));
 }
 
-void Points::loadPointsInstance(const Expr* data_loc)
+void Points::loadPointsInstance(const Expr* data_loc, const Id* as_name)
 {
 	EvalCtx		ectx(symtabs[src_type->getName()]);
 	const Type	*dst_type;
@@ -185,6 +190,7 @@ void Points::loadPointsInstance(const Expr* data_loc)
 		new Number(1),
 		new Number(1),
 		data_loc->copy(),
+		(as_name != NULL) ? as_name->copy() : NULL,
 		points_seq++));
 }
 
@@ -192,7 +198,8 @@ void Points::loadPointsRangeInstance(
 	const Id*	bound_var,
 	const Expr*	first_val,
 	const Expr*	last_val,
-	const Expr*	data_loc)
+	const Expr*	data_loc,
+	const Id*	as_name)
 {
 	EvalCtx		ectx(symtabs[src_type->getName()]);
 	const Type	*dst_type;
@@ -214,6 +221,7 @@ void Points::loadPointsRangeInstance(
 		src_type, dst_type,
 		bound_var->copy(), first_val->copy(), last_val->copy(),
 		data_loc->copy(),
+		(as_name != NULL) ? as_name->copy() : NULL,
 		points_seq++));
 }
 
@@ -385,6 +393,7 @@ PointsIf::PointsIf(
 	const Type*	in_dst_type,
 	CondExpr	*in_cond_expr,
 	Expr		*in_points_expr,
+	Id		*in_name,
 	unsigned int	in_seq)
 : PointsRange(
 	in_src_type, in_dst_type,
@@ -394,6 +403,7 @@ PointsIf::PointsIf(
 		new Id(getWrapperFCallName(in_src_type->getName(), in_seq)),
 		new ExprList(rt_glue.getThunkClosure())),
 	in_points_expr,
+	in_name,
 	in_seq),
 	cond_expr(in_cond_expr)
 {

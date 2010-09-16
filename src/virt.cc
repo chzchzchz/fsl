@@ -40,7 +40,7 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p)
 	const Expr			*_target_type_expr, *_binding,
 					*min_expr, *max_expr,
 					*lookup_expr;
-	const Id			*binding, *target_type_expr;
+	const Id			*binding, *target_type_expr, *as_name;
 	preamble_args::const_iterator	arg_it;
 	EvalCtx				ectx(symtabs[src_type->getName()]);
 	const Type			*xlated_type;
@@ -87,6 +87,8 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p)
 		return NULL;
 	}
 
+	as_name = p->getAddressableName();
+
 	return new VirtualType(
 		src_type,
 		xlated_type,
@@ -94,6 +96,7 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p)
 		binding->copy(),
 		min_expr->copy(), max_expr->copy(),
 		lookup_expr->copy(),
+		(as_name != NULL) ? as_name->copy() : NULL,
 		seq++);
 }
 

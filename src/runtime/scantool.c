@@ -161,10 +161,10 @@ static void scan_type(const struct type_info* ti)
 	scan_type_pointsto_all(ti);
 }
 
-void tool_entry(int argc, char* argv[])
+int tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
-	struct type_desc	init_td = {fsl_rt_origin_typenum, 0, NULL};
+	struct type_desc	init_td = td_origin();
 	unsigned int 		i;
 
 	printf("Welcome to fsl scantool. Scan mode: \"%s\"\n", fsl_rt_fsname);
@@ -172,7 +172,7 @@ void tool_entry(int argc, char* argv[])
 	origin_ti = typeinfo_alloc(&init_td, 0, NULL);
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
-		return;
+		return -1;
 	}
 
 	typeinfo_set_depth(origin_ti, 1);
@@ -182,4 +182,5 @@ void tool_entry(int argc, char* argv[])
 	typeinfo_free(origin_ti);
 
 	printf("Have a nice day\n");
+	return 0;
 }

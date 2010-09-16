@@ -125,6 +125,7 @@ struct fsl_rt_table_pointsto
 	points_rangef_t	pt_range;
 	points_minf_t	pt_min;
 	points_maxf_t	pt_max;
+	const char*	pt_name;
 };
 
 struct fsl_rt_table_virt
@@ -134,6 +135,7 @@ struct fsl_rt_table_virt
 	points_rangef_t	vt_range;
 	points_minf_t	vt_min;
 	points_maxf_t	vt_max;
+	const char*	vt_name;
 };
 
 struct fsl_rt_table_assert
@@ -196,7 +198,7 @@ uint64_t fsl_virt_xlate(
 void fsl_virt_free(struct fsl_rt_mapping*);
 
 /* implemented by tool: */
-void tool_entry(int argc, char* argv[]);
+int tool_entry(int argc, char* argv[]);
 
 
 #endif

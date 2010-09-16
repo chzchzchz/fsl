@@ -43,16 +43,20 @@ private:
 	void loadPointsRange(void);
 	void loadPointsIf(void);
 
-	void loadPointsInstance(const Expr* data_loc);
+	void loadPointsInstance(
+		const Expr* data_loc,
+		const Id* as_name);
 	void loadPointsIfInstance(
 		const CondExpr* cond_expr,
-		const Expr*	data_loc);
+		const Expr*	data_loc,
+		const Id*	as_name);
 
 	void loadPointsRangeInstance(
 		const Id*	bound_var,
 		const Expr*	first_val,
 		const Expr*	last_val,
-		const Expr*	data);
+		const Expr*	data,
+		const Id*	as_name);
 
 	const Type*		src_type;
 	pointsto_list		points_to_elems;
@@ -69,6 +73,7 @@ public:
 		Expr*		in_min_expr,
 		Expr*		in_max_expr,
 		Expr*		in_points_expr,
+		Id*		in_name,
 		unsigned int	in_seq)
 	: src_type(in_src_type),
 	  dst_type(in_dst_type),
@@ -76,10 +81,13 @@ public:
 	  max_expr(in_max_expr),
 	  min_expr(in_min_expr),
 	  points_expr(in_points_expr),
+	  name(in_name),
 	  seq(in_seq)
 	{
 		assert (src_type != NULL);
 		assert (dst_type != NULL);
+		assert (min_expr != NULL);
+		assert (max_expr != NULL);
 	}
 
 	virtual ~PointsRange() 
@@ -88,6 +96,7 @@ public:
 		delete min_expr;
 		delete max_expr;
 		delete points_expr;
+		if (name != NULL) delete name;
 	}
 
 	virtual void genCode(void) const;
@@ -99,6 +108,7 @@ public:
 	virtual const std::string getFCallName(void) const;
 	virtual const std::string getMinFCallName(void) const;
 	virtual const std::string getMaxFCallName(void) const;
+	Id* getName(void) const { return name; }
 
 private:
 	void genCodeRange(void) const; 
@@ -109,6 +119,7 @@ private:
 	Expr*		max_expr;
 	Expr*		min_expr;
 	Expr*		points_expr;
+	Id*		name;
 	unsigned int	seq;
 protected:
 	unsigned int getSeqNum(void) const { return seq; }
@@ -122,6 +133,7 @@ public:
 		const Type*	in_dst_type,
 		CondExpr*	in_cond_expr,
 		Expr*		in_points_expr,
+		Id*		in_name,
 		unsigned int	in_seq);
 	virtual ~PointsIf();
 

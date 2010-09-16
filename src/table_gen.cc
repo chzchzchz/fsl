@@ -313,11 +313,15 @@ void TableGen::genInstanceAssertion(const Assertion* as)
 void TableGen::genInstancePointsRange(const PointsRange* ptr)
 {
 	StructWriter	sw(out);
+	Id		*name;
 
 	sw.write("pt_type_dst", ptr->getDstType()->getTypeNum());
 	sw.write("pt_range", ptr->getFCallName());
 	sw.write("pt_min", ptr->getMinFCallName());
 	sw.write("pt_max", ptr->getMaxFCallName());
+	name = ptr->getName();
+	if (name != NULL)	sw.writeStr("pt_name", name->getName());
+	else			sw.write("pt_name", "NULL");
 }
 
 void TableGen::genExternsAsserts(const Asserts* as)
@@ -455,12 +459,17 @@ void TableGen::genExternsVirts(const VirtualTypes* vt)
 void TableGen::genInstanceVirtual(const VirtualType* vt)
 {
 	StructWriter	sw(out);
+	Id		*name;
 
 	sw.write("vt_type_src", vt->getDstType()->getTypeNum());
 	sw.write("vt_type_virttype", vt->getTargetType()->getTypeNum());
 	sw.write("vt_range", vt->getFCallName());
 	sw.write("vt_min", vt->getMinFCallName());
 	sw.write("vt_max", vt->getMaxFCallName());
+
+	name = vt->getName();
+	if (name != NULL)	sw.writeStr("vt_name", name->getName());
+	else			sw.write("vt_name", "NULL");
 }
 
 void TableGen::genVirtsTable(const VirtualTypes* v)

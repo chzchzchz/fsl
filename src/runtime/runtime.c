@@ -336,8 +336,10 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 
 int main(int argc, char* argv[])
 {
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s filename\n", argv[0]);
+	int	tool_ret;
+
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s filename [tool opts]\n", argv[0]);
 		return -1;
 	}
 
@@ -349,9 +351,9 @@ int main(int argc, char* argv[])
 
 	fsl_vars_from_env(env);
 
-	tool_entry(argc, argv);
+	tool_ret = tool_entry(argc-2, argv+2);
 
 	fsl_rt_uninit(env);
 
-	return 0;
+	return tool_ret;
 }

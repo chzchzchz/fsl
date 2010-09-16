@@ -42,6 +42,7 @@ public:
 		Expr*		in_min_expr,
 		Expr*		in_max_expr,
 		Expr*		in_lookup_expr,
+		Id*		in_name,
 		unsigned int	seq)
 	: PointsRange(
 		in_src_type,
@@ -50,6 +51,7 @@ public:
 		in_min_expr,
 		in_max_expr,
 		in_lookup_expr,
+		in_name,
 		seq),
 	  v_type(in_virt_type)
 	{

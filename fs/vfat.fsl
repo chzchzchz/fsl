@@ -55,7 +55,22 @@ type cluster
 	u8	data[bytes_per_cluster()];
 }
 
+cluster get_nth(uint i)
+{
+	u32	first_cluster;
+
+	first_cluster = (fat_de.first_cluster_hi << 16) + fat_de.first_cluster_lo;
+
+	/* XXX -- follow clusters. Need while loops */
+//	if (i > 1) {
+//		fsl_fail();
+//	}
+
+	return disk.clusters[first_cluster];
+}
+
 type fat_de
+virtual(cluster, i, 1, (file_size / bytes_per_cluster())+1, get_nth(i))
 points_if(
 	? file_size > 0 && first_cluster_hi != 0xffff,
 	disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))])

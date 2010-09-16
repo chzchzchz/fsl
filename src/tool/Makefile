@@ -7,6 +7,7 @@ NILFS_TOOLS= scantool-nilfs browser-nilfs
 RT_OBJS=../runtime/runtime.o ../runtime/type_info.o ../runtime/virt.o
 SCANTOOL_OBJS=../runtime/scantool.o  $(RT_OBJS)
 BROWSER_OBJS=../runtime/browser.o $(RT_OBJS)
+MODIFY_OBJS=../runtime/modify.o $(RT_OBJS)
 
 all: $(EXT2_TOOLS) $(VFAT_TOOLS) $(NILFS_TOOLS)
 
