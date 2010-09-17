@@ -159,3 +159,11 @@ void InstanceIter::genProto(void) const
 	code_builder->genThunkProto(getMinFCallName());
 	code_builder->genThunkProto(getMaxFCallName());
 }
+
+void InstanceIter::setMinExpr(const Expr* e)
+{
+	assert (e != NULL);
+	assert (e != min_expr);
+	delete min_expr;
+	min_expr = e->copy();
+}

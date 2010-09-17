@@ -28,6 +28,10 @@ public:
 	std::string getMinFCallName(void) const;
 	std::string getMaxFCallName(void) const;
 
+	const Expr* getMinExpr(void) const { return min_expr; }
+	const Expr* getMaxExpr(void) const { return max_expr; }
+	void setMinExpr(const Expr* e);
+
 	void genCode(void) const;
 	void genProto(void) const;
 private:

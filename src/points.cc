@@ -315,12 +315,16 @@ const string PointsIf::getWrapperFCallName(
 
 void PointsIf::genCode(void) const
 {
+	Number	*one, *zero;
+
+	one = new Number(1);
+	zero = new Number(0);
 	code_builder->genCodeCond(
 		iter->getSrcType(),
 		getWrapperFCallName(iter->getSrcType()->getName(), getSeqNum()),
 		cond_expr,
-		new Number(1),
-		new Number(0));
+		one,
+		zero);
 
 	PointsRange::genCode();
 }

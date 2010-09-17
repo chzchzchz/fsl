@@ -24,8 +24,8 @@ public:
 	const Type* getType(void) const { return src_type; }
 	unsigned int getNumVirts(void) const { return virts.size(); }
 private:
-	void loadVirtuals(void);
-	VirtualType* loadVirtual(const Preamble* p);
+	void loadVirtuals(bool conditional);
+	VirtualType* loadVirtual(const Preamble* p, bool conditional);
 
 	const Type*	src_type;
 	virt_list	virts;
@@ -50,8 +50,30 @@ public:
 	virtual ~VirtualType(void) {}
 	const Type* getTargetType(void) const { return v_type; }
 
-private:
+protected:
 	const Type*	v_type;
+};
+
+class VirtualIf : public VirtualType
+{
+public:
+	VirtualIf(
+		InstanceIter	*in_iter,
+		CondExpr	*in_cond,
+		const Type	*in_virt_type,
+		Id		*in_name,
+		unsigned int	seq);
+
+	virtual ~VirtualIf(void);
+	virtual void genCode(void) const;
+	virtual void genProto(void) const;
+
+private:
+	const std::string getWrapperFCallName(void) const;
+
+	CondExpr	*cond;
+	Expr		*true_min_expr;
+	Expr		*false_min_expr;
 };
 
 #endif

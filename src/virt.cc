@@ -1,12 +1,17 @@
 #include <iostream>
 
+#include "runtime_interface.h"
 #include "symtab.h"
 #include "type.h"
 #include "evalctx.h"
+#include "code_builder.h"
+#include "util.h"
 #include "virt.h"
 
+extern CodeBuilder		*code_builder;
 extern symtab_map		symtabs;
 extern type_map			types_map;
+extern RTInterface		rt_glue;
 
 using namespace std;
 
@@ -14,45 +19,58 @@ VirtualTypes::VirtualTypes(const Type* t)
 : src_type(t), seq(0)
 {
 	assert (t != NULL);
-	loadVirtuals();
+	loadVirtuals(false);
+	loadVirtuals(true);
 }
 
-void VirtualTypes::loadVirtuals(void)
+void VirtualTypes::loadVirtuals(bool is_cond)
 {
 	preamble_list	virt_preambles;
 
-	virt_preambles = src_type->getPreambles("virtual");
+	virt_preambles = src_type->getPreambles(
+		"virtual" + string(((is_cond) ? "_if" : "")));
+
 	for (	preamble_list::const_iterator it = virt_preambles.begin();
 		it != virt_preambles.end();
 		it++)
 	{
 		VirtualType			*virt;
-		virt = loadVirtual(*it);
+		virt = loadVirtual(*it, is_cond);
 		if (virt == NULL)
 			continue;
 		virts.add(virt);
 	}
 }
 
-VirtualType* VirtualTypes::loadVirtual(const Preamble* p)
+VirtualType* VirtualTypes::loadVirtual(const Preamble* p, bool is_conditional)
 {
 	const preamble_args		*args;
 	const Expr			*_target_type_expr, *_binding,
 					*min_expr, *max_expr,
 					*lookup_expr;
+	const CondExpr			*cond;
 	const Id			*binding, *target_type_expr, *as_name;
 	preamble_args::const_iterator	arg_it;
 	EvalCtx				ectx(symtabs[src_type->getName()]);
 	const Type			*xlated_type;
 	const Type			*target_type;
+	InstanceIter			*instance_iter;
 
 	args = p->getArgsList();
-	if (args->size() != 5) {
-		cerr << "virtual expected 5 args" << endl;
+	if ((is_conditional == false && args->size() != 5) ||
+	    (is_conditional == true && args->size() != 6)) {
+		cerr << "virt call given wrong number of args" << endl;
 		return NULL;
 	}
 
 	arg_it = args->begin();
+	if (is_conditional) {
+		cond = (*arg_it)->getCondExpr();
+		assert (cond != NULL);
+		arg_it++;
+	} else
+		cond = NULL;
+
 	_target_type_expr = (*arg_it)->getExpr(); arg_it++;
 	_binding = (*arg_it)->getExpr(); arg_it++;
 	min_expr = (*arg_it)->getExpr(); arg_it++;
@@ -89,15 +107,26 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p)
 
 	as_name = p->getAddressableName();
 
-	return new VirtualType(
-		new InstanceIter(
-			src_type, xlated_type,
-			binding->copy(),
-			min_expr->copy(), max_expr->copy(),
-			lookup_expr->copy()),
-		target_type,
-		(as_name != NULL) ? as_name->copy() : NULL,
-		seq++);
+	instance_iter = new InstanceIter(
+		src_type, xlated_type,
+		binding->copy(),
+		min_expr->copy(), max_expr->copy(),
+		lookup_expr->copy());
+
+	if (is_conditional) {
+		return new VirtualIf(
+			instance_iter,
+			cond->copy(),
+			target_type,
+			(as_name != NULL) ? as_name->copy() : NULL,
+			seq++);
+	} else {
+		return new VirtualType(
+			instance_iter,
+			target_type,
+			(as_name != NULL) ? as_name->copy() : NULL,
+			seq++);
+	}
 }
 
 void VirtualTypes::genCode(void)
@@ -118,4 +147,54 @@ void VirtualTypes::genProtos(void)
 	{
 		(*it)->genProto();
 	}
+}
+
+VirtualIf::VirtualIf(
+	InstanceIter	*in_iter,
+	CondExpr	*in_cond,
+	const Type	*in_virt_type,
+	Id		*in_name,
+	unsigned int	seq)
+: VirtualType(in_iter, in_virt_type, in_name, seq),
+  cond(in_cond)
+{
+	assert (cond != NULL);
+
+	true_min_expr = iter->getMinExpr()->copy();
+	false_min_expr = new AOPAdd(
+		iter->getMaxExpr()->copy(),
+		new Number(1));	/* false_min_expr > max_expr */
+
+	iter->setMinExpr(new FCall(
+		new Id(getWrapperFCallName()),
+		new ExprList(rt_glue.getThunkClosure())));
+}
+
+VirtualIf::~VirtualIf(void)
+{
+	delete cond;
+	delete true_min_expr;
+	delete false_min_expr;
+}
+
+const string VirtualIf::getWrapperFCallName(void) const
+{
+	return 	"__virtif_condwrap_" + iter->getSrcType()->getName() + "_" +
+		int_to_string(getSeqNum());
+}
+
+void VirtualIf::genCode(void) const
+{
+	code_builder->genCodeCond(
+		iter->getSrcType(),
+		getWrapperFCallName(),
+		cond,true_min_expr, false_min_expr);
+
+	VirtualType::genCode();
+}
+
+void VirtualIf::genProto(void) const
+{
+	code_builder->genThunkProto(getWrapperFCallName());
+	VirtualType::genProto();
 }
