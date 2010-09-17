@@ -185,10 +185,19 @@ void typeinfo_print_virt(const struct type_info* ti)
 			none_seen = false;
 		}
 
-		printf("%02d. (%s->%s)\n",
-			tt->tt_fieldall_c + tt->tt_pointsto_c + i,
-			tt_by_num(vt->vt_type_src)->tt_name,
-			tt_by_num(vt->vt_type_virttype)->tt_name);
+		if (vt->vt_name == NULL) {
+			printf("%02d. (%s->%s)\n",
+				tt->tt_fieldall_c + tt->tt_pointsto_c + i,
+				tt_by_num(vt->vt_type_src)->tt_name,
+				tt_by_num(vt->vt_type_virttype)->tt_name);
+		} else {
+			printf("%02d. %s (%s->%s)\n",
+				tt->tt_fieldall_c + tt->tt_pointsto_c + i,
+				vt->vt_name,
+				tt_by_num(vt->vt_type_src)->tt_name,
+				tt_by_num(vt->vt_type_virttype)->tt_name);
+		}
+
 	}
 }
 
@@ -222,9 +231,16 @@ void typeinfo_print_pointsto(const struct type_info* ti)
 			none_seen = false;
 		}
 
-		printf("%02d. (%s)\n",
-			tt->tt_fieldall_c + i,
-			tt_by_num(pt->pt_type_dst)->tt_name);
+		if (pt->pt_name == NULL) {
+			printf("%02d. (%s)\n",
+				tt->tt_fieldall_c + i,
+				tt_by_num(pt->pt_type_dst)->tt_name);
+		} else {
+			printf("%02d. %s (%s)\n",
+				tt->tt_fieldall_c + i,
+				pt->pt_name,
+				tt_by_num(pt->pt_type_dst)->tt_name);
+		}
 
 	}
 }
