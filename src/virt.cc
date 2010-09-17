@@ -90,12 +90,12 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p)
 	as_name = p->getAddressableName();
 
 	return new VirtualType(
-		src_type,
-		xlated_type,
+		new InstanceIter(
+			src_type, xlated_type,
+			binding->copy(),
+			min_expr->copy(), max_expr->copy(),
+			lookup_expr->copy()),
 		target_type,
-		binding->copy(),
-		min_expr->copy(), max_expr->copy(),
-		lookup_expr->copy(),
 		(as_name != NULL) ? as_name->copy() : NULL,
 		seq++);
 }
@@ -118,19 +118,4 @@ void VirtualTypes::genProtos(void)
 	{
 		(*it)->genProto();
 	}
-}
-
-const string VirtualType::getFCallName(void) const
-{
-	return PointsRange::getFCallName() + "_virt";
-}
-
-const string VirtualType::getMinFCallName(void) const
-{
-	return PointsRange::getMinFCallName() + "_virt";
-}
-
-const string VirtualType::getMaxFCallName(void) const
-{
-	return PointsRange::getMaxFCallName() + "_virt";
 }

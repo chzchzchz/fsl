@@ -184,12 +184,13 @@ void Points::loadPointsInstance(const Expr* data_loc, const Id* as_name)
 
 	/* convert the expression into code for the run-time tool */
 	points_to_elems.add(new PointsRange(
-		src_type,
-		dst_type,
-		new Id("__nobinding"),
-		new Number(1),
-		new Number(1),
-		data_loc->copy(),
+		new InstanceIter(
+			src_type,
+			dst_type,
+			new Id("__nobinding"),
+			new Number(1),
+			new Number(1),
+			data_loc->copy()),
 		(as_name != NULL) ? as_name->copy() : NULL,
 		points_seq++));
 }
@@ -218,138 +219,12 @@ void Points::loadPointsRangeInstance(
 	}
 
 	points_range_elems.add(new PointsRange(
-		src_type, dst_type,
-		bound_var->copy(), first_val->copy(), last_val->copy(),
-		data_loc->copy(),
+		new InstanceIter(
+			src_type, dst_type,
+			bound_var->copy(), first_val->copy(), last_val->copy(),
+			data_loc->copy()),
 		(as_name != NULL) ? as_name->copy() : NULL,
 		points_seq++));
-}
-
-
-void PointsRange::genCode(void) const
-{
-	/* function(<thunk-args>, <binding-var>) */
-	genCodeRange();
-
-	/* function(<thunk-args>) */
-	code_builder->genCode(src_type, getMinFCallName(), min_expr);
-	code_builder->genCode(src_type, getMaxFCallName(), max_expr);
-}
-
-void PointsRange::genCodeRange(void) const
-{
-	llvm::Function		*f;
-	llvm::BasicBlock	*bb_bits;
-	llvm::IRBuilder<>	*builder;
-	llvm::Value		*ret_typepass, *ret_off, *ret_params;
-	string			fcall_bits;
-	Expr			*expr_eval_bits;
-	SymbolTable		*local_syms;
-	string			fname;
-	Expr			*raw_expr = points_expr;
-	llvm::Function::arg_iterator	ai;
-	llvm::Module		*mod;
-
-
-	mod = code_builder->getModule();
-	fname = getFCallName();
-	builder = code_builder->getBuilder();
-
-	assert (raw_expr != NULL);
-
-	f = mod->getFunction(fname);
-	local_syms = symtabs[src_type->getName()];
-	assert (local_syms != NULL);
-
-	expr_eval_bits = eval(EvalCtx(local_syms), raw_expr);
-	assert (expr_eval_bits != NULL);
-
-	bb_bits = llvm::BasicBlock::Create(
-		llvm::getGlobalContext(), "entry", f);
-	builder->SetInsertPoint(bb_bits);
-	code_builder->genThunkHeaderArgs(f, src_type);
-
-	ai = f->arg_begin();	/* closure */
-	ai++;			/* idx */
-
-	/* gen s for idx and output parambuf */
-	builder->CreateStore(
-		ai,
-		code_builder->createTmpI64(binding->getName()));
-
-	ret_typepass = expr_eval_bits->codeGen();
-	assert (ret_typepass != NULL);
-
-	assert (ret_typepass->getType() == code_builder->getClosureTyPtr());
-	/* output value should be a typepass struct */
-
-	ret_params = builder->CreateExtractValue(
-		builder->CreateLoad(ret_typepass), 1, "params");
-	ai++;	/* parambuf output */
-	code_builder->emitMemcpy64(ai, ret_params, dst_type->getNumArgs());
-
-	ret_off = builder->CreateExtractValue(
-		builder->CreateLoad(ret_typepass), 0, "offset");
-	builder->CreateRet(ret_off);
-}
-
-void PointsRange::genProto(void) const
-{
-	const ThunkType	*tt;
-
-	tt = symtabs[src_type->getName()]->getThunkType();
-{
-	llvm::Function			*f;
-	llvm::FunctionType		*ft;
-	vector<const llvm::Type*>	args;
-
-	/* diskoff_t */
-	args.push_back(code_builder->getClosureTyPtr());
-
-	/* binding sym */
-	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
-
-	/* parambuf_t out */
-	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-
-	ft = llvm::FunctionType::get(
-		llvm::Type::getInt64Ty(llvm::getGlobalContext()), args, false);
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage, 
-		getFCallName(),
-		code_builder->getModule());
-
-	/* should not be redefinitions.. */
-	if (f->getName() != getFCallName()) {
-		cerr << "Expected name " << getFCallName() <<" got " <<
-		f->getNameStr() << endl;
-	}
-
-	assert (f->getName() == getFCallName());
-	assert (f->arg_size() == args.size());
-	}
-
-	code_builder->genThunkProto(getMinFCallName());
-	code_builder->genThunkProto(getMaxFCallName());
-}
-
-const std::string PointsRange::getFCallName(void) const
-{
-	return	"__pointsrange_" + src_type->getName() + 
-		"_" + int_to_string(seq);
-}
-
-const std::string PointsRange::getMinFCallName(void) const
-{
-	return	"__pointsrangeMin_" + src_type->getName() + 
-		"_" + int_to_string(seq);
-}
-
-const std::string PointsRange::getMaxFCallName(void) const
-{
-	return	"__pointsrangeMax_" + src_type->getName() + 
-		"_" + int_to_string(seq);
 }
 
 void Points::genCode(void)
@@ -388,6 +263,19 @@ void Points::genProtos(void)
 	}
 }
 
+PointsRange::PointsRange(
+	InstanceIter*	in_iter,
+	Id*		in_name,
+	unsigned int	in_seq)
+: iter(in_iter), name(in_name), seq(in_seq)
+{
+	assert (iter != NULL);
+	iter->setPrefix(
+		"__pointsrange_" +
+		iter->getSrcType()->getName() + "_" +
+		int_to_string(seq));
+}
+
 PointsIf::PointsIf(
 	const Type*	in_src_type,
 	const Type*	in_dst_type,
@@ -396,13 +284,15 @@ PointsIf::PointsIf(
 	Id		*in_name,
 	unsigned int	in_seq)
 : PointsRange(
-	in_src_type, in_dst_type,
-	new Id("__no_binding"), 
-	new Number(1),
-	new FCall(
-		new Id(getWrapperFCallName(in_src_type->getName(), in_seq)),
-		new ExprList(rt_glue.getThunkClosure())),
-	in_points_expr,
+	new InstanceIter(
+		in_src_type, in_dst_type,
+		new Id("__no_binding"),
+		new Number(1),
+		new FCall(
+			new Id(getWrapperFCallName(
+				in_src_type->getName(), in_seq)),
+			new ExprList(rt_glue.getThunkClosure())),
+		in_points_expr),
 	in_name,
 	in_seq),
 	cond_expr(in_cond_expr)
@@ -426,10 +316,8 @@ const string PointsIf::getWrapperFCallName(
 void PointsIf::genCode(void) const
 {
 	code_builder->genCodeCond(
-		getSrcType(),
-		getWrapperFCallName(
-			getSrcType()->getName(),
-			getSeqNum()),
+		iter->getSrcType(),
+		getWrapperFCallName(iter->getSrcType()->getName(), getSeqNum()),
 		cond_expr,
 		new Number(1),
 		new Number(0));
@@ -441,7 +329,7 @@ void PointsIf::genProto(void) const
 {
 	code_builder->genThunkProto(
 		getWrapperFCallName(
-			getSrcType()->getName(), getSeqNum()));
+			iter->getSrcType()->getName(), getSeqNum()));
 	PointsRange::genProto();
 }
 

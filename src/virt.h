@@ -32,38 +32,23 @@ private:
 	unsigned int	seq;
 };
 
-class VirtualType : public PointsRange {
+class VirtualType : public PointsRange
+{
 public:
 	VirtualType(
-		const Type*	in_src_type,	/* thunk context*/
-		const Type*	in_dst_type,	/* type returned by type-expr */
+		InstanceIter	*in_iter,
 		const Type	*in_virt_type,	/* type we map data to */
-		Id*		in_binding,
-		Expr*		in_min_expr,
-		Expr*		in_max_expr,
-		Expr*		in_lookup_expr,
 		Id*		in_name,
 		unsigned int	seq)
-	: PointsRange(
-		in_src_type,
-		in_dst_type,
-		in_binding,
-		in_min_expr,
-		in_max_expr,
-		in_lookup_expr,
-		in_name,
-		seq),
+	: PointsRange(in_iter, in_name, seq),
 	  v_type(in_virt_type)
 	{
 		assert (v_type != NULL);
+		iter->setPrefix(iter->getPrefix() + "_virt");
 	}
 
 	virtual ~VirtualType(void) {}
 	const Type* getTargetType(void) const { return v_type; }
-
-	virtual const std::string getFCallName(void) const;
-	virtual const std::string getMinFCallName(void) const;
-	virtual const std::string getMaxFCallName(void) const;
 
 private:
 	const Type*	v_type;

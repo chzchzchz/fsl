@@ -27,7 +27,8 @@ OBJS=	parser.o		\
 	asserts.o			\
 	runtime_interface.o		\
 	args.o				\
-	virt.o
+	virt.o				\
+	instance_iter.o
 
 RTOBJS= runtime/runtime.o runtime/type_info.o runtime/virt.o
 TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o

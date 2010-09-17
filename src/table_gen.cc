@@ -312,13 +312,16 @@ void TableGen::genInstanceAssertion(const Assertion* as)
 
 void TableGen::genInstancePointsRange(const PointsRange* ptr)
 {
-	StructWriter	sw(out);
-	Id		*name;
+	StructWriter		sw(out);
+	const InstanceIter	*ii;
+	Id			*name;
 
-	sw.write("pt_type_dst", ptr->getDstType()->getTypeNum());
-	sw.write("pt_range", ptr->getFCallName());
-	sw.write("pt_min", ptr->getMinFCallName());
-	sw.write("pt_max", ptr->getMaxFCallName());
+	ii = ptr->getInstanceIter();
+	sw.write("pt_type_dst", ii->getDstType()->getTypeNum());
+	sw.write("pt_range", ii->getLookupFCallName());
+	sw.write("pt_min", ii->getMinFCallName());
+	sw.write("pt_max", ii->getMaxFCallName());
+
 	name = ptr->getName();
 	if (name != NULL)	sw.writeStr("pt_name", name->getName());
 	else			sw.write("pt_name", "NULL");
@@ -342,19 +345,21 @@ void TableGen::printExternPointsRange(const PointsRange* pr)
 	string	args_pr[] = {
 		"const struct fsl_rt_closure*", "uint64_t", "uint64_t*"};
 	string	args_bound[] = {"const struct fsl_rt_closure*"};
+	const InstanceIter	*ii;
 
+	ii = pr->getInstanceIter();
 	printExternFunc(
-		pr->getFCallName(),
+		ii->getLookupFCallName(),
 		vector<string>(args_pr,args_pr+3),
 		"uint64_t");
 
 	printExternFunc(
-		pr->getMinFCallName(),
+		ii->getMinFCallName(),
 		vector<string>(args_bound,args_bound+1),
 		"uint64_t");
 
 	printExternFunc(
-		pr->getMaxFCallName(),
+		ii->getMaxFCallName(),
 		vector<string>(args_bound,args_bound+1),
 		"uint64_t");
 }
@@ -458,14 +463,16 @@ void TableGen::genExternsVirts(const VirtualTypes* vt)
 
 void TableGen::genInstanceVirtual(const VirtualType* vt)
 {
-	StructWriter	sw(out);
-	Id		*name;
+	StructWriter		sw(out);
+	const InstanceIter	*ii;
+	Id			*name;
 
-	sw.write("vt_type_src", vt->getDstType()->getTypeNum());
+	ii = vt->getInstanceIter();
+	sw.write("vt_type_src", ii->getDstType()->getTypeNum());
 	sw.write("vt_type_virttype", vt->getTargetType()->getTypeNum());
-	sw.write("vt_range", vt->getFCallName());
-	sw.write("vt_min", vt->getMinFCallName());
-	sw.write("vt_max", vt->getMaxFCallName());
+	sw.write("vt_range", ii->getLookupFCallName());
+	sw.write("vt_min", ii->getMinFCallName());
+	sw.write("vt_max", ii->getMaxFCallName());
 
 	name = vt->getName();
 	if (name != NULL)	sw.writeStr("vt_name", name->getName());

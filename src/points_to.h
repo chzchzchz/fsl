@@ -5,6 +5,7 @@
 #include <map>
 #include "collection.h"
 #include "type.h"
+#include "instance_iter.h"
 
 typedef PtrList<class PointsRange>	pointsrange_list;
 typedef pointsrange_list		pointsto_list;
@@ -66,63 +67,27 @@ private:
 class PointsRange 
 {
 public:
-	PointsRange(
-		const Type*	in_src_type, 
-		const Type*	in_dst_type,
-		Id*		in_binding,
-		Expr*		in_min_expr,
-		Expr*		in_max_expr,
-		Expr*		in_points_expr,
-		Id*		in_name,
-		unsigned int	in_seq)
-	: src_type(in_src_type),
-	  dst_type(in_dst_type),
-	  binding(in_binding),
-	  max_expr(in_max_expr),
-	  min_expr(in_min_expr),
-	  points_expr(in_points_expr),
-	  name(in_name),
-	  seq(in_seq)
-	{
-		assert (src_type != NULL);
-		assert (dst_type != NULL);
-		assert (min_expr != NULL);
-		assert (max_expr != NULL);
-	}
+	PointsRange(InstanceIter* in_iter, Id* in_name, unsigned int in_seq);
 
 	virtual ~PointsRange() 
 	{
-		delete binding;
-		delete min_expr;
-		delete max_expr;
-		delete points_expr;
+		delete iter;
 		if (name != NULL) delete name;
 	}
 
-	virtual void genCode(void) const;
-	virtual void genProto(void) const;
+	virtual void genCode(void) const { return iter->genCode(); }
+	virtual void genProto(void) const { return iter->genProto(); }
 
-	const Type* getSrcType(void) const { return src_type; }
-	const Type* getDstType(void) const { return dst_type; }
-
-	virtual const std::string getFCallName(void) const;
-	virtual const std::string getMinFCallName(void) const;
-	virtual const std::string getMaxFCallName(void) const;
+	const InstanceIter* getInstanceIter(void) const { return iter; }
 	Id* getName(void) const { return name; }
 
-private:
-	void genCodeRange(void) const; 
-
-	const Type*	src_type;
-	const Type*	dst_type;
-	Id*		binding;
-	Expr*		max_expr;
-	Expr*		min_expr;
-	Expr*		points_expr;
-	Id*		name;
-	unsigned int	seq;
 protected:
+	InstanceIter	*iter;
 	unsigned int getSeqNum(void) const { return seq; }
+
+private:
+	Id		*name;
+	unsigned int	seq;
 };
 
 class PointsIf : public PointsRange 

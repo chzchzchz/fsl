@@ -141,7 +141,6 @@ Value* FuncAssign::codeGen(void) const
 
 	builder = code_builder->getBuilder();
 	if (e_v->getType() == code_builder->getClosureTy()) {
-		cerr << "AAAAAAAAA" << endl;
 		code_builder->copyClosure(
 			getOwner()->getVarType(scalar->getName()),
 			builder->CreateGEP(e_v,
@@ -149,7 +148,6 @@ Value* FuncAssign::codeGen(void) const
 					llvm::getGlobalContext(),
 					llvm::APInt(32, 0))),
 			builder->CreateLoad(var_loc));
-		cerr << "BBBBBB" << endl;
 	} else {
 		builder->CreateStore(e_v /* src */, var_loc /* dst */);
 	}
@@ -494,5 +492,3 @@ void Func::genCode(void) const
 	gen_func = NULL;
 	gen_func_block = NULL;
 }
-
-
