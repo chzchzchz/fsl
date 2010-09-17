@@ -224,6 +224,10 @@ func_stmt	: ident ident TOKEN_SEMI { $$ = new FuncDecl($1, (Id*)$2); }
 		{
 			$$ = new FuncCondStmt($3, $5, $7);
 		}
+		| TOKEN_WHILE TOKEN_LPAREN cond_expr TOKEN_RPAREN func_stmt
+		{
+			$$ = new FuncWhileStmt($3, $5);
+		}
 		| func_block { $$ = $1; }
 		;
 

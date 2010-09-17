@@ -256,6 +256,50 @@ Value* FuncCondStmt::codeGen(void) const
 	return cond_v;
 }
 
+Value* FuncWhileStmt::codeGen(void) const
+{
+	Function	*f;
+	BasicBlock	*bb_begin, *bb_cond, *bb_end, *bb_origin;
+	Value		*cond_v;
+	IRBuilder<>	*builder;
+	EvalCtx		ectx(getOwner());
+
+	builder = code_builder->getBuilder();
+	f = getFunction();
+
+	bb_origin = builder->GetInsertBlock();
+	bb_cond = BasicBlock::Create(getGlobalContext(), "while_cond", f);
+	bb_begin = BasicBlock::Create(getGlobalContext(), "while_begin", f);
+	bb_end = BasicBlock::Create(getGlobalContext(), "while_end", f);
+
+	builder->SetInsertPoint(bb_origin);
+	builder->CreateBr(bb_cond);
+
+	/* while condition */
+	builder->SetInsertPoint(bb_cond);
+	cond_v = cond_codeGen(&ectx, cond);
+	if (cond_v == NULL) {
+		cerr << getLineNo() << ": could not gen condition" << endl;
+		return NULL;
+	}
+	builder->CreateCondBr(cond_v, bb_begin, bb_end);
+
+	/* while body */
+	builder->SetInsertPoint(bb_begin);
+	stmt->codeGen();
+	if (bb_begin->empty() || bb_begin->back().isTerminator() == false) {
+		/* body might have a return stmt.. */
+		builder->CreateBr(bb_cond);
+	}
+
+	assert (bb_begin->empty() == false && "No body in while?");
+
+	/* generate code for outside of loop body */
+	builder->SetInsertPoint(bb_end);
+
+	return cond_v;
+}
+
 Value* FuncBlock::codeGen(void) const
 {
 	for (const_iterator it = begin(); it != end(); it++) {

@@ -55,18 +55,33 @@ type cluster
 	u8	data[bytes_per_cluster()];
 }
 
+uint fat_next(uint cluster_num)
+{
+	fat_type	ft;
+	fat		f;
+
+	ft = get_fat_type(bpb);
+	f = disk.fats[0];
+	if (ft == FAT_TYPE_FAT12) return f.ent12[cluster_num].cluster_num;
+	else if (ft == FAT_TYPE_FAT16) return f.ent16[cluster_num].cluster_num;
+	else if (ft == FAT_TYPE_FAT32) return f.ent32[cluster_num].cluster_num;
+
+	return fsl_fail();
+}
+
 cluster get_nth(uint i)
 {
-	u32	first_cluster;
+	u32	cur_cluster;
 
-	first_cluster = (fat_de.first_cluster_hi << 16) + fat_de.first_cluster_lo;
+	cur_cluster = (fat_de.first_cluster_hi << 16) + fat_de.first_cluster_lo;
 
-	/* XXX -- follow clusters. Need while loops */
-//	if (i > 1) {
-//		fsl_fail();
-//	}
+	/* follow clusters. Need while loops, better error handling */
+	while (i > 1) {
+		cur_cluster = fat_next(cur_cluster);
+		i = i - 1;
+	}
 
-	return disk.clusters[first_cluster];
+	return disk.clusters[cur_cluster];
 }
 
 type fat_de

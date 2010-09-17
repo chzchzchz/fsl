@@ -168,6 +168,35 @@ private:
 	IdArray	*array;
 };
 
+class FuncWhileStmt : public FuncStmt
+{
+public:
+	FuncWhileStmt(CondExpr* ce, FuncStmt* in_stmt)
+	: cond(ce), stmt(in_stmt)
+	{
+		assert (cond != NULL);
+		assert (stmt != NULL);
+	}
+
+	virtual ~FuncWhileStmt(void)
+	{
+		delete cond;
+		delete stmt;
+	}
+
+	virtual void setOwner(class FuncBlock* o)
+	{
+		FuncStmt::setOwner(o);
+		stmt->setOwner(o);
+	}
+
+	llvm::Value* codeGen() const;
+
+private:
+	CondExpr	*cond;
+	FuncStmt	*stmt;
+};
+
 class Func : public GlobalStmt 
 {
 public:
