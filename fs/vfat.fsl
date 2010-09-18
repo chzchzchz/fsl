@@ -84,8 +84,19 @@ cluster get_nth(uint i)
 	return disk.clusters[cur_cluster];
 }
 
+type fat_dir(int num_ents)
+{
+	fat_de	de[num_ents];
+}
+
 type fat_de
-virtual(cluster, i, 1, (file_size / bytes_per_cluster())+1, get_nth(i)) as vfile
+virtual_if(
+	? file_size != 0xffffffff,
+	cluster, i, 1, (file_size / bytes_per_cluster())+1, get_nth(i)) as vfile
+virtual_if(
+	? file_size != 0xffffffff && (ATTR_DIRECTORY & attr) != 0,
+	fat_de,
+	i, 1, (file_size / bytes_per_cluster())+1, get_nth(i)) as vdir
 points_if(
 	? file_size > 0 && first_cluster_hi != 0xffff,
 	disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))])

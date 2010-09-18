@@ -300,15 +300,37 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 	return fsl_ctx;
 }
 
+static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
+{
+	const char	*stat_fname;
+	FILE		*out_file;
+
+	stat_fname = getenv(FSL_ENV_VAR_STATFILE);
+	if (stat_fname != NULL) {
+		out_file = fopen(stat_fname, "w");
+		if (out_file == NULL) {
+			fprintf(stderr,
+				"Could not open statfile: %s\n",
+				stat_fname);
+			out_file = stdout;
+		}
+	} else
+		out_file = stdout;
+
+	fprintf(out_file, "getLocals: %d\n", fctx->fctx_stat.s_access_c);
+	fprintf(out_file, "br: %"PRIu64"\n", fctx->fctx_stat.s_bits_read / 8);
+
+	if (stat_fname != NULL)
+		fclose(out_file);
+}
+
 void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 {
 	unsigned int	i;
 
 	assert (fctx != NULL);
 
-	printf("stats\n");
-	printf("accesses: %d\n", fctx->fctx_stat.s_access_c);
-	printf("bytes read: %"PRIu64"\n", fctx->fctx_stat.s_bits_read / 8);
+	fsl_rt_dump_stats(fctx);
 
 	fclose(fctx->fctx_backing);
 

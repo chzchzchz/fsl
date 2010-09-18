@@ -10,6 +10,8 @@
 
 #define tt_by_num(x)	(&fsl_rt_table[x])
 
+#define FSL_ENV_VAR_STATFILE	"FSL_ENV_STATFILE"
+
 typedef uint64_t	diskoff_t;
 typedef uint64_t	typeoff_t;
 typedef uint64_t	typesize_t;
