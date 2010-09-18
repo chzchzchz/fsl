@@ -11,6 +11,15 @@ function fail_exit
 	fi
 }
 
+function force_fail_exit
+{
+# do not jump into debugger
+	rm -f failed_test_cmd
+	echo "$1"
+	echo "!!!FAILED: $2"
+	exit -1
+}
+
 function run_test
 {
 	TESTNUM="$1"
@@ -33,7 +42,7 @@ function run_test_no_match
 	if [ -z "$matched" ]; then
 		return
 	fi
-	fail_exit "$outstr" "$TESTNAME"
+	force_fail_exit "$test_outstr" "$TESTNAME"
 }
 
 function run_test_match
@@ -45,7 +54,7 @@ function run_test_match
 	run_test "$1" "$2"
 	matched=`echo "$test_outstr" | grep "$badmatch"`
 	if [ -z "$matched" ]; then
-		fail_exit "$outstr" "$2"
+		force_fail_exit "$test_outstr" "$2"
 	fi
 }
 
@@ -54,5 +63,8 @@ function run_test_match
 run_test 1 "Visit Root DE[1]"
 run_test_no_match 2 "Virt-If. Non-File" "vfile"
 run_test_match 3 "Virt-If. File." "vfile"
+
+# don't get boot sector!!
+run_test_no_match 4 "Virtual. Read file xlate." "55 aa"
 
 exit 0

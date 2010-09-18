@@ -229,6 +229,7 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 	closure = builder->CreateAlloca(ret_type, 0, "mkpasser");
 	
 	closure_loaded = builder->CreateLoad(closure);
+
 	builder->CreateStore(
 		builder->CreateInsertValue(
 			builder->CreateInsertValue(
@@ -237,6 +238,7 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 				diskoff, 0),
 			code_builder->getNullPtrI8(), 2),
 		closure);
+
 	
 	return closure;
 }

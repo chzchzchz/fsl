@@ -145,7 +145,7 @@ ext2_data_block get_nth(uint n)
 		block_num=999999999999;
 	}
 
-	return  ext2_data_block_lookup(block_num);
+	return ext2_data_block_lookup(block_num);
 }
 
 ext2_inode get_inode(uint ino_num_logical)

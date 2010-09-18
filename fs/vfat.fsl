@@ -72,9 +72,10 @@ uint fat_next(uint cluster_num)
 cluster get_nth(uint i)
 {
 	u32	cur_cluster;
+	fat_de	de;
 
-	cur_cluster = (fat_de.first_cluster_hi << 16) + fat_de.first_cluster_lo;
-
+	de = fat_de;
+	cur_cluster = (de.first_cluster_hi << 16) + de.first_cluster_lo;
 	/* follow clusters. Need while loops, better error handling */
 	while (i > 1) {
 		cur_cluster = fat_next(cur_cluster);

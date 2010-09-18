@@ -60,8 +60,6 @@ struct fsl_rt_mapping
 	uint64_t			rtm_cached_srcsz;
 };
 
-
-
 #define TYPENUM_INVALID	(~0)
 
 /* XXX these should take a thunkvar when we support args */

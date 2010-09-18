@@ -71,7 +71,10 @@ bool EvalCtx::setNewOffsets(
 					t, 
 					new_base, new_params, 
 					evalReplace(*this, idx->simplify()));
-				delete new_base;
+				array_elem_base = new AOPAdd(
+					new_base,
+					array_elem_base);
+//				delete new_base;
 			} else {
 				Expr	*sz;
 

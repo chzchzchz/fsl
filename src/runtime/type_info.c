@@ -94,11 +94,6 @@ static void typeinfo_print_type(const struct type_info* ti)
 	TI_INTO_CLO			(ti);
 
 	tt = tt_by_ti(ti);
-	if (ti->ti_is_virt) {
-		printf("It's a virt!\n");
-	}
-
-	/* should not be resolving with xlate!*/
 	len = tt->tt_size(clo);
 
 #ifdef PRINT_BITS

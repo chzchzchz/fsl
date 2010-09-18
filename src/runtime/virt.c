@@ -29,6 +29,8 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	uint64_t params[tt_by_num(rtm->rtm_virt->vt_type_src)->tt_param_c];
 	base = rtm->rtm_virt->vt_range(rtm->rtm_clo, idx, params);
 
+	assert (bit_off != base+off);
+
 	return base + off;
 }
 
