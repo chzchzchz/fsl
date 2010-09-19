@@ -9,11 +9,11 @@
 #include "runtime.h"
 
 #define DYN_INVALID_TYPE	(~((uint64_t)0))
-#define env_get_dyn_clo(x)	(&(env->fctx_dyn_closures[(x)]))
+#define env_get_dyn_clo(x)	(&(fsl_env->fctx_dyn_closures[(x)]))
 
 extern uint64_t fsl_num_types;
 
-static struct fsl_rt_ctx* 	env;
+struct fsl_rt_ctx* 		fsl_env;
 int				fsl_rt_debug = 0;
 static int			cur_debug_write_val = 0;
 
@@ -37,8 +37,8 @@ uint64_t __getLocal(
 	assert (num_bits <= 64);
 	assert (num_bits > 0);
 
-	env->fctx_stat.s_access_c++;
-	env->fctx_stat.s_bits_read += num_bits;
+	fsl_env->fctx_stat.s_access_c++;
+	fsl_env->fctx_stat.s_bits_read += num_bits;
 
 	if (clo->clo_xlate != NULL) {
 		uint64_t	bit_off_old, bit_off_last;
@@ -50,7 +50,7 @@ uint64_t __getLocal(
 			"Discontiguous getLocal not permitted");
 	}
 
-	if (fseeko(env->fctx_backing, bit_off / 8, SEEK_SET) != 0) {
+	if (fseeko(fsl_env->fctx_backing, bit_off / 8, SEEK_SET) != 0) {
 		fprintf(stderr, "BAD SEEK! bit_off=%"PRIx64"\n", bit_off);
 		exit(-2);
 	}
@@ -62,7 +62,7 @@ uint64_t __getLocal(
 		exit(-3);
 	}
 
-	br = fread(buf, (num_bits + 7) / 8, 1, env->fctx_backing);
+	br = fread(buf, (num_bits + 7) / 8, 1, fsl_env->fctx_backing);
 	if (br != 1) {
 		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64" br=%d. bits=%d\n",
 			bit_off, br, num_bits);
@@ -114,10 +114,12 @@ uint64_t __getDynOffset(uint64_t type_num)
 {
 	const struct fsl_rt_closure	*src_clo;
 
-	assert (type_num < env->fctx_num_types);
+	assert (type_num < fsl_env->fctx_num_types);
 
 	src_clo = env_get_dyn_clo(type_num);
 	assert (src_clo->clo_offset != ~0);
+
+	fsl_env->fctx_stat.s_get_offset_c++;
 
 	return src_clo->clo_offset;
 }
@@ -126,7 +128,7 @@ void __getDynParams(uint64_t typenum, parambuf_t params_out)
 {
 	struct fsl_rt_table_type	*tt;
 
-	assert (typenum < env->fctx_num_types);
+	assert (typenum < fsl_env->fctx_num_types);
 
 	tt = tt_by_num(typenum);
 	if (tt->tt_param_c == 0) return;
@@ -134,13 +136,15 @@ void __getDynParams(uint64_t typenum, parambuf_t params_out)
 	memcpy(	params_out,
 		env_get_dyn_clo(typenum)->clo_params,
 		sizeof(uint64_t)*tt->tt_param_c);
+
+	fsl_env->fctx_stat.s_get_param_c++;
 }
 
 void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
 {
 	const struct fsl_rt_closure*	src_clo;
 
-	assert (typenum < env->fctx_num_types);
+	assert (typenum < fsl_env->fctx_num_types);
 	assert (clo != NULL);
 
 	src_clo = env_get_dyn_clo(typenum);
@@ -149,6 +153,8 @@ void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
 		src_clo->clo_params,
 		sizeof(uint64_t)*tt_by_num(typenum)->tt_param_c);
 	clo->clo_xlate = src_clo->clo_xlate;
+
+	fsl_env->fctx_stat.s_get_closure_c++;
 }
 
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
@@ -156,21 +162,23 @@ void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
 	struct fsl_rt_table_type	*tt;
 	struct fsl_rt_closure		*dst_clo;
 
-	assert (type_num < env->fctx_num_types);
+	assert (type_num < fsl_env->fctx_num_types);
 	tt = tt_by_num(type_num);
 
 	dst_clo = env_get_dyn_clo(type_num);
 	dst_clo->clo_offset = clo->clo_offset;
 	memcpy(dst_clo->clo_params, clo->clo_params, 8*tt->tt_param_c);
 	dst_clo->clo_xlate = clo->clo_xlate;
+
+	fsl_env->fctx_stat.s_dyn_set_c++;
 }
 
 void fsl_rt_dump_dyn(void)
 {
 	unsigned int	i;
 
-	assert (env != NULL);
-	for (i = 0; i < env->fctx_num_types; i++) {
+	assert (fsl_env != NULL);
+	for (i = 0; i < fsl_env->fctx_num_types; i++) {
 		printf("type %2d (%s): %"PRIu64"\n",
 			i,
 			tt_by_num(i)->tt_name,
@@ -267,6 +275,8 @@ typesize_t __computeArrayBits(
 	/* reset to original */
 	__setDyn(elem_type, &old_dyn);
 
+	fsl_env->fctx_stat.s_comp_array_bits_c++;
+
 	return total_bits;
 }
 
@@ -331,8 +341,21 @@ static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 	} else
 		out_file = stdout;
 
-	fprintf(out_file, "getLocals: %d\n", fctx->fctx_stat.s_access_c);
-	fprintf(out_file, "br: %"PRIu64"\n", fctx->fctx_stat.s_bits_read / 8);
+	fprintf(out_file, "getLocals %d\n", fctx->fctx_stat.s_access_c);
+	fprintf(out_file, "br %"PRIu64"\n", fctx->fctx_stat.s_bits_read / 8);
+	fprintf(out_file, "xlate_call %"PRIu64"\n", fctx->fctx_stat.s_xlate_call_c);
+	fprintf(out_file, "xlate_alloc %"PRIu64"\n", fctx->fctx_stat.s_xlate_alloc_c);
+
+	fprintf(out_file, "comp_array_bits %"PRIu64"\n",
+		fctx->fctx_stat.s_comp_array_bits_c);
+	fprintf(out_file, "dyn_set %"PRIu64"\n",
+		fctx->fctx_stat.s_dyn_set_c);
+	fprintf(out_file, "get_param %"PRIu64"\n",
+		fctx->fctx_stat.s_get_param_c);
+	fprintf(out_file, "get_closure %"PRIu64"\n",
+		fctx->fctx_stat.s_get_closure_c);
+	fprintf(out_file, "get_offset %"PRIu64"\n",
+		fctx->fctx_stat.s_get_offset_c);
 
 	if (stat_fname != NULL)
 		fclose(out_file);
@@ -379,17 +402,17 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	env = fsl_rt_init(argv[1]);
-	if (env == NULL) {
+	fsl_env = fsl_rt_init(argv[1]);
+	if (fsl_env == NULL) {
 		fprintf(stderr, "Could not initialize environment.\n");
 		return -1;
 	}
 
-	fsl_vars_from_env(env);
+	fsl_vars_from_env(fsl_env);
 
 	tool_ret = tool_entry(argc-2, argv+2);
 
-	fsl_rt_uninit(env);
+	fsl_rt_uninit(fsl_env);
 
 	return tool_ret;
 }

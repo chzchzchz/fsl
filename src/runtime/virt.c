@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "runtime.h"
 
+extern struct fsl_rt_ctx* 	fsl_env;
+
 uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 {
 	struct fsl_rt_mapping	*rtm;
@@ -30,6 +32,9 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	base = rtm->rtm_virt->vt_range(rtm->rtm_clo, idx, params);
 
 	assert (bit_off != base+off);
+
+	fsl_env->fctx_stat.s_xlate_call_c++;
+	fsl_env->fctx_stat.s_xlate_alloc_c++;
 
 	return base + off;
 }

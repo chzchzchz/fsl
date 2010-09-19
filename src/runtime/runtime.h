@@ -22,6 +22,13 @@ struct fsl_rt_stat
 {
 	unsigned int	s_access_c;
 	uint64_t	s_bits_read;
+	uint64_t	s_xlate_call_c;
+	uint64_t	s_xlate_alloc_c;
+	uint64_t	s_comp_array_bits_c;
+	uint64_t	s_dyn_set_c;
+	uint64_t	s_get_param_c;
+	uint64_t	s_get_closure_c;
+	uint64_t	s_get_offset_c;
 };
 
 struct fsl_rt_ctx
