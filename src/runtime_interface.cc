@@ -29,6 +29,7 @@ struct rt_func
 /* TODO: __max should be a proper vararg function */
 struct rt_func rt_funcs[] =
 {
+	{	"__debugOutcall", RTF_TYPE_VOID, 1, {RTF_TYPE_INT64}},
 	{ 	"__getLocal",
 		RTF_TYPE_INT64,
 		3,
@@ -131,6 +132,12 @@ void RTInterface::loadRunTimeFuncs(CodeBuilder* cb)
 	}
 }
 
+Expr* RTInterface::getDebugCall(Expr* pass_val)
+{
+	return new FCall(
+		new Id("__debugOutcall"),
+		new ExprList(pass_val));
+}
 
 Expr* RTInterface::getLocal(Expr* closure, Expr* disk_bit_offset, Expr* num_bits)
 {

@@ -44,11 +44,14 @@ struct fsl_rt_closure
 
 #define NEW_CLO(x,y,z)	NEW_VCLO(x,y,z,NULL)
 
-#define NEW_VCLO(x,y,z,t)					\
-			struct fsl_rt_closure x;		\
-			x.clo_offset = y;			\
-			x.clo_params = z;			\
-			x.clo_xlate = t;
+#define NEW_VCLO(x,y,z,t)			\
+	struct fsl_rt_closure x;		\
+	x.clo_offset = y;			\
+	x.clo_params = z;			\
+	x.clo_xlate = t;
+#define NEW_EMPTY_CLO(x,y)				\
+	struct fsl_rt_closure	x;			\
+	uint64_t x##_params[tt_by_num(y)->tt_param_c];
 
 struct fsl_rt_mapping
 {
@@ -171,6 +174,7 @@ uint64_t __getLocalArray(
 	uint64_t idx, uint64_t bits_in_type,
 	uint64_t base_offset, uint64_t bits_in_array);
 uint64_t __getDynOffset(uint64_t type_num);
+void __debugOutcall(uint64_t v);
 void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo);
 void __getDynParams(uint64_t typenum, parambuf_t params_out);
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo);

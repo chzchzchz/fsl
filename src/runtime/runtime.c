@@ -15,8 +15,15 @@ extern uint64_t fsl_num_types;
 
 static struct fsl_rt_ctx* 	env;
 int				fsl_rt_debug = 0;
+static int			cur_debug_write_val = 0;
 
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
+
+void __debugOutcall(uint64_t v)
+{
+	printf("DEBUG_WRITE: %"PRIu64"\n", v);
+	cur_debug_write_val = v;
+}
 
 uint64_t __getLocal(
 	const struct fsl_rt_closure* clo,
@@ -73,7 +80,8 @@ uint64_t __getLocal(
 			bit_off, num_bits, ret);
 	}
 
-//	printf("GOT: off=%"PRIu64" / val=%"PRIu64" / bits=%d (v=%p)\n", bit_off, ret, num_bits, clo->clo_xlate);
+	if (cur_debug_write_val == 1111)
+		printf("GOT: byte_off=%"PRIu64" / val=%"PRIu64" / bits=%d (v=%p)\n", bit_off/8, ret, num_bits, clo->clo_xlate);
 	return ret;
 }
 
@@ -236,6 +244,7 @@ typesize_t __computeArrayBits(
 	unsigned int			i;
 	diskoff_t			cur_off;
 	typesize_t			total_bits;
+	NEW_EMPTY_CLO			(old_dyn, elem_type);
 
 	assert (elem_type < fsl_rt_table_entries);
 	assert (clo->clo_xlate == NULL);
@@ -243,6 +252,8 @@ typesize_t __computeArrayBits(
 	total_bits = 0;
 	cur_off = clo->clo_offset;;
 	tt = tt_by_num(elem_type);
+	/* save old dyn closure value */
+	__getDynClosure(elem_type, &old_dyn);
 	for (i = 0; i < num_elems; i++) {
 		typesize_t		cur_size;
 		NEW_CLO			(new_clo, cur_off, clo->clo_params);
@@ -252,6 +263,9 @@ typesize_t __computeArrayBits(
 		total_bits += cur_size;
 		cur_off += cur_size;
 	}
+
+	/* reset to original */
+	__setDyn(elem_type, &old_dyn);
 
 	return total_bits;
 }

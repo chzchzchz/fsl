@@ -9,11 +9,13 @@
 #include "eval.h"
 #include "evalctx.h"
 #include "code_builder.h"
+#include "runtime_interface.h"
 
 using namespace std;
 using namespace llvm;
 
 extern CodeBuilder	*code_builder;
+extern RTInterface	rt_glue;
 extern ctype_map	ctypes_map;
 extern type_map		types_map;
 extern const FuncBlock	*gen_func_block;
@@ -119,10 +121,21 @@ Value* FuncDecl::codeGen(void) const
 
 Value* FuncAssign::codeGen(void) const
 {
+
 	Value			*e_v;
 	llvm::AllocaInst*	var_loc;
 	EvalCtx			ectx(getOwner());
 	IRBuilder<>		*builder;
+
+	/* send data to runtime for debugging purposes */
+	/* awful awful syntax abuse */
+	if (scalar->getName() == "DEBUG_WRITE") {
+		Expr	*e;
+		e = rt_glue.getDebugCall(eval(ectx, expr));
+		evalAndGen(ectx, e);
+		delete e;
+		return NULL;
+	}
 
 	e_v = evalAndGen(ectx, expr);
 	if (e_v == NULL) {

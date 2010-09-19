@@ -24,6 +24,8 @@ public:
 	Expr*	getThunkArgOffset(void);
 	Expr*	getThunkArgParamPtr(void);
 
+	Expr	*getDebugCall(Expr* pass_val);
+
 	const std::string getThunkClosureName(void);
 	const std::string getThunkArgOffsetName(void);
 	const std::string getThunkArgParamPtrName(void);
