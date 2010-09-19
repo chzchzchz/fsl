@@ -1,9 +1,8 @@
 #!/bin/bash
 
+tool_name="browser-ext2"
+img_name="ext2.img"
 source `pwd`/tests/test_common.sh
-
-tool_name="browser-vfat"
-img_name="vfat.img"
 
 # visit virtual file (inode 0)
 run_test 1 "Virtual Visit"
