@@ -70,11 +70,9 @@ bool ThunkFieldSize::genCode(void) const
 		gen_expr = Expr::rewriteReplace(
 				gen_expr,
 				rt_glue.getThunkClosure(),
-				new FCall(
-					new Id("__mkClosure"),
-					new ExprList(
-						tf_off->copyFCall(),
-						tf_params->copyFCall())));
+				FCall::mkClosure(
+					tf_off->copyFCall(),
+					tf_params->copyFCall()));
 		code_builder->genCode(
 			getOwner()->getType(),
 			getFCallName(), 

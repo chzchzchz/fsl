@@ -25,6 +25,12 @@ extern func_map		funcs_map;
 extern RTInterface	rt_glue;
 
 
+Expr* FCall::mkClosure(Expr* diskoff, Expr* params)
+{
+	assert (diskoff != NULL && params != NULL);
+	return new FCall(new Id("__mkClosure"), new ExprList(diskoff, params));
+}
+
 llvm::Value* FCall::codeGenLet(void) const
 {
 	ExprList::const_iterator	it;
@@ -147,7 +153,6 @@ llvm::Value* FCall::codeGenDynClosure(void) const
 
 	return builder->CreateLoad(closure);
 }
-
 
 /**
  * returns a pointer to array of params as the value
@@ -305,7 +310,6 @@ llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 
 	return params_ret;
 }
-
 
 bool FCall::handleSpecialForms(llvm::Value* &ret) const
 {

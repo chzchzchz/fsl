@@ -257,11 +257,9 @@ Expr* RTInterface::computeArrayBits(const ThunkField* tf)
 	exprs = new ExprList();
 	exprs->add(new Number(tf->getType()->getTypeNum()));
 
-	exprs->add(new FCall(
-		new Id("__mkClosure"),
-		new ExprList(
-			tf->getOffset()->copyFCall(),
-			tf->getParams()->copyFCall())));
+	exprs->add(FCall::mkClosure(
+		tf->getOffset()->copyFCall(),
+		tf->getParams()->copyFCall()));
 
 	exprs->add(tf->getElems()->copyFCall());
 
@@ -281,9 +279,7 @@ Expr* RTInterface::computeArrayBits(
 	exprs = new ExprList();
 	exprs->add(new Number(t->getTypeNum()));
 
-	exprs->add(new FCall(
-		new Id("__mkClosure"),
-		new ExprList(diskoff->copy(), params->copy())));
+	exprs->add(FCall::mkClosure(diskoff->copy(), params->copy()));
 
 	exprs->add(idx->copy());
 

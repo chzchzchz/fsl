@@ -65,6 +65,8 @@ public:
 	llvm::Value*  codeGen() const;
 
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
+
+	static Expr* mkClosure(Expr* diskoff, Expr* params);
 private:
 	bool handleSpecialForms(llvm::Value* &ret) const;
 

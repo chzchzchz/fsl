@@ -19,9 +19,7 @@ static Expr* replaceClosure(Expr* in_expr, Expr* diskoff, Expr* params)
 	Expr::rewriteReplace(
 		ret,
 		rt_glue.getThunkClosure(),
-		new FCall(
-			new Id("__mkClosure"),
-			new ExprList(diskoff, params)));
+		FCall::mkClosure(diskoff, params));
 
 	return ret;
 }
@@ -298,15 +296,8 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 
 	/* return typepass if we are returning a user type */
 	thunk_field = tb.tb_lastsym->getFieldThunk();
-	if (thunk_field->getType() != NULL) {
-		ExprList	*exprs = new ExprList();
-
-		exprs->add(tb.tb_diskoff);
-		exprs->add(tb.tb_parambuf);
-		//exprs->add(parent_closure);
-
-		return new FCall(new Id("__mkClosure"), exprs);
-	}
+	if (thunk_field->getType() != NULL)
+		return FCall::mkClosure(tb.tb_diskoff, tb.tb_parambuf);
 
 	/* not returning a user type-- we know that the size to 
 	 * read is going to be constant. don't need to bother with computing
@@ -344,11 +335,9 @@ Expr* EvalCtx::resolve(const Id* id) const
 
 			tf = st_ent->getFieldThunk();
 			if (tf->getType() != NULL) {
-				return new FCall(
-					new Id("__mkClosure"),
-					new ExprList(
-						tf->getOffset()->copyFCall(),
-						tf->getParams()->copyFCall()));
+				return FCall::mkClosure(
+					tf->getOffset()->copyFCall(),
+					tf->getParams()->copyFCall());
 			}
 
 			offset = tf->getOffset()->copyFCall();
@@ -366,11 +355,9 @@ Expr* EvalCtx::resolve(const Id* id) const
 
 	/* support for access of dynamic types.. gets base bits for type */
 	if ((t = typeByName(id->getName())) != NULL) {
-		return new FCall(
-			new Id("__mkClosure"),
-			new ExprList(
-				rt_glue.getDynOffset(t), 
-				rt_glue.getDynParams(t)));
+		return FCall::mkClosure(
+			rt_glue.getDynOffset(t),
+			rt_glue.getDynParams(t));
 	}
 
 	/* could not resolve */
