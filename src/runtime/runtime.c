@@ -8,9 +8,6 @@
 #include <string.h>
 #include "runtime.h"
 
-#define DYN_INVALID_TYPE	(~((uint64_t)0))
-#define env_get_dyn_clo(x)	(&(fsl_env->fctx_dyn_closures[(x)]))
-
 extern uint64_t fsl_num_types;
 
 struct fsl_rt_ctx* 		fsl_env;
@@ -108,82 +105,6 @@ uint64_t __getLocalArray(
 	assert (0 == 1 && "WTF???");
 //	return __getLocal(real_off, bits_in_type);
 	return ~0; /* fake it for now */
-}
-
-uint64_t __getDynOffset(uint64_t type_num)
-{
-	const struct fsl_rt_closure	*src_clo;
-
-	assert (type_num < fsl_env->fctx_num_types);
-
-	src_clo = env_get_dyn_clo(type_num);
-	assert (src_clo->clo_offset != ~0);
-
-	fsl_env->fctx_stat.s_get_offset_c++;
-
-	return src_clo->clo_offset;
-}
-
-void __getDynParams(uint64_t typenum, parambuf_t params_out)
-{
-	struct fsl_rt_table_type	*tt;
-
-	assert (typenum < fsl_env->fctx_num_types);
-
-	tt = tt_by_num(typenum);
-	if (tt->tt_param_c == 0) return;
-
-	memcpy(	params_out,
-		env_get_dyn_clo(typenum)->clo_params,
-		sizeof(uint64_t)*tt->tt_param_c);
-
-	fsl_env->fctx_stat.s_get_param_c++;
-}
-
-void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
-{
-	const struct fsl_rt_closure*	src_clo;
-
-	assert (typenum < fsl_env->fctx_num_types);
-	assert (clo != NULL);
-
-	src_clo = env_get_dyn_clo(typenum);
-	clo->clo_offset = src_clo->clo_offset;
-	memcpy(	clo->clo_params,
-		src_clo->clo_params,
-		sizeof(uint64_t)*tt_by_num(typenum)->tt_param_c);
-	clo->clo_xlate = src_clo->clo_xlate;
-
-	fsl_env->fctx_stat.s_get_closure_c++;
-}
-
-void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
-{
-	struct fsl_rt_table_type	*tt;
-	struct fsl_rt_closure		*dst_clo;
-
-	assert (type_num < fsl_env->fctx_num_types);
-	tt = tt_by_num(type_num);
-
-	dst_clo = env_get_dyn_clo(type_num);
-	dst_clo->clo_offset = clo->clo_offset;
-	memcpy(dst_clo->clo_params, clo->clo_params, 8*tt->tt_param_c);
-	dst_clo->clo_xlate = clo->clo_xlate;
-
-	fsl_env->fctx_stat.s_dyn_set_c++;
-}
-
-void fsl_rt_dump_dyn(void)
-{
-	unsigned int	i;
-
-	assert (fsl_env != NULL);
-	for (i = 0; i < fsl_env->fctx_num_types; i++) {
-		printf("type %2d (%s): %"PRIu64"\n",
-			i,
-			tt_by_num(i)->tt_name,
-			env_get_dyn_clo(i)->clo_offset);
-	}
 }
 
 uint64_t __max2(uint64_t a0, uint64_t a1)
@@ -285,7 +206,6 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 {
 	FILE			*f;
 	struct fsl_rt_ctx	*fsl_ctx;
-	unsigned int		i;
 
 	f = fopen(fsl_rt_backing, "r");
 	if (f == NULL)
@@ -294,30 +214,7 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 	fsl_ctx = malloc(sizeof(struct fsl_rt_ctx));
 	fsl_ctx->fctx_backing = f;
 	fsl_ctx->fctx_num_types = fsl_num_types;
-	fsl_ctx->fctx_dyn_closures = malloc(
-		sizeof(struct fsl_rt_closure)*fsl_num_types);
-
-	/* initialize all dynamic closures */
-	for (i = 0; i < fsl_num_types; i++) {
-		struct fsl_rt_table_type	*tt;
-		struct fsl_rt_closure		*cur_clo;
-		uint64_t			*param_ptr;
-
-		cur_clo = &fsl_ctx->fctx_dyn_closures[i];
-		tt = tt_by_num(i);
-		if (tt->tt_param_c == 0) {
-			param_ptr = NULL;
-		} else {
-			unsigned int	param_byte_c;
-			param_byte_c = sizeof(uint64_t) * tt->tt_param_c;
-			param_ptr = malloc(param_byte_c);
-			memset(param_ptr, 0xff, param_byte_c);
-		}
-
-		cur_clo->clo_offset = ~0;	/* invalid offset*/
-		cur_clo->clo_params = param_ptr;
-		cur_clo->clo_xlate = NULL;
-	}
+	fsl_ctx->fctx_dyn_closures = fsl_rt_dyn_alloc();
 
 	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
 
@@ -363,21 +260,12 @@ static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 
 void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 {
-	unsigned int	i;
-
 	assert (fctx != NULL);
 
 	fsl_rt_dump_stats(fctx);
 
 	fclose(fctx->fctx_backing);
-
-	for (i = 0; i < fsl_num_types; i++) {
-		struct fsl_rt_closure*	clo;
-		clo = &fctx->fctx_dyn_closures[i];
-		if (clo->clo_params != NULL)
-			free(clo->clo_params);
-	}
-	free(fctx->fctx_dyn_closures);
+	fsl_rt_dyn_free(fctx->fctx_dyn_closures);
 
 	free(fctx);
 }

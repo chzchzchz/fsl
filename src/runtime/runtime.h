@@ -180,11 +180,14 @@ uint64_t __getLocalArray(
 	const struct fsl_rt_closure*,
 	uint64_t idx, uint64_t bits_in_type,
 	uint64_t base_offset, uint64_t bits_in_array);
+
 uint64_t __getDynOffset(uint64_t type_num);
 void __debugOutcall(uint64_t v);
 void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo);
 void __getDynParams(uint64_t typenum, parambuf_t params_out);
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo);
+
+
 uint64_t __max2(
 	uint64_t a0, uint64_t a1);
 uint64_t __max3(uint64_t a0, uint64_t a1, uint64_t a2);
@@ -200,6 +203,8 @@ uint64_t fsl_fail(void);
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
 void fsl_rt_dump_dyn(void);
+struct fsl_rt_closure* fsl_rt_dyn_alloc(void);
+void fsl_rt_dyn_free(struct fsl_rt_closure*);
 
 /* virt functions */
 struct fsl_rt_mapping*  fsl_virt_alloc(
