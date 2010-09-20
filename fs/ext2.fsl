@@ -36,6 +36,21 @@ int inode_table_block_count(ext2_sb sb)
 	return (needed_bytes+get_block_size()-1)/get_block_size();
 }
 
+const S_IFDIR = 0x4000;
+const S_IFREG = 0x8000;
+
+bool S_ISDIR(u32 mode)
+{
+	if ((mode & S_IFDIR) == S_IFDIR) return true;
+	return false;
+}
+
+bool S_ISREG(u32 mode)
+{
+	if ((mode & S_IFREG) == S_IFREG) return true;
+	return false;
+}
+
 ext2_inode ino_by_num(u32 ino_num)
 {
 	int	ino_grp;

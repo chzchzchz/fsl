@@ -30,7 +30,12 @@ OBJS=	parser.o		\
 	virt.o				\
 	instance_iter.o
 
-RTOBJS= runtime/runtime.o runtime/type_info.o runtime/virt.o runtime/dyn.o
+RTOBJS= runtime/runtime.o	\
+	runtime/type_info.o \
+	runtime/virt.o \
+	runtime/dyn.o \
+	runtime/io.o
+
 TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE

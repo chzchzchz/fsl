@@ -20,7 +20,8 @@ typedef uint64_t*	parambuf_t;
 
 struct fsl_rt_stat
 {
-	unsigned int	s_access_c;
+	unsigned int	s_access_c;		/* # getlocal calls */
+	unsigned int	s_phys_access_c;	/* # getlocal w/o xlate */
 	uint64_t	s_bits_read;
 	uint64_t	s_xlate_call_c;
 	uint64_t	s_xlate_alloc_c;
