@@ -32,11 +32,16 @@ struct fsl_rt_stat
 	uint64_t	s_get_offset_c;
 };
 
+struct fsl_rt_io
+{
+	FILE			*io_backing;
+};
+
 struct fsl_rt_ctx
 {
 	unsigned int		fctx_num_types;
 	struct fsl_rt_closure	*fctx_dyn_closures;
-	FILE			*fctx_backing;
+	struct fsl_rt_io	*fctx_io;
 	struct fsl_rt_stat	fctx_stat;
 };
 
@@ -217,6 +222,12 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 uint64_t fsl_virt_xlate(
 	const struct fsl_rt_closure* clo, uint64_t bit_off);
 void fsl_virt_free(struct fsl_rt_mapping*);
+
+
+/* io funcs */
+struct fsl_rt_io* fsl_io_alloc(const char* backing_fname);
+void fsl_io_free(struct fsl_rt_io* io);
+ssize_t fsl_io_size(struct fsl_rt_io* io);
 
 /* implemented by tool: */
 int tool_entry(int argc, char* argv[]);

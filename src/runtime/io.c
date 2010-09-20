@@ -6,6 +6,7 @@
 #include "runtime.h"
 
 extern struct fsl_rt_ctx	*fsl_env;
+#define get_io()		(fsl_env->fctx_io)
 
 uint64_t __getLocal(
 	const struct fsl_rt_closure* clo,
@@ -36,7 +37,7 @@ uint64_t __getLocal(
 
 	/* common path */
 
-	if (fseeko(fsl_env->fctx_backing, bit_off / 8, SEEK_SET) != 0) {
+	if (fseeko(get_io()->io_backing, bit_off / 8, SEEK_SET) != 0) {
 		fprintf(stderr, "BAD SEEK! bit_off=%"PRIx64"\n", bit_off);
 		exit(-2);
 	}
@@ -48,7 +49,7 @@ uint64_t __getLocal(
 		exit(-3);
 	}
 
-	br = fread(buf, (num_bits + 7) / 8, 1, fsl_env->fctx_backing);
+	br = fread(buf, (num_bits + 7) / 8, 1, get_io()->io_backing);
 	if (br != 1) {
 		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64" br=%d. bits=%d\n",
 			bit_off, br, num_bits);
@@ -63,10 +64,12 @@ uint64_t __getLocal(
 		ret += buf[i];
 	}
 
+#if 0
 	if (fsl_rt_debug & FSL_DEBUG_FL_GETLOCAL) {
 		printf("getlocal: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64"\n",
 			bit_off, num_bits, ret);
 	}
+#endif
 
 	return ret;
 }
@@ -94,4 +97,34 @@ uint64_t __getLocalArray(
 	assert (0 == 1 && "WTF???");
 //	return __getLocal(real_off, bits_in_type);
 	return ~0; /* fake it for now */
+}
+
+struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
+{
+	struct fsl_rt_io	*ret;
+	FILE			*f;
+
+	assert (backing_fname != NULL);
+
+	f = fopen(backing_fname, "r");
+	if (f == NULL)
+		return NULL;
+
+	ret = malloc(sizeof(*ret));
+	ret->io_backing = f;
+
+	return ret;
+}
+
+void fsl_io_free(struct fsl_rt_io* io)
+{
+	assert (io != NULL);
+	fclose(io->io_backing);
+	free(io);
+}
+
+ssize_t fsl_io_size(struct fsl_rt_io* io)
+{
+	fseeko(io->io_backing, 0, SEEK_END);
+	__FROM_OS_BDEV_BYTES = ftello(io->io_backing);
 }

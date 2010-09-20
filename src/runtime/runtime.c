@@ -1,6 +1,4 @@
-/**
- * main runtime file
- */
+/* main runtime file */
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -11,7 +9,6 @@
 extern uint64_t fsl_num_types;
 
 struct fsl_rt_ctx* 		fsl_env;
-int				fsl_rt_debug = 0;
 static int			cur_debug_write_val = 0;
 
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
@@ -117,17 +114,13 @@ typesize_t __computeArrayBits(
 }
 
 /* not exposed to llvm */
-struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
+struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
 {
 	FILE			*f;
 	struct fsl_rt_ctx	*fsl_ctx;
 
-	f = fopen(fsl_rt_backing, "r");
-	if (f == NULL)
-		return NULL;
-
 	fsl_ctx = malloc(sizeof(struct fsl_rt_ctx));
-	fsl_ctx->fctx_backing = f;
+	fsl_ctx->fctx_io = fsl_io_alloc(fsl_rt_backing_fname);
 	fsl_ctx->fctx_num_types = fsl_num_types;
 	fsl_ctx->fctx_dyn_closures = fsl_dyn_alloc();
 
@@ -180,7 +173,7 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 
 	fsl_rt_dump_stats(fctx);
 
-	fclose(fctx->fctx_backing);
+	fsl_io_free(fctx->fctx_io);
 	fsl_dyn_free(fctx->fctx_dyn_closures);
 
 	free(fctx);
@@ -189,10 +182,9 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 {
 	assert (fctx != NULL);
-	assert (fctx->fctx_backing != NULL);
+	assert (fctx->fctx_io != NULL);
 
-	fseeko(fctx->fctx_backing, 0, SEEK_END);
-	__FROM_OS_BDEV_BYTES = ftello(fctx->fctx_backing);
+	__FROM_OS_BDEV_BYTES = fsl_io_size(fctx->fctx_io);
 	__FROM_OS_BDEV_BLOCK_BYTES = 512;
 	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
 }
