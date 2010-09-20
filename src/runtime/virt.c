@@ -9,6 +9,7 @@ extern struct fsl_rt_ctx* 	fsl_env;
 uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 {
 	struct fsl_rt_mapping	*rtm;
+	struct fsl_rt_closure	*old_clo;
 	uint64_t		total_bits;
 	uint64_t		idx, off;
 	diskoff_t		base;
@@ -29,7 +30,10 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	off = bit_off % rtm->rtm_cached_srcsz;
 
 	uint64_t params[tt_by_num(rtm->rtm_virt->vt_type_src)->tt_param_c];
+
+	old_clo = fsl_rt_dyn_swap(rtm->rtm_dyn);
 	base = rtm->rtm_virt->vt_range(rtm->rtm_clo, idx, params);
+	fsl_rt_dyn_swap(old_clo);
 
 	assert (bit_off != base+off);
 
@@ -42,6 +46,7 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 void fsl_virt_free(struct fsl_rt_mapping* rtm)
 {
 	assert (rtm != NULL);
+	fsl_dyn_free(rtm->rtm_dyn);
 	free(rtm);
 }
 
@@ -65,6 +70,8 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 
 	tt_vsrc = tt_by_num(vt->vt_type_src);
 
+	rtm->rtm_dyn = fsl_dyn_copy(fsl_env->fctx_dyn_closures);
+
 	uint64_t        params[tt_vsrc->tt_param_c];
 	first_type_off = vt->vt_range(
 		rtm->rtm_clo,
@@ -73,7 +80,7 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 
 	NEW_VCLO(vsrc_clo, first_type_off, params, parent->clo_xlate);
 
-	/* XXX not always correct-- sizes may vary from elements */
+	/* XXX not always correct-- sizes may vary among elements */
 	rtm->rtm_cached_srcsz = tt_vsrc->tt_size(&vsrc_clo);
 	assert (rtm->rtm_cached_srcsz > 0);
 

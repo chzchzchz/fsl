@@ -1,6 +1,6 @@
 %{
 #include <string>
-#include "Token.h"
+#include "util.h"
 #include "AST.h"
 #include "type.h"
 #include "func.h"

@@ -214,7 +214,7 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing)
 	fsl_ctx = malloc(sizeof(struct fsl_rt_ctx));
 	fsl_ctx->fctx_backing = f;
 	fsl_ctx->fctx_num_types = fsl_num_types;
-	fsl_ctx->fctx_dyn_closures = fsl_rt_dyn_alloc();
+	fsl_ctx->fctx_dyn_closures = fsl_dyn_alloc();
 
 	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
 
@@ -265,7 +265,7 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 	fsl_rt_dump_stats(fctx);
 
 	fclose(fctx->fctx_backing);
-	fsl_rt_dyn_free(fctx->fctx_dyn_closures);
+	fsl_dyn_free(fctx->fctx_dyn_closures);
 
 	free(fctx);
 }
@@ -279,6 +279,16 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	__FROM_OS_BDEV_BYTES = ftello(fctx->fctx_backing);
 	__FROM_OS_BDEV_BLOCK_BYTES = 512;
 	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
+}
+
+struct fsl_rt_closure* fsl_rt_dyn_swap(struct fsl_rt_closure* dyns)
+{
+	struct fsl_rt_closure	*ret;
+
+	ret = fsl_env->fctx_dyn_closures;
+	fsl_env->fctx_dyn_closures = dyns;
+
+	return ret;
 }
 
 int main(int argc, char* argv[])

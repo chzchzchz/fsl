@@ -10,7 +10,7 @@
 extern struct fsl_rt_ctx	*fsl_env;
 extern uint64_t			fsl_num_types;
 
-struct fsl_rt_closure* fsl_rt_dyn_alloc(void)
+struct fsl_rt_closure* fsl_dyn_alloc(void)
 {
 	struct fsl_rt_closure	*dyns;
 	unsigned int		i;
@@ -42,7 +42,7 @@ struct fsl_rt_closure* fsl_rt_dyn_alloc(void)
 	return dyns;
 }
 
-void fsl_rt_dyn_free(struct fsl_rt_closure* dyn_closures)
+void fsl_dyn_free(struct fsl_rt_closure* dyn_closures)
 {
 	unsigned int	i;
 
@@ -53,6 +53,25 @@ void fsl_rt_dyn_free(struct fsl_rt_closure* dyn_closures)
 			free(clo->clo_params);
 	}
 	free(dyn_closures);
+}
+
+struct fsl_rt_closure* fsl_dyn_copy(const struct fsl_rt_closure* src)
+{
+	struct fsl_rt_closure	*ret;
+	unsigned int		i;
+
+	assert (src != NULL);
+
+	ret = fsl_dyn_alloc();
+	for (i = 0; i < fsl_num_types; i++) {
+		ret[i].clo_offset = src[i].clo_offset;
+		ret[i].clo_xlate = src[i].clo_xlate;
+		if (ret[i].clo_params != NULL)
+			memcpy(ret[i].clo_params, src[i].clo_params,
+				tt_by_num(i)->tt_param_c*sizeof(uint64_t));
+	}
+
+	return ret;
 }
 
 uint64_t __getDynOffset(uint64_t type_num)
@@ -118,7 +137,7 @@ void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
 	fsl_env->fctx_stat.s_dyn_set_c++;
 }
 
-void fsl_rt_dump_dyn(void)
+void fsl_dyn_dump(void)
 {
 	unsigned int	i;
 

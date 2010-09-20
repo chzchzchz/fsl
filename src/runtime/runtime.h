@@ -65,6 +65,7 @@ struct fsl_rt_mapping
 	/* may need reference counting */
 	struct fsl_rt_closure* 		rtm_clo; 	/* for eval rtm_virt */
 	struct fsl_rt_table_virt* 	rtm_virt;	/* off_v -> off_phys */
+	struct fsl_rt_closure*		rtm_dyn; /* saved dyns for rtm_virt */
 	uint64_t			rtm_cached_minidx;
 	uint64_t			rtm_cached_maxidx;
 	uint64_t			rtm_cached_srcsz;
@@ -201,10 +202,13 @@ uint64_t fsl_fail(void);
 
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
+struct fsl_rt_closure* fsl_rt_dyn_swap(struct fsl_rt_closure* dyns);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
-void fsl_rt_dump_dyn(void);
-struct fsl_rt_closure* fsl_rt_dyn_alloc(void);
-void fsl_rt_dyn_free(struct fsl_rt_closure*);
+
+void fsl_dyn_dump(void);
+struct fsl_rt_closure* fsl_dyn_alloc(void);
+void fsl_dyn_free(struct fsl_rt_closure*);
+struct fsl_rt_closure* fsl_dyn_copy(const struct fsl_rt_closure* src);
 
 /* virt functions */
 struct fsl_rt_mapping*  fsl_virt_alloc(
