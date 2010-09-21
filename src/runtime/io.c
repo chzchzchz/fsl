@@ -8,6 +8,8 @@
 extern struct fsl_rt_ctx	*fsl_env;
 #define get_io()		(fsl_env->fctx_io)
 
+static void fsl_io_log(struct fsl_rt_io* io, uint64_t addr);
+
 uint64_t __getLocal(
 	const struct fsl_rt_closure* clo,
 	uint64_t bit_off, uint64_t num_bits)
@@ -48,6 +50,8 @@ uint64_t __getLocal(
 			bit_off);
 		exit(-3);
 	}
+
+	fsl_io_log(get_io(), bit_off);
 
 	br = fread(buf, (num_bits + 7) / 8, 1, get_io()->io_backing);
 	if (br != 1) {
@@ -112,6 +116,7 @@ struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 
 	ret = malloc(sizeof(*ret));
 	ret->io_backing = f;
+	ret->io_accessed_idx = IO_IDX_STOPPED;
 
 	return ret;
 }
@@ -127,4 +132,40 @@ ssize_t fsl_io_size(struct fsl_rt_io* io)
 {
 	fseeko(io->io_backing, 0, SEEK_END);
 	__FROM_OS_BDEV_BYTES = ftello(io->io_backing);
+}
+
+bool fsl_io_log_contains(struct fsl_rt_io* io, diskoff_t addr)
+{
+	int i;
+
+	addr >>= 3;	/* 3=bits */
+	addr >>= 3;	/* 3 => 8 byte units */
+	for (i = 0; i < io->io_accessed_idx; i++) {
+		if (io->io_accessed[i] == addr)
+			return true;
+	}
+
+	return false;
+}
+
+void fsl_io_log_start(struct fsl_rt_io* io)
+{
+	assert (io->io_accessed_idx == IO_IDX_STOPPED);
+	io->io_accessed_idx = 0;
+}
+
+void fsl_io_log_stop(struct fsl_rt_io* io)
+{
+	assert (io->io_accessed_idx != io->io_accessed_idx);
+	io->io_accessed_idx = IO_IDX_STOPPED;
+}
+
+static void fsl_io_log(struct fsl_rt_io* io, diskoff_t addr)
+{
+	if (io->io_accessed_idx == IO_IDX_STOPPED) return;
+	assert (io->io_accessed_idx < IO_MAX_ACCESS);
+
+	/* round down to bytes */
+	if (fsl_io_log_contains(io, addr)) return;
+	io->io_accessed[io->io_accessed_idx++] = addr >> 3;
 }

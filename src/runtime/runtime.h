@@ -12,7 +12,8 @@
 
 #define FSL_ENV_VAR_STATFILE	"FSL_ENV_STATFILE"
 
-typedef uint64_t	diskoff_t;
+typedef uint64_t	diskoff_t;	/* bits */
+typedef uint64_t	byteoff_t;
 typedef uint64_t	typeoff_t;
 typedef uint64_t	typesize_t;
 typedef unsigned int	typenum_t;
@@ -32,10 +33,7 @@ struct fsl_rt_stat
 	uint64_t	s_get_offset_c;
 };
 
-struct fsl_rt_io
-{
-	FILE			*io_backing;
-};
+#include "io.h"
 
 struct fsl_rt_ctx
 {
@@ -194,9 +192,7 @@ void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo);
 void __getDynParams(uint64_t typenum, parambuf_t params_out);
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo);
 
-
-uint64_t __max2(
-	uint64_t a0, uint64_t a1);
+uint64_t __max2(uint64_t a0, uint64_t a1);
 uint64_t __max3(uint64_t a0, uint64_t a1, uint64_t a2);
 uint64_t __max4(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3);
 uint64_t __max5(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4);
@@ -222,12 +218,6 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 uint64_t fsl_virt_xlate(
 	const struct fsl_rt_closure* clo, uint64_t bit_off);
 void fsl_virt_free(struct fsl_rt_mapping*);
-
-
-/* io funcs */
-struct fsl_rt_io* fsl_io_alloc(const char* backing_fname);
-void fsl_io_free(struct fsl_rt_io* io);
-ssize_t fsl_io_size(struct fsl_rt_io* io);
 
 /* implemented by tool: */
 int tool_entry(int argc, char* argv[]);

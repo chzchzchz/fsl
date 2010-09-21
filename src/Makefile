@@ -31,10 +31,11 @@ OBJS=	parser.o		\
 	instance_iter.o
 
 RTOBJS= runtime/runtime.o	\
-	runtime/type_info.o \
-	runtime/virt.o \
-	runtime/dyn.o \
-	runtime/io.o
+	runtime/type_info.o 	\
+	runtime/virt.o		\
+	runtime/dyn.o 		\
+	runtime/io.o		\
+	runtime/max.o
 
 TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o
 

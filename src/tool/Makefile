@@ -8,7 +8,8 @@ RT_OBJS=../runtime/runtime.o 	\
 	../runtime/type_info.o	\
 	../runtime/virt.o	\
 	../runtime/dyn.o	\
-	../runtime/io.o
+	../runtime/io.o		\
+	../runtime/max.o
 
 SCANTOOL_OBJS=../runtime/scantool.o  $(RT_OBJS)
 BROWSER_OBJS=../runtime/browser.o $(RT_OBJS)
