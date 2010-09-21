@@ -19,6 +19,8 @@ typedef uint64_t	typesize_t;
 typedef unsigned int	typenum_t;
 typedef uint64_t*	parambuf_t;
 
+extern struct fsl_rt_ctx* 	fsl_env;
+
 struct fsl_rt_stat
 {
 	unsigned int	s_access_c;		/* # getlocal calls */
@@ -53,6 +55,8 @@ struct fsl_rt_closure
 
 };
 
+#include "virt.h"
+
 #define NEW_CLO(x,y,z)	NEW_VCLO(x,y,z,NULL)
 
 #define NEW_VCLO(x,y,z,t)			\
@@ -64,18 +68,9 @@ struct fsl_rt_closure
 	struct fsl_rt_closure	x;			\
 	uint64_t x##_params[tt_by_num(y)->tt_param_c];
 
-struct fsl_rt_mapping
-{
-	/* may need reference counting */
-	struct fsl_rt_closure* 		rtm_clo; 	/* for eval rtm_virt */
-	struct fsl_rt_table_virt* 	rtm_virt;	/* off_v -> off_phys */
-	struct fsl_rt_closure*		rtm_dyn; /* saved dyns for rtm_virt */
-	uint64_t			rtm_cached_minidx;
-	uint64_t			rtm_cached_maxidx;
-	uint64_t			rtm_cached_srcsz;
-};
 
 #define TYPENUM_INVALID	(~0)
+#define OFFSET_INVALID (~0)
 
 /* XXX these should take a thunkvar when we support args */
 typedef diskoff_t(*thunkf_t)(const struct fsl_rt_closure*);
@@ -213,11 +208,7 @@ void fsl_dyn_free(struct fsl_rt_closure*);
 struct fsl_rt_closure* fsl_dyn_copy(const struct fsl_rt_closure* src);
 
 /* virt functions */
-struct fsl_rt_mapping*  fsl_virt_alloc(
-	struct fsl_rt_closure* parent_clo, struct fsl_rt_table_virt* virt);
-uint64_t fsl_virt_xlate(
-	const struct fsl_rt_closure* clo, uint64_t bit_off);
-void fsl_virt_free(struct fsl_rt_mapping*);
+
 
 /* implemented by tool: */
 int tool_entry(int argc, char* argv[]);

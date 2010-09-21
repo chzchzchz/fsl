@@ -15,7 +15,8 @@ static void scan_type_pointsto(
 	unsigned int pt_idx);
 static void scan_type_pointsto_all(const struct type_info* ti);
 static void scan_type_strongtypes(const struct type_info* ti);
-static void scan_type(const struct type_info* ti);
+static void scan_type_virt(struct type_info* ti);
+static void scan_type(struct type_info* ti);
 
 static void print_indent(unsigned int depth)
 {
@@ -31,8 +32,8 @@ static void scan_type_pointsto(
 {
 	struct fsl_rt_table_pointsto	*pt;
 	struct fsl_rt_table_type	*tt;
-	unsigned int			k;
-	unsigned int			min_idx, max_idx;
+	uint64_t			k;
+	uint64_t			min_idx, max_idx;
 	TI_INTO_CLO			(ti);
 
 	pt = pt_from_idx(ti, pt_idx);
@@ -43,7 +44,7 @@ static void scan_type_pointsto(
 	min_idx = pt->pt_min(clo);
 	max_idx = pt->pt_max(clo);
 	if (min_idx != max_idx)
-		printf("[%d,%d]\n", min_idx, max_idx);
+		printf("[%"PRIu64",%"PRIu64"]\n", min_idx, max_idx);
 	for (k = min_idx; k <= max_idx; k++) {
 		struct type_info	*new_ti;
 		struct type_desc	next_td;
@@ -103,7 +104,7 @@ static void handle_field(
 	field = &tt_by_ti(ti)->tt_field_thunkoff[field_idx];
 	next_td.td_typenum = field->tf_typenum;
 	td_offset(&next_td) = field->tf_fieldbitoff(clo);
-	if (field->tf_typenum != ~0)
+	if (field->tf_typenum != TYPENUM_INVALID)
 		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
 	else
 		param_c = 0;
@@ -129,7 +130,7 @@ static void handle_field(
 		scan_type(new_ti);
 		TI_INTO_CLO_DECL(new_clo, new_ti);
 		if (i < num_elems - 1) {
-			/* more to next element */
+			/* move to next element */
 			td_offset(&next_td) += tt_by_ti(new_ti)->tt_size(&new_clo);
 		}
 
@@ -137,8 +138,28 @@ static void handle_field(
 	}
 }
 
+
+static void scan_type_virt(struct type_info* ti)
+{
+	struct fsl_rt_table_type	*tt;
+	unsigned int			i;
+
+	tt = tt_by_ti(ti);
+	for (i = 0; i < tt->tt_virt_c; i++) {
+		struct type_info*	ti_cur;
+
+		printf("virt\n");
+		ti_cur = typeinfo_alloc_virt(&tt->tt_virt[i], ti);
+		if (ti_cur == NULL)
+			continue;
+
+		scan_type(ti_cur);
+		typeinfo_free(ti_cur);
+	}
+}
+
 /* dump all data for strong usertypes that are aggregate to the given type */
-static void scan_type_strong_types(const struct type_info* ti)
+static void scan_type_strongtypes(const struct type_info* ti)
 {
 	struct fsl_rt_table_type	*tt;
 	unsigned int			i;
@@ -149,7 +170,7 @@ static void scan_type_strong_types(const struct type_info* ti)
 	}
 }
 
-static void scan_type(const struct type_info* ti)
+static void scan_type(struct type_info* ti)
 {
 	unsigned int i;
 
@@ -157,8 +178,9 @@ static void scan_type(const struct type_info* ti)
 	printf("scanning: %s (%d usertypes)\n",
 		tt_by_ti(ti)->tt_name,
 		tt_by_ti(ti)->tt_field_c);
-	scan_type_strong_types(ti);
+	scan_type_strongtypes(ti);
 	scan_type_pointsto_all(ti);
+	scan_type_virt(ti);
 }
 
 int tool_entry(int argc, char* argv[])
@@ -174,8 +196,6 @@ int tool_entry(int argc, char* argv[])
 		printf("Could not open origin type\n");
 		return -1;
 	}
-
-	typeinfo_set_depth(origin_ti, 1);
 
 	scan_type(origin_ti);
 

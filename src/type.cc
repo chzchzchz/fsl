@@ -157,6 +157,7 @@ SymbolTable* Type::getSymsByUserTypeStrong() const
 SymbolTable* Type::getSymsStrong(void) const
 {
 	assert (0 == 1);
+	return NULL;
 }
 
 /* get all strong types or those that can be verified conditionally */

@@ -5,9 +5,6 @@
 #include <string.h>
 #include "runtime.h"
 
-extern struct fsl_rt_ctx	*fsl_env;
-#define get_io()		(fsl_env->fctx_io)
-
 static void fsl_io_log(struct fsl_rt_io* io, uint64_t addr);
 
 uint64_t __getLocal(
@@ -39,7 +36,7 @@ uint64_t __getLocal(
 
 	/* common path */
 
-	if (fseeko(get_io()->io_backing, bit_off / 8, SEEK_SET) != 0) {
+	if (fseeko(fsl_get_io()->io_backing, bit_off / 8, SEEK_SET) != 0) {
 		fprintf(stderr, "BAD SEEK! bit_off=%"PRIx64"\n", bit_off);
 		exit(-2);
 	}
@@ -51,9 +48,9 @@ uint64_t __getLocal(
 		exit(-3);
 	}
 
-	fsl_io_log(get_io(), bit_off);
+	fsl_io_log(fsl_get_io(), bit_off);
 
-	br = fread(buf, (num_bits + 7) / 8, 1, get_io()->io_backing);
+	br = fread(buf, (num_bits + 7) / 8, 1, fsl_get_io()->io_backing);
 	if (br != 1) {
 		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64" br=%d. bits=%d\n",
 			bit_off, br, num_bits);
@@ -156,7 +153,7 @@ void fsl_io_log_start(struct fsl_rt_io* io)
 
 void fsl_io_log_stop(struct fsl_rt_io* io)
 {
-	assert (io->io_accessed_idx != io->io_accessed_idx);
+	assert (io->io_accessed_idx != IO_IDX_STOPPED);
 	io->io_accessed_idx = IO_IDX_STOPPED;
 }
 

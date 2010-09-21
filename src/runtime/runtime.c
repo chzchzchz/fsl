@@ -41,7 +41,6 @@ typesize_t __computeArrayBits(
 	NEW_EMPTY_CLO			(old_dyn, elem_type);
 
 	assert (elem_type < fsl_rt_table_entries);
-	assert (clo->clo_xlate == NULL);
 
 	total_bits = 0;
 	cur_off = clo->clo_offset;;

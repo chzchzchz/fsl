@@ -85,9 +85,11 @@ struct type_info* typeinfo_alloc_pointsto(
 	unsigned int		ti_pointsto_elem,
 	const struct type_info*	ti_prev);
 
-struct type_info* typeinfo_alloc_virt(
+#define typeinfo_alloc_virt(v,t)	typeinfo_alloc_virt_idx(v,t,0)
+struct type_info* typeinfo_alloc_virt_idx(
 	struct fsl_rt_table_virt* virt,
-	struct type_info*	ti_prev);
+	struct type_info*	ti_prev,
+	unsigned int		idx_no);
 
 
 void typeinfo_print_name(void);

@@ -401,12 +401,14 @@ struct type_info* typeinfo_alloc(
 	return ret;
 }
 
-struct type_info* typeinfo_alloc_virt(
+struct type_info* typeinfo_alloc_virt_idx(
 	struct fsl_rt_table_virt* virt,
-	struct type_info*	ti_prev)
+	struct type_info*	ti_prev,
+	unsigned int		idx)
 {
 	struct type_desc	td;
 	struct type_info*	ret;
+	typesize_t		array_bit_off;
 
 	td.td_typenum = virt->vt_type_virttype;
 	assert (td.td_typenum != TYPENUM_INVALID);
@@ -415,6 +417,16 @@ struct type_info* typeinfo_alloc_virt(
 	td_offset(&td) = 0;
 	td_params(&td) = NULL;
 	td_xlate(&td) = fsl_virt_alloc(&ti_to_td(ti_prev)->td_clo, virt);
+
+	if (idx != 0) {
+		array_bit_off = fsl_virt_get_nth(td_xlate(&td), idx);
+		if (array_bit_off == OFFSET_INVALID) {
+			fsl_virt_free(td_xlate(&td));
+			return NULL;
+		}
+
+		td_offset(&td) = array_bit_off;
+	}
 
 	ret = typeinfo_alloc_generic(&td, ti_prev);
 	if (ret == NULL)
