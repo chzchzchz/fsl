@@ -32,7 +32,8 @@ llvm::Value* cond_cmpop_codeGen(const EvalCtx* ctx, const CmpOp* cmpop)
 	case CmpOp::GT: pred = llvm::CmpInst::ICMP_UGT; break;
 	case CmpOp::GE: pred = llvm::CmpInst::ICMP_UGE; break;
 	default:
-		assert (0 == 1);
+		pred = llvm::CmpInst::ICMP_EQ;
+		assert (0 == 1 && "Bad CmpOP");
 	}
 	return code_builder->getBuilder()->CreateICmp(pred, lhs, rhs);
 }
@@ -215,7 +216,8 @@ llvm::Value* cond_codeGen(const EvalCtx* ctx, const CondExpr* cond)
 	} else if ((fcond = dynamic_cast<const FuncCond*>(cond)) != NULL) {
 		ret = evalAndGen(*ctx, fcond->getFC());
 	} else {
-		assert (0 == 1);
+		assert (0 == 1 && "Unknown CondType");
+		ret = NULL;
 	}
 
 	return ret;

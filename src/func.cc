@@ -271,6 +271,7 @@ Value* FuncWhileStmt::codeGen(void) const
 {
 	Function	*f;
 	BasicBlock	*bb_begin, *bb_cond, *bb_end, *bb_origin;
+	BasicBlock	*bb_after_body;
 	Value		*cond_v;
 	IRBuilder<>	*builder;
 	EvalCtx		ectx(getOwner());
@@ -298,8 +299,11 @@ Value* FuncWhileStmt::codeGen(void) const
 	/* while body */
 	builder->SetInsertPoint(bb_begin);
 	stmt->codeGen();
-	if (bb_begin->empty() || bb_begin->back().isTerminator() == false) {
-		/* body might have a return stmt.. */
+
+	bb_after_body = builder->GetInsertBlock();
+	if (bb_after_body->empty() ||
+	    bb_after_body->back().isTerminator() == false) {
+		/* body doesn't have a branch or return stmt.. loop. */
 		builder->CreateBr(bb_cond);
 	}
 

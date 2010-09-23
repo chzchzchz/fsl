@@ -23,8 +23,8 @@ static bool verify_asserts(const struct type_info *ti)
 
 		as = &tt->tt_assert[i];
 		if (as->as_assertf(clo) == false) {
-			printf("!!! !!!Assert #%d failed on type %s!!! !!!\n",
-				i, tt->tt_name);
+//			printf("!!! !!!Assert #%d failed on type %s!!! !!!\n",
+//				i, tt->tt_name);
 			return false;
 		}
 	}
@@ -279,12 +279,10 @@ void typeinfo_print_fields(const struct type_info* ti)
 
 void typeinfo_free(struct type_info* ti)
 {
+	if (ti->ti_is_virt && ti_xlate(ti) != NULL)
+		fsl_virt_free(ti_xlate(ti));
 	if (ti_params(ti) != NULL)
 		free(ti->ti_td.td_clo.clo_params);
-
-	if (ti_xlate(ti) != NULL) {
-		fsl_virt_free(ti_xlate(ti));
-	}
 	free(ti);
 }
 
@@ -311,6 +309,33 @@ void typeinfo_dump_data(const struct type_info* ti)
 	printf("\n");
 	if (type_sz % 8)
 		printf("OOPS-- size is not byte-aligned\n");
+}
+
+static bool ti_has_loop(const struct type_info* chain)
+{
+	const struct type_info	*cur;
+	poff_t			top_poff;
+	typenum_t		top_typenum;
+
+	cur = chain;
+	assert (cur != NULL);
+
+	if (cur->ti_prev == NULL) return false;
+
+	top_poff = ti_phys_offset(cur);
+	top_typenum = ti_typenum(cur);
+	cur = cur->ti_prev;
+
+	for (; cur != NULL; cur = cur->ti_prev) {
+		/* TODO: cache physical offsets? */
+		if (ti_phys_offset(cur) == top_poff &&
+		    ti_typenum(cur) == top_typenum)
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 static struct type_info* typeinfo_alloc_generic(
@@ -343,12 +368,28 @@ static struct type_info* typeinfo_alloc_generic(
 	ret->ti_td.td_clo.clo_xlate = td_xlate(ti_td);
 
 	ret->ti_prev = ti_prev;
-	if (ti_prev != NULL) {
-		ret->ti_depth = ti_prev->ti_depth + 1;
+	ret->ti_depth = (ti_prev != NULL) ? ti_prev->ti_depth + 1 : 0;
+
+	return ret;
+}
+
+static bool typeinfo_verify(const struct type_info* ti)
+{
+	if (ti_has_loop(ti) == true) {
+		printf("XXX addr already in chain! voff=%"PRIu64
+			" poff=%"PRIu64" (%s). xlate=%p\n",
+			ti_offset(ti),
+			ti_phys_offset(ti),
+			ti_type_name(ti),
+			ti->ti_td.td_clo.clo_xlate);
+		return false;
 	}
 
 
-	return ret;
+	if (verify_asserts(ti) == false)
+		return false;
+
+	return true;
 }
 
 struct type_info* typeinfo_alloc_pointsto(
@@ -369,7 +410,7 @@ struct type_info* typeinfo_alloc_pointsto(
 	ret->ti_pointsto_elem = ti_pointsto_elem;
 
 	typeinfo_set_dyn(ret);
-	if (verify_asserts(ret) == false) {
+	if (typeinfo_verify(ret) == false) {
 		typeinfo_free(ret);
 		return NULL;
 	}
@@ -393,7 +434,7 @@ struct type_info* typeinfo_alloc(
 	ret->ti_fieldidx = ti_fieldidx;
 
 	typeinfo_set_dyn(ret);
-	if (verify_asserts(ret) == false) {
+	if (typeinfo_verify(ret) == false) {
 		typeinfo_free(ret);
 		return NULL;
 	}
@@ -401,44 +442,61 @@ struct type_info* typeinfo_alloc(
 	return ret;
 }
 
+#define set_err_code(x,y)		if ((x) != NULL) *(x) = y
+
 struct type_info* typeinfo_alloc_virt_idx(
 	struct fsl_rt_table_virt* virt,
 	struct type_info*	ti_prev,
-	unsigned int		idx)
+	unsigned int		idx,
+	int			*err_code)
 {
 	struct type_desc	td;
 	struct type_info*	ret;
 	typesize_t		array_bit_off;
 
-	td.td_typenum = virt->vt_type_virttype;
-	assert (td.td_typenum != TYPENUM_INVALID);
-	assert (tt_by_num(virt->vt_type_virttype)->tt_param_c == 0);
+	assert (tt_by_num(virt->vt_type_virttype)->tt_param_c == 0 &&
+		"Parameterized virtual types not yet supported");
 
-	td_offset(&td) = 0;
-	td_params(&td) = NULL;
-	td_xlate(&td) = fsl_virt_alloc(&ti_to_td(ti_prev)->td_clo, virt);
+	set_err_code(err_code, TI_ERR_OK);
+
+	td_vinit(&td,
+		virt->vt_type_virttype, 0, NULL,
+		fsl_virt_alloc(&ti_to_td(ti_prev)->td_clo, virt));
+
+	if (td_xlate(&td) == NULL) {
+		/* could not allocate virt */
+		set_err_code(err_code, TI_ERR_BADVIRT);
+		return NULL;
+	}
 
 	if (idx != 0) {
 		array_bit_off = fsl_virt_get_nth(td_xlate(&td), idx);
 		if (array_bit_off == OFFSET_INVALID) {
 			fsl_virt_free(td_xlate(&td));
+			set_err_code(err_code, TI_ERR_BADIDX);
 			return NULL;
 		}
 
 		td_offset(&td) = array_bit_off;
 	}
 
+	assert (td_xlate(&td) != NULL);
 	ret = typeinfo_alloc_generic(&td, ti_prev);
-	if (ret == NULL)
+	if (ret == NULL) {
+		set_err_code(err_code, TI_ERR_BADALLOC);
 		return NULL;
+	}
+
+	assert (ti_xlate(ret) != NULL);
 
 	ret->ti_is_virt = true;
 	ret->ti_pointsto = false;
 	ret->ti_virttype_c = 0;	/* XXX */
 
 	typeinfo_set_dyn(ret);
-	if (verify_asserts(ret) == false) {
+	if (typeinfo_verify(ret) == false) {
 		typeinfo_free(ret);
+		set_err_code(err_code, TI_ERR_BADVERIFY);
 		return NULL;
 	}
 
@@ -492,4 +550,21 @@ void typeinfo_print_path(const struct type_info* ti)
 {
 	typeinfo_print_path_helper(ti->ti_prev);
 	typeinfo_print(ti);
+}
+
+diskoff_t ti_phys_offset(const struct type_info* ti)
+{
+	diskoff_t	voff;
+	diskoff_t	off;
+
+	assert (ti != NULL);
+
+	voff = ti_offset(ti);
+	if (ti->ti_td.td_clo.clo_xlate == NULL) {
+		/* no xlate, phys = virt */
+		return voff;
+	}
+
+	off = fsl_virt_xlate(&ti->ti_td.td_clo, voff);
+	return off;
 }

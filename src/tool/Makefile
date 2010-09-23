@@ -14,6 +14,7 @@ RT_OBJS=../runtime/runtime.o 	\
 SCANTOOL_OBJS=../runtime/scantool.o  $(RT_OBJS)
 BROWSER_OBJS=../runtime/browser.o $(RT_OBJS)
 MODIFY_OBJS=../runtime/modify.o $(RT_OBJS)
+CFLAGS=-O3 -g
 
 all: $(EXT2_TOOLS) $(VFAT_TOOLS) $(NILFS_TOOLS)
 
@@ -21,22 +22,22 @@ clean:
 	rm  -f *.s *.o *.bc *.ll fsl.*.*.c scantool* browser*
 
 browser-ext2: $(EXT2_OBJS)
-	gcc -O3 -o $@ $^  $(BROWSER_OBJS)
+	gcc $(CFLAGS) -o $@ $^  $(BROWSER_OBJS)
 
 scantool-ext2: $(EXT2_OBJS)
-	gcc -O3 -o $@ $^  $(SCANTOOL_OBJS)
+	gcc $(CFLAGS) -o $@ $^  $(SCANTOOL_OBJS)
 
 browser-vfat: $(VFAT_OBJS)
-	gcc -O3 -o $@ $^ $(BROWSER_OBJS)
+	gcc $(CFLAGS) -o $@ $^ $(BROWSER_OBJS)
 
 scantool-vfat: $(VFAT_OBJS)
-	gcc -O3 -o $@ $^ $(SCANTOOL_OBJS)
+	gcc $(CFLAGS) -o $@ $^ $(SCANTOOL_OBJS)
 
 browser-nilfs: $(NILFS_OBJS)
-	gcc -O3 -o $@ $^ $(BROWSER_OBJS)
+	gcc $(CFLAGS) -o $@ $^ $(BROWSER_OBJS)
 
 scantool-nilfs: $(NILFS_OBJS)
-	gcc -O3 -o $@ $^ $(SCANTOOL_OBJS)
+	gcc $(CFLAGS) -o $@ $^ $(SCANTOOL_OBJS)
 
 
 
@@ -56,7 +57,7 @@ fsl.ext2.table.c: ../../fs/ext2.fsl
 	../lang ext2 <$^
 
 fsl.ext2.table.o: fsl.ext2.table.c
-	gcc -O3 -I.. -c $^ -o $@
+	gcc $(CFLAGS) -I.. -c $^ -o $@
 
 
 
@@ -64,7 +65,7 @@ fsl.vfat.types.o: fsl.vfat.types.s
 	as $< -o $@
 
 fsl.vfat.types.s: fsl.vfat.types.bc
-	llc -O3 $< -o $@
+	llc -O3  $< -o $@
 
 fsl.vfat.types.bc: fsl.vfat.types.ll
 	opt -O3 $^ >$@
@@ -76,7 +77,7 @@ fsl.vfat.table.c: ../../fs/vfat.fsl
 	../lang vfat <$^
 
 fsl.vfat.table.o: fsl.vfat.table.c
-	gcc -O3 -I.. -c $^ -o $@
+	gcc $(CFLAGS) -I.. -c $^ -o $@
 
 
 fsl.nilfs.types.o: fsl.nilfs.types.s
@@ -95,5 +96,5 @@ fsl.nilfs.table.c: ../../fs/nilfs2.fsl
 	../lang nilfs <$^
 
 fsl.nilfs.table.o: fsl.nilfs.table.c
-	gcc -O3 -I.. -c $^ -o $@
+	gcc $(CFLAGS) -I.. -c $^ -o $@
 

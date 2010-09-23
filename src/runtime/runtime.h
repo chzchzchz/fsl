@@ -13,6 +13,8 @@
 #define FSL_ENV_VAR_STATFILE	"FSL_ENV_STATFILE"
 
 typedef uint64_t	diskoff_t;	/* bits */
+typedef uint64_t	voff_t;		/* virtual offset */
+typedef uint64_t	poff_t;		/* physical offset */
 typedef uint64_t	byteoff_t;
 typedef uint64_t	typeoff_t;
 typedef uint64_t	typesize_t;
@@ -173,13 +175,6 @@ typesize_t __computeArrayBits(
 	uint64_t elem_type,
 	struct fsl_rt_closure* clo,
 	uint64_t num_elems);
-
-uint64_t __getLocal(
-	const struct fsl_rt_closure*, uint64_t bit_off, uint64_t num_bits);
-uint64_t __getLocalArray(
-	const struct fsl_rt_closure*,
-	uint64_t idx, uint64_t bits_in_type,
-	uint64_t base_offset, uint64_t bits_in_array);
 
 uint64_t __getDynOffset(uint64_t type_num);
 void __debugOutcall(uint64_t v);

@@ -15,6 +15,21 @@ function browser_startup
 	fi
 }
 
+function scan_startup
+{
+	fs=$1
+	echo "Testing scantool-$fs startup."
+	cmd="${src_root}/src/tool/scantool-$fs ${src_root}/img/$fs.img <<<EOF"
+	echo "$cmd" >>tests.log
+	outstr=`eval $cmd`
+	retval=$?
+	if [ $retval -ne 0 ]; then
+		echo "Test failed: $fs."
+		echo "Output: '$outstr'"
+		exit $retval
+	fi
+}
+
 function specific_tests
 {
 	fs=$1
@@ -58,6 +73,7 @@ rm -f failed_test_cmd
 rm -f tests.log
 
 for a in ext2 vfat nilfs; do
+	scan_startup $a
 	browser_startup $a
 	specific_tests $a
 done

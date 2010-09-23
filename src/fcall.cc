@@ -65,6 +65,7 @@ llvm::Value* FCall::codeGenLet(void) const
 	/* NOTE: Must know what sort of value we want to store */
 	assert (0 == 1);
 
+	return NULL;
 }
 
 llvm::Value* FCall::codeGenExtractOff(void) const

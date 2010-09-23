@@ -5,6 +5,13 @@
 #include <string.h>
 #include "runtime.h"
 
+typedef uint64_t logaddr_t;
+#define addr2log(x)	((x) >> 6)
+#define log2addr(x)	((x) << 6)
+//	addr >>= 3;	/* 3=bits */
+//	addr >>= 3;	/* 3 => 8 byte units */
+
+
 static void fsl_io_log(struct fsl_rt_io* io, uint64_t addr);
 
 uint64_t __getLocal(
@@ -52,7 +59,8 @@ uint64_t __getLocal(
 
 	br = fread(buf, (num_bits + 7) / 8, 1, fsl_get_io()->io_backing);
 	if (br != 1) {
-		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64" br=%d. bits=%d\n",
+		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64
+				" br=%"PRIu64". bits=%"PRIu64"\n",
 			bit_off, br, num_bits);
 		exit(-4);
 	}
@@ -80,9 +88,8 @@ uint64_t __getLocalArray(
 	uint64_t idx, uint64_t bits_in_type,
 	uint64_t base_offset, uint64_t bits_in_array)
 {
-	uint64_t	real_off, array_off;
+	diskoff_t	real_off, array_off;
 
-	assert (0 == 1 && "NEW: CLOSURE");
 	assert (bits_in_type <= 64);
 
 	array_off = bits_in_type * idx;
@@ -95,9 +102,7 @@ uint64_t __getLocalArray(
 	}
 
 	real_off = base_offset + (bits_in_type * idx);
-	assert (0 == 1 && "WTF???");
-//	return __getLocal(real_off, bits_in_type);
-	return ~0; /* fake it for now */
+	return __getLocal(clo, real_off, bits_in_type);
 }
 
 struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
@@ -133,12 +138,12 @@ ssize_t fsl_io_size(struct fsl_rt_io* io)
 
 bool fsl_io_log_contains(struct fsl_rt_io* io, diskoff_t addr)
 {
-	int i;
+	int		i;
+	logaddr_t 	logaddr;
 
-	addr >>= 3;	/* 3=bits */
-	addr >>= 3;	/* 3 => 8 byte units */
+	logaddr = addr2log(addr);
 	for (i = 0; i < io->io_accessed_idx; i++) {
-		if (io->io_accessed[i] == addr)
+		if (io->io_accessed[i] == logaddr)
 			return true;
 	}
 
@@ -164,5 +169,20 @@ static void fsl_io_log(struct fsl_rt_io* io, diskoff_t addr)
 
 	/* round down to bytes */
 	if (fsl_io_log_contains(io, addr)) return;
-	io->io_accessed[io->io_accessed_idx++] = addr >> 3;
+	io->io_accessed[io->io_accessed_idx++] = addr2log(addr);
+}
+
+void fsl_io_log_dump(struct fsl_rt_io* io, FILE* f)
+{
+	unsigned int	i;
+
+	for (i = 0; i < io->io_accessed_idx; i++) {
+		logaddr_t	logaddr;
+
+		logaddr = io->io_accessed[i];
+		fprintf(f, "%d. [%"PRIu64"--%"PRIu64"]\n",
+			i,
+			log2addr(logaddr),
+			log2addr(logaddr+1)-1);
+	}
 }

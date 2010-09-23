@@ -55,22 +55,28 @@ struct type_info
 #define td_params(x)	(x)->td_clo.clo_params
 #define td_xlate(x)	(x)->td_clo.clo_xlate
 
-#define td_init(x,t,y,z)	do {				\
+#define td_vinit(x,t,y,z,v)	do {				\
 				(x)->td_typenum = t;		\
 				(x)->td_clo.clo_offset = y;	\
 				(x)->td_clo.clo_params = z;	\
-				(x)->td_clo.clo_xlate = NULL;	\
+				(x)->td_clo.clo_xlate = v;	\
 			} while (0)
+#define td_init(x,t,y,z)	td_vinit(x,t,y,z,NULL)
 
 #define td_typenum(x)	(x)->td_typenum
 #define ti_typenum(x)	td_typenum(ti_to_td(x))
 #define ti_offset(x)	td_offset(ti_to_td(x))
+poff_t ti_phys_offset(const struct type_info* ti);
 #define ti_params(x)	td_params(ti_to_td(x))
 #define ti_xlate(x)	td_xlate(ti_to_td(x))
 #define ti_clo(x)	(ti_to_td(x))->td_clo
 
+#define ti_type_name(x)	((ti_typenum(x) == TYPENUM_INVALID) ?	\
+				"NO_TYPE" : 		\
+				tt_by_ti(x)->tt_name)
+
 #define typeinfo_set_depth(x,y)	do { (x)->ti_depth = (y); } while (0)
-#define typeinfo_get_depth(x)	(x)->ti_depth
+#define ti_depth(x)	(x)->ti_depth
 
 void typeinfo_print(const struct type_info* ti);
 void typeinfo_print_fields(const struct type_info* ti);
@@ -85,11 +91,19 @@ struct type_info* typeinfo_alloc_pointsto(
 	unsigned int		ti_pointsto_elem,
 	const struct type_info*	ti_prev);
 
-#define typeinfo_alloc_virt(v,t)	typeinfo_alloc_virt_idx(v,t,0)
+#define typeinfo_alloc_virt(v,t)	typeinfo_alloc_virt_idx(v,t,0,NULL)
+
+#define TI_ERR_OK		0
+#define TI_ERR_BADVIRT		-1
+#define TI_ERR_BADIDX		-2
+#define TI_ERR_BADALLOC		-3
+#define TI_ERR_BADVERIFY	-4
+
 struct type_info* typeinfo_alloc_virt_idx(
 	struct fsl_rt_table_virt* virt,
 	struct type_info*	ti_prev,
-	unsigned int		idx_no);
+	unsigned int		idx_no,
+	int			*err_code);
 
 
 void typeinfo_print_name(void);

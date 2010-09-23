@@ -38,7 +38,8 @@ ThunkParams* ThunkParams::copy(void) const
 	} else if (exprs != NULL) {
 		ret = new ThunkParams(exprs->copy());
 	} else {
-		assert (0 == 1);
+		ret = NULL;
+		assert (0 == 1 && "BAD THUNKPARAMS");
 	}
 
 	ret->setFieldName(getFieldName());
@@ -189,11 +190,13 @@ ThunkParams* ThunkParams::createNoParams()
 ThunkParams* ThunkParams::createCopyParams()
 {
 	assert( 0 == 1);
+	return NULL;
 }
 
 ThunkParams* ThunkParams::createSTUB(void)
 {
 	assert (0 == 1);
+	return NULL;
 }
 
 const std::string ThunkParams::getFCallName(void) const
