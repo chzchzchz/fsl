@@ -6,6 +6,7 @@ function browser_startup
 	echo "Testing browser-$fs startup."
 	cmd="${src_root}/src/tool/browser-$fs ${src_root}/img/$fs.img <<<EOF"
 	echo "$cmd" >>tests.log
+	echo "$cmd" >failed_test_cmd
 	outstr=`eval $cmd`
 	retval=$?
 	if [ $retval -ne 0 ]; then
@@ -19,8 +20,9 @@ function scan_startup
 {
 	fs=$1
 	echo "Testing scantool-$fs startup."
-	cmd="${src_root}/src/tool/scantool-$fs ${src_root}/img/$fs.img <<<EOF"
+	cmd="${src_root}/src/tool/scantool-$fs ${src_root}/img/$fs.img"
 	echo "$cmd" >>tests.log
+	echo "$cmd" >failed_test_cmd
 	outstr=`eval $cmd`
 	retval=$?
 	if [ $retval -ne 0 ]; then

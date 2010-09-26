@@ -4,9 +4,8 @@
 #include <assert.h>
 #include <string.h>
 #include "runtime.h"
+#include "debug.h"
 
-#define DYN_INVALID_TYPE	(~((uint64_t)0))
-#define env_get_dyn_clo(x)	(&(fsl_env->fctx_dyn_closures[(x)]))
 extern struct fsl_rt_ctx	*fsl_env;
 extern uint64_t			fsl_num_types;
 
@@ -14,6 +13,8 @@ struct fsl_rt_closure* fsl_dyn_alloc(void)
 {
 	struct fsl_rt_closure	*dyns;
 	unsigned int		i;
+
+	if (fsl_env) fsl_env->fctx_stat.s_dyn_alloc_c++;
 
 	dyns = malloc(sizeof(struct fsl_rt_closure)*fsl_num_types);
 
@@ -70,6 +71,8 @@ struct fsl_rt_closure* fsl_dyn_copy(const struct fsl_rt_closure* src)
 			memcpy(ret[i].clo_params, src[i].clo_params,
 				tt_by_num(i)->tt_param_c*sizeof(uint64_t));
 	}
+
+	fsl_env->fctx_stat.s_dyn_copy_c++;
 
 	return ret;
 }
@@ -142,10 +145,12 @@ void fsl_dyn_dump(void)
 	unsigned int	i;
 
 	assert (fsl_env != NULL);
+	DEBUG_WRITE("dumping dyns.");
 	for (i = 0; i < fsl_env->fctx_num_types; i++) {
-		printf("type %2d (%s): %"PRIu64"\n",
+		DEBUG_WRITE("type %2d (%s): %"PRIu64" (%p)",
 			i,
 			tt_by_num(i)->tt_name,
-			env_get_dyn_clo(i)->clo_offset);
+			env_get_dyn_clo(i)->clo_offset,
+			env_get_dyn_clo(i)->clo_xlate);
 	}
 }

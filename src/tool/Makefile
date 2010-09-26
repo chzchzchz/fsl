@@ -9,7 +9,8 @@ RT_OBJS=../runtime/runtime.o 	\
 	../runtime/virt.o	\
 	../runtime/dyn.o	\
 	../runtime/io.o		\
-	../runtime/max.o
+	../runtime/max.o	\
+	../runtime/debug.o
 
 SCANTOOL_OBJS=../runtime/scantool.o  $(RT_OBJS)
 BROWSER_OBJS=../runtime/browser.o $(RT_OBJS)

@@ -95,7 +95,7 @@ virtual_if(
 	? file_size != 0xffffffff,
 	cluster, i, 1, (file_size / bytes_per_cluster())+1, get_nth(i)) as vfile
 virtual_if(
-	? file_size != 0xffffffff && (ATTR_DIRECTORY & attr) != 0,
+	? file_size > 0 && file_size != 0xffffffff && (ATTR_DIRECTORY & attr) != 0,
 	fat_de,
 	i, 1, (file_size / bytes_per_cluster())+1, get_nth(i)) as vdir
 points_if(

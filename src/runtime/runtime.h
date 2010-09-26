@@ -35,6 +35,8 @@ struct fsl_rt_stat
 	uint64_t	s_get_param_c;
 	uint64_t	s_get_closure_c;
 	uint64_t	s_get_offset_c;
+	uint64_t	s_dyn_copy_c;
+	uint64_t	s_dyn_alloc_c;
 };
 
 #include "io.h"
@@ -57,8 +59,6 @@ struct fsl_rt_closure
 
 };
 
-#include "virt.h"
-
 #define NEW_CLO(x,y,z)	NEW_VCLO(x,y,z,NULL)
 
 #define NEW_VCLO(x,y,z,t)			\
@@ -70,6 +70,8 @@ struct fsl_rt_closure
 	struct fsl_rt_closure	x;			\
 	uint64_t x##_params[tt_by_num(y)->tt_param_c];
 
+#include "dyn.h"
+#include "virt.h"
 
 #define TYPENUM_INVALID	(~0)
 #define OFFSET_INVALID (~0)
@@ -194,16 +196,7 @@ uint64_t fsl_fail(void);
 
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
-struct fsl_rt_closure* fsl_rt_dyn_swap(struct fsl_rt_closure* dyns);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
-
-void fsl_dyn_dump(void);
-struct fsl_rt_closure* fsl_dyn_alloc(void);
-void fsl_dyn_free(struct fsl_rt_closure*);
-struct fsl_rt_closure* fsl_dyn_copy(const struct fsl_rt_closure* src);
-
-/* virt functions */
-
 
 /* implemented by tool: */
 int tool_entry(int argc, char* argv[]);

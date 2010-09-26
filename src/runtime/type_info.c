@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "debug.h"
 #include "type_info.h"
 
 static char hexmap[] = {"0123456789abcdef"};
@@ -322,9 +323,11 @@ static bool ti_has_loop(const struct type_info* chain)
 
 	if (cur->ti_prev == NULL) return false;
 
+	DEBUG_TYPEINFO_WRITE("COMPUTING PHYSOFF %p", ti_xlate(cur));
 	top_poff = ti_phys_offset(cur);
 	top_typenum = ti_typenum(cur);
 	cur = cur->ti_prev;
+	DEBUG_TYPEINFO_WRITE("TI_HAS_LOOP: LOOP");
 
 	for (; cur != NULL; cur = cur->ti_prev) {
 		/* TODO: cache physical offsets? */
@@ -375,20 +378,26 @@ static struct type_info* typeinfo_alloc_generic(
 
 static bool typeinfo_verify(const struct type_info* ti)
 {
+	DEBUG_TYPEINFO_ENTER();
+	DEBUG_TYPEINFO_WRITE("check loop %p", ti_xlate(ti));
 	if (ti_has_loop(ti) == true) {
-		printf("XXX addr already in chain! voff=%"PRIu64
-			" poff=%"PRIu64" (%s). xlate=%p\n",
+		DEBUG_TYPEINFO_WRITE("XXX addr already in chain! voff=%"PRIu64
+			" poff=%"PRIu64" (%s). xlate=%p",
 			ti_offset(ti),
 			ti_phys_offset(ti),
 			ti_type_name(ti),
 			ti->ti_td.td_clo.clo_xlate);
+		DEBUG_TYPEINFO_LEAVE();
 		return false;
 	}
 
-
-	if (verify_asserts(ti) == false)
+	DEBUG_TYPEINFO_WRITE("verify: check asserts %p", ti_xlate(ti));
+	if (verify_asserts(ti) == false) {
+		DEBUG_TYPEINFO_LEAVE();
 		return false;
+	}
 
+	DEBUG_TYPEINFO_LEAVE();
 	return true;
 }
 
@@ -454,11 +463,14 @@ struct type_info* typeinfo_alloc_virt_idx(
 	struct type_info*	ret;
 	typesize_t		array_bit_off;
 
+	DEBUG_TYPEINFO_ENTER();
+
 	assert (tt_by_num(virt->vt_type_virttype)->tt_param_c == 0 &&
 		"Parameterized virtual types not yet supported");
 
 	set_err_code(err_code, TI_ERR_OK);
 
+	DEBUG_TYPEINFO_WRITE("td_vinit");
 	td_vinit(&td,
 		virt->vt_type_virttype, 0, NULL,
 		fsl_virt_alloc(&ti_to_td(ti_prev)->td_clo, virt));
@@ -466,25 +478,33 @@ struct type_info* typeinfo_alloc_virt_idx(
 	if (td_xlate(&td) == NULL) {
 		/* could not allocate virt */
 		set_err_code(err_code, TI_ERR_BADVIRT);
-		return NULL;
+		ret = NULL;
+		goto done;
 	}
 
 	if (idx != 0) {
+		DEBUG_TYPEINFO_WRITE("idx = %d", idx);
+
 		array_bit_off = fsl_virt_get_nth(td_xlate(&td), idx);
+		assert (array_bit_off != 0 && "Type must be at non-zero voff");
 		if (array_bit_off == OFFSET_INVALID) {
 			fsl_virt_free(td_xlate(&td));
 			set_err_code(err_code, TI_ERR_BADIDX);
-			return NULL;
+			ret = NULL;
+			goto done;
 		}
 
 		td_offset(&td) = array_bit_off;
+		DEBUG_TYPEINFO_WRITE("idx = %d. Done. voff=%"PRIu64, idx, array_bit_off);
 	}
 
+	DEBUG_TYPEINFO_WRITE("alloc_gen");
 	assert (td_xlate(&td) != NULL);
 	ret = typeinfo_alloc_generic(&td, ti_prev);
 	if (ret == NULL) {
 		set_err_code(err_code, TI_ERR_BADALLOC);
-		return NULL;
+		ret = NULL;
+		goto done;
 	}
 
 	assert (ti_xlate(ret) != NULL);
@@ -493,13 +513,20 @@ struct type_info* typeinfo_alloc_virt_idx(
 	ret->ti_pointsto = false;
 	ret->ti_virttype_c = 0;	/* XXX */
 
+	DEBUG_TYPEINFO_WRITE("now set_dyns");
 	typeinfo_set_dyn(ret);
+	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify");
 	if (typeinfo_verify(ret) == false) {
+		DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify BAD!\n");
 		typeinfo_free(ret);
 		set_err_code(err_code, TI_ERR_BADVERIFY);
-		return NULL;
+		ret = NULL;
+		goto done;
 	}
+	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify OK!");
 
+done:
+	DEBUG_TYPEINFO_LEAVE();
 	return ret;
 }
 
@@ -565,6 +592,9 @@ diskoff_t ti_phys_offset(const struct type_info* ti)
 		return voff;
 	}
 
+	DEBUG_TYPEINFO_WRITE("enter xlate %p", ti_xlate(ti));
 	off = fsl_virt_xlate(&ti->ti_td.td_clo, voff);
+	DEBUG_TYPEINFO_WRITE("leave xlate %p", ti_xlate(ti));
+
 	return off;
 }

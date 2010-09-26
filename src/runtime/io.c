@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+
+#include "debug.h"
 #include "runtime.h"
 
 typedef uint64_t logaddr_t;
@@ -40,7 +42,6 @@ uint64_t __getLocal(
 		assert ((bit_off + (num_bits-1)) == (bit_off_last) &&
 			"Discontiguous getLocal not permitted");
 	}
-
 	/* common path */
 
 	if (fseeko(fsl_get_io()->io_backing, bit_off / 8, SEEK_SET) != 0) {

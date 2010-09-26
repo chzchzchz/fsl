@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include "debug.h"
 #include "runtime.h"
 
 extern uint64_t fsl_num_types;
@@ -43,8 +44,9 @@ typesize_t __computeArrayBits(
 	assert (elem_type < fsl_rt_table_entries);
 
 	total_bits = 0;
-	cur_off = clo->clo_offset;;
+	cur_off = clo->clo_offset;
 	tt = tt_by_num(elem_type);
+
 	/* save old dyn closure value */
 	__getDynClosure(elem_type, &old_dyn);
 	for (i = 0; i < num_elems; i++) {
@@ -114,6 +116,10 @@ static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 		fctx->fctx_stat.s_get_closure_c);
 	fprintf(out_file, "get_offset %"PRIu64"\n",
 		fctx->fctx_stat.s_get_offset_c);
+	fprintf(out_file, "dyn_copy %"PRIu64"\n",
+		fctx->fctx_stat.s_dyn_copy_c);
+	fprintf(out_file, "dyn_alloc %"PRIu64"\n",
+		fctx->fctx_stat.s_dyn_alloc_c);
 
 	if (stat_fname != NULL)
 		fclose(out_file);

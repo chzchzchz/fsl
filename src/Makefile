@@ -35,7 +35,8 @@ RTOBJS= runtime/runtime.o	\
 	runtime/virt.o		\
 	runtime/dyn.o 		\
 	runtime/io.o		\
-	runtime/max.o
+	runtime/max.o		\
+	runtime/debug.o
 
 TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o
 
