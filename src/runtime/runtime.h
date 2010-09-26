@@ -37,6 +37,7 @@ struct fsl_rt_stat
 	uint64_t	s_get_offset_c;
 	uint64_t	s_dyn_copy_c;
 	uint64_t	s_dyn_alloc_c;
+	uint64_t	s_typeinfo_alloc_generic_c;
 };
 
 #include "io.h"

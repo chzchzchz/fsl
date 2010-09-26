@@ -120,6 +120,9 @@ static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 		fctx->fctx_stat.s_dyn_copy_c);
 	fprintf(out_file, "dyn_alloc %"PRIu64"\n",
 		fctx->fctx_stat.s_dyn_alloc_c);
+	fprintf(out_file, "typeinfo_alloc %"PRIu64"\n",
+		fctx->fctx_stat.s_typeinfo_alloc_generic_c);
+
 
 	if (stat_fname != NULL)
 		fclose(out_file);

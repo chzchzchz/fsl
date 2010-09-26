@@ -253,7 +253,7 @@ static void scan_type(struct type_info* ti)
 	unsigned int i;
 
 	DEBUG_TOOL_ENTER();
-	DEBUG_TOOL_WRITE("scanning: %s (%d usertypes) voff=%"PRIu64" bits. poff=%"PRIu64" bits. xlate=%p",
+	printf("scanning: %s (%d usertypes) voff=%"PRIu64" bits. poff=%"PRIu64" bits. xlate=%p\n",
 		tt_by_ti(ti)->tt_name,
 		tt_by_ti(ti)->tt_field_c,
 		ti_offset(ti),
