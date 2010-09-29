@@ -31,5 +31,11 @@ function draw_vfat
 	draw_fs vfat "(fat'|fat_de|fat_ent|bpb|'voff' : 0.*cluster)"
 }
 
+function draw_nilfs2
+{
+	draw_fs nilfs2 "(nilfs_sb|nilfs_finfo|nilfs_block)"
+}
+
 draw_ext2
 draw_vfat
+draw_nilfs2
