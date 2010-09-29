@@ -288,22 +288,33 @@ void CodeBuilder::copyClosure(
 {
 	llvm::Value	*dst_params_ptr;
 	llvm::Value	*src_params_ptr;
+	llvm::Value*	src_loaded;
+
+	src_loaded = builder->CreateLoad(src_ptr);
 
 	/* copy contents of src into dst */
 	builder->CreateStore(
 		builder->CreateInsertValue(
-			builder->CreateLoad(dst_ptr),
+			builder->CreateInsertValue(
+				builder->CreateLoad(dst_ptr),
+				builder->CreateExtractValue(
+					src_loaded,
+					RT_CLO_IDX_OFFSET,
+					"cb_copy_offset"),
+				RT_CLO_IDX_OFFSET),
 			builder->CreateExtractValue(
-				builder->CreateLoad(src_ptr), 0, "cb_copy_offset"),
-			0),
+				src_loaded,
+				RT_CLO_IDX_XLATE,
+				"cb_copy_xlate"),
+			RT_CLO_IDX_XLATE),
 		dst_ptr);
 
 	src_params_ptr = builder->CreateExtractValue(
-		builder->CreateLoad(src_ptr), 1, "src_params");
+		src_loaded, RT_CLO_IDX_PARAMS, "src_params");
 	dst_params_ptr = builder->CreateExtractValue(
-		builder->CreateLoad(dst_ptr), 1, "dst_params");
+		builder->CreateLoad(dst_ptr), RT_CLO_IDX_PARAMS, "dst_params");
 
-	emitMemcpy64(dst_params_ptr, src_params_ptr,copy_type->getNumArgs());
+	emitMemcpy64(dst_params_ptr, src_params_ptr, copy_type->getNumArgs());
 }
 
 void CodeBuilder::genArgs(

@@ -240,9 +240,13 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 		builder->CreateInsertValue(
 			builder->CreateInsertValue(
 				builder->CreateInsertValue(
-					closure_loaded, params, 1),
-				diskoff, 0),
-			code_builder->getNullPtrI8(), 2),
+					closure_loaded,
+					params,
+					RT_CLO_IDX_PARAMS),
+				diskoff,
+				RT_CLO_IDX_OFFSET),
+			code_builder->getNullPtrI8(),
+			RT_CLO_IDX_XLATE),
 		closure);
 
 	
@@ -360,7 +364,9 @@ Value* FCall::codeGenClosureRetCall(std::vector<llvm::Value*>& args) const
 	tmp_params = code_builder->createPrivateTmpI64Array(
 		param_c, "BURRITOS"); 
 	builder->CreateInsertValue(
-		builder->CreateLoad(tmp_tp), tmp_params, 1);
+		builder->CreateLoad(tmp_tp),
+		tmp_params,
+		RT_CLO_IDX_PARAMS);
 
 
 	args.push_back(tmp_tp);

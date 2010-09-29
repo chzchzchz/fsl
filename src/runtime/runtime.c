@@ -20,6 +20,17 @@ void __debugOutcall(uint64_t v)
 	cur_debug_write_val = v;
 }
 
+
+void __debugClosureOutcall(uint64_t typenum, struct fsl_rt_closure* clo)
+{
+	assert (clo != NULL);
+
+	printf("DEBUG_WRITE_TYPE: %s-- off=%"PRIu64". xlate=%p\n",
+		tt_by_num(typenum)->tt_name,
+		clo->clo_offset,
+		clo->clo_xlate);
+}
+
 /* TODO FSL_FAILED should have some unique number so we know why we failed */
 uint64_t fsl_fail(void)
 {

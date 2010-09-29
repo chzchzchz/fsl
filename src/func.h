@@ -23,7 +23,6 @@ typedef std::map<std::string, class Func*>		func_map;
 typedef std::list<class Func*>				func_list;
 typedef std::map<std::string, struct FuncVar>		funcvar_map;
 
-
 class FuncStmt 
 {
 public:
@@ -133,6 +132,8 @@ public:
 
 	llvm::Value* codeGen() const;
 private:
+	bool genDebugAssign(void) const;
+
 	Id	*scalar;
 	IdArray	*array;
 	Expr	*expr;

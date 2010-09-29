@@ -119,8 +119,6 @@ err_cleanup:
 	return false;
 }
 
-
-
 bool EvalCtx::resolveTail(
 	TypeBase			&tb,	/* current base */
 	const IdStruct* 		ids,
@@ -470,12 +468,23 @@ const Type* EvalCtx::getTypeId(const Id* id) const
 	}
 
 	if (cur_func != NULL) {
-		string	type_name;
+		const Type*	ret;
+		string		type_name;
+
+		/* find inside function arguments */
 		if (cur_func->getArgs()->lookupType(id->getName(), type_name))
 			return types_map[type_name];
+
+		/* find inside scope blocks */
+		assert (cur_func_blk != NULL);
+		if ((ret = cur_func_blk->getVarType(id->getName())) != NULL)
+			return ret;
 	}
 
-	return types_map[id->getName()];
+	if (types_map.count(id->getName()) != 0)
+		return types_map[id->getName()];
+
+	return NULL;
 }
 
 const Type* EvalCtx::getTypeIdStruct(const IdStruct* ids) const

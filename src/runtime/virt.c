@@ -6,7 +6,7 @@
 #include "virt.h"
 #include "debug.h"
 
-static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm);
+static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify);
 
 uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 {
@@ -83,18 +83,19 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 
 	DEBUG_VIRT_WRITE("COPY DONE");
 
-	if (fsl_virt_load_cache(rtm) == false) {
+	/* XXX for the time being, assume all source types are same size */
+	if (fsl_virt_load_cache(rtm, true) == false) {
 		/* empty type */
 		fsl_virt_free(rtm);
 		rtm = NULL;
 	}
 
-	DEBUG_VIRT_WRITE("resh new RTM %p", rtm);
+	DEBUG_VIRT_WRITE("fresh new RTM %p", rtm);
 	DEBUG_VIRT_LEAVE();
 	return rtm;
 }
 
-static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm)
+static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 {
 	struct fsl_rt_table_type	*tt_vsrc;
 	diskoff_t                       first_type_off;
@@ -142,9 +143,14 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm)
 	assert (rtm->rtm_cached_srcsz > 0);
 
 
-	DEBUG_VIRT_WRITE("LOOOOoOP");
+	DEBUG_VIRT_WRITE("Looping through all source types. Verify size.");
 	/* verify that srcsz is constant-- if not we need to do some other
 	 * tricks */
+
+	if (no_verify) {
+		DEBUG_VIRT_LEAVE();
+		return true;
+	}
 
 	/* IN FUTURE: use compiler information to judge this */
 	for (	idx = rtm->rtm_cached_minidx + 1;
@@ -153,8 +159,10 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm)
 	{
 		diskoff_t	cur_off;
 		size_t		cur_sz;
+		DEBUG_VIRT_WRITE("calling vt_range on idx=%d", idx);
 		cur_off = vt->vt_range(rtm->rtm_clo, idx, params);
 		NEW_VCLO(cur_clo, cur_off, params, rtm->rtm_clo->clo_xlate);
+		DEBUG_VIRT_WRITE("calling tt_size on idx=%d", idx);
 		cur_sz = tt_vsrc->tt_size(&cur_clo);
 		assert (cur_sz == rtm->rtm_cached_srcsz);
 	}

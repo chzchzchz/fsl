@@ -30,6 +30,7 @@ function scan_startup
 		echo "Output: '$outstr'"
 		exit $retval
 	fi
+	echo -n "$outstr">"${src_root}"/$fs.scan.out
 }
 
 function specific_tests
@@ -62,7 +63,7 @@ fi
 echo "Building tools."
 
 cd "${src_root}/src/tool"
-make  1>/dev/null
+make -j6  1>/dev/null
 makeret=$?
 if [ $makeret -ne 0 ]; then
 	echo "Tests failed. Could not build tools."

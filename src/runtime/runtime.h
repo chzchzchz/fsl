@@ -181,6 +181,7 @@ typesize_t __computeArrayBits(
 
 uint64_t __getDynOffset(uint64_t type_num);
 void __debugOutcall(uint64_t v);
+void __debugClosureOutcall(uint64_t tpenum, struct fsl_rt_closure* clo);
 void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo);
 void __getDynParams(uint64_t typenum, parambuf_t params_out);
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo);

@@ -7,13 +7,10 @@
 #include "debug.h"
 #include "type_info.h"
 
-
 #define pt_from_idx(x,y)	(&(tt_by_ti(x)->tt_pointsto[y]))
 
 static void print_indent(unsigned int depth);
-static void scan_type_pointsto(
-	const struct type_info* ti,
-	unsigned int pt_idx);
+static void scan_type_pointsto(const struct type_info* ti, unsigned int pt_idx);
 static void scan_type_pointsto_all(const struct type_info* ti);
 static void scan_type_strongtypes(const struct type_info* ti);
 static void scan_type_virt(struct type_info* ti);
@@ -175,7 +172,6 @@ static void handle_field(
 
 		scan_type(new_ti);
 
-
 		typeinfo_free(new_ti);
 	}
 }
@@ -184,6 +180,7 @@ static void handle_virt(struct type_info* ti, struct fsl_rt_table_virt* vt)
 {
 	unsigned int			i;
 	int				err_code;
+	struct type_info		*ti_base;
 
 	DEBUG_TOOL_ENTER();
 
@@ -194,7 +191,7 @@ static void handle_virt(struct type_info* ti, struct fsl_rt_table_virt* vt)
 		struct type_info		*ti_cur;
 
 		DEBUG_TOOL_WRITE("alloc virt[%d] %s", i, vt->vt_name);
-		FSL_DYN_LOAD(dyn_saved);;
+		FSL_DYN_LOAD(dyn_saved);
 		ti_cur = typeinfo_alloc_virt_idx(vt, ti, i, &err_code);
 		if (ti_cur == NULL) {
 			DEBUG_TOOL_WRITE(
@@ -250,15 +247,28 @@ static void scan_type_strongtypes(const struct type_info* ti)
 
 static void scan_type(struct type_info* ti)
 {
-	unsigned int i;
+	unsigned int	i;
+	typesize_t	size;
+	voff_t		voff;
+	poff_t		poff;
 
 	DEBUG_TOOL_ENTER();
+
+	voff = ti_offset(ti);
+	poff = ti_phys_offset(ti);
+	size = ti_size(ti);
 	printf("scanning: %s (%d usertypes) voff=%"PRIu64" bits. poff=%"PRIu64" bits. xlate=%p\n",
 		tt_by_ti(ti)->tt_name,
 		tt_by_ti(ti)->tt_field_c,
-		ti_offset(ti),
-		ti_phys_offset(ti),
+		voff,
+		poff,
 		ti_xlate(ti));
+	printf("{ 'Mode' : 'Scan', 'voff' : %"PRIu64
+		", 'poff' : %"PRIu64
+		", 'size': %"PRIu64
+		", 'name' : '%s' }\n",
+		voff, poff, size,
+		tt_by_ti(ti)->tt_name);
 	scan_type_strongtypes(ti);
 	DEBUG_TOOL_WRITE("do pointsto_all.");
 	scan_type_pointsto_all(ti);

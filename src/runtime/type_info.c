@@ -600,3 +600,14 @@ diskoff_t ti_phys_offset(const struct type_info* ti)
 
 	return off;
 }
+
+typesize_t ti_size(const struct type_info* ti)
+{
+	typesize_t ret;
+
+	assert (ti_typenum(ti) != TYPENUM_INVALID);
+
+	ret = tt_by_ti(ti)->tt_size(&ti->ti_td.td_clo);
+
+	return ret;
+}

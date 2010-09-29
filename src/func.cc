@@ -119,6 +119,47 @@ Value* FuncDecl::codeGen(void) const
 	return NULL;
 }
 
+
+bool FuncAssign::genDebugAssign(void) const
+{
+	EvalCtx			ectx(getOwner());
+
+	/* send value to runtime for debugging purposes */
+	if (scalar->getName() == "DEBUG_WRITE") {
+		Expr	*e;
+		e = rt_glue.getDebugCall(eval(ectx, expr));
+		evalAndGen(ectx, e);
+		delete e;
+		return true;
+	}
+
+	/* send type data to runtime for debugging purposes */
+	if (scalar->getName() == "DEBUG_WRITE_TYPE") {
+		Expr		*e;
+		const ::Type	*clo_type;
+
+		clo_type = ectx.getType(expr);
+		if (clo_type == NULL) {
+			cerr << "Oops: Could not resolve type for expression: ";
+			expr->print(cerr);
+			cerr << endl;
+			exit(-1);
+			return NULL;
+		}
+
+		e = rt_glue.getDebugCallTypeInstance(
+			clo_type,
+			eval(ectx, expr));
+
+		evalAndGen(ectx, e);
+		delete e;
+		return true;
+	}
+
+	return false;
+}
+
+
 Value* FuncAssign::codeGen(void) const
 {
 
@@ -129,13 +170,8 @@ Value* FuncAssign::codeGen(void) const
 
 	/* send data to runtime for debugging purposes */
 	/* awful awful syntax abuse */
-	if (scalar->getName() == "DEBUG_WRITE") {
-		Expr	*e;
-		e = rt_glue.getDebugCall(eval(ectx, expr));
-		evalAndGen(ectx, e);
-		delete e;
+	if (genDebugAssign())
 		return NULL;
-	}
 
 	e_v = evalAndGen(ectx, expr);
 	if (e_v == NULL) {

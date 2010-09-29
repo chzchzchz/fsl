@@ -29,6 +29,8 @@ struct rt_func
 /* TODO: __max should be a proper vararg function */
 struct rt_func rt_funcs[] =
 {
+	{	"__debugClosureOutcall", RTF_TYPE_VOID,
+		2, {RTF_TYPE_INT64, RTF_TYPE_CLOSURE}},
 	{	"__debugOutcall", RTF_TYPE_VOID, 1, {RTF_TYPE_INT64}},
 	{ 	"__getLocal",
 		RTF_TYPE_INT64,
@@ -118,6 +120,8 @@ void RTInterface::loadRunTimeFuncs(CodeBuilder* cb)
 	llvm::Function			*f;
 
 	for (unsigned int k = 0; rt_funcs[k].rtf_name != NULL; k++) {
+		assert (rt_funcs[k].rtf_param_c < RTF_MAX_PARAMS &&
+			"Too many params for func. Bump RTF_MAX_PARAMS.");
 		rt_func_args(&rt_funcs[k], args);
 		ft = llvm::FunctionType::get(
 			rtf_type2llvm(rt_funcs[k].rtf_ret),
@@ -137,6 +141,15 @@ Expr* RTInterface::getDebugCall(Expr* pass_val)
 	return new FCall(
 		new Id("__debugOutcall"),
 		new ExprList(pass_val));
+}
+
+Expr* RTInterface::getDebugCallTypeInstance(
+	const Type* clo_type, Expr* clo_expr)
+{
+	return new FCall(
+		new Id("__debugClosureOutcall"),
+		new ExprList(new Number(clo_type->getTypeNum()), clo_expr));
+
 }
 
 Expr* RTInterface::getLocal(Expr* closure, Expr* disk_bit_offset, Expr* num_bits)
@@ -285,4 +298,3 @@ Expr* RTInterface::computeArrayBits(
 
 	return new FCall(new Id("__computeArrayBits"), exprs);
 }
-

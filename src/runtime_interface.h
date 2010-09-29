@@ -4,6 +4,10 @@
 #include <string>
 #include "expr.h"
 
+#define RT_CLO_IDX_OFFSET			0
+#define RT_CLO_IDX_PARAMS			1
+#define RT_CLO_IDX_XLATE			2
+
 class RTInterface
 {
 public:
@@ -25,6 +29,8 @@ public:
 	Expr*	getThunkArgParamPtr(void);
 
 	Expr	*getDebugCall(Expr* pass_val);
+
+	Expr	*getDebugCallTypeInstance(const Type* clo_type, Expr* clo_expr);
 
 	const std::string getThunkClosureName(void);
 	const std::string getThunkArgOffsetName(void);

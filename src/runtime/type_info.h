@@ -66,6 +66,7 @@ struct type_info
 #define td_typenum(x)	(x)->td_typenum
 #define ti_typenum(x)	td_typenum(ti_to_td(x))
 #define ti_offset(x)	td_offset(ti_to_td(x))
+typesize_t ti_size(const struct type_info* ti);
 poff_t ti_phys_offset(const struct type_info* ti);
 #define ti_params(x)	td_params(ti_to_td(x))
 #define ti_xlate(x)	td_xlate(ti_to_td(x))
