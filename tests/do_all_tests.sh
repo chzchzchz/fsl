@@ -23,14 +23,15 @@ function scan_startup
 	cmd="${src_root}/src/tool/scantool-$fs ${src_root}/img/$fs.img"
 	echo "$cmd" >>tests.log
 	echo "$cmd" >failed_test_cmd
-	outstr=`eval $cmd`
+	eval $cmd >cur_test.out
+	cat cur_test.out
 	retval=$?
 	if [ $retval -ne 0 ]; then
 		echo "Test failed: $fs."
 		echo "Output: '$outstr'"
 		exit $retval
 	fi
-	echo -n "$outstr">"${src_root}"/$fs.scan.out
+	cp cur_test.out "${src_root}"/tests/scantool-$fs/$fs.scan.out
 }
 
 function specific_tests
@@ -75,7 +76,7 @@ cd "${src_root}"
 rm -f failed_test_cmd
 rm -f tests.log
 
-for a in ext2 vfat nilfs; do
+for a in ext2 vfat nilfs2; do
 	scan_startup $a
 	browser_startup $a
 	specific_tests $a

@@ -2,8 +2,8 @@ EXT2_OBJS= fsl.ext2.table.o fsl.ext2.types.o
 EXT2_TOOLS= scantool-ext2 browser-ext2
 VFAT_OBJS= fsl.vfat.table.o fsl.vfat.types.o
 VFAT_TOOLS= scantool-vfat browser-vfat
-NILFS_OBJS= fsl.nilfs.table.o fsl.nilfs.types.o
-NILFS_TOOLS= scantool-nilfs browser-nilfs
+NILFS_OBJS= fsl.nilfs2.table.o fsl.nilfs2.types.o
+NILFS_TOOLS= scantool-nilfs2 browser-nilfs2
 RT_OBJS=../runtime/runtime.o 	\
 	../runtime/type_info.o	\
 	../runtime/virt.o	\
@@ -34,10 +34,10 @@ browser-vfat: $(VFAT_OBJS)
 scantool-vfat: $(VFAT_OBJS)
 	gcc $(CFLAGS) -o $@ $^ $(SCANTOOL_OBJS)
 
-browser-nilfs: $(NILFS_OBJS)
+browser-nilfs2: $(NILFS_OBJS)
 	gcc $(CFLAGS) -o $@ $^ $(BROWSER_OBJS)
 
-scantool-nilfs: $(NILFS_OBJS)
+scantool-nilfs2: $(NILFS_OBJS)
 	gcc $(CFLAGS) -o $@ $^ $(SCANTOOL_OBJS)
 
 
@@ -81,21 +81,21 @@ fsl.vfat.table.o: fsl.vfat.table.c
 	gcc $(CFLAGS) -I.. -c $^ -o $@
 
 
-fsl.nilfs.types.o: fsl.nilfs.types.s
+fsl.nilfs2.types.o: fsl.nilfs2.types.s
 	as $< -o $@
 
-fsl.nilfs.types.s: fsl.nilfs.types.bc
+fsl.nilfs2.types.s: fsl.nilfs2.types.bc
 	llc -O3 $< -o $@
 
-fsl.nilfs.types.bc: fsl.nilfs.types.ll
+fsl.nilfs2.types.bc: fsl.nilfs2.types.ll
 	opt -O3 $^ >$@
 
-fsl.nilfs.types.ll: ../../fs/nilfs2.fsl
-	../lang nilfs <$^
+fsl.nilfs2.types.ll: ../../fs/nilfs2.fsl
+	../lang nilfs2 <$^
 
-fsl.nilfs.table.c: ../../fs/nilfs2.fsl
-	../lang nilfs <$^
+fsl.nilfs2.table.c: ../../fs/nilfs2.fsl
+	../lang nilfs2 <$^
 
-fsl.nilfs.table.o: fsl.nilfs.table.c
+fsl.nilfs2.table.o: fsl.nilfs2.table.c
 	gcc $(CFLAGS) -I.. -c $^ -o $@
 

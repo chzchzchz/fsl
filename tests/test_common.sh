@@ -27,7 +27,7 @@ function run_test
 	TESTNUM="$1"
 	TESTNAME="$2"
 
-	cmd="${src_root}/src/tool/${tool_name} ${src_root}/img/${img_name} 2>&1 <${src_root}/tests/${tool_name}-test-input-$TESTNUM"
+	cmd="${src_root}/src/tool/${tool_name} ${src_root}/img/${img_name} 2>&1 <${src_root}/tests/${tool_name}/test-input-$TESTNUM"
 	echo "$cmd" >failed_test_cmd
 	echo "$cmd" >>tests.log
 	test_outstr=`eval $cmd`
