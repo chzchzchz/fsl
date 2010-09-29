@@ -8,12 +8,13 @@ if [ ! -f tests.log ]; then
 fi
 
 #last_commit=`git log --date=short | head -n3 | tail -n1 | cut -f2 -d':'`
-d=`date "+%Y-%M-%d-%H:%M.stats"`
+d=`date "+%Y-%m-%d-%H:%M.stats"`
 
 v=0
 mkdir "${src_root}/metrics/$d/"
 while read l; do
-	FSL_ENV_STATFILE="${src_root}/metrics/$d/$v"
+	v_name=`printf "%0#10d" $v`
+	FSL_ENV_STATFILE="${src_root}/metrics/$d/${v_name}"
 	export FSL_ENV_STATFILE
 	eval $l
 	v=`expr $v + 1`

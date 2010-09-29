@@ -24,7 +24,6 @@ function scan_startup
 	echo "$cmd" >>tests.log
 	echo "$cmd" >failed_test_cmd
 	eval $cmd >cur_test.out
-	cat cur_test.out
 	retval=$?
 	if [ $retval -ne 0 ]; then
 		echo "Test failed: $fs."
