@@ -8,7 +8,7 @@ import ImageColor
 # ./draw_scan.py scan_data disk_size img.png
 
 color_cache = dict()
-colors = [	"white", 'lime', "red", "green", "blue",
+colors = [	"chartreuse", 'lime', "red", "green", "blue",
 		"gray", "yellow", "purple", 'maroon',
 		'teal', 'aqua', 'navy', 'olive']
 color_idx = 0
@@ -17,7 +17,7 @@ pixels_per_side=1024
 disk_bytes=int(sys.argv[2])
 bytes_per_pixel=disk_bytes/(pixels_per_side**2)
 out_size = pixels_per_side,pixels_per_side
-im = Image.new("RGB", out_size, ImageColor.getrgb('black'))
+im = Image.new("RGB", out_size, ImageColor.getrgb('white'))
 
 print "BPP:" + str(bytes_per_pixel)
 

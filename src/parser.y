@@ -59,7 +59,8 @@ void yyerror(const char* s)
 
 // comparison
 %token <token> TOKEN_CMPEQ TOKEN_CMPLE TOKEN_CMPGE TOKEN_CMPNE TOKEN_CMPGT TOKEN_CMPLT
-%token <token> TOKEN_COMMA TOKEN_DOT
+
+%token <token> TOKEN_COMMA TOKEN_DOT TOKEN_AT
 
 %token <token> TOKEN_CONST
 
@@ -426,6 +427,7 @@ fcall	: fcall_no_args { $$ = $1; }
 
 expr	:	TOKEN_LPAREN expr TOKEN_RPAREN	{ $$ = new ExprParens($2); }
 	|	num				{ $$ = $1; }
+	|	TOKEN_AT			{ $$ = new Id("@"); }
 	|	expr_ident			{ $$ = $1; }
 	|	expr_id_struct			{ $$ = $1; }
 	|	array				{ $$ = $1; }

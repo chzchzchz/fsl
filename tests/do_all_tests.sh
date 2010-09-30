@@ -16,11 +16,12 @@ function browser_startup
 	fi
 }
 
-function scan_startup
+function scan_startup_img
 {
 	fs=$1
+	imgname=$2
 	echo "Testing scantool-$fs startup."
-	cmd="${src_root}/src/tool/scantool-$fs ${src_root}/img/$fs.img"
+	cmd="${src_root}/src/tool/scantool-$fs ${src_root}/img/$imgname"
 	echo "$cmd" >>tests.log
 	echo "$cmd" >failed_test_cmd
 	eval $cmd >cur_test.out
@@ -30,7 +31,13 @@ function scan_startup
 		echo "Output: '$outstr'"
 		exit $retval
 	fi
-	cp cur_test.out "${src_root}"/tests/scantool-$fs/$fs.scan.out
+	cp cur_test.out "${src_root}"/tests/scantool-$fs/$imgname.scan.out
+}
+
+function scan_startup
+{
+	FS=$1
+	scan_startup_img "$FS" "${FS}.img"
 }
 
 function specific_tests
@@ -75,6 +82,7 @@ cd "${src_root}"
 rm -f failed_test_cmd
 rm -f tests.log
 
+scan_startup_img ext2 ext2-small.img
 for a in ext2 vfat nilfs2; do
 	scan_startup $a
 	browser_startup $a
