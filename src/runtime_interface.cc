@@ -120,7 +120,7 @@ void RTInterface::loadRunTimeFuncs(CodeBuilder* cb)
 	llvm::Function			*f;
 
 	for (unsigned int k = 0; rt_funcs[k].rtf_name != NULL; k++) {
-		assert (rt_funcs[k].rtf_param_c < RTF_MAX_PARAMS &&
+		assert (rt_funcs[k].rtf_param_c <= RTF_MAX_PARAMS &&
 			"Too many params for func. Bump RTF_MAX_PARAMS.");
 		rt_func_args(&rt_funcs[k], args);
 		ft = llvm::FunctionType::get(

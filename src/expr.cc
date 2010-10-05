@@ -60,6 +60,7 @@ Value* Id::codeGen() const
 		ai = code_builder->getTmpAllocaInst(getName());
 
 	if (ai == NULL) {
+		cerr << "OH NO: EXPR ERROR" << endl;
 		code_builder->printTmpVars();
 		return ErrorV(
 			string("Could not find variable ") + 

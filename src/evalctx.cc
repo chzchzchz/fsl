@@ -64,6 +64,11 @@ bool EvalCtx::setNewOffsets(
 			/* non-constant type size-- call out to runtime */
 			Expr	*array_elem_base;
 
+			new_params = Expr::rewriteReplace(
+				new_params,
+				new Id("@"),
+				idx->simplify());
+
 			if (t->isUnion() == false) {
 				array_elem_base = rt_glue.computeArrayBits(
 					t, 

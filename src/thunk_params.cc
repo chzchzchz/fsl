@@ -129,6 +129,8 @@ bool ThunkParams::genCodeExprs(void) const
 
 	assert (exprs != NULL);
 
+	cerr << "Starting genCodeExprs............" << endl;
+
 	mod = code_builder->getModule();
 	builder = code_builder->getBuilder();
 
@@ -163,7 +165,10 @@ bool ThunkParams::genCodeExprs(void) const
 		if (expr_val == NULL) {
 			cerr << "Oops. Could not generate ";
 			cur_expr->print(cerr);
-			cerr << " for thunk params." << endl;
+			cerr << " for thunkparams: (";
+			exprs->print(cerr);
+			cerr << ')' << endl;
+			assert (0 == 1);
 			return false;
 		}
 	
@@ -177,6 +182,8 @@ bool ThunkParams::genCodeExprs(void) const
 	}
 		
 	builder->CreateRetVoid();
+
+	cerr << "GenCodeExprs DONE" << endl;
 
 	return true;
 }

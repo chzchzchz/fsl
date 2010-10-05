@@ -42,7 +42,7 @@ TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core) 
-LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual//;s/-fPIC//") -Wall
+LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual//;s/-fPIC//;s/-DNDEBUG//g") -Wall
 LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
 DEBUG_FLAG=-g
 CFLAGS= $(DEBUG_FLAG) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
