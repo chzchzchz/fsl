@@ -1,0 +1,45 @@
+#INPUT: FSNAME
+TOOL_OBJS= fsl.$(FSNAME).table.o fsl.$(FSNAME).types.o
+TOOL_BINS= scantool-$(FSNAME) browser-$(FSNAME)
+RT_OBJS=../runtime/runtime.o 	\
+	../runtime/type_info.o	\
+	../runtime/virt.o	\
+	../runtime/dyn.o	\
+	../runtime/io.o		\
+	../runtime/max.o	\
+	../runtime/debug.o
+
+SCANTOOL_OBJS=../runtime/scantool.o  $(RT_OBJS)
+BROWSER_OBJS=../runtime/browser.o $(RT_OBJS)
+MODIFY_OBJS=../runtime/modify.o $(RT_OBJS)
+CFLAGS=-O3 -g
+
+
+all: $(TOOL_BINS)
+
+clean:
+	rm -f $(TOOL_BINS) $(TOOL_OBJS)
+
+browser-$(FSNAME): $(TOOL_OBJS)
+	gcc $(CFLAGS) -o $@ $^  $(BROWSER_OBJS)
+
+scantool-$(FSNAME): $(TOOL_OBJS)
+	gcc $(CFLAGS) -o $@ $^  $(SCANTOOL_OBJS)
+
+fsl.$(FSNAME).types.o: fsl.$(FSNAME).types.s
+	as $< -o $@
+
+fsl.$(FSNAME).types.s: fsl.$(FSNAME).types.bc
+	llc -O3  $< -o $@
+
+fsl.$(FSNAME).types.bc: fsl.$(FSNAME).types.ll
+	opt -O3 $^ >$@
+
+fsl.$(FSNAME).types.ll: ../../fs/$(FSNAME).fsl
+	../lang $(FSNAME) <$^
+
+fsl.$(FSNAME).table.c: ../../fs/$(FSNAME).fsl
+	../lang $(FSNAME) <$^
+
+fsl.$(FSNAME).table.o: fsl.$(FSNAME).table.c
+	gcc $(CFLAGS) -I.. -c $^ -o $@
