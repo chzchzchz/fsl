@@ -27,6 +27,7 @@ public:
 	Expr*	getThunkClosure(void);
 	Expr*	getThunkArgOffset(void);
 	Expr*	getThunkArgParamPtr(void);
+	Expr*	getThunkArgIdx(void);
 
 	Expr	*getDebugCall(Expr* pass_val);
 
@@ -35,6 +36,8 @@ public:
 	const std::string getThunkClosureName(void);
 	const std::string getThunkArgOffsetName(void);
 	const std::string getThunkArgParamPtrName(void);
+	const std::string getThunkArgIdxName(void);
+
 
 	Expr	*maxValue(ExprList* exprs);
 	Expr	*computeArrayBits(const class ThunkField* tf);

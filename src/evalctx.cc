@@ -16,10 +16,15 @@ static Expr* replaceClosure(Expr* in_expr, Expr* diskoff, Expr* params)
 {
 	Expr	*ret = in_expr;
 
-	Expr::rewriteReplace(
+	ret = Expr::rewriteReplace(
 		ret,
 		rt_glue.getThunkClosure(),
 		FCall::mkClosure(diskoff, params));
+
+	ret = Expr::rewriteReplace(
+		ret,
+		rt_glue.getThunkArgIdx(),
+		new Number(0));
 
 	return ret;
 }
@@ -68,7 +73,6 @@ bool EvalCtx::setNewOffsets(
 				new_params,
 				new Id("@"),
 				idx->simplify());
-
 			if (t->isUnion() == false) {
 				array_elem_base = rt_glue.computeArrayBits(
 					t, 
@@ -300,7 +304,12 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	/* return typepass if we are returning a user type */
 	thunk_field = tb.tb_lastsym->getFieldThunk();
 	if (thunk_field->getType() != NULL)
-		return FCall::mkClosure(tb.tb_diskoff, tb.tb_parambuf);
+		return FCall::mkClosure(
+			tb.tb_diskoff,
+			Expr::rewriteReplace(
+				tb.tb_parambuf,
+				rt_glue.getThunkArgIdx(),
+				new Number(0)));
 
 	/* not returning a user type-- we know that the size to 
 	 * read is going to be constant. don't need to bother with computing
@@ -340,7 +349,10 @@ Expr* EvalCtx::resolve(const Id* id) const
 			if (tf->getType() != NULL) {
 				return FCall::mkClosure(
 					tf->getOffset()->copyFCall(),
-					tf->getParams()->copyFCall());
+					Expr::rewriteReplace(
+						tf->getParams()->copyFCall(),
+						rt_glue.getThunkArgIdx(),
+						new Number(0)));
 			}
 
 			offset = tf->getOffset()->copyFCall();

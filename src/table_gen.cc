@@ -214,13 +214,17 @@ void TableGen::printExternFuncThunk(
 
 void TableGen::printExternFuncThunkParams(const ThunkParams* tp)
 {
-	const string args[] = {"const struct fsl_rt_closure*", "uint64_t*"};
+	const string args[] = {
+		"const struct fsl_rt_closure*", /* parent pointer */
+		"uint64_t",	/* idx */
+		"uint64_t*",
+		};
 	FCall	*fc;
 
 	fc = tp->copyFCall();
 	printExternFunc(
 		fc->getName(),
-		vector<string>(args, args+2),
+		vector<string>(args, args+3),
 		"void");
 	delete fc;
 }

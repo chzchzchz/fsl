@@ -29,7 +29,10 @@ Expr* ThunkField::copyNextOffset(void) const
 			rt_glue.computeArrayBits(this));
 	}
 
-	return ret;
+	return Expr::rewriteReplace(
+		ret,
+		rt_glue.getThunkArgIdx(),
+		new Number(0));
 }
 
 ThunkField* ThunkField::copy(ThunkType& new_owner) const

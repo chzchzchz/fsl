@@ -50,6 +50,8 @@ public:
 
 	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
 	{
+		assert (new_expr != NULL);
+
 		if (*this == to_rewrite) {
 			return new_expr->simplify();
 		}
@@ -71,6 +73,10 @@ public:
 	{
 		Expr	*rewritten_expr;
 		
+		assert (e != NULL && "Bad expression to rewrite");
+		assert (to_rewrite != NULL && "Bad removal expr");
+		assert (new_expr != NULL && "Bad replacement expr");
+
 		rewritten_expr = e->rewrite(to_rewrite, new_expr);
 		delete to_rewrite;
 		delete new_expr;

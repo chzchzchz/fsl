@@ -21,6 +21,7 @@ public:
 	virtual ~ThunkParams();
 
 	virtual FCall* copyFCall(void) const;
+	FCall* copyFCall(unsigned int idx) const;
 	virtual ThunkParams* copy(void) const;
 
 	virtual bool genProto(void) const;

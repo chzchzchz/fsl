@@ -470,10 +470,7 @@ llvm::AllocaInst* CodeBuilder::createTmpI64(const std::string& name)
 {
 	llvm::AllocaInst	*ret;
 	
-	ret = builder->CreateAlloca(
-		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
-		0,
-		name);
+	ret = builder->CreateAlloca(builder->getInt64Ty(), 0, name);
 	assert (name == ret->getName());
 
 	tmp_var_map[name] = ret;
@@ -485,19 +482,34 @@ void CodeBuilder::emitMemcpy64(
 	llvm::Value* dst, llvm::Value* src, unsigned int elem_c)
 {
 	llvm::Function	*memcpy_f;
-	const llvm::Type *Tys[] = { builder->getInt32Ty() };
+	const llvm::Type *Tys[] = {
+		builder->getInt8PtrTy(),
+		builder->getInt8PtrTy(),
+		builder->getInt32Ty(),
+		builder->getInt32Ty()};
 	llvm::Value* args[] = {
+		/* dst */
 	  	builder->CreateBitCast(
 			dst, builder->getInt8PtrTy(), "dst_ptr"),
+
+		/* src */
 	  	builder->CreateBitCast(
 			src, builder->getInt8PtrTy(), "src_ptr"),
+
+		/* element bytes (8 per ...) */
 		llvm::ConstantInt::get(
 			llvm::getGlobalContext(), llvm::APInt(32, elem_c*8)),
-		llvm::ConstantInt::get(builder->getInt32Ty(), 4)};
+
+		/* ailgnment */
+		llvm::ConstantInt::get(builder->getInt32Ty(), 4),
+
+		/* is volatile (no) */
+		llvm::ConstantInt::get(builder->getInt1Ty(), 0),
+	};
 
 	memcpy_f =  llvm::Intrinsic::getDeclaration(
-		mod, llvm::Intrinsic::memcpy, Tys, 1);
-	builder->CreateCall(memcpy_f, args, args+4);
+		mod, llvm::Intrinsic::memcpy, Tys, 3);
+	builder->CreateCall(memcpy_f, args, args+5);
 }
 
 

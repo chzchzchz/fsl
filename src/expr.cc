@@ -30,7 +30,7 @@ Value* Expr::ErrorV(const string& s) const
 	cerr << "LLVM DUMP:" << endl;
 	code_builder->getBuilder()->GetInsertBlock()->getParent()->dump();
 
-	assert (0 == 1);
+	assert (0 == 1 && "GENERAL ERROR");
 	return NULL;
 }
 

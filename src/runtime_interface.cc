@@ -226,6 +226,16 @@ Expr*	RTInterface::getThunkArgParamPtr(void)
 	return new Id(getThunkArgParamPtrName());
 }
 
+Expr*	RTInterface::getThunkArgIdx(void)
+{
+	return new Id(getThunkArgIdxName());
+}
+
+const std::string RTInterface::getThunkArgIdxName(void)
+{
+	return "__thunkparamsf_idx";
+}
+
 const std::string RTInterface::getThunkClosureName(void)
 {
 	return "__thunk_closure";

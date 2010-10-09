@@ -91,7 +91,7 @@ static int lookup_fields(
 	uint64_t next_field_params[tt_next_field->tt_param_c];
 
 	next_field_off = next_field->tf_fieldbitoff(&ti_clo(cur_type));
-	next_field->tf_params(&ti_clo(cur_type), next_field_params);
+	next_field->tf_params(&ti_clo(cur_type), 0, next_field_params);
 
 	td_init(next_td, next_field->tf_typenum,
 		next_field_off, next_field_params);

@@ -278,7 +278,6 @@ llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 	llvm::Value			*params_ret;
 	llvm::IRBuilder<>		*builder;
 
-
 	builder = code_builder->getBuilder();
 	params_ret = NULL;
 	args.clear();

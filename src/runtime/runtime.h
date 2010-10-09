@@ -84,8 +84,13 @@ typedef uint64_t(*elemsf_t)(const struct fsl_rt_closure*);
 typedef uint64_t(*points_minf_t)(const struct fsl_rt_closure*);
 typedef uint64_t(*points_maxf_t)(const struct fsl_rt_closure*);
 typedef diskoff_t(*points_rangef_t)(
-	const struct fsl_rt_closure*, uint64_t /* idx */, parambuf_t /* out */);
-typedef void(*paramsf_t)(const struct fsl_rt_closure*, parambuf_t /* out */);
+	const struct fsl_rt_closure*,
+	uint64_t /* idx */,
+	parambuf_t /* out */);
+typedef void(*paramsf_t)(
+	const struct fsl_rt_closure*,
+	uint64_t /* array idx within a field */,
+	parambuf_t /* out */);
 typedef bool(*condf_t)(const struct fsl_rt_closure*);
 typedef bool(*assertf_t)(const struct fsl_rt_closure*);
 

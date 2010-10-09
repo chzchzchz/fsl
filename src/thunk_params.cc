@@ -14,13 +14,35 @@ static bool has_gen_empty_code = false;
 FCall* ThunkParams::copyFCall(void) const
 {
 	ExprList	*fc_exprs;
+
 	const Type	*t;
 
 	t = getOwner()->getType();
 
-	fc_exprs = new ExprList(
-		rt_glue.getThunkClosure(),
-		new FCall(
+	fc_exprs = new ExprList();
+	fc_exprs->add(rt_glue.getThunkClosure());	/* parent closure */
+	fc_exprs->add(rt_glue.getThunkArgIdx());
+	fc_exprs->add(new FCall(			/* param output buffer */
+			new Id("paramsAllocaByCount"),
+			new ExprList(
+			new Number(
+				(t != NULL) ? t->getNumArgs() : 0))));
+
+	return new FCall(new Id(getFCallName()), fc_exprs);
+}
+
+FCall* ThunkParams::copyFCall(unsigned int idx) const
+{
+	ExprList	*fc_exprs;
+
+	const Type	*t;
+
+	t = getOwner()->getType();
+
+	fc_exprs = new ExprList();
+	fc_exprs->add(rt_glue.getThunkClosure());	/* parent closure */
+	fc_exprs->add(new Number(0));
+	fc_exprs->add(new FCall(			/* param output buffer */
 			new Id("paramsAllocaByCount"), 
 			new ExprList(
 			new Number(
@@ -28,6 +50,7 @@ FCall* ThunkParams::copyFCall(void) const
 
 	return new FCall(new Id(getFCallName()), fc_exprs);
 }
+
 
 ThunkParams* ThunkParams::copy(void) const
 {
@@ -78,8 +101,9 @@ bool ThunkParams::genProtoByName(const string& name)
 	llvm::FunctionType		*ft;
 	vector<const llvm::Type*>	args;
 
-	/* diskoff,  parent's params, out params */
+	/* parent type instance, type's array idx, out params */
 	args.push_back(code_builder->getClosureTyPtr());
+	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
 	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
 
 	ft = llvm::FunctionType::get(
@@ -123,13 +147,12 @@ bool ThunkParams::genCodeExprs(void) const
 	llvm::Module			*mod;
 	llvm::IRBuilder<>		*builder;
 	llvm::AllocaInst		*params_out_ptr;
+	llvm::AllocaInst		*paramsf_idx;
 	llvm::Function::arg_iterator	arg_it;
 	ExprList::const_iterator	it;
 	unsigned int			i;
 
 	assert (exprs != NULL);
-
-	cerr << "Starting genCodeExprs............" << endl;
 
 	mod = code_builder->getModule();
 	builder = code_builder->getBuilder();
@@ -139,10 +162,19 @@ bool ThunkParams::genCodeExprs(void) const
 		llvm::getGlobalContext(), "tp_entry", f);
 	builder->SetInsertPoint(bb_entry);
 
-	/* load n parameters */
+	/* load up __thunk_off_arg, __thunk_params, ... parameters */
+	/* the things we expect while in type-scope */
 	code_builder->genThunkHeaderArgs(f, getOwner()->getType());
 
 	arg_it = f->arg_begin();	/* closure */
+
+	/* set passed in '@' to map to the Id '@' */
+	arg_it++;			/* idx */
+	assert (arg_it != f->arg_end());
+	paramsf_idx = code_builder->createTmpI64(rt_glue.getThunkArgIdxName());
+	assert (paramsf_idx != NULL);
+	builder->CreateStore(arg_it, paramsf_idx);
+
 	arg_it++;			/* params (out) */
 
 	params_out_ptr = builder->CreateAlloca(
@@ -151,17 +183,25 @@ bool ThunkParams::genCodeExprs(void) const
 		"__thunkparams_out");
 	builder->CreateStore(arg_it, params_out_ptr);
 	
-
 	/* assign all values in expr list to elements in 
 	 * the passed pointer */
 	for (it = exprs->begin(), i = 0; it != exprs->end(); it++, i++) {
-		Expr		*cur_expr;
+		Expr		*cur_expr, *idxed_expr;
 		llvm::Value	*expr_val;
 		llvm::Value	*cur_param_ptr;
 		llvm::Value	*idx_val;
 
 		cur_expr = *it;
-		expr_val = cur_expr->codeGen();
+		idxed_expr = Expr::rewriteReplace(
+			cur_expr->copy(),
+			new Id("@"),
+			rt_glue.getThunkArgIdx());
+
+
+		expr_val = idxed_expr->codeGen();
+
+		delete idxed_expr;
+
 		if (expr_val == NULL) {
 			cerr << "Oops. Could not generate ";
 			cur_expr->print(cerr);
@@ -182,8 +222,6 @@ bool ThunkParams::genCodeExprs(void) const
 	}
 		
 	builder->CreateRetVoid();
-
-	cerr << "GenCodeExprs DONE" << endl;
 
 	return true;
 }

@@ -58,7 +58,7 @@ static void print_field(
 		uint64_t field_params[param_c];
 		NEW_CLO(field_closure, field_off, field_params);
 
-		field->tf_params(clo, field_params);
+		field->tf_params(clo, 0, field_params);
 
 		/* non-constant width.. */
 		field_sz = __computeArrayBits(
@@ -554,7 +554,7 @@ void typeinfo_set_dyn(const struct type_info* ti)
 		uint64_t	params[param_c];
 
 		diskoff = field->tf_fieldbitoff(clo);
-		field->tf_params(clo, params);
+		field->tf_params(clo, 0, params);
 
 		NEW_VCLO		(new_clo,
 					 diskoff, params, ti_xlate(ti));

@@ -127,7 +127,7 @@ static void select_field(struct type_info* cur, int field_idx)
 		return;
 	}
 
-	field->tf_params(clo, params);
+	field->tf_params(clo, 0, params);
 	next_off = field->tf_fieldbitoff(clo);
 	num_elems = field->tf_elemcount(clo);
 

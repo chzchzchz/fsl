@@ -135,7 +135,7 @@ static void handle_field(
 		param_c = 0;
 	uint64_t params[param_c];
 
-	field->tf_params(clo, params);
+	field->tf_params(clo, 0, params);
 	td_params(&next_td) = params;
 
 	td_init(&next_td,
