@@ -43,7 +43,7 @@ public:
 	{
 		Number	*lhs, *rhs;
 
-		((BinArithOp*)this)->simplifySides();
+		const_cast<BinArithOp*>(this)->simplifySides();
 
 		lhs = dynamic_cast<Number*>(e_lhs);
 		rhs = dynamic_cast<Number*>(e_rhs);
