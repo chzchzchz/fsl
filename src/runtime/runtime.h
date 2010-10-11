@@ -11,6 +11,7 @@
 #define tt_by_num(x)	(&fsl_rt_table[x])
 
 #define FSL_ENV_VAR_STATFILE	"FSL_ENV_STATFILE"
+#define FSL_ENV_VAR_HITFILE	"FSL_ENV_HITFILE"
 
 typedef uint64_t	diskoff_t;	/* bits */
 typedef uint64_t	voff_t;		/* virtual offset */

@@ -178,6 +178,8 @@ struct fsl_rt_closure* fsl_rt_dyn_swap(struct fsl_rt_closure* dyns)
 	return ret;
 }
 
+/* main entry point for tool executable --
+ * set some stuff up and then run tool */
 int main(int argc, char* argv[])
 {
 	int	tool_ret;
@@ -194,9 +196,12 @@ int main(int argc, char* argv[])
 	}
 
 	fsl_vars_from_env(fsl_env);
+	/* track hits, if applicable */
+	fsl_hits_init();
 
 	tool_ret = tool_entry(argc-2, argv+2);
 
+	fsl_hits_uninit();
 	fsl_rt_uninit(fsl_env);
 
 	return tool_ret;
