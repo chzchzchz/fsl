@@ -110,15 +110,25 @@ void __getDynParams(uint64_t typenum, parambuf_t params_out)
 void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
 {
 	const struct fsl_rt_closure*	src_clo;
+	unsigned int			param_c;
 
 	assert (typenum < fsl_env->fctx_num_types);
 	assert (clo != NULL);
 
 	src_clo = env_get_dyn_clo(typenum);
 	clo->clo_offset = src_clo->clo_offset;
+	param_c = tt_by_num(typenum)->tt_param_c;
+
+	assert ((param_c == 0 || clo->clo_params != NULL) && "BAD INPUT CLO BUF");
+	assert ((param_c == 0 || src_clo->clo_params != NULL) && "BAD DYN SRC CLO");
+
+	DEBUG_DYN_WRITE("copying closure params %p %p",
+		clo->clo_params,
+		src_clo->clo_params);
 	memcpy(	clo->clo_params,
 		src_clo->clo_params,
 		sizeof(uint64_t)*tt_by_num(typenum)->tt_param_c);
+	DEBUG_DYN_WRITE("successfully copied closure params");
 	clo->clo_xlate = src_clo->clo_xlate;
 
 	fsl_env->fctx_stat.s_get_closure_c++;

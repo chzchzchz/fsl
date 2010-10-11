@@ -1,8 +1,8 @@
+//#define DEBUG_TOOL
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <assert.h>
-
 #include "runtime.h"
 #include "debug.h"
 #include "type_info.h"
@@ -257,7 +257,9 @@ static void scan_type(struct type_info* ti)
 	voff = ti_offset(ti);
 	poff = ti_phys_offset(ti);
 	size = ti_size(ti);
-	printf("scanning: %s (%d usertypes) voff=%"PRIu64" bits. poff=%"PRIu64" bits. xlate=%p\n",
+	printf("scanning: %s (%d usertypes) voff=%"PRIu64
+			" bits. poff=%"PRIu64
+			" bits. xlate=%p\n",
 		tt_by_ti(ti)->tt_name,
 		tt_by_ti(ti)->tt_field_c,
 		voff,
@@ -274,6 +276,7 @@ static void scan_type(struct type_info* ti)
 	scan_type_pointsto_all(ti);
 	DEBUG_TOOL_WRITE("do scan virts.");
 	scan_type_virt(ti);
+
 	DEBUG_TOOL_LEAVE();
 }
 
@@ -285,11 +288,14 @@ int tool_entry(int argc, char* argv[])
 
 	printf("Welcome to fsl scantool. Scan mode: \"%s\"\n", fsl_rt_fsname);
 
+	DEBUG_TOOL_WRITE("Origin Type Allocating...\n");
 	origin_ti = typeinfo_alloc(&init_td, 0, NULL);
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
 		return -1;
 	}
+
+	DEBUG_TOOL_WRITE("Origin Type Now Allocated");
 
 	scan_type(origin_ti);
 

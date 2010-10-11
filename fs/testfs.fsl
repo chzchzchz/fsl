@@ -1,0 +1,15 @@
+const __FSL_FSNAME = testfs;
+
+type disk
+{
+	u32		whatever;
+	some_type(10)	st1;
+	some_type(10)	st2[10];
+	some_type(@)	st3[10];
+	some_type(@+1)	st4[10];
+}
+
+type some_type(u32 n)
+{
+	u32	v[n];
+}

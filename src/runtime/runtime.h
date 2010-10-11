@@ -67,9 +67,11 @@ struct fsl_rt_closure
 	x.clo_offset = y;			\
 	x.clo_params = z;			\
 	x.clo_xlate = t;
+
 #define NEW_EMPTY_CLO(x,y)				\
-	struct fsl_rt_closure	x;			\
-	uint64_t x##_params[tt_by_num(y)->tt_param_c];
+	uint64_t x##_params[tt_by_num(y)->tt_param_c];	\
+	NEW_CLO (x,~0,x##_params);			\
+
 
 #include "dyn.h"
 #include "virt.h"

@@ -1,3 +1,4 @@
+//#define DEBUG_TYPEINFO
 #include <stdbool.h>
 #include <assert.h>
 #include <stdio.h>
@@ -24,8 +25,9 @@ static bool verify_asserts(const struct type_info *ti)
 
 		as = &tt->tt_assert[i];
 		if (as->as_assertf(clo) == false) {
-//			printf("!!! !!!Assert #%d failed on type %s!!! !!!\n",
-//				i, tt->tt_name);
+			DEBUG_TYPEINFO_WRITE(
+				"%s: Assert #%d failed!!!\n",
+				tt->tt_name, i);
 			return false;
 		}
 	}
@@ -436,20 +438,33 @@ struct type_info* typeinfo_alloc(
 {
 	struct type_info*	ret;
 
+	DEBUG_TYPEINFO_ENTER();
+
+	DEBUG_TYPEINFO_WRITE("Filling out generic details");
+
 	ret = typeinfo_alloc_generic(ti_td, ti_prev);
-	if (ret == NULL)
+	if (ret == NULL) {
+		DEBUG_TYPEINFO_LEAVE();
 		return NULL;
+	}
 
 	ret->ti_is_virt = false;
 	ret->ti_pointsto = false;
 	ret->ti_fieldidx = ti_fieldidx;
 
+	DEBUG_TYPEINFO_WRITE("Setting Dyn");
+
 	typeinfo_set_dyn(ret);
+
+	DEBUG_TYPEINFO_WRITE("Verifying");
+
 	if (typeinfo_verify(ret) == false) {
 		typeinfo_free(ret);
+		DEBUG_TYPEINFO_LEAVE();
 		return NULL;
 	}
 
+	DEBUG_TYPEINFO_LEAVE();
 	return ret;
 }
 
@@ -538,6 +553,8 @@ void typeinfo_set_dyn(const struct type_info* ti)
 	struct fsl_rt_table_type	*tt;
 	unsigned int			i;
 
+	DEBUG_TYPEINFO_ENTER();
+
 	__setDyn(td_explode(&ti->ti_td));
 
 	tt = tt_by_ti(ti);
@@ -550,17 +567,27 @@ void typeinfo_set_dyn(const struct type_info* ti)
 		if (field->tf_typenum == TYPENUM_INVALID)
 			continue;
 
+		DEBUG_TYPEINFO_WRITE("Processing field: %s (type=%s)",
+			field->tf_fieldname,
+			tt_by_num(field->tf_typenum)->tt_name);
+
 		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
 		uint64_t	params[param_c];
 
+		DEBUG_TYPEINFO_WRITE("Reading diskoff");
 		diskoff = field->tf_fieldbitoff(clo);
-		field->tf_params(clo, 0, params);
+		DEBUG_TYPEINFO_WRITE("Got diskoff: %"PRIu64" bytes", diskoff/8);
 
+		DEBUG_TYPEINFO_WRITE("Getting params");
+		field->tf_params(clo, 0, params);
+		DEBUG_TYPEINFO_WRITE("NEW_VCLO");
 		NEW_VCLO		(new_clo,
 					 diskoff, params, ti_xlate(ti));
 
 		__setDyn(field->tf_typenum, &new_clo);
 	}
+
+	DEBUG_TYPEINFO_LEAVE();
 }
 
 static void typeinfo_print_path_helper(const struct type_info* ti)

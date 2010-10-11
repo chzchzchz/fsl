@@ -27,7 +27,7 @@ scantool-$(FSNAME): $(TOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^  $(SCANTOOL_OBJS)
 
 fsl.$(FSNAME).types.o: fsl.$(FSNAME).types.s
-	as $< -o $@
+	as -g $< -o $@
 
 fsl.$(FSNAME).types.s: fsl.$(FSNAME).types.bc
 	llc -O3  $< -o $@

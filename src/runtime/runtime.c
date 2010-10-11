@@ -52,18 +52,23 @@ typesize_t __computeArrayBits(
 	typesize_t			total_bits;
 	NEW_EMPTY_CLO			(old_dyn, elem_type);
 
-	assert (elem_type < fsl_rt_table_entries);
+	assert (elem_type < fsl_rt_table_entries && "Bad elem type");
+
+	DEBUG_RT_ENTER();
 
 	total_bits = 0;
 	cur_off = clo->clo_offset;
 	tt = tt_by_num(elem_type);
 
 	/* save old dyn closure value */
+	DEBUG_RT_WRITE("Get initial closure for type '%s'", tt->tt_name);
 	__getDynClosure(elem_type, &old_dyn);
+
 	for (i = 0; i < num_elems; i++) {
 		typesize_t		cur_size;
 		NEW_CLO			(new_clo, cur_off, clo->clo_params);
 
+		DEBUG_RT_WRITE("Loop: %d of %d", i, num_elems);
 		__setDyn(elem_type, &new_clo);
 		cur_size = tt->tt_size(&new_clo);
 		total_bits += cur_size;
@@ -74,6 +79,8 @@ typesize_t __computeArrayBits(
 	__setDyn(elem_type, &old_dyn);
 
 	fsl_env->fctx_stat.s_comp_array_bits_c++;
+
+	DEBUG_RT_LEAVE();
 
 	return total_bits;
 }
@@ -154,7 +161,7 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 {
 	assert (fctx != NULL);
-	assert (fctx->fctx_io != NULL);
+	assert (fctx->fctx_io != NULL && "Is the file open?");
 
 	__FROM_OS_BDEV_BYTES = fsl_io_size(fctx->fctx_io);
 	__FROM_OS_BDEV_BLOCK_BYTES = 512;

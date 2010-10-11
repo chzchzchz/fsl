@@ -32,6 +32,10 @@ uint64_t __getLocal(
 	fsl_env->fctx_stat.s_phys_access_c++;
 	fsl_env->fctx_stat.s_bits_read += num_bits;
 
+	DEBUG_IO_ENTER();
+
+	DEBUG_IO_WRITE("Requesting IO: bitoff=%"PRIu64, bit_off);
+
 	if (clo->clo_xlate != NULL) {
 		/* xlate path */
 		uint64_t	bit_off_old, bit_off_last;
@@ -74,12 +78,11 @@ uint64_t __getLocal(
 		ret += buf[i];
 	}
 
-#if 0
-	if (fsl_rt_debug & FSL_DEBUG_FL_GETLOCAL) {
-		printf("getlocal: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64"\n",
+	DEBUG_IO_WRITE(
+		"Returning IO: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64"\n",
 			bit_off, num_bits, ret);
-	}
-#endif
+
+	DEBUG_IO_LEAVE();
 
 	return ret;
 }

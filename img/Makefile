@@ -1,4 +1,4 @@
-all: ext2.img vfat.img nilfs2.img ext2-small.img
+all: ext2.img vfat.img nilfs2.img ext2-small.img testfs.img
 
 format: ext2.img vfat.img nilfs2.img ext2-small.img
 	./loopback_fs_setup.sh ext2.img ext2  && ./gen_files.sh  && ./loopback_fs_teardown.sh
@@ -8,6 +8,10 @@ format: ext2.img vfat.img nilfs2.img ext2-small.img
 
 clean:
 	rm -f *.img
+
+#unformated, 5MB:
+testfs.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=5
 
 # 5MB
 ext2-small.img:
