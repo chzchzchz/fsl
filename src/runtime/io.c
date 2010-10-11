@@ -7,23 +7,15 @@
 #include "debug.h"
 #include "runtime.h"
 
-typedef uint64_t logaddr_t;
-#define addr2log(x)	((x) >> 6)
-#define log2addr(x)	((x) << 6)
-//	addr >>= 3;	/* 3=bits */
-//	addr >>= 3;	/* 3 => 8 byte units */
-
-
-static void fsl_io_log(struct fsl_rt_io* io, uint64_t addr);
-
 uint64_t __getLocal(
 	const struct fsl_rt_closure* clo,
 	uint64_t bit_off, uint64_t num_bits)
 {
-	uint8_t		buf[10];
-	uint64_t	ret;
-	int		i;
-	size_t		br;
+	uint8_t			buf[10];
+	uint64_t		ret;
+	int			i;
+	size_t			br;
+	struct fsl_rt_io	*io;
 
 	assert (num_bits <= 64);
 	assert (num_bits > 0);
@@ -46,9 +38,11 @@ uint64_t __getLocal(
 		assert ((bit_off + (num_bits-1)) == (bit_off_last) &&
 			"Discontiguous getLocal not permitted");
 	}
-	/* common path */
 
-	if (fseeko(fsl_get_io()->io_backing, bit_off / 8, SEEK_SET) != 0) {
+	/* common path */
+	io = fsl_get_io();
+
+	if (fseeko(io->io_backing, bit_off / 8, SEEK_SET) != 0) {
 		fprintf(stderr, "BAD SEEK! bit_off=%"PRIx64"\n", bit_off);
 		exit(-2);
 	}
@@ -60,9 +54,9 @@ uint64_t __getLocal(
 		exit(-3);
 	}
 
-	fsl_io_log(fsl_get_io(), bit_off);
+	if (io->io_cb != NULL) io->io_cb(io, bit_off);
 
-	br = fread(buf, (num_bits + 7) / 8, 1, fsl_get_io()->io_backing);
+	br = fread(buf, (num_bits + 7) / 8, 1, io->io_backing);
 	if (br != 1) {
 		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64
 				" br=%"PRIu64". bits=%"PRIu64"\n",
@@ -122,7 +116,7 @@ struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 
 	ret = malloc(sizeof(*ret));
 	ret->io_backing = f;
-	ret->io_accessed_idx = IO_IDX_STOPPED;
+	fsl_io_log_init(ret);
 
 	return ret;
 }
@@ -140,53 +134,18 @@ ssize_t fsl_io_size(struct fsl_rt_io* io)
 	__FROM_OS_BDEV_BYTES = ftello(io->io_backing);
 }
 
-bool fsl_io_log_contains(struct fsl_rt_io* io, diskoff_t addr)
+fsl_io_callback fsl_io_hook(struct fsl_rt_io* io, fsl_io_callback cb)
 {
-	int		i;
-	logaddr_t 	logaddr;
+	fsl_io_callback	old_cb;
 
-	logaddr = addr2log(addr);
-	for (i = 0; i < io->io_accessed_idx; i++) {
-		if (io->io_accessed[i] == logaddr)
-			return true;
-	}
+	old_cb = io->io_cb;
+	io->io_cb = cb;
 
-	return false;
+	return io->io_cb;
 }
 
-void fsl_io_log_start(struct fsl_rt_io* io)
+void fsl_io_unhook(struct fsl_rt_io* io)
 {
-	assert (io->io_accessed_idx == IO_IDX_STOPPED);
-	io->io_accessed_idx = 0;
-}
-
-void fsl_io_log_stop(struct fsl_rt_io* io)
-{
-	assert (io->io_accessed_idx != IO_IDX_STOPPED);
-	io->io_accessed_idx = IO_IDX_STOPPED;
-}
-
-static void fsl_io_log(struct fsl_rt_io* io, diskoff_t addr)
-{
-	if (io->io_accessed_idx == IO_IDX_STOPPED) return;
-	assert (io->io_accessed_idx < IO_MAX_ACCESS);
-
-	/* round down to bytes */
-	if (fsl_io_log_contains(io, addr)) return;
-	io->io_accessed[io->io_accessed_idx++] = addr2log(addr);
-}
-
-void fsl_io_log_dump(struct fsl_rt_io* io, FILE* f)
-{
-	unsigned int	i;
-
-	for (i = 0; i < io->io_accessed_idx; i++) {
-		logaddr_t	logaddr;
-
-		logaddr = io->io_accessed[i];
-		fprintf(f, "%d. [%"PRIu64"--%"PRIu64"]\n",
-			i,
-			log2addr(logaddr),
-			log2addr(logaddr+1)-1);
-	}
+	assert (io->io_cb != NULL);
+	io->io_cb = NULL;
 }
