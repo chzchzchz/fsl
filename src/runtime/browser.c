@@ -85,14 +85,17 @@ static uint64_t select_field_array(
 	struct fsl_rt_table_field* field,
 	unsigned int num_elems,
 	uint64_t next_diskoff,
-	parambuf_t next_params)
+	uint64_t* sel_idx)
 {
 	int		sel_elem;
 	TI_INTO_CLO	(cur);
 
+	assert (sel_idx != NULL);
+
 	sel_elem = get_sel_elem(0, num_elems-1);
 	if (sel_elem < INT_MIN)
-		return;
+		return ~0;
+	*sel_idx = sel_elem;
 
 	if (field->tf_constsize == false) {
 		typesize_t	array_off;
@@ -128,14 +131,21 @@ static void select_field(struct type_info* cur, int field_idx)
 		return;
 	}
 
-	field->tf_params(clo, 0, params);
 	next_off = field->tf_fieldbitoff(clo);
 	num_elems = field->tf_elemcount(clo);
 
 	if (num_elems > 1) {
+		uint64_t	sel_idx;
 		next_off = select_field_array(
-			cur, field, num_elems, next_off, params);
+			cur, field, num_elems, next_off, &sel_idx);
+		if (next_off != ~0)
+			field->tf_params(clo, sel_idx, params);
+	} else {
+		field->tf_params(clo, 0, params);
 	}
+
+	if (next_off == ~0)
+		return;
 
 	td_init(&next_td, field->tf_typenum, next_off, params);
 
