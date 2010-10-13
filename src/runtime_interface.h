@@ -42,11 +42,18 @@ public:
 	Expr	*maxValue(ExprList* exprs);
 	Expr	*computeArrayBits(const class ThunkField* tf);
 	Expr	*computeArrayBits(
+		/* type of the parent*/
 		const Type* t,
-		const Expr* diskoff, const Expr* params,
-		const Expr* idx);
+		/* fieldall idx for type */
+		unsigned int fieldall_num,
+		/* converted into single closure */
+		const Expr* diskoff, 	/* base */
+		const Expr* params,	/* params */
+		/* nth element to find */
+		const Expr* num_elems);
 	Expr	*fail(void);
 private:
+
 
 };
 

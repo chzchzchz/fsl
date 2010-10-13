@@ -91,6 +91,8 @@ ThunkType* ThunkType::copy(void) const
 		ret->registerFunc((*it).second);
 	}
 
+	ret->num_fields = num_fields;
+
 	return ret;
 }
 

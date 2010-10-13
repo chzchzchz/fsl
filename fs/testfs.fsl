@@ -2,11 +2,11 @@ const __FSL_FSNAME = testfs;
 
 type disk
 {
-	u32		whatever;
-	some_type(10)	st1;
-	some_type(10)	st2[10];
-	some_type(@)	st3[10];
-	some_type(@+1)	st4[10];
+	u32		whatever;	/* 0--4 */
+	some_type(10)	st1;		/* 4--44 */
+	some_type(10)	st2[10];	/* 44--10*4*10 = 44--444 */
+	some_type(@)	st3[10];	/* 444--0+4+8+...+4*9 = 444--624 */
+	some_type(@+1)	st4[10];	/* 624--844 */
 }
 
 type some_type(u32 n)

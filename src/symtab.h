@@ -48,6 +48,7 @@ private:
 	ThunkField		*thunk_field;
 	bool			is_weak;
 	bool			is_conditional;
+
 };
 
 class SymbolTable

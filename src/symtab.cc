@@ -40,7 +40,7 @@ SymbolTable& SymbolTable::operator=(const SymbolTable& st)
 
 void SymbolTable::copyInto(const SymbolTable& st)
 {
-	sym_map::const_iterator	it;
+	sym_list::const_iterator	it;
 
 	if (&st == this)
 		return;
@@ -49,11 +49,11 @@ void SymbolTable::copyInto(const SymbolTable& st)
 
 	owner = (st.owner)->copy();
 
-	for (it = st.sm.begin(); it != st.sm.end(); it++) {
+	for (it = st.sl.begin(); it != st.sl.end(); it++) {
 		const SymbolTableEnt	*st_ent;
 
-		st_ent = (*it).second;
-		add(	(*it).first, 
+		st_ent = (*it);
+		add(	st_ent->getFieldName(),
 			st_ent->getTypeName(),
 			st_ent->getFieldThunk()->copy(*owner),
 			st_ent->isWeak());
@@ -98,6 +98,7 @@ bool SymbolTable::add(
 		return false;
 	}
 
+	/* all conditional bindings should be weak */
 	assert (!(weak_binding == false && cond_binding));
 
 	st_ent =  new SymbolTableEnt(

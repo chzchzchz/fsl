@@ -46,8 +46,8 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 			new ThunkFieldOffset(rt_glue.getThunkArgOffset()),
 			new ThunkFieldSize(0U),
 			new ThunkElements(0U),
-			ThunkParams::createNoParams()
-		)
+			ThunkParams::createNoParams(),
+			TF_FIELDNUM_NONE)
 	);
 
 	apply(t);
@@ -127,11 +127,11 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 			new ThunkFieldOffset(rt_glue.getThunkArgOffset()),
 			new ThunkFieldSize(0u),
 			new ThunkElements(0u),
-			ThunkParams::createNoParams())
+			ThunkParams::createNoParams(),
+			TF_FIELDNUM_NONE)
 	);
 
 	last_tf_union_off = copyCurrentOffset();
-
 
 	union_c = 1;
 	weak_c = 1;
@@ -566,13 +566,11 @@ ThunkField* SymTabThunkBuilder::alignBits(const TypeFunc* tf)
 
 	assert (cond_stack.size() == 0);
 
-	thunkf = new ThunkField(
+	thunkf = ThunkField::createInvisible(
 		*cur_thunk_type,
 		"__align_bits_"+int_to_string(field_count),
 		new ThunkFieldOffset(copyCurrentOffset()),
-		new ThunkFieldSize(align_bits_pad),
-		new ThunkElements(1),
-		ThunkParams::createNoParams()
+		new ThunkFieldSize(align_bits_pad)
 	);		
 
 done:
@@ -599,16 +597,14 @@ ThunkField* SymTabThunkBuilder::setBits(const TypeFunc* tf)
 
 	assert (cond_stack.size() == 0);
 
-	thunkf = new ThunkField(
+	thunkf = ThunkField::createInvisible(
 		*cur_thunk_type,
 		"__set_bits_"+int_to_string(field_count),
 		new ThunkFieldOffset(
 			new AOPAdd(
 				rt_glue.getThunkArgOffset(),
 				(args->front())->simplify())),
-		new ThunkFieldSize(new Number(0)),
-		new ThunkElements(1),
-		ThunkParams::createNoParams()
+		new ThunkFieldSize(new Number(0))
 	);		
 
 done:
@@ -636,7 +632,7 @@ ThunkField* SymTabThunkBuilder::setBytes(const TypeFunc* tf)
 
 	assert (cond_stack.size() == 0);
 
-	thunkf = new ThunkField(
+	thunkf = ThunkField::createInvisible(
 		*cur_thunk_type,
 		"__set_bytes_"+int_to_string(field_count),
 		new ThunkFieldOffset(
@@ -645,9 +641,7 @@ ThunkField* SymTabThunkBuilder::setBytes(const TypeFunc* tf)
 				new AOPMul(
 					(args->front())->simplify(),
 					new Number(8)))),
-		new ThunkFieldSize(new Number(0)),
-		new ThunkElements(1),
-		ThunkParams::createNoParams()
+		new ThunkFieldSize(new Number(0))
 	);		
 
 done:
@@ -687,13 +681,11 @@ ThunkField* SymTabThunkBuilder::alignBytes(const TypeFunc* tf)
 
 	assert (cond_stack.size() == 0);
 
-	thunkf = new ThunkField(
+	thunkf = ThunkField::createInvisible(
 		*cur_thunk_type,
 		"__align_bytes_"+int_to_string(field_count),
 		new ThunkFieldOffset(copyCurrentOffset()),
-		new ThunkFieldSize(align_bytes_pad),
-		new ThunkElements(1),
-		ThunkParams::createNoParams()
+		new ThunkFieldSize(align_bytes_pad)
 	);
 
 done:
@@ -720,13 +712,11 @@ ThunkField* SymTabThunkBuilder::skipBits(const TypeFunc* tf)
 
 	assert (cond_stack.size() == 0);
 
-	thunkf = new ThunkField(
+	thunkf = ThunkField::createInvisible(
 		*cur_thunk_type,
 		"__skip_bits_"+int_to_string(field_count),
 		new ThunkFieldOffset(copyCurrentOffset()),
-		new ThunkFieldSize((args->front())->simplify()),
-		new ThunkElements(1),
-		ThunkParams::createNoParams()
+		new ThunkFieldSize((args->front())->simplify())
 	);		
 
 done:
@@ -753,17 +743,15 @@ ThunkField* SymTabThunkBuilder::skipBytes(const TypeFunc* tf)
 
 	assert (cond_stack.size() == 0);
 
-	thunkf = new ThunkField(
+	thunkf = ThunkField::createInvisible(
 		*cur_thunk_type,
 		"__skip_bytes_"+int_to_string(field_count),
 		new ThunkFieldOffset(copyCurrentOffset()),
 		new ThunkFieldSize(
 			new AOPMul(
 				(args->front())->simplify(),
-				new Number(8))),
-		new ThunkElements(1),
-		ThunkParams::createNoParams()
-	);		
+				new Number(8)))
+	);
 
 done:
 	delete args;

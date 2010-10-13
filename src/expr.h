@@ -122,10 +122,8 @@ public:
 			(*it)->print(out);
 		}
 	}
-	ExprList* copy(void) const
-	{
-		return new ExprList(*this);
-	}
+
+	ExprList* copy(void) const { return new ExprList(*this); }
 
 	ExprList* simplify(void) const
 	{

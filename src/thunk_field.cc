@@ -37,20 +37,30 @@ Expr* ThunkField::copyNextOffset(void) const
 
 ThunkField* ThunkField::copy(ThunkType& new_owner) const
 {
-	ThunkFieldOffset	*toff_copy;
-	ThunkFieldSize		*tsize_copy;
-	ThunkElements		*telems_copy;
-	ThunkParams		*tparams_copy;
-
-	toff_copy = t_fieldoff->copy();
-	tsize_copy = t_size->copy();
-	telems_copy = t_elems->copy();
-	tparams_copy = t_params->copy();
-
 	return new ThunkField(
 		new_owner, 
 		fieldname, 
-		toff_copy, tsize_copy, telems_copy, tparams_copy);
+		t_fieldoff->copy(),
+		t_size->copy(),
+		t_elems->copy(),
+		t_params->copy(),
+		field_num);
+}
+
+ThunkField* ThunkField::createInvisible(
+	ThunkType		&owner,
+	const std::string	&in_fieldname,
+	ThunkFieldOffset*	in_off,
+	ThunkFieldSize*		in_size)
+{
+	return new ThunkField(
+		owner,
+		in_fieldname,
+		in_off,
+		in_size,
+		new ThunkElements(1),
+		ThunkParams::createNoParams(),
+		TF_FIELDNUM_NONE);
 }
 
 
@@ -60,15 +70,51 @@ ThunkField::ThunkField(
 	ThunkFieldOffset*	in_off,
 	ThunkFieldSize*		in_size,
 	ThunkElements*		in_elems,
+	ThunkParams*		in_params,
+	unsigned int		in_fieldnum)
+: fieldname(in_fieldname),
+  t_fieldoff(in_off), t_size(in_size), t_elems(in_elems), t_params(in_params),
+  field_num(in_fieldnum),
+  owner_type(in_owner.getType())
+{
+	assert (t_fieldoff != NULL);
+	assert (t_elems != NULL);
+	assert (t_size != NULL);
+	assert (t_params != NULL);
+	assert (field_num == TF_FIELDNUM_NONE ||
+		(field_num < in_owner.getNumFields() && "Bad type in copy"));
+
+	setFields(in_owner);
+}
+
+ThunkField::ThunkField(
+	ThunkType&		in_owner,
+	const std::string	&in_fieldname,
+	ThunkFieldOffset*	in_off,
+	ThunkFieldSize*		in_size,
+	ThunkElements*		in_elems,
 	ThunkParams*		in_params)
 : fieldname(in_fieldname),
-  t_fieldoff(in_off), t_size(in_size), t_elems(in_elems), t_params(in_params)
+  t_fieldoff(in_off), t_size(in_size), t_elems(in_elems), t_params(in_params),
+  owner_type(in_owner.getType())
 {
 	assert (t_fieldoff != NULL);
 	assert (t_elems != NULL);
 	assert (t_size != NULL);
 	assert (t_params != NULL);
 
+	setFields(in_owner);
+
+	field_num = in_owner.incNumFields();
+
+	cout << "Owner Type: " << owner_type->getName() << endl;
+	cout << "Fieldname: " << fieldname << endl;
+	cout << "Fieldnum: " << field_num << endl;
+	cout << "-------" << endl;
+}
+
+void ThunkField::setFields(ThunkType& in_owner)
+{
 	t_fieldoff->setOwner(&in_owner);
 	t_elems->setOwner(&in_owner);
 	t_params->setOwner(&in_owner);

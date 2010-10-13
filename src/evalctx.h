@@ -78,6 +78,12 @@ private:
 		const Expr* idx,
 		struct TypeBase& tb) const;
 
+	Expr* setNewOffsetsArray(
+		Expr* new_base,
+		Expr** new_params,
+		const struct TypeBase& tb,
+		const ThunkField* tf,
+		const Expr* idx) const;
 
 protected:
 	const FuncBlock*	cur_func_blk;

@@ -73,6 +73,12 @@ struct fsl_rt_closure
 	uint64_t x##_params[tt_by_num(y)->tt_param_c];	\
 	NEW_CLO (x,~0,x##_params);			\
 
+#define LOAD_CLO(x,x_tf,y)					\
+	do {							\
+		(x)->clo_xlate = (y)->clo_xlate;		\
+		(x)->clo_offset = (x_tf)->tf_fieldbitoff(y);	\
+		(x_tf)->tf_params(y, 0, (x)->clo_params);	\
+	} while (0)
 
 #include "dyn.h"
 #include "virt.h"
@@ -106,8 +112,8 @@ struct fsl_rt_table_type
 	sizef_t				tt_size;
 
 	/* strong user-types */
-	unsigned int			tt_field_c;
-	struct fsl_rt_table_field	*tt_field_thunkoff;
+	unsigned int			tt_fieldstrong_c;
+	struct fsl_rt_table_field	*tt_fieldstrong_table;
 
 	unsigned int			tt_pointsto_c;
 	struct fsl_rt_table_pointsto	*tt_pointsto;
@@ -126,6 +132,9 @@ struct fsl_rt_table_type
 	unsigned int			tt_fieldtypes_c;
 	struct fsl_rt_table_field	*tt_fieldtypes_thunkoff;
 
+	/* all fields (including union fields) */
+	unsigned int			tt_field_c;
+	struct fsl_rt_table_field	*tt_field_table;
 };
 
 struct fsl_rt_table_field
@@ -140,6 +149,9 @@ struct fsl_rt_table_field
 	sizef_t		tf_typesize;
 	condf_t		tf_cond;
 	paramsf_t	tf_params;
+
+	/* XXX: used for debugging, remove in real life */
+	unsigned int	tf_fieldnum;
 };
 
 struct fsl_rt_table_pointsto
@@ -183,8 +195,9 @@ extern int				fsl_rt_debug;
 
 /* exposed to llvm */
 typesize_t __computeArrayBits(
-	uint64_t elem_type,
-	struct fsl_rt_closure* clo,
+	uint64_t typenum,
+	const struct fsl_rt_closure* clo_parent,
+	unsigned int fieldall_idx,
 	uint64_t num_elems);
 
 uint64_t __getDynOffset(uint64_t type_num);

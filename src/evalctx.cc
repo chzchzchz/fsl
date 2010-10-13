@@ -29,10 +29,72 @@ static Expr* replaceClosure(Expr* in_expr, Expr* diskoff, Expr* params)
 	return ret;
 }
 
+
+Expr* EvalCtx::setNewOffsetsArray(
+	Expr* new_base,
+	Expr** new_params,
+	const struct TypeBase& tb,
+	const ThunkField* tf,
+	const Expr* idx) const
+{
+	const Type	*t;
+	const Type	*parent;
+
+	assert (new_params != NULL && *new_params != NULL);
+
+	/* no index? => scalar => error */
+	if (idx == NULL) return NULL;
+
+	parent = tb.tb_type;
+	t = tf->getType();
+	if (t != NULL) {
+		/* non-constant type size-- call out to runtime */
+		Expr	*array_elem_base;
+
+		*new_params = Expr::rewriteReplace(
+			*new_params, new Id("@"), idx->simplify());
+		if (t->isUnion() == false) {
+			array_elem_base = rt_glue.computeArrayBits(
+				parent,
+				tf->getFieldNum(),
+				tb.tb_diskoff,
+				tb.tb_parambuf,
+				evalReplace(*this, idx->simplify()));
+			array_elem_base = new AOPAdd(
+				new_base, array_elem_base);
+		} else {
+			Expr	*sz;
+
+			sz = new AOPMul(
+				replaceClosure(
+					tf->getSize()->copyFCall(),
+					tb.tb_diskoff->simplify(),
+					tb.tb_parambuf->simplify()),
+				evalReplace(*this, idx->simplify()));
+			array_elem_base = new AOPAdd(new_base, sz);
+		}
+		new_base = array_elem_base;
+	} else {
+		/* constant type size-- just multiply */
+		Expr	*field_size;
+		Expr	*array_off;
+
+		field_size = replaceClosure(
+			tf->getSize()->copyFCall(),
+			tb.tb_diskoff->simplify(),
+			tb.tb_parambuf->simplify());
+		array_off = evalReplace(*this, idx->simplify());
+
+		new_base = new AOPAdd(
+			new_base, new AOPMul(field_size, array_off));
+	}
+
+	return new_base;
+}
+
 bool EvalCtx::setNewOffsets(
 	struct TypeBase& tb, const Expr* idx) const
 {
-	const Type		*t;
 	const ThunkField	*tf;
 	Expr			*new_base = NULL;
 	Expr			*new_params = NULL;
@@ -60,57 +122,15 @@ bool EvalCtx::setNewOffsets(
 		tb.tb_diskoff->simplify(),
 		tb.tb_parambuf->simplify());
 
-	t = tf->getType();
 	if (tf->getElems()->isSingleton() == false) {
-		/* no index? => scalar => error */
-		if (idx == NULL) goto err_cleanup;
-
-		if (t != NULL) {
-			/* non-constant type size-- call out to runtime */
-			Expr	*array_elem_base;
-
-			new_params = Expr::rewriteReplace(
-				new_params,
-				new Id("@"),
-				idx->simplify());
-			if (t->isUnion() == false) {
-				array_elem_base = rt_glue.computeArrayBits(
-					t, 
-					new_base, new_params, 
-					evalReplace(*this, idx->simplify()));
-				array_elem_base = new AOPAdd(
-					new_base,
-					array_elem_base);
-			} else {
-				Expr	*sz;
-
-				sz = new AOPMul(
-					replaceClosure(
-						tf->getSize()->copyFCall(),
-						tb.tb_diskoff->simplify(),
-						tb.tb_parambuf->simplify()),
-					evalReplace(*this, idx->simplify()));
-				array_elem_base = new AOPAdd(new_base, sz);
-			}
-			new_base = array_elem_base;
-		} else {
-			/* constant type size-- just multiply */
-			Expr	*field_size;
-			Expr	*array_off;
-
-			field_size = replaceClosure(
-				tf->getSize()->copyFCall(),
-				tb.tb_diskoff->simplify(),
-				tb.tb_parambuf->simplify());
-			array_off = evalReplace(*this, idx->simplify());
-
-			new_base = new AOPAdd(
-				new_base, 
-				new AOPMul(field_size, array_off));
-		}
+		new_base = setNewOffsetsArray(
+			new_base, &new_params, tb, tf, idx);
+		if (new_base == NULL) goto err_cleanup;
 	} else {
 		/* trying to index into a scalar type? */
 		if (idx != NULL) goto err_cleanup;
+
+		/* otherwise, we already have the offset+param we need... */
 	}
 
 	delete tb.tb_diskoff;

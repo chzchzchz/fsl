@@ -79,8 +79,11 @@ struct rt_func rt_funcs[] =
 	},
 	{"__computeArrayBits",
 		 RTF_TYPE_INT64,
-		3,
-		{RTF_TYPE_INT64, RTF_TYPE_CLOSURE, RTF_TYPE_INT64}
+		4,
+		{RTF_TYPE_INT64, /* parent typenum */
+		 RTF_TYPE_CLOSURE, /* parent closure */
+		 RTF_TYPE_INT64,  /* field idx into parent type */
+		 RTF_TYPE_INT64 /* element number to grab */}
 	},
 	{ NULL }
 };
@@ -268,43 +271,54 @@ Expr* RTInterface::fail(void)
 Expr* RTInterface::computeArrayBits(const ThunkField* tf)
 {
 	ExprList	*exprs;
+	const Type	*owner_type;
 	const Type	*t;
 
 	assert (tf != NULL);
 
 	t = tf->getType();
+	owner_type = tf->getOwnerType();
+
 	assert (t != NULL);
 	assert (t->isUnion() == false);
 	assert (tf->getElems()->isSingleton() == false);
+	assert (owner_type != NULL);
 
 	exprs = new ExprList();
-	exprs->add(new Number(tf->getType()->getTypeNum()));
-
-	exprs->add(FCall::mkClosure(
-		tf->getOffset()->copyFCall(),
-		tf->getParams()->copyFCall()));
-
+	/* parent type num */
+	exprs->add(new Number(owner_type->getTypeNum()));
+	/* parent closure */
+	exprs->add(getThunkClosure());
+	/* field idx */
+	exprs->add(new Number(tf->getFieldNum()));
+	/* num elements */
 	exprs->add(tf->getElems()->copyFCall());
 
 	return new FCall(new Id("__computeArrayBits"), exprs);
 }
 
 Expr* RTInterface::computeArrayBits(
+	/* type of the parent*/
 	const Type* t,
-	const Expr* diskoff, const Expr* params,
-	const Expr* idx)
+	/* fieldall idx for type */
+	unsigned int fieldall_num,
+	/* converted into single closure */
+	const Expr* diskoff, 	/* base */
+	const Expr* params,	/* params */
+
+	/* nth element to find */
+	const Expr* num_elems)
 {
 	ExprList	*exprs;
 
 	assert (t != NULL);
-	assert (t->isUnion() == false);
+	assert (diskoff != NULL && params != NULL);
 
 	exprs = new ExprList();
 	exprs->add(new Number(t->getTypeNum()));
-
 	exprs->add(FCall::mkClosure(diskoff->copy(), params->copy()));
-
-	exprs->add(idx->copy());
+	exprs->add(new Number(fieldall_num));
+	exprs->add(num_elems->copy());
 
 	return new FCall(new Id("__computeArrayBits"), exprs);
 }

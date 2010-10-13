@@ -128,7 +128,7 @@ static void handle_field(
 	unsigned int			i;
 	TI_INTO_CLO			(ti);
 
-	field = &tt_by_ti(ti)->tt_field_thunkoff[field_idx];
+	field = &tt_by_ti(ti)->tt_fieldstrong_table[field_idx];
 	if (field->tf_typenum != TYPENUM_INVALID)
 		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
 	else
@@ -240,7 +240,7 @@ static void scan_type_strongtypes(const struct type_info* ti)
 	unsigned int			i;
 
 	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_field_c; i++) {
+	for (i = 0; i < tt->tt_fieldstrong_c; i++) {
 		handle_field(ti, i);
 	}
 }
@@ -261,7 +261,7 @@ static void scan_type(struct type_info* ti)
 			" bits. poff=%"PRIu64
 			" bits. xlate=%p\n",
 		tt_by_ti(ti)->tt_name,
-		tt_by_ti(ti)->tt_field_c,
+		tt_by_ti(ti)->tt_fieldstrong_c,
 		voff,
 		poff,
 		ti_xlate(ti));

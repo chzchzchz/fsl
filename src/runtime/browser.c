@@ -96,10 +96,11 @@ static uint64_t select_field_array(
 
 	if (field->tf_constsize == false) {
 		typesize_t	array_off;
-		NEW_CLO		(new_clo, next_diskoff, next_params);
 
 		array_off = __computeArrayBits(
-			field->tf_typenum, &new_clo, sel_elem);
+			ti_typenum(cur), clo,
+			field->tf_fieldnum,
+			sel_elem);
 
 		next_diskoff += array_off;
 	} else {

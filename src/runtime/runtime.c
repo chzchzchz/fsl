@@ -39,40 +39,59 @@ uint64_t fsl_fail(void)
 }
 
 /* compute the number of bits in a given array */
-/* TODO: need a way to handle parent type values if we're computing
- * some sort of parameterized type.. */
+/* TODO: need way to check to see if uses an index value-- if not, we
+ * don't need to reload the params all the time */
 typesize_t __computeArrayBits(
-	uint64_t elem_type,
-	struct fsl_rt_closure* clo,
+	uint64_t typenum_parent,
+	const struct fsl_rt_closure* clo_parent,
+	unsigned int field_idx,
 	uint64_t num_elems)
 {
-	struct fsl_rt_table_type	*tt;
+	const struct fsl_rt_table_type	*parent_tt, *elem_tt;
+	const struct fsl_rt_table_field	*tf;
+	typenum_t			elem_type;
 	unsigned int			i;
 	diskoff_t			cur_off;
 	typesize_t			total_bits;
-	NEW_EMPTY_CLO			(old_dyn, elem_type);
-
-	assert (elem_type < fsl_rt_table_entries && "Bad elem type");
 
 	DEBUG_RT_ENTER();
 
-	total_bits = 0;
-	cur_off = clo->clo_offset;
-	tt = tt_by_num(elem_type);
+	assert (typenum_parent < fsl_rt_table_entries && "Bad parent type");
+
+	parent_tt = tt_by_num(typenum_parent);
+	assert (field_idx < parent_tt->tt_field_c && "Fieldnum overflow");
+
+	tf = &parent_tt->tt_field_table[field_idx];
+	assert (field_idx == tf->tf_fieldnum && "Fieldnum mismatch");
+
+	elem_type = tf->tf_typenum;
+	assert (elem_type < fsl_rt_table_entries && "Bad array type");
+	elem_tt = tt_by_num(elem_type);
+
+	NEW_EMPTY_CLO			(old_dyn, tf->tf_typenum);
+	NEW_EMPTY_CLO			(cur_clo, elem_type);
 
 	/* save old dyn closure value */
-	DEBUG_RT_WRITE("Get initial closure for type '%s'", tt->tt_name);
+	DEBUG_RT_WRITE("Get initial closure for type '%s'", elem_tt->tt_name);
 	__getDynClosure(elem_type, &old_dyn);
 
+	/* get base closure */
+	LOAD_CLO(&cur_clo, tf, clo_parent);
+
+	total_bits = 0;
 	for (i = 0; i < num_elems; i++) {
 		typesize_t		cur_size;
-		NEW_CLO			(new_clo, cur_off, clo->clo_params);
 
 		DEBUG_RT_WRITE("Loop: %d of %d", i, num_elems);
-		__setDyn(elem_type, &new_clo);
-		cur_size = tt->tt_size(&new_clo);
+		__setDyn(elem_type, &cur_clo);
+		cur_size = elem_tt->tt_size(&cur_clo);
+
 		total_bits += cur_size;
-		cur_off += cur_size;
+		cur_clo.clo_offset += cur_size;
+
+		/* don't overflow */
+		if (i != (num_elems - 1))
+			tf->tf_params(clo_parent, i+1, cur_clo.clo_params);
 	}
 
 	/* reset to original */

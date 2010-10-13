@@ -55,16 +55,13 @@ static void print_field(
 	field_off = field->tf_fieldbitoff(clo);
 
 	field_typenum = field->tf_typenum;
-	if (num_elems > 1 && field_typenum != TYPENUM_INVALID && !field->tf_constsize) {
-		unsigned int param_c = tt_by_num(field->tf_typenum)->tt_param_c;
-		uint64_t field_params[param_c];
-		NEW_CLO(field_closure, field_off, field_params);
-
-		field->tf_params(clo, 0, field_params);
-
+	if (num_elems > 1 &&
+	    field_typenum != TYPENUM_INVALID &&
+	    !field->tf_constsize)
+	{
 		/* non-constant width.. */
 		field_sz = __computeArrayBits(
-			field_typenum, &field_closure, num_elems);
+			ti_typenum(ti), clo, field->tf_fieldnum, num_elems);
 	} else {
 		/* constant width */
 		field_sz = field->tf_typesize(clo);
@@ -122,7 +119,7 @@ static void typeinfo_print_field(const struct type_info* ti)
 	TI_INTO_CLO			(ti->ti_prev);
 
 	tt = tt_by_ti(ti->ti_prev);
-	field = &tt->tt_field_thunkoff[ti->ti_fieldidx];
+	field = &tt->tt_fieldstrong_table[ti->ti_fieldidx];
 	len = field->tf_typesize(clo);
 #ifdef PRINT_BITS
 	printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
@@ -558,12 +555,12 @@ void typeinfo_set_dyn(const struct type_info* ti)
 	__setDyn(td_explode(&ti->ti_td));
 
 	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_field_c; i++) {
+	for (i = 0; i < tt->tt_fieldstrong_c; i++) {
 		struct fsl_rt_table_field	*field;
 		unsigned int			param_c;
 		diskoff_t			diskoff;
 
-		field = &tt->tt_field_thunkoff[i];
+		field = &tt->tt_fieldstrong_table[i];
 		if (field->tf_typenum == TYPENUM_INVALID)
 			continue;
 

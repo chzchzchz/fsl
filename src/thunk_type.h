@@ -18,7 +18,8 @@ class ThunkType
 public:
 	ThunkType(const Type* t) 
 	: t_type(t),
-	  t_size(NULL)
+	  t_size(NULL),
+	  num_fields(0)
 	{ assert (t_type != NULL); }
 
 	virtual ~ThunkType(void);
@@ -72,9 +73,13 @@ public:
 	/* generate protos for all registered functions */
 	bool genProtos(void) const;
 
+	unsigned int getNumFields(void) const { return num_fields; }
+	unsigned int incNumFields(void) { return num_fields++; }
+
 private:
 	const Type	*t_type;
 	ThunkSize	*t_size;
 	thunkfunc_map	thunkfuncs_map;
+	unsigned int	num_fields;
 };
 #endif

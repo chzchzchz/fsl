@@ -74,6 +74,8 @@ void TableGen::genInstanceTypeField(
 
 	sw.writeB("tf_constsize", tf->getSize()->isConstant());
 
+	sw.write("tf_fieldnum", tf->getFieldNum());
+
 	delete field_params_fc;
 	delete field_off_fc;
 	delete field_elems_fc;
@@ -100,7 +102,6 @@ void TableGen::genThunksTableBySymtab(
 		sw.beginWrite();
 		genInstanceTypeField(st.getOwnerType(), st_ent);
 	}
-
 }
 
 void TableGen::genUserFieldsByType(const Type *t)
@@ -108,6 +109,7 @@ void TableGen::genUserFieldsByType(const Type *t)
 	SymbolTable	*st;
 	SymbolTable	*st_all;
 	SymbolTable	*st_types;
+	SymbolTable	*st_complete;
 
 	st = t->getSymsByUserTypeStrong();
 	genThunksTableBySymtab(
@@ -126,6 +128,12 @@ void TableGen::genUserFieldsByType(const Type *t)
 		string("__rt_tab_thunkstypes_") + t->getName(),
 		*st_types);
 	delete st_types;
+
+	st_complete = t->getSyms();
+	genThunksTableBySymtab(
+		string("__rt_tab_thunkcomplete_") + t->getName(),
+		*st_complete);
+	delete st_complete;
 }
 
 void TableGen::genUserFieldTables(void)
@@ -139,7 +147,7 @@ void TableGen::genUserFieldTables(void)
 void TableGen::genInstanceType(const Type *t)
 {
 	StructWriter	sw(out);
-	SymbolTable	*st, *st_all, *st_types;
+	SymbolTable	*st, *st_all, *st_types, *st_complete;
 	FCall		*size_fc;
 	unsigned int	pointsto_count;
 	unsigned int	assert_count;
@@ -147,6 +155,7 @@ void TableGen::genInstanceType(const Type *t)
 	st = t->getSymsByUserTypeStrong();
 	st_all = t->getSymsStrongOrConditional();
 	st_types = t->getSymsByUserTypeStrongOrConditional();
+	st_complete = t->getSyms();
 
 	assert (st != NULL);
 
@@ -157,8 +166,8 @@ void TableGen::genInstanceType(const Type *t)
 	sw.writeStr("tt_name", t->getName());
 	sw.write("tt_param_c", t->getNumArgs());
 	sw.write("tt_size", size_fc->getName());
-	sw.write("tt_field_c", st->size());
-	sw.write("tt_field_thunkoff", "__rt_tab_thunks_" + t->getName());
+	sw.write("tt_fieldstrong_c", st->size());
+	sw.write("tt_fieldstrong_table", "__rt_tab_thunks_" + t->getName());
 	
 	sw.write("tt_pointsto_c", pointsto_count);
 	sw.write("tt_pointsto", "__rt_tab_pointsto_" + t->getName());
@@ -175,7 +184,11 @@ void TableGen::genInstanceType(const Type *t)
 	sw.write("tt_virt_c", typevirts_map[t->getName()]->getNumVirts() );
 	sw.write("tt_virt", "__rt_tab_virt_" + t->getName());
 
+	sw.write("tt_field_c", st_complete->size());
+	sw.write("tt_field_table", "__rt_tab_thunkcomplete_" + t->getName());
+
 	delete size_fc;
+	delete st_complete;
 	delete st_types;
 	delete st_all;
 	delete st;
