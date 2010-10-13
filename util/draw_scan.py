@@ -17,7 +17,7 @@ pixels_per_side=1024
 disk_bytes=int(sys.argv[2])
 bytes_per_pixel=disk_bytes/(pixels_per_side**2)
 out_size = pixels_per_side,pixels_per_side
-im = Image.new("RGB", out_size, ImageColor.getrgb('white'))
+im = Image.new("RGB", out_size, ImageColor.getrgb('black'))
 
 print "BPP:" + str(bytes_per_pixel)
 

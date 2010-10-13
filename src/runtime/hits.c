@@ -48,7 +48,7 @@ void fsl_hits_uninit(void)
 
 	f = fopen(fname, "w");
 	if (f == NULL) {
-		fprintf(stderr, "Could not open hit file\n");
+		fprintf(stderr, "Could not open hit file '%s'\n", fname);
 		free(hit_log);
 		return;
 	}

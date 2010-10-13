@@ -17,7 +17,7 @@ else:
 hit_img_fname=sys.argv[3]
 
 BOTTOM_LEGEND_PX=50
-pixels_per_side=1000
+pixels_per_side=1024
 disk_bytes=hit_disk_size
 bytes_per_pixel=disk_bytes/(pixels_per_side**2)
 out_size = pixels_per_side,(pixels_per_side+1+BOTTOM_LEGEND_PX)
@@ -31,14 +31,14 @@ for l in f.readlines():
 	ents.append(eval(l))
 f.close()
 
-hit_count_min = min(map(lambda x : x['hits'], ents))
-hit_count_max = max(map(lambda x : x['hits'], ents))
-hit_count_logmin = math.floor(math.log(hit_count_min)/math.log(2))
-hit_count_logrange = math.floor(math.log((hit_count_max - hit_count_min)+1)/math.log(2))
-
 color_table = [
+	'rgb(0,0,60)',
+	'rgb(0,0,125)',
+	'rgb(60,0,125)',
+	'rgb(125,0,125)',
+	'rgb(125,0,190)',
 	'rgb(125,0,255)',#violet
-	'rgb(190,0,255)',
+	'rgb(62,0,255)',
 	'rgb(0,0,255)',#blue
 	'rgb(0,62,255)',
 	'rgb(0,125,255)',#oceana
@@ -56,7 +56,27 @@ color_table = [
 	'rgb(255,125,0)', #orange
 	'rgb(255,62,0)',
 	'rgb(255,0,0)', #red
+	'rgb(255,60,60)',
+	'rgb(255,125,125)',
+	'rgb(255,190,190)',
+	'rgb(255,255,255)',
 ]
+
+hit_count_min = min(map(lambda x : x['hits'], ents))
+hit_count_max = max(map(lambda x : x['hits'], ents))
+hit_count_logmin = math.floor(math.log(hit_count_min)/math.log(2))
+hit_count_logrange = math.ceil(math.log((hit_count_max - hit_count_min)+1)/math.log(2))
+
+print hit_data_fname
+print "Min Hits: " + str(hit_count_min)
+print "Max Hits: " + str(hit_count_max)
+print "LOGRANGE: " + str(hit_count_logrange)
+print "Colors: " + str(len(color_table))
+
+
+if len(color_table) < hit_count_logrange:
+	print "Not enough colors"
+	sys.exit(-2)
 
 def getColor(hit_c):
 	global hit_count_max
@@ -64,6 +84,10 @@ def getColor(hit_c):
 	global hit_count_logmin
 	global hit_count_logrange
 	global color_table
+
+	if hit_c == 0:
+		print "OOPS"
+		sys.exit(-1)
 
 	log_v = math.floor(math.log(hit_c)/math.log(2))
 	log_rebase = log_v - hit_count_logmin
@@ -101,7 +125,5 @@ for i in range(int(hit_count_logrange)):
 				(int(x_idx+x_start),int(pixels_per_side+1+y)),
 				color)
 
-print "Min Hits: " + str(hit_count_min)
-print "Max Hits: " + str(hit_count_max)
-
+print "OK."
 im.save(hit_img_fname)
