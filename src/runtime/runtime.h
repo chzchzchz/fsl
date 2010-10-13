@@ -24,21 +24,28 @@ typedef uint64_t*	parambuf_t;
 
 extern struct fsl_rt_ctx* 	fsl_env;
 
+
+#define FSL_STAT_ACCESS			0
+#define FSL_STAT_PHYSACCESS		1
+#define FSL_STAT_BITS_READ		2
+#define FSL_STAT_XLATE_CALL		3
+#define FSL_STAT_XLATE_ALLOC		4
+#define FSL_STAT_COMPUTEARRAYBITS	5
+#define FSL_STAT_DYNSET			6
+#define FSL_STAT_GETPARAM		7
+#define FSL_STAT_GETCLOSURE		8
+#define FSL_STAT_GETOFFSET		9
+#define FSL_STAT_DYNCOPY		10
+#define FSL_STAT_DYNALLOC		11
+#define FSL_STAT_TYPEINFO_ALLOC		12
+#define FSL_NUM_STATS			13
+#define FSL_STATS_GET(x,y)		((x)->s_counters[y])
+#define FSL_STATS_INC(x,y)		(x)->s_counters[y]++
+#define FSL_STATS_ADD(x,y,z)		(x)->s_counters[y] += (z)
+
 struct fsl_rt_stat
 {
-	unsigned int	s_access_c;		/* # getlocal calls */
-	unsigned int	s_phys_access_c;	/* # getlocal w/o xlate */
-	uint64_t	s_bits_read;
-	uint64_t	s_xlate_call_c;
-	uint64_t	s_xlate_alloc_c;
-	uint64_t	s_comp_array_bits_c;
-	uint64_t	s_dyn_set_c;
-	uint64_t	s_get_param_c;
-	uint64_t	s_get_closure_c;
-	uint64_t	s_get_offset_c;
-	uint64_t	s_dyn_copy_c;
-	uint64_t	s_dyn_alloc_c;
-	uint64_t	s_typeinfo_alloc_generic_c;
+	uint64_t	s_counters[FSL_NUM_STATS];
 };
 
 #include "io.h"

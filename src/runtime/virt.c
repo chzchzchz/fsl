@@ -49,8 +49,7 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 
 	assert (bit_off != base+off && "Identity xlate. Probably wrong.");
 
-	fsl_env->fctx_stat.s_xlate_call_c++;
-	fsl_env->fctx_stat.s_xlate_alloc_c++;
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_CALL);
 
 	DEBUG_VIRT_LEAVE();
 
@@ -89,6 +88,8 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 		fsl_virt_free(rtm);
 		rtm = NULL;
 	}
+
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_ALLOC);
 
 	DEBUG_VIRT_WRITE("fresh new RTM %p", rtm);
 	DEBUG_VIRT_LEAVE();

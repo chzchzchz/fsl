@@ -97,7 +97,7 @@ typesize_t __computeArrayBits(
 	/* reset to original */
 	__setDyn(elem_type, &old_dyn);
 
-	fsl_env->fctx_stat.s_comp_array_bits_c++;
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_COMPUTEARRAYBITS);
 
 	DEBUG_RT_LEAVE();
 
@@ -120,10 +120,28 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
 	return fsl_ctx;
 }
 
+static const char* fsl_stat_fields[FSL_NUM_STATS] =
+{
+	"getLocals",		/* FSL_STAT_ACCESS */
+	"getLocalsPhy", 	/* FSL_STAT_PHYSACCESS */
+	"br",			/* FSL_STAT_BITS_READ */
+	"xlate_call",		/* FSL_STAT_XLATE_CALL */
+	"xlate_alloc",		/* FSL_STAT_XLATE_ALLOC */
+	"comp_array_bits",	/* FSL_STAT_COMPUTEARRAYBITS */
+	"dyn_set",		/* FSL_STAT_DYNSET */
+	"get_param",		/* FSL_STAT_GETPARAM */
+	"get_closure",		/* FSL_STAT_GETCLOSURE */
+	"get_offset",		/* FSL_STAT_GETOFFSET */
+	"dyn_copy",		/* FSL_STAT_DYNCOPY */
+	"dyn_alloc",		/* FSL_STAT_DYNALLOC */
+	"typeinfo_alloc"	/* FSL_STAT_TYPEINFO_ALLOC */
+};
+
 static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 {
 	const char	*stat_fname;
 	FILE		*out_file;
+	unsigned int	i;
 
 	stat_fname = getenv(FSL_ENV_VAR_STATFILE);
 	if (stat_fname != NULL) {
@@ -137,29 +155,12 @@ static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 	} else
 		out_file = stdout;
 
-	fprintf(out_file, "getLocals %d\n", fctx->fctx_stat.s_access_c);
-	fprintf(out_file, "getLocalsPhys %d\n", fctx->fctx_stat.s_phys_access_c);
-	fprintf(out_file, "br %"PRIu64"\n", fctx->fctx_stat.s_bits_read / 8);
-	fprintf(out_file, "xlate_call %"PRIu64"\n", fctx->fctx_stat.s_xlate_call_c);
-	fprintf(out_file, "xlate_alloc %"PRIu64"\n", fctx->fctx_stat.s_xlate_alloc_c);
-
-	fprintf(out_file, "comp_array_bits %"PRIu64"\n",
-		fctx->fctx_stat.s_comp_array_bits_c);
-	fprintf(out_file, "dyn_set %"PRIu64"\n",
-		fctx->fctx_stat.s_dyn_set_c);
-	fprintf(out_file, "get_param %"PRIu64"\n",
-		fctx->fctx_stat.s_get_param_c);
-	fprintf(out_file, "get_closure %"PRIu64"\n",
-		fctx->fctx_stat.s_get_closure_c);
-	fprintf(out_file, "get_offset %"PRIu64"\n",
-		fctx->fctx_stat.s_get_offset_c);
-	fprintf(out_file, "dyn_copy %"PRIu64"\n",
-		fctx->fctx_stat.s_dyn_copy_c);
-	fprintf(out_file, "dyn_alloc %"PRIu64"\n",
-		fctx->fctx_stat.s_dyn_alloc_c);
-	fprintf(out_file, "typeinfo_alloc %"PRIu64"\n",
-		fctx->fctx_stat.s_typeinfo_alloc_generic_c);
-
+	for (i = 0; i < FSL_NUM_STATS; i++) {
+		fprintf(out_file,
+			"%s %"PRIu64"\n",
+			fsl_stat_fields[i],
+			FSL_STATS_GET(&fctx->fctx_stat, i));
+	}
 
 	if (stat_fname != NULL)
 		fclose(out_file);

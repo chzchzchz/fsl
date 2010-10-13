@@ -347,7 +347,7 @@ static struct type_info* typeinfo_alloc_generic(
 	struct fsl_rt_table_type	*tt;
 	struct type_info		*ret;
 
-	fsl_env->fctx_stat.s_typeinfo_alloc_generic_c++;
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_TYPEINFO_ALLOC);
 
 	ret = malloc(sizeof(struct type_info));
 

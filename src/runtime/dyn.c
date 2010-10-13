@@ -14,7 +14,9 @@ struct fsl_rt_closure* fsl_dyn_alloc(void)
 	struct fsl_rt_closure	*dyns;
 	unsigned int		i;
 
-	if (fsl_env) fsl_env->fctx_stat.s_dyn_alloc_c++;
+	if (fsl_env != NULL) {
+		FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_DYNALLOC);
+	}
 
 	dyns = malloc(sizeof(struct fsl_rt_closure)*fsl_num_types);
 
@@ -72,7 +74,7 @@ struct fsl_rt_closure* fsl_dyn_copy(const struct fsl_rt_closure* src)
 				tt_by_num(i)->tt_param_c*sizeof(uint64_t));
 	}
 
-	fsl_env->fctx_stat.s_dyn_copy_c++;
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_DYNCOPY);
 
 	return ret;
 }
@@ -86,7 +88,7 @@ uint64_t __getDynOffset(uint64_t type_num)
 	src_clo = env_get_dyn_clo(type_num);
 	assert (src_clo->clo_offset != ~0);
 
-	fsl_env->fctx_stat.s_get_offset_c++;
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_GETOFFSET);
 
 	return src_clo->clo_offset;
 }
@@ -104,7 +106,7 @@ void __getDynParams(uint64_t typenum, parambuf_t params_out)
 		env_get_dyn_clo(typenum)->clo_params,
 		sizeof(uint64_t)*tt->tt_param_c);
 
-	fsl_env->fctx_stat.s_get_param_c++;
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_GETPARAM);
 }
 
 void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
@@ -131,7 +133,7 @@ void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
 	DEBUG_DYN_WRITE("successfully copied closure params");
 	clo->clo_xlate = src_clo->clo_xlate;
 
-	fsl_env->fctx_stat.s_get_closure_c++;
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_GETCLOSURE);
 }
 
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
@@ -147,7 +149,7 @@ void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
 	memcpy(dst_clo->clo_params, clo->clo_params, 8*tt->tt_param_c);
 	dst_clo->clo_xlate = clo->clo_xlate;
 
-	fsl_env->fctx_stat.s_dyn_set_c++;
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_DYNSET);
 }
 
 void fsl_dyn_dump(void)

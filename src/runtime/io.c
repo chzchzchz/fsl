@@ -20,9 +20,9 @@ uint64_t __getLocal(
 	assert (num_bits <= 64);
 	assert (num_bits > 0);
 
-	fsl_env->fctx_stat.s_access_c++;
-	fsl_env->fctx_stat.s_phys_access_c++;
-	fsl_env->fctx_stat.s_bits_read += num_bits;
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_ACCESS);
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_PHYSACCESS);
+	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_READ, num_bits);
 
 	DEBUG_IO_ENTER();
 
