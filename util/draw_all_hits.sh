@@ -9,6 +9,8 @@ function draw_hits
 	util/draw_hits.py tests/scantool-${fs}/${imgname}.hits $imgsz tests/scantool-${fs}/${imgname}.hits.png
 }
 
+start_time=`date +%s`
+
 for fs in ext2 nilfs2 vfat; do
 	cd img
 	dirdat=`ls ${fs}*.img`
@@ -17,3 +19,7 @@ for fs in ext2 nilfs2 vfat; do
 		draw_hits ${fs} "$a"
 	done
 done
+
+end_time=`date +%s`
+
+echo "Draw Hits: Total seconds: " `expr $end_time - $start_time`

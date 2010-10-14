@@ -25,7 +25,11 @@ function fs_scan_startup_img
 	echo "$cmd" >>tests.log
 	echo "$cmd" >failed_test_cmd
 	export FSL_ENV_HITFILE="${src_root}/tests/scantool-$fs/${imgname}.hits"
-	eval "$cmd >cur_test.out"
+
+	timefname="${src_root}"/tests/scantool-$fs/$imgname.scan.time
+	{ time eval "$cmd" >cur_test.out; } 2>${timefname}
+
+#	{ time eval $1 >>$OUTPUT_PATH/$2 2>>$OUTPUT_PATH/$2.err; } 2>>"${src_root}"/tests/scantool-$fs/$imgname.scan.time
 	unset FSL_ENV_HITFILE
 	retval=$?
 	if [ $retval -ne 0 ]; then
@@ -38,6 +42,7 @@ function fs_scan_startup_img
 	fi
 	# only copy if result is not bogus from crash
 	cp cur_test.out "${src_root}"/tests/scantool-$fs/$imgname.scan.out
+
 }
 
 function fs_scan_startup

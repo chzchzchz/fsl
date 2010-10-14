@@ -33,19 +33,23 @@ source ${src_root}/tests/fs_common.sh
 rm -f failed_test_cmd
 rm -f tests.log
 
-fs_scan_startup_img ext2 ext2-small.img
-for a in ext2 vfat nilfs2 testfs; do
-	fs_scan_startup "$a"
-	fs_browser_startup "$a"
-	fs_specific_tests "$a"
-done
+if [ "$TEST_CONFIG" == "EXTRA" ]; then
+	echo "EXTRA TESTS!"
 
-if [ "$TEST_CONFIG" == "FULL" ]; then
-	echo "FULL TEST!"
-	fs=ext2
-	imgname=ext2-many.img
-	fs_scan_startup_img ext2 ext2-many.img
-	unset FSL_ENV_HITFILE
+	for fs in ext2 vfat; do
+		imgname=$fs-many.img
+		fs_scan_startup_img $fs $fs-many.img
+		imgname=$fs-postmark.img
+		fs_scan_startup_img $fs $fs-postmark.img
+	done
+else
+	echo "STANDARD TESTS"
+	fs_scan_startup_img ext2 ext2-small.img
+	for fs in ext2 vfat nilfs2 testfs; do
+		fs_scan_startup "$fs"
+		fs_browser_startup "$fs"
+		fs_specific_tests "$fs"
+	done
 fi
 
 rm -f failed_test_cmd

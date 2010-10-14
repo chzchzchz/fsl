@@ -16,11 +16,28 @@ struct fsl_rt_log
 	fsl_io_callback		log_next_cb;
 };
 
+#define FSL_IO_CACHE_ENTS	32
+#define FSL_IO_CACHE_BYTES	32
+#define FSL_IO_CACHE_BITS	(FSL_IO_CACHE_BYTES*8)
+struct fsl_io_cache_ent
+{
+	uint64_t	ce_addr;
+	uint8_t		ce_data[FSL_IO_CACHE_BYTES];
+};
+
+struct fsl_io_cache
+{
+	uint64_t		ioc_misses;
+	uint64_t		ioc_hits;
+	struct fsl_io_cache_ent	ioc_ents[FSL_IO_CACHE_ENTS];
+};
+
 struct fsl_rt_io
 {
 	FILE			*io_backing;
 	fsl_io_callback		io_cb;
 	struct fsl_rt_log	io_log;
+	struct fsl_io_cache	io_cache;
 };
 
 /* exposed to fsl llvm */

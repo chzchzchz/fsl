@@ -25,8 +25,8 @@ clean-code:
 tests: code tools
 	tests/do_all_tests.sh
 
-tests-full:
-	TEST_CONFIG="FULL" tests/do_all_tests.sh
+tests-extra:
+	TEST_CONFIG="EXTRA" tests/do_all_tests.sh
 
 clean-tests:
 	rm -f tests/scantool-*/*
