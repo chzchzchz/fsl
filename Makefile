@@ -3,11 +3,11 @@ MAKECMD=make -j$(NUM_JOBS)
 
 all: code tools tests draw
 
-clean: clean-code clean-tests
+clean: code-clean tests-clean
 
-draw: draw-hitmaps draw-scans
+draw: draw-hits draw-scans
 
-draw-hitmaps:
+draw-hits:
 	util/draw_all_hits.sh
 
 draw-scans:
@@ -16,10 +16,10 @@ draw-scans:
 code:
 	cd src && $(MAKECMD) && cd ..
 
-tools:
+tools: code
 	cd src/tool && $(MAKECMD) && cd ../..
 
-clean-code:
+code-clean:
 	cd src && make clean && cd ..
 
 tests: code tools
@@ -28,5 +28,5 @@ tests: code tools
 tests-extra:
 	TEST_CONFIG="EXTRA" tests/do_all_tests.sh
 
-clean-tests:
+tests-clean:
 	rm -f tests/scantool-*/*

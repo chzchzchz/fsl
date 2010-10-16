@@ -37,7 +37,7 @@ void fsl_io_log_start(struct fsl_rt_io* io)
 
 	assert (io->io_log.log_accessed_idx == IO_IDX_STOPPED);
 
-	old_io_cb = fsl_io_hook(io, fsl_io_log);
+	old_io_cb = fsl_io_hook(io, fsl_io_log, IO_CB_CACHE_ANY);
 	io->io_log.log_accessed_idx = 0;
 }
 
@@ -46,9 +46,9 @@ void fsl_io_log_stop(struct fsl_rt_io* io)
 	assert (io->io_log.log_accessed_idx != IO_IDX_STOPPED);
 	io->io_log.log_accessed_idx = IO_IDX_STOPPED;
 
-	fsl_io_unhook(io);
+	fsl_io_unhook(io, IO_CB_CACHE_ANY);
 	if (io->io_log.log_next_cb != NULL) {
-		fsl_io_hook(io, io->io_log.log_next_cb);
+		fsl_io_hook(io, io->io_log.log_next_cb, IO_CB_CACHE_ANY);
 		io->io_log.log_next_cb = NULL;
 	}
 }

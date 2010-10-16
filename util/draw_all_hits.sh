@@ -7,6 +7,7 @@ function draw_hits
 	imgname=$2
 	imgsz=`ls -l img/$imgname | awk '{print $5; }'`
 	util/draw_hits.py tests/scantool-${fs}/${imgname}.hits $imgsz tests/scantool-${fs}/${imgname}.hits.png
+	util/draw_hits.py tests/scantool-${fs}/${imgname}.misses $imgsz tests/scantool-${fs}/${imgname}.misses.png
 }
 
 start_time=`date +%s`

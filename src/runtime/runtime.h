@@ -12,6 +12,7 @@
 
 #define FSL_ENV_VAR_STATFILE	"FSL_ENV_STATFILE"
 #define FSL_ENV_VAR_HITFILE	"FSL_ENV_HITFILE"
+#define FSL_ENV_VAR_MISSFILE	"FSL_ENV_MISSFILE"
 
 typedef uint64_t	diskoff_t;	/* bits */
 typedef uint64_t	voff_t;		/* virtual offset */

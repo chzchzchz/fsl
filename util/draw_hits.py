@@ -119,7 +119,7 @@ for x in range(pixels_per_side):
 for i in range(int(hit_count_logrange)):
 	x_start = i*(pixels_per_side/hit_count_logrange)
 	color = getColor(2**(i+hit_count_logmin))
-	for x_idx in range(1+int(pixels_per_side/hit_count_logrange)):
+	for x_idx in range(int(pixels_per_side/hit_count_logrange)):
 		for y in range(BOTTOM_LEGEND_PX):
 			im.putpixel(
 				(int(x_idx+x_start),int(pixels_per_side+1+y)),

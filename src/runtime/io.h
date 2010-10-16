@@ -16,7 +16,7 @@ struct fsl_rt_log
 	fsl_io_callback		log_next_cb;
 };
 
-#define FSL_IO_CACHE_ENTS	32
+#define FSL_IO_CACHE_ENTS	16
 #define FSL_IO_CACHE_BYTES	32
 #define FSL_IO_CACHE_BITS	(FSL_IO_CACHE_BYTES*8)
 struct fsl_io_cache_ent
@@ -32,10 +32,22 @@ struct fsl_io_cache
 	struct fsl_io_cache_ent	ioc_ents[FSL_IO_CACHE_ENTS];
 };
 
+#define IO_CB_CACHE_HIT		0	/* handled by our cache */
+#define IO_CB_CACHE_MISS	1	/* call out to OS */
+#define IO_CB_CACHE_ANY		2
+#define IO_CB_NUM		3
+
 struct fsl_rt_io
 {
 	FILE			*io_backing;
-	fsl_io_callback		io_cb;
+	union {
+		fsl_io_callback	io_cb[IO_CB_NUM];
+		struct {
+			fsl_io_callback		io_cb_hit;
+			fsl_io_callback		io_cb_miss;
+			fsl_io_callback		io_cb_any;
+		};
+	};
 	struct fsl_rt_log	io_log;
 	struct fsl_io_cache	io_cache;
 };
@@ -52,7 +64,7 @@ uint64_t __getLocalArray(
 struct fsl_rt_io* fsl_io_alloc(const char* backing_fname);
 void fsl_io_free(struct fsl_rt_io* io);
 ssize_t fsl_io_size(struct fsl_rt_io* io);
-fsl_io_callback fsl_io_hook(struct fsl_rt_io* io, fsl_io_callback);
-void fsl_io_unhook(struct fsl_rt_io* io);
+fsl_io_callback fsl_io_hook(struct fsl_rt_io* io, fsl_io_callback, int cb_type);
+void fsl_io_unhook(struct fsl_rt_io* io, int cb_type);
 
 #endif
