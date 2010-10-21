@@ -8,8 +8,10 @@
 #include "runtime.h"
 #include "cache.h"
 
-static struct fsl_io_cache_ent* fsl_io_cache_evict(struct fsl_io_cache* ioc);
-static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line);
+static struct fsl_io_cache_ent* fsl_io_cache_evict(
+	struct fsl_io_cache* ioc, uint64_t cache_line);
+static const uint8_t* fsl_io_cache_put(
+	struct fsl_rt_io* io, uint64_t cache_line);
 
 void fsl_io_cache_init(struct fsl_io_cache* ioc)
 {
@@ -24,31 +26,30 @@ void fsl_io_cache_init(struct fsl_io_cache* ioc)
 
 const uint8_t* fsl_io_cache_find(struct fsl_io_cache* ioc, uint64_t cache_line)
 {
-	char			*found_line;
-	unsigned int		i;
+	struct fsl_io_cache_ent	*ce;
 
-	assert (cache_line != ~0);
-
-	for (i = 0; i < FSL_IO_CACHE_ENTS; i++) {
-		if (ioc->ioc_ents[i].ce_addr == cache_line) {
-			ioc->ioc_hits++;
-			return ioc->ioc_ents[i].ce_data;
-		}
+	ce = &ioc->ioc_ents[cache_line % FSL_IO_CACHE_ENTS];
+	if (ce->ce_addr == cache_line) {
+		ioc->ioc_hits++;
+		return ce->ce_data;
 	}
 
 	ioc->ioc_misses++;
 	return NULL;
 }
 
-static struct fsl_io_cache_ent* fsl_io_cache_evict(struct fsl_io_cache* ioc)
+static struct fsl_io_cache_ent* fsl_io_cache_evict(
+	struct fsl_io_cache* ioc, uint64_t cache_line)
 {
 	struct fsl_io_cache_ent	*to_evict;
 
-	to_evict = &ioc->ioc_ents[ioc->ioc_misses % FSL_IO_CACHE_ENTS];
+	//to_evict = &ioc->ioc_ents[ioc->ioc_misses % FSL_IO_CACHE_ENTS];
+	to_evict = &ioc->ioc_ents[cache_line % FSL_IO_CACHE_ENTS];
 	/* Don't clear-- assume will be used immediately */
 
 	return to_evict;
 }
+
 
 static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line)
 {
@@ -57,7 +58,7 @@ static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line
 	size_t				br;
 
 	/* get fresh line */
-	ce = fsl_io_cache_evict(&io->io_cache);
+	ce = fsl_io_cache_evict(&io->io_cache, cache_line);
 	ce->ce_addr = cache_line;
 	assert (ce != NULL);
 

@@ -191,11 +191,11 @@ assert (? sb.s_inos_per_grp <= get_block_size()*8)
 	/* superblock is always located at byte offset 1024 from the beginning 
 	 * of the file, block device or partition formated with Ext2 */
 	skip_bytes(1024);
-	ext2_sb		sb;
+	ext2_sb			sb;
 
 	align_bytes(get_block_size());
 
-	ext2_group_desc	grp_desc_table[get_group_count(sb)];
+	ext2_group_desc(@)	grp_desc_table[get_group_count(sb)];
 	align_bytes(get_block_size());
 	
 	union {
@@ -296,7 +296,7 @@ type ext2_data_block
 	u8	data[get_block_size()];
 }
 
-type ext2_group_desc
+type ext2_group_desc(int group_num)
 points(disk.blocks[block_bmp - blocks_off(disk.sb) ].blk_bmp)
 points(disk.blocks[inode_bmp - blocks_off(disk.sb)].ino_bmp)
 points_range(
@@ -415,7 +415,7 @@ points_if(
 }
 
 type ext2_dir_entry
-points_if(? inode > 0, ino_by_num(inode))
+points_if(? inode != 0, ino_by_num(inode))
 {
 	u32	inode;		/* inode number */
 	u16	rec_len;	/* de length */

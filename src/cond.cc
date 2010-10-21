@@ -43,6 +43,7 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 	const CondExpr		*lhs, *rhs;
 	llvm::Value		*lhs_v, *rhs_v;
 	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin;
+	llvm::BasicBlock	*bb_rhs_merge;
 	llvm::PHINode		*pn;
 	llvm::Function		*f;
 	llvm::IRBuilder<>	*builder;
@@ -54,7 +55,11 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 
 	lhs = bop_and->getLHS();
 	rhs = bop_and->getRHS();
-	
+
+	bb_then = llvm::BasicBlock::Create(gctx, "and_then", f);
+	bb_else = llvm::BasicBlock::Create(gctx, "and_else", f);
+	bb_merge = llvm::BasicBlock::Create(gctx, "and_merge", f);
+
 	/*
 	 * if (lhs_v) {
 	 * 	(bb_then)
@@ -65,18 +70,13 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 	 * }
 	 * merge:
 	 */
-
-	bb_then = llvm::BasicBlock::Create(gctx, "and_then", f);
-	bb_else = llvm::BasicBlock::Create(gctx, "and_else", f);
-	bb_merge = llvm::BasicBlock::Create(gctx, "and_merge", f);
-
-
 	builder->SetInsertPoint(bb_origin);
 	lhs_v = cond_codeGen(ctx, lhs);
 	builder->CreateCondBr(lhs_v, bb_then, bb_else);
 
 	builder->SetInsertPoint(bb_then);
 	rhs_v = cond_codeGen(ctx, rhs);
+	bb_rhs_merge = builder->GetInsertBlock();
 	builder->CreateBr(bb_merge);
 
 	builder->SetInsertPoint(bb_else);
@@ -84,10 +84,10 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 
 	builder->SetInsertPoint(bb_merge);
 
-	pn = builder->CreatePHI(llvm::Type::getInt1Ty(gctx), "iftmp");
+	pn = builder->CreatePHI(llvm::Type::getInt1Ty(gctx), "and_iftmp");
 
 	/* lhs_v true, eval rhs_v */
-	pn->addIncoming(rhs_v, bb_then);
+	pn->addIncoming(rhs_v, bb_rhs_merge);
 
 	/* lhs_v false, don't bother evaluating rhs_v */
 	pn->addIncoming(
@@ -102,6 +102,7 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	const CondExpr		*lhs, *rhs;
 	llvm::Value		*lhs_v, *rhs_v;
 	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin;
+	llvm::BasicBlock	*bb_rhs_merge;
 	llvm::PHINode		*pn;
 	llvm::Function		*f;
 	llvm::IRBuilder<>	*builder;
@@ -109,7 +110,6 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	
 	builder = code_builder->getBuilder();
 	bb_origin = builder->GetInsertBlock();
-
 	f = bb_origin->getParent();
 
 	lhs = bop_or->getLHS();
@@ -138,8 +138,9 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 
 	builder->SetInsertPoint(bb_else);
 	rhs_v = cond_codeGen(ctx, rhs);
-
+	bb_rhs_merge = builder->GetInsertBlock();
 	builder->CreateBr(bb_merge);
+
 	builder->SetInsertPoint(bb_merge);
 
 	/* short-circuit */
@@ -149,7 +150,7 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 		bb_then);
 	
 	/* otherwise, try the next stmt, if might be true.. */
-	pn->addIncoming(rhs_v, bb_else);
+	pn->addIncoming(rhs_v, bb_rhs_merge);
 
 
 	return pn;

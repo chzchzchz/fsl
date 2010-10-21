@@ -16,7 +16,11 @@ SCANTOOL_OBJS=../runtime/scantool.o  $(RT_OBJS)
 BROWSER_OBJS=../runtime/browser.o $(RT_OBJS)
 MODIFY_OBJS=../runtime/modify.o $(RT_OBJS)
 CFLAGS=-O3 -g
-
+OPT_FLAGS=-O3
+LLC_FLAGS=-O3
+#CFLAGS=-g
+#OPT_FLAGS=
+#LLC_FLAGS=-O3
 
 all: $(TOOL_BINS)
 
@@ -33,10 +37,10 @@ fsl.$(FSNAME).types.o: fsl.$(FSNAME).types.s
 	as -g $< -o $@
 
 fsl.$(FSNAME).types.s: fsl.$(FSNAME).types.bc
-	llc -O3  $< -o $@
+	llc $(LLC_FLAGS)  $< -o $@
 
 fsl.$(FSNAME).types.bc: fsl.$(FSNAME).types.ll
-	opt -O3 $^ >$@
+	opt $(OPT_FLAGS) $^ -o $@
 
 fsl.$(FSNAME).types.ll: ../../fs/$(FSNAME).fsl
 	../lang $(FSNAME) <$^

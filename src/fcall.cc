@@ -133,10 +133,10 @@ llvm::Value* FCall::codeGenDynClosure(void) const
 	llvm::IRBuilder<>	*builder;
 	unsigned long		type_num;
 
-	assert (exprs->size() == 1);
+	assert (exprs->size() == 1 && "DYN CLOSURE ONLY TAKES A TYPE NUMBER");
 
 	n = dynamic_cast<Number*>(exprs->front());
-	assert (n != NULL);
+	assert (n != NULL && "TYPE NUMBER EXPECTED");
 	type_num = n->getValue();
 
 	builder = code_builder->getBuilder();
@@ -144,7 +144,9 @@ llvm::Value* FCall::codeGenDynClosure(void) const
 
 	new_call = new FCall(
 		new Id("__getDynClosure"),
-		new ExprList(n->copy(), new Id(closure->getName())));
+		new ExprList(
+			n->copy(),
+			new Id(closure->getName())));
 
 	new_call->codeGen();
 	delete new_call;
@@ -216,7 +218,7 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 	ExprList::const_iterator	it;
 
 	/* this is compiler generated-- do not warn user! crash crash */
-	assert (exprs->size() == 2);
+	assert (exprs->size() == 2 && "WRONGLY SPECIFIED MKCLOSURE BY FSL");
 
 	it = exprs->begin();
 	diskoff = (*it)->codeGen(); it++;
@@ -327,12 +329,12 @@ bool FCall::handleSpecialForms(llvm::Value* &ret) const
 		ret = codeGenExtractParam();
 	else if (call_name == "__getDynParams_preAlloca")
 		ret = codeGenDynParams();
+	else if (call_name =="__getDynClosure_preAlloca")
+		ret = codeGenDynClosure();
 	else if (call_name == "__mkClosure")
 		ret = codeGenMkClosure();
 	else if (call_name == "paramsAllocaByCount")
 		ret = codeGenParamsAllocaByCount();
-	else if (call_name =="__getDynClosure_preAlloca")
-		ret = codeGenDynClosure();
 	else
 		return false;
 

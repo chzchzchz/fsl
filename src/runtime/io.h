@@ -16,7 +16,7 @@ struct fsl_rt_log
 	fsl_io_callback		log_next_cb;
 };
 
-#define FSL_IO_CACHE_ENTS	16
+#define FSL_IO_CACHE_ENTS	64
 #define FSL_IO_CACHE_BYTES	32
 #define FSL_IO_CACHE_BITS	(FSL_IO_CACHE_BYTES*8)
 struct fsl_io_cache_ent

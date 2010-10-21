@@ -377,8 +377,8 @@ void CodeBuilder::genCodeCond(
 		return;
 	}
 
-	bb_then = llvm::BasicBlock::Create(gctx, "then", f);
-	bb_else = llvm::BasicBlock::Create(gctx, "else", f);
+	bb_then = llvm::BasicBlock::Create(gctx, "codecond_then", f);
+	bb_else = llvm::BasicBlock::Create(gctx, "codecond_else", f);
 
 	/*
 	 * if (cond_v) {
@@ -544,7 +544,7 @@ static unsigned int closure_c = 0;
 llvm::AllocaInst* CodeBuilder::createTmpClosure(
 	const Type* t, const std::string& name)
 {
-	llvm::AllocaInst	*ai, *p_ai, *ai_ptr;
+	llvm::AllocaInst	*ai, *params_ai, *ai_ptr;
 	string			our_name, our_name_ptr;
 
 	if (name == "") {
@@ -561,13 +561,25 @@ llvm::AllocaInst* CodeBuilder::createTmpClosure(
 	ai_ptr = builder->CreateAlloca(getClosureTyPtr(), 0, our_name_ptr);
 	builder->CreateStore(ai, ai_ptr);
 	tmp_var_map[ai_ptr->getName()] = ai_ptr;
+	builder->CreateStore(
+		builder->CreateInsertValue(
+			builder->CreateLoad(ai),
+			getNullPtrI8(),
+			RT_CLO_IDX_XLATE),
+		ai);
 
+	/* no params, no need to allocate space on stack */
 	if (t->getNumArgs() == 0)
 		return ai_ptr;
 
-	p_ai = createPrivateTmpI64Array(t->getNumArgs(), our_name + "_params");
-	builder->CreateInsertValue(ai, p_ai, 1);
-	builder->CreateInsertValue(ai, getNullPtrI8(), 2);
+	params_ai = createPrivateTmpI64Array(
+		t->getNumArgs(), our_name + "_params");
+	builder->CreateStore(
+		builder->CreateInsertValue(
+			builder->CreateLoad(ai),
+			params_ai,
+			RT_CLO_IDX_PARAMS),
+		ai);
 
 	return ai_ptr;
 }

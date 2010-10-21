@@ -49,6 +49,8 @@ LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual
 LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
 DEBUG_FLAG=-g
 CFLAGS= $(DEBUG_FLAG) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
+RTCFLAGS= $(DEBUG_FLAG) $(DEFINE_FLAGS) -O3
+#RTCFLAGS= $(DEBUG_FLAG) $(DEFINE_FLAGS)
 
 all: lang
 
@@ -71,7 +73,7 @@ lex.yy.cc: lang.lex parser.hh
 	g++ $(DEBUG_FLAG) -O3 -c $< $(LLVM_FLAGS) -o $@
 
 .c.o:
-	gcc $(DEFINE_FLAGS) $(DEBUG_FLAG) -O3 -c $< -o $@
+	gcc $(RTCFLAGS) -c $< -o $@
 
 clean: 
 	rm -f  lang lex.yy.cc y.tab.h parser.cc parser.hh $(OBJS) $(RTOBJS) $(TOOLOBJS)  fsl.table.c *.ll

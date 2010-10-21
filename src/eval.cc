@@ -132,6 +132,9 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 	Id				*front_id;
 	symtab_map::const_iterator	it;
 
+	/* fc name is either sizeof_bytes of sizeof_bits */
+	/* should probably make this its own class? */
+
 	exprs = fc->getExprs();
 	if (exprs->size() != 1) {
 		cerr <<  "sizeof expects 1 argument. Got: ";
@@ -140,16 +143,18 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 		return NULL;
 	}
 
+	/* sizeof currently only takes a type */
 	front = exprs->front();
 	front_id = dynamic_cast<Id*>(front);
 	if (front_id == NULL) {
-		/* TODO: should take parameterized types and funcs too.. */
+		/* TODO: should take re-parameterized types and funcs too.. */
 		cerr << "sizeof expects id for argument. Got: ";
 		fc->print(cerr);
 		cerr << endl;
 		return NULL;
 	}
 
+	/* find symtab that gives matching name */
 	it = symtabs.find(front_id->getName());
 	if (it == symtabs.end()) {
 		cerr	<< "Could not find type for " 
@@ -158,28 +163,19 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 		return NULL;
 	}
 
+	/* st = symbol table for type to get size of */
 	st = (*it).second;
 
-	/* in the future, this should use the proper function call
-	 * when we finally support parameterized types / materialized types
-	 * in sizeof()
-	 */
-
-	//ret_size = st->getThunkType()->getSize()->copyConstValue();
-	/* XXX HACK HACK HACK -- needs proper checking to ensure thunk_arg_off is safe */
+	/* type of symbol table */
 	t = st->getOwnerType();
-	if (t != NULL && t->getNumArgs() != 0) {
-		cerr << "sizeof: no support for parameterized types" << endl;
-		return NULL;
-	}
 
+	/* get typified size expression,
+	 * fill in closure parameter with the dynamic type */
 	ret_size = st->getThunkType()->getSize()->copyFCall();
-
-	/* XXX FIXME */
 	ret_size = Expr::rewriteReplace(
 		ret_size,
 		rt_glue.getThunkClosure(),
-		FCall::mkClosure(new Number(0), new Id("__NULLPTR")));
+		rt_glue.getDynClosure(t));
 
 	if (bits == false) {
 		/* convert bits to bytes */

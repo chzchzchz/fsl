@@ -124,9 +124,10 @@ void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
 	assert ((param_c == 0 || clo->clo_params != NULL) && "BAD INPUT CLO BUF");
 	assert ((param_c == 0 || src_clo->clo_params != NULL) && "BAD DYN SRC CLO");
 
-	DEBUG_DYN_WRITE("copying closure params %p %p",
+	DEBUG_DYN_WRITE("copying closure params %p <- %p (xlate=%p)",
 		clo->clo_params,
-		src_clo->clo_params);
+		src_clo->clo_params,
+		clo->clo_xlate);
 	memcpy(	clo->clo_params,
 		src_clo->clo_params,
 		sizeof(uint64_t)*tt_by_num(typenum)->tt_param_c);
