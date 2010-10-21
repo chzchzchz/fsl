@@ -101,13 +101,14 @@ static void typeinfo_print_type(const struct type_info* ti)
 
 static void typeinfo_print_field(const struct type_info* ti)
 {
-	struct fsl_rt_table_type	*tt;
-	struct fsl_rt_table_field	*field;
+	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rt_table_field	*field;
 	uint64_t			len;
 	TI_INTO_CLO			(ti->ti_prev);
 
 	tt = tt_by_ti(ti->ti_prev);
-	field = &tt->tt_fieldstrong_table[ti->ti_fieldidx];
+	field = ti->ti_field;
+	assert (field != NULL);
 	len = field->tf_typesize(clo);
 #ifdef PRINT_BITS
 	printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
@@ -136,7 +137,7 @@ void typeinfo_print(const struct type_info* ti)
 	}
 
 	assert (ti->ti_prev != NULL);
-	assert (ti->ti_pointsto == false);
+	assert (ti->ti_points == NULL);
 
 	typeinfo_print_field(ti);
 }

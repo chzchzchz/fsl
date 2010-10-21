@@ -15,21 +15,15 @@ struct type_desc
 /* extra run-time info */
 struct type_info
 {
-	struct type_desc	ti_td;
-	bool			ti_is_virt;
-	bool			ti_pointsto;
+	struct type_desc		ti_td;
 
-	char			*ti_print_name;
-	uint64_t		ti_print_idxval;
+	const char			*ti_print_name;
+	uint64_t			ti_print_idxval;
 
-	union {
-		unsigned int		ti_fieldidx;
-		unsigned int		ti_virttype_c;	/* num repetitions */
-		struct {
-			unsigned int	ti_pointstoidx;
-			unsigned int	ti_pointsto_elem; /* for arrays */
-		};
-	};
+	/* how we descended from parent */
+	const struct fsl_rt_table_field		*ti_field;
+	const struct fsl_rt_table_virt		*ti_virt;
+	const struct fsl_rt_table_pointsto	*ti_points;
 
 	unsigned int		ti_depth;
 	const struct type_info	*ti_prev;
@@ -88,15 +82,15 @@ poff_t ti_phys_offset(const struct type_info* ti);
 #define ti_depth(x)	(x)->ti_depth
 
 void typeinfo_free(struct type_info* ti);
-struct type_info* typeinfo_alloc(
+struct type_info* typeinfo_alloc_by_field(
 	const struct type_desc* ti_td,
-	unsigned int		ti_fieldidx,
+	const struct fsl_rt_table_field	*ti_field,
 	const struct type_info*	ti_prev);
 struct type_info* typeinfo_alloc_pointsto(
-	const struct type_desc* ti_td,
-	unsigned int		ti_pointsto_idx,
-	unsigned int		ti_pointsto_elem,
-	const struct type_info*	ti_prev);
+	const struct type_desc			*ti_td,
+	const struct fsl_rt_table_pointsto	*ti_pointsto,
+	unsigned int				ti_pointsto_elem,
+	const struct type_info			*ti_prev);
 
 #define typeinfo_alloc_virt(v,t)	typeinfo_alloc_virt_idx(v,t,0,NULL)
 

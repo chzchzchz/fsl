@@ -15,16 +15,11 @@ static struct type_info* typeinfo_alloc_generic(
 	const struct type_info	*ti_prev);
 static bool typeinfo_verify_asserts(const struct type_info *ti);
 static bool typeinfo_verify(const struct type_info* ti);
-struct type_info* typeinfo_alloc_pointsto(
-		const struct type_desc *ti_td,
-		unsigned int		ti_pointsto_idx,
-		unsigned int		ti_pointsto_elem,
-		const struct type_info*	ti_prev);
 
 
 void typeinfo_free(struct type_info* ti)
 {
-	if (ti->ti_is_virt && ti_xlate(ti) != NULL)
+	if (ti->ti_virt && ti_xlate(ti) != NULL)
 		fsl_virt_free(ti_xlate(ti));
 	if (ti_params(ti) != NULL)
 		free(ti->ti_td.td_clo.clo_params);
@@ -70,6 +65,7 @@ static struct type_info* typeinfo_alloc_generic(
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_TYPEINFO_ALLOC);
 
 	ret = malloc(sizeof(struct type_info));
+	memset(ret, 0, sizeof(*ret));
 
 	/* set typenum */
 	ti_typenum(ret) = td_typenum(ti_td);
@@ -147,10 +143,10 @@ static bool typeinfo_verify(const struct type_info* ti)
 }
 
 struct type_info* typeinfo_alloc_pointsto(
-	const struct type_desc *ti_td,
-	unsigned int		ti_pointsto_idx,
-	unsigned int		ti_pointsto_elem,
-	const struct type_info*	ti_prev)
+	const struct type_desc			*ti_td,
+	const struct fsl_rt_table_pointsto	*ti_pointsto,
+	unsigned int				ti_pointsto_elem,
+	const struct type_info			*ti_prev)
 {
 	struct type_info*		ret;
 
@@ -158,10 +154,10 @@ struct type_info* typeinfo_alloc_pointsto(
 	if (ret == NULL)
 		return NULL;
 
-	ret->ti_is_virt = false;
-	ret->ti_pointsto = true;
-	ret->ti_pointstoidx = ti_pointsto_idx;
-	ret->ti_pointsto_elem = ti_pointsto_elem;
+	ret->ti_points = ti_pointsto;
+	ret->ti_print_name = "points-to";
+	if (ti_pointsto->pt_name) ret->ti_print_name = ti_pointsto->pt_name;
+	ret->ti_print_idxval = ti_pointsto_elem;
 
 	typeinfo_set_dyn(ret);
 	if (typeinfo_verify(ret) == false) {
@@ -172,10 +168,10 @@ struct type_info* typeinfo_alloc_pointsto(
 	return ret;
 }
 
-struct type_info* typeinfo_alloc(
-	const struct type_desc* ti_td,
-	unsigned int		ti_fieldidx,
-	const struct type_info*	ti_prev)
+struct type_info* typeinfo_alloc_by_field(
+	const struct type_desc		*ti_td,
+	const struct fsl_rt_table_field	*ti_field,
+	const struct type_info		*ti_prev)
 {
 	struct type_info*	ret;
 
@@ -189,9 +185,9 @@ struct type_info* typeinfo_alloc(
 		return NULL;
 	}
 
-	ret->ti_is_virt = false;
-	ret->ti_pointsto = false;
-	ret->ti_fieldidx = ti_fieldidx;
+	ret->ti_field = ti_field;
+	ret->ti_print_name = (ti_field) ? ti_field->tf_fieldname : "disk";
+	ret->ti_print_idxval = TI_INVALID_IDXVAL;
 
 	DEBUG_TYPEINFO_WRITE("Setting Dyn");
 
@@ -267,9 +263,10 @@ struct type_info* typeinfo_alloc_virt_idx(
 
 	assert (ti_xlate(ret) != NULL);
 
-	ret->ti_is_virt = true;
-	ret->ti_pointsto = false;
-	ret->ti_virttype_c = 0;	/* XXX */
+	ret->ti_virt = virt;
+	ret->ti_print_name = (virt->vt_name) ? virt->vt_name : "virt";
+	ret->ti_print_idxval = idx;
+
 
 	DEBUG_TYPEINFO_WRITE("now set_dyns");
 	typeinfo_set_dyn(ret);

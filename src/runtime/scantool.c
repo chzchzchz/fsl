@@ -72,7 +72,7 @@ static void scan_type_pointsto(
 			params);
 
 		FSL_DYN_LOAD(dyn_saved);
-		new_ti = typeinfo_alloc_pointsto(&next_td, pt_idx, k, ti);
+		new_ti = typeinfo_alloc_pointsto(&next_td, pt, k, ti);
 		if (new_ti == NULL) {
 			DEBUG_TOOL_WRITE("skipped");
 			continue;
@@ -155,7 +155,7 @@ static void handle_field(
 			return;
 
 		/* recurse */
-		new_ti = typeinfo_alloc(&next_td, field_idx, ti);
+		new_ti = typeinfo_alloc_by_field(&next_td, field, ti);
 		if (i < num_elems - 1) {
 			size_t	sz;
 			/* move to next element */
@@ -289,7 +289,7 @@ int tool_entry(int argc, char* argv[])
 	printf("Welcome to fsl scantool. Scan mode: \"%s\"\n", fsl_rt_fsname);
 
 	DEBUG_TOOL_WRITE("Origin Type Allocating...\n");
-	origin_ti = typeinfo_alloc(&init_td, 0, NULL);
+	origin_ti = typeinfo_alloc_by_field(&init_td, NULL, NULL);
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
 		return -1;
