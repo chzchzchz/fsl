@@ -3,17 +3,25 @@
 
 #include "runtime.h"
 
+/* fully describes a type instance */
 struct type_desc
 {
 	typenum_t			td_typenum;
 	struct fsl_rt_closure		td_clo;
 };
 
+#define TI_INVALID_IDXVAL	(~0)
+
+/* extra run-time info */
 struct type_info
 {
 	struct type_desc	ti_td;
 	bool			ti_is_virt;
 	bool			ti_pointsto;
+
+	char			*ti_print_name;
+	uint64_t		ti_print_idxval;
+
 	union {
 		unsigned int		ti_fieldidx;
 		unsigned int		ti_virttype_c;	/* num repetitions */
@@ -79,8 +87,6 @@ poff_t ti_phys_offset(const struct type_info* ti);
 #define typeinfo_set_depth(x,y)	do { (x)->ti_depth = (y); } while (0)
 #define ti_depth(x)	(x)->ti_depth
 
-void typeinfo_print(const struct type_info* ti);
-void typeinfo_print_fields(const struct type_info* ti);
 void typeinfo_free(struct type_info* ti);
 struct type_info* typeinfo_alloc(
 	const struct type_desc* ti_td,
@@ -105,13 +111,8 @@ struct type_info* typeinfo_alloc_virt_idx(
 	struct type_info*	ti_prev,
 	unsigned int		idx_no,
 	int			*err_code);
-
-
-void typeinfo_print_name(void);
-void typeinfo_print_path(const struct type_info* cur);
-void typeinfo_print_pointsto(const struct type_info* cur);
-void typeinfo_print_virt(const struct type_info* cur);
-void typeinfo_dump_data(const struct type_info* ti);
 void typeinfo_set_dyn(const struct type_info* ti);
+
+#include "type_print.h"
 
 #endif

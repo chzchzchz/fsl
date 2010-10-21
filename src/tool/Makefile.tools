@@ -10,7 +10,8 @@ RT_OBJS=../runtime/runtime.o 	\
 	../runtime/debug.o	\
 	../runtime/log.o	\
 	../runtime/hits.o	\
-	../runtime/cache.o
+	../runtime/cache.o	\
+	../runtime/type_print.o
 
 SCANTOOL_OBJS=../runtime/scantool.o  $(RT_OBJS)
 BROWSER_OBJS=../runtime/browser.o $(RT_OBJS)
@@ -21,6 +22,7 @@ LLC_FLAGS=-O3
 #CFLAGS=-g
 #OPT_FLAGS=
 #LLC_FLAGS=-O3
+SRC_FSL=../../fs/$(FSNAME).fsl
 
 all: $(TOOL_BINS)
 
@@ -42,10 +44,7 @@ fsl.$(FSNAME).types.s: fsl.$(FSNAME).types.bc
 fsl.$(FSNAME).types.bc: fsl.$(FSNAME).types.ll
 	opt $(OPT_FLAGS) $^ -o $@
 
-fsl.$(FSNAME).types.ll: ../../fs/$(FSNAME).fsl
-	../lang $(FSNAME) <$^
-
-fsl.$(FSNAME).table.c: ../../fs/$(FSNAME).fsl
+fsl.$(FSNAME).table.c fsl.$(FSNAME).types.ll: $(SRC_FSL)
 	../lang $(FSNAME) <$^
 
 fsl.$(FSNAME).table.o: fsl.$(FSNAME).table.c
