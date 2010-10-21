@@ -48,6 +48,7 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	fsl_rt_dyn_swap(old_clo);
 
 	assert (bit_off != base+off && "Identity xlate. Probably wrong.");
+	assert ((base+off) != 0 && "xlated addr == origin? Probably wrong.");
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_CALL);
 
