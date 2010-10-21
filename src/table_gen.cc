@@ -539,7 +539,10 @@ void TableGen::genScalarConstants(void)
 	const Type	*origin_type;
 
 	origin_type = types_map["disk"];
-	assert (origin_type != NULL);
+	assert (origin_type != NULL
+		&& "No origin type 'disk' declared");
+	assert (origin_type->getNumArgs() == 0
+		&& "Type 'disk' should not take parameters");
 
 	out << "unsigned int fsl_rt_table_entries = "<<types_list.size()<<";\n";
 	out << "unsigned int fsl_rt_origin_typenum = ";
