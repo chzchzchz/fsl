@@ -57,6 +57,8 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 	typeinfo_free(ti_next);
 }
 
+#define get_sel_elem_unbounded()	get_sel_elem(0, INT_MAX-1)
+
 static int get_sel_elem(int min_v, int max_v)
 {
 	int	sel_elem;
@@ -71,7 +73,12 @@ static int get_sel_elem(int min_v, int max_v)
 	while (sel_elem < min_v || sel_elem > max_v) {
 		ssize_t	br;
 
-		printf("Which element of [%"PRIi32",%"PRIi32"]?\n>> ", min_v, max_v);
+		printf("Which element of ");
+		if (max_v == INT_MAX-1)
+			printf("[%"PRIi32",...]?\n>> ", min_v);
+		else
+			printf("[%"PRIi32",%"PRIi32"]?\n>> ", min_v, max_v);
+
 		br = fscanf(stdin, "%d", &sel_elem);
 		if (br < 0)
 			return INT_MIN;
@@ -93,7 +100,7 @@ static uint64_t select_field_array(
 	assert (sel_idx != NULL);
 
 	sel_elem = get_sel_elem(0, num_elems-1);
-	if (sel_elem < INT_MIN)
+	if (sel_elem == INT_MIN)
 		return ~0;
 	*sel_idx = sel_elem;
 
@@ -160,11 +167,20 @@ static void select_field(struct type_info* cur, int field_idx)
 
 static void select_virt(struct type_info* cur, int vt_idx)
 {
-	struct type_info*		ti_next;
+	struct fsl_rt_table_type*	tt;
 	struct fsl_rt_table_virt*	vt;
+	struct type_info*		ti_next;
+	int				sel_elem;
 
-	vt = &tt_by_ti(cur)->tt_virt[vt_idx];
-	ti_next = typeinfo_alloc_virt(vt, cur);
+	tt = tt_by_ti(cur);
+	assert (vt_idx < tt->tt_virt_c && "Virt index out of range");
+
+	sel_elem = get_sel_elem_unbounded();
+	if (sel_elem == INT_MIN)
+		return;
+
+	vt = &tt->tt_virt[vt_idx];
+	ti_next = typeinfo_alloc_virt_idx(vt, cur, sel_elem, NULL);
 	if (ti_next == NULL)
 		return;
 

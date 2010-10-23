@@ -10,7 +10,7 @@
 
 static void typeinfo_print_field(const struct type_info* ti);
 static void typeinfo_print_default(const struct type_info* ti);
-#define typeinfo_print_virt(x) typeinfo_print_default(x)
+static void typeinfo_print_virt(const struct type_info* ti);
 #define typeinfo_print_pointsto(x) typeinfo_print_default(x)
 
 static void typeinfo_print_path_helper(const struct type_info* ti);
@@ -95,17 +95,19 @@ static void typeinfo_print_type(const struct type_info* ti)
 	len = tt->tt_size(clo);
 
 #ifdef PRINT_BITS
-	printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
+	printf("%s@%"PRIu64"--%"PRIu64, //" (%"PRIu64" bits)",
 		tt_by_ti(ti)->tt_name,
 		ti_offset(ti),
-		ti_offset(ti) + len,
-		len);
+		ti_offset(ti) + len //,
+//		len
+	);
 #else
-	printf("%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bytes)",
+	printf("%s@%"PRIu64"--%"PRIu64, //" (%"PRIu64" bytes)",
 		tt_by_ti(ti)->tt_name,
 		ti_offset(ti)/8,
-		(ti_offset(ti) + len)/8,
-		len/8);
+		(ti_offset(ti) + len)/8 //,
+//		len/8
+	);
 #endif
 }
 
@@ -122,19 +124,21 @@ static void typeinfo_print_field(const struct type_info* ti)
 	tt = tt_by_ti(ti->ti_prev);
 	len = field->tf_typesize(clo);
 #ifdef PRINT_BITS
-	printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
+	printf("%s.%s@%"PRIu64"--%"PRIu64,//" (%"PRIu64" bits)",
 		tt->tt_name,
 		field->tf_fieldname,
 		ti_offset(ti),
-		ti_offset(ti) + len,
-		len);
+		ti_offset(ti) + len
+//		, len
+	);
 #else
-	printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bytes)",
+	printf("%s.%s@%"PRIu64"--%"PRIu64,//" (%"PRIu64" bytes)",
 		tt->tt_name,
 		field->tf_fieldname,
 		ti_offset(ti)/8,
-		(ti_offset(ti) + len)/8,
-		len/8);
+		(ti_offset(ti) + len)/8
+	//	,len/8
+	);
 #endif
 }
 
@@ -150,6 +154,26 @@ static void typeinfo_print_default(const struct type_info* ti)
 	printf("@%"PRIu64, ti_offset(ti));
 #else
 	printf("@%"PRIu64, ti_offset(ti) / 8);
+#endif
+}
+
+static void typeinfo_print_virt(const struct type_info* ti)
+{
+	assert (ti->ti_print_name != NULL);
+	assert (ti_xlate(ti) != NULL);
+
+	if (ti->ti_print_idxval != TI_INVALID_IDXVAL)
+		printf("%s[%"PRIu64"]", ti->ti_print_name, ti->ti_print_idxval);
+	else
+		printf("%s", ti->ti_print_name);
+#ifdef PRINT_BITS
+	printf("@v%"PRIu64"p%"PRIu64,
+		ti_offset(ti),
+		fsl_virt_xlate(&ti_clo(ti), ti_offset(ti)));
+#else
+	printf("@v%"PRIu64"p%"PRIu64,
+		ti_offset(ti) / 8,
+		fsl_virt_xlate(&ti_clo(ti), ti_offset(ti)) / 8);
 #endif
 }
 

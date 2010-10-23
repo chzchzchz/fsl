@@ -285,6 +285,40 @@ done:
 	return ret;
 }
 
+/* move typeinfo to next virtual type */
+struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code)
+{
+	unsigned int	new_idx;
+	diskoff_t	new_off;
+
+	assert (ti != NULL);
+	assert (ti_xlate(ti) != NULL);
+	assert (ti->ti_virt != NULL);
+
+	DEBUG_TYPEINFO_ENTER();
+
+	new_idx = ++ti->ti_print_idxval;
+	DEBUG_TYPEINFO_WRITE("new_idx = %d", new_idx);
+
+	/* XXX get_nth is slow, need better interface */
+	new_off = fsl_virt_get_nth(ti_xlate(ti), new_idx);
+	assert (new_off != 0 && "Next type must be at non-zero voff");
+	if (new_off == OFFSET_INVALID) {
+		set_err_code(err_code, TI_ERR_BADIDX);
+		typeinfo_free(ti);
+		ti = NULL;
+		goto done;
+	}
+
+	/* offset bump */
+	ti_offset(ti) = new_off;
+
+done:
+	DEBUG_TYPEINFO_LEAVE();
+
+	return ti;
+}
+
 void typeinfo_set_dyn(const struct type_info* ti)
 {
 	TI_INTO_CLO			(ti);

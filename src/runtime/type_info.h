@@ -105,6 +105,9 @@ struct type_info* typeinfo_alloc_virt_idx(
 	struct type_info*	ti_prev,
 	unsigned int		idx_no,
 	int			*err_code);
+struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code);
+
+
 void typeinfo_set_dyn(const struct type_info* ti);
 
 #include "type_print.h"

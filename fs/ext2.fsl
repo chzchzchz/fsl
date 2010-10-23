@@ -72,9 +72,11 @@ ext2_inode ino_by_num(u32 ino_num)
 			ino_grp_blk_idx];
 }
 
-uint sect_to_blocks(u32 sect)
+uint size_to_blocks(u64 size)
 {
-	return (sect*512) / get_block_size();
+	int	bsz;
+	bsz = get_block_size();
+	return (size + bsz - 1) / bsz;
 }
 
 uint num_direct_blocks(ext2_inode ino)
@@ -83,7 +85,7 @@ uint num_direct_blocks(ext2_inode ino)
 
 	if (is_fast_symlink(ino)) return 0;
 
-	num_blks = sect_to_blocks(ino.i_blocks_c);
+	num_blks = size_to_blocks(ino.i_size);
 	if (num_blks > EXT2_NDIR_BLOCKS)
 		return EXT2_NDIR_BLOCKS;
 	return num_blks;
@@ -127,8 +129,10 @@ ext2_data_block get_nth(uint n)
 
 	if (n < EXT2_NDIR_BLOCKS) {
 		block_num = ext2_inode.i_block_direct[n];
+
 	} else if (n < EXT2_NDIR_BLOCKS+blocks_per_indir()) {
 		ext2_indir_block	indir_blk;
+
 		indir_blk = ext2_indir_lookup(ext2_inode.i_block_indir);
 		block_num = indir_blk.blk_ptr[n-EXT2_NDIR_BLOCKS];
 	} else if (n <
@@ -157,8 +161,10 @@ ext2_data_block get_nth(uint n)
 	} else {
 		/* XXX do later */
 		block_num=999999999999;
+		DEBUG_WRITE=666;
 	}
 
+	/* got our blocknummmm */
 	return ext2_data_block_lookup(block_num);
 }
 
@@ -297,11 +303,11 @@ type ext2_data_block
 }
 
 type ext2_group_desc(int group_num)
-points(disk.blocks[block_bmp - blocks_off(disk.sb) ].blk_bmp)
-points(disk.blocks[inode_bmp - blocks_off(disk.sb)].ino_bmp)
+points(disk.blocks[block_bmp - blocks_off(disk.sb) ].blk_bmp) as grp_blk_bmp
+points(disk.blocks[inode_bmp - blocks_off(disk.sb)].ino_bmp) as grp_ino_bmp
 points_range(
 	i, 0, inode_table_block_count(disk.sb)-1, 
-	disk.blocks[(inode_table + i) - blocks_off(disk.sb)].ino_blk)
+	disk.blocks[(inode_table + i) - blocks_off(disk.sb)].ino_blk) as grp_ino_blk
 sum(free_block_c)
 sum(free_inode_c)
 sum(used_dir_c)
@@ -359,27 +365,27 @@ assert (? is_fast_symlink(ext2_inode) || i_block_direct[0] != 0)
 virtual_if(
 	? S_ISREG(i_mode) == true,
 	ext2_data_block,
-	i, 1, sect_to_blocks(i_blocks_c),
+	i, 1, size_to_blocks(i_size),
 	get_nth(i-1)) as vfile
 virtual_if(
 	? S_ISDIR(i_mode) == true,
 	ext2_dir_entry,
-	i, 1, sect_to_blocks(i_blocks_c),
+	i, 1, size_to_blocks(i_size),
 	get_nth(i-1)) as vdir
 points_range(
 	i, 1, num_direct_blocks(ext2_inode),
 	disk.blocks[i_block_direct[i-1] - blocks_off(disk.sb)].data_blk) as direct
 points_if(
 	? is_fast_symlink(ext2_inode) == false &&
-	   sect_to_blocks(i_blocks_c) > EXT2_NDIR_BLOCKS, 
+	   size_to_blocks(i_size) > EXT2_NDIR_BLOCKS,
 	disk.blocks[i_block_indir - blocks_off(disk.sb)].indir_blk) as indir
 points_if(
 	? is_fast_symlink(ext2_inode) == false && 
-	  sect_to_blocks(i_blocks_c) > (EXT2_NDIR_BLOCKS + blocks_per_indir()),
+	  size_to_blocks(i_size) > (EXT2_NDIR_BLOCKS + blocks_per_indir()),
 	disk.blocks[i_block_biindir - blocks_off(disk.sb)].biindir_blk) as biindir
 points_if(
 	? is_fast_symlink(ext2_inode) == false && 
-	  sect_to_blocks(i_blocks_c) > 
+	  size_to_blocks(i_size) >
 		(EXT2_NDIR_BLOCKS + blocks_per_indir()*
 			(1 + blocks_per_indir())),
 	disk.blocks[i_block_triindir - blocks_off(disk.sb)].triindir_blk) as triinidr
@@ -393,7 +399,7 @@ points_if(
 	u32	i_dtime;
 	u16	i_gid;
 	u16	i_links_c;
-	u32	i_blocks_c;	/* number of 512b sectors */
+	u32	i_blocks_c;	/* number of 512b sectors--tricky */
 	u32	i_flags;
 	u32	i_osd_resv;
 
@@ -415,7 +421,7 @@ points_if(
 }
 
 type ext2_dir_entry
-points_if(? inode != 0, ino_by_num(inode))
+points_if(? name_len > 0 && inode != 0, ino_by_num(inode)) as ent_ino
 {
 	u32	inode;		/* inode number */
 	u16	rec_len;	/* de length */

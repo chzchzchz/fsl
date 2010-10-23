@@ -1,4 +1,4 @@
-#define DEBUG_TOOL
+//#define DEBUG_TOOL
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -190,7 +190,7 @@ static void handle_virt(struct type_info* ti, struct fsl_rt_table_virt* vt)
 	while (err_code == TI_ERR_OK || err_code == TI_ERR_BADVERIFY) {
 		struct type_info		*ti_cur;
 
-		DEBUG_TOOL_WRITE("alloc virt[%d] %s", i, vt->vt_name);
+		DEBUG_TOOL_WRITE("alloc virt %s[%d]", vt->vt_name, i);
 		FSL_DYN_LOAD(dyn_saved);
 		ti_cur = typeinfo_alloc_virt_idx(vt, ti, i, &err_code);
 		if (ti_cur == NULL) {
@@ -212,7 +212,7 @@ static void handle_virt(struct type_info* ti, struct fsl_rt_table_virt* vt)
 		DEBUG_TOOL_WRITE("virt done");
 		typeinfo_free(ti_cur);
 
-		DEBUG_TOOL_WRITE("virt[%d] freed", i);
+		DEBUG_TOOL_WRITE("free virt %s[%d]", vt->vt_name, i);
 		i++;
 	}
 
@@ -265,8 +265,10 @@ static void scan_type(struct type_info* ti)
 		voff,
 		poff,
 		ti_xlate(ti));
+#ifdef DEBUG_TOOL
 	typeinfo_print_path(ti);
 	printf("\n");
+#endif
 
 	printf("{ 'Mode' : 'Scan', 'voff' : %"PRIu64
 		", 'poff' : %"PRIu64
