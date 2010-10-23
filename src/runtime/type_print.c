@@ -8,7 +8,16 @@
 #include "debug.h"
 #include "type_info.h"
 
-static char hexmap[] = {"0123456789abcdef"};
+static void typeinfo_print_field(const struct type_info* ti);
+static void typeinfo_print_default(const struct type_info* ti);
+#define typeinfo_print_virt(x) typeinfo_print_default(x)
+#define typeinfo_print_pointsto(x) typeinfo_print_default(x)
+
+static void typeinfo_print_path_helper(const struct type_info* ti);
+static void print_field_value(
+	const struct type_info		*ti,
+	const struct fsl_rt_table_field	*field);
+static void typeinfo_print_type(const struct type_info* ti);
 
 static void typeinfo_print_path_helper(const struct type_info* ti)
 {
@@ -22,8 +31,7 @@ static void typeinfo_print_path_helper(const struct type_info* ti)
 	printf("/");
 }
 
-
-static void print_field(
+static void print_field_value(
 	const struct type_info		*ti,
 	const struct fsl_rt_table_field	*field)
 {
@@ -34,14 +42,14 @@ static void print_field(
 	unsigned int			param_c;
 	TI_INTO_CLO(ti);
 
+	/* print field name */
 	num_elems = field->tf_elemcount(clo);
 	printf("%s", field->tf_fieldname);
 	if (num_elems > 1) {
 		printf("[%"PRIu64"]", num_elems);
 	}
 
-	field_off = field->tf_fieldbitoff(clo);
-
+	/* compute field width */
 	field_typenum = field->tf_typenum;
 	if (num_elems > 1 &&
 	    field_typenum != TYPENUM_INVALID &&
@@ -56,8 +64,10 @@ static void print_field(
 		field_sz *= num_elems;
 	}
 
-	NEW_CLO(last_field_clo, field_off, NULL);
+	field_off = field->tf_fieldbitoff(clo);
+	NEW_VCLO(last_field_clo, field_off, NULL, ti_xlate(ti));
 
+	/* dump data or print address range */
 	if (num_elems == 1 && field_sz <= 64) {
 		uint64_t	v;
 		v = __getLocal(&last_field_clo, field_off, field_sz);
@@ -106,9 +116,10 @@ static void typeinfo_print_field(const struct type_info* ti)
 	uint64_t			len;
 	TI_INTO_CLO			(ti->ti_prev);
 
-	tt = tt_by_ti(ti->ti_prev);
 	field = ti->ti_field;
 	assert (field != NULL);
+
+	tt = tt_by_ti(ti->ti_prev);
 	len = field->tf_typesize(clo);
 #ifdef PRINT_BITS
 	printf("%s.%s@%"PRIu64"--%"PRIu64" (%"PRIu64" bits)",
@@ -127,19 +138,35 @@ static void typeinfo_print_field(const struct type_info* ti)
 #endif
 }
 
+
+static void typeinfo_print_default(const struct type_info* ti)
+{
+	assert (ti->ti_print_name != NULL);
+	if (ti->ti_print_idxval != TI_INVALID_IDXVAL)
+		printf("%s[%"PRIu64"]", ti->ti_print_name, ti->ti_print_idxval);
+	else
+		printf("%s", ti->ti_print_name);
+#ifdef PRINT_BITS
+	printf("@%"PRIu64, ti_offset(ti));
+#else
+	printf("@%"PRIu64, ti_offset(ti) / 8);
+#endif
+}
+
 void typeinfo_print(const struct type_info* ti)
 {
 	assert (ti != NULL);
 
-	if (ti->ti_prev == NULL || ti_typenum(ti) != TYPENUM_INVALID) {
+	if (ti->ti_prev == NULL && ti_typenum(ti) != TYPENUM_INVALID) {
 		typeinfo_print_type(ti);
 		return;
 	}
 
 	assert (ti->ti_prev != NULL);
-	assert (ti->ti_points == NULL);
 
-	typeinfo_print_field(ti);
+	if (ti->ti_field) typeinfo_print_field(ti);
+	if (ti->ti_points) typeinfo_print_pointsto(ti);
+	if (ti->ti_virt) typeinfo_print_virt(ti);
 }
 
 void typeinfo_print_fields(const struct type_info* ti)
@@ -174,7 +201,7 @@ void typeinfo_print_fields(const struct type_info* ti)
 		else
 			printf("--- ");
 
-		print_field(ti, field);
+		print_field_value(ti, field);
 	}
 }
 
@@ -184,7 +211,7 @@ void typeinfo_print_path(const struct type_info* ti)
 	typeinfo_print(ti);
 }
 
-void typeinfo_print_pointsto(const struct type_info* ti)
+void typeinfo_print_pointstos(const struct type_info* ti)
 {
 	struct fsl_rt_table_type	*tt;
 	bool				none_seen;
@@ -228,7 +255,7 @@ void typeinfo_print_pointsto(const struct type_info* ti)
 	}
 }
 
-void typeinfo_print_virt(const struct type_info* ti)
+void typeinfo_print_virts(const struct type_info* ti)
 {
 	struct fsl_rt_table_type	*tt;
 	unsigned int			i;
@@ -270,6 +297,9 @@ void typeinfo_print_virt(const struct type_info* ti)
 	}
 }
 
+#define DUMP_WIDTH	0x18
+static char hexmap[] = {"0123456789abcdef"};
+
 void typeinfo_dump_data(const struct type_info* ti)
 {
 	uint64_t			type_sz;
@@ -281,7 +311,7 @@ void typeinfo_dump_data(const struct type_info* ti)
 	for (i = 0; i < type_sz / 8; i++) {
 		uint8_t	c;
 
-		if ((i % 0x18) == 0) {
+		if ((i % DUMP_WIDTH) == 0) {
 			if (i != 0) printf("\n");
 			printf("%04x: ", i);
 		}

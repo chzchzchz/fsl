@@ -16,6 +16,7 @@ struct type_desc
 struct type_info
 {
 	struct type_desc		ti_td;
+	const struct type_info		*ti_prev;
 
 	const char			*ti_print_name;
 	uint64_t			ti_print_idxval;
@@ -26,7 +27,6 @@ struct type_info
 	const struct fsl_rt_table_pointsto	*ti_points;
 
 	unsigned int		ti_depth;
-	const struct type_info	*ti_prev;
 };
 
 

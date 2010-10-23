@@ -229,8 +229,8 @@ static void menu(struct type_info* cur)
 		printf("\n");
 
 		typeinfo_print_fields(cur);
-		typeinfo_print_pointsto(cur);
-		typeinfo_print_virt(cur);
+		typeinfo_print_pointstos(cur);
+		typeinfo_print_virts(cur);
 
 		printf(">> ");
 		br = fscanf(stdin, "%d", &choice);

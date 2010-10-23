@@ -1,4 +1,4 @@
-//#define DEBUG_TOOL
+#define DEBUG_TOOL
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -265,6 +265,9 @@ static void scan_type(struct type_info* ti)
 		voff,
 		poff,
 		ti_xlate(ti));
+	typeinfo_print_path(ti);
+	printf("\n");
+
 	printf("{ 'Mode' : 'Scan', 'voff' : %"PRIu64
 		", 'poff' : %"PRIu64
 		", 'size': %"PRIu64
