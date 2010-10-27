@@ -1,6 +1,6 @@
 all: ext2.img vfat.img nilfs2.img ext2-small.img ext2-many.img testfs.img vfat-many.img ext2-postmark.img vfat-postmark.img
 
-format: ext2.img vfat.img nilfs2.img ext2-small.img ext2-many.img format-ext2-many.img  format-vfat-many.img
+format: ext2.img vfat.img nilfs2.img ext2-small.img ext2-many.img format-ext2-many.img  format-vfat-many.img iso9660.img
 	./loopback_fs_setup.sh ext2.img ext2  && ./gen_files.sh  && ./loopback_fs_teardown.sh
 	./loopback_fs_setup.sh ext2-small.img ext2  && ./gen_files.sh  && ./loopback_fs_teardown.sh
 	./loopback_fs_setup.sh vfat.img vfat && ./gen_files.sh  && ./loopback_fs_teardown.sh
@@ -22,6 +22,14 @@ format-vfat-many.img: vfat-many.img
 format-vfat-postmark.img: vfat-postmark.img
 	./loopback_fs_setup.sh vfat-postmark.img vfat  && ./gen_postmark.sh && ./loopback_fs_teardown.sh
 
+
+iso9660.img: format-iso9660.img
+
+format-iso9660.img:
+	rm -rf tmp/* && GEN_FILE_PATH=./tmp/ ./gen_files.sh && mkisofs -o iso9660.img ./tmp/ && rm -rf tmp/*
+
+format-iso9660-many.img:
+	rm -rf tmp/* && GEN_FILE_PATH=./tmp/ ./gen_files.sh 100 && mkisofs -o iso9660-many.img ./tmp/ && rm -rf tmp/*
 
 
 #unformated, 5MB:

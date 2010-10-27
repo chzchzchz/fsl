@@ -16,6 +16,7 @@ struct TypeBase
 	/* expressions that'll take us to sym */
 	Expr			*tb_diskoff;
 	Expr			*tb_parambuf;
+	Expr			*tb_virt;
 };
 
 /**

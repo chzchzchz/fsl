@@ -257,6 +257,7 @@ static void scan_type(struct type_info* ti)
 	voff = ti_offset(ti);
 	poff = ti_phys_offset(ti);
 	size = ti_size(ti);
+#if 0
 	printf("scanning: %s (%d usertypes) voff=%"PRIu64
 			" bits. poff=%"PRIu64
 			" bits. xlate=%p\n",
@@ -265,6 +266,7 @@ static void scan_type(struct type_info* ti)
 		voff,
 		poff,
 		ti_xlate(ti));
+#endif
 #ifdef DEBUG_TOOL
 	typeinfo_print_path(ti);
 	printf("\n");

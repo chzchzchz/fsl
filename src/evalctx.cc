@@ -12,15 +12,19 @@ extern RTInterface	rt_glue;
 
 using namespace std;
 
-static Expr* replaceClosure(Expr* in_expr, Expr* diskoff, Expr* params)
+static Expr* replaceClosure(Expr* in_expr, const struct TypeBase& tb)
 {
 	Expr	*ret = in_expr;
 
 	ret = Expr::rewriteReplace(
 		ret,
 		rt_glue.getThunkClosure(),
-		FCall::mkClosure(diskoff, params));
+		FCall::mkClosure(
+			tb.tb_diskoff->simplify(),
+			tb.tb_parambuf->simplify(),
+			tb.tb_virt->simplify()));
 
+	/* XXX is this correct? */
 	ret = Expr::rewriteReplace(
 		ret,
 		rt_glue.getThunkArgIdx(),
@@ -59,6 +63,7 @@ Expr* EvalCtx::setNewOffsetsArray(
 				tf->getFieldNum(),
 				tb.tb_diskoff,
 				tb.tb_parambuf,
+				tb.tb_virt,
 				evalReplace(*this, idx->simplify()));
 			array_elem_base = new AOPAdd(
 				new_base, array_elem_base);
@@ -66,10 +71,7 @@ Expr* EvalCtx::setNewOffsetsArray(
 			Expr	*sz;
 
 			sz = new AOPMul(
-				replaceClosure(
-					tf->getSize()->copyFCall(),
-					tb.tb_diskoff->simplify(),
-					tb.tb_parambuf->simplify()),
+				replaceClosure(tf->getSize()->copyFCall(), tb),
 				evalReplace(*this, idx->simplify()));
 			array_elem_base = new AOPAdd(new_base, sz);
 		}
@@ -79,10 +81,7 @@ Expr* EvalCtx::setNewOffsetsArray(
 		Expr	*field_size;
 		Expr	*array_off;
 
-		field_size = replaceClosure(
-			tf->getSize()->copyFCall(),
-			tb.tb_diskoff->simplify(),
-			tb.tb_parambuf->simplify());
+		field_size = replaceClosure(tf->getSize()->copyFCall(), tb);
 		array_off = evalReplace(*this, idx->simplify());
 
 		new_base = new AOPAdd(
@@ -112,15 +111,8 @@ bool EvalCtx::setNewOffsets(
 	offset_fc = tf->getOffset()->copyFCall();
 	assert (offset_fc != NULL);
 
-	new_base = replaceClosure(
-		offset_fc,
-		tb.tb_diskoff->simplify(),
-		tb.tb_parambuf->simplify());
-
-	new_params = replaceClosure(
-		tf->getParams()->copyFCall(),
-		tb.tb_diskoff->simplify(),
-		tb.tb_parambuf->simplify());
+	new_base = replaceClosure(offset_fc, tb);
+	new_params = replaceClosure(tf->getParams()->copyFCall(), tb);
 
 	if (tf->getElems()->isSingleton() == false) {
 		new_base = setNewOffsetsArray(
@@ -191,10 +183,12 @@ bool EvalCtx::resolveTail(
 cleanup_err:
 	if (tb.tb_diskoff != NULL) delete tb.tb_diskoff;
 	if (tb.tb_parambuf != NULL) delete tb.tb_parambuf;
+	if (tb.tb_virt != NULL) delete tb.tb_virt;
 	if (idx != NULL) delete idx;
 
 	tb.tb_diskoff = NULL;
 	tb.tb_parambuf = NULL;
+	tb.tb_virt = NULL;
 
 	return false;
 }
@@ -226,6 +220,7 @@ bool EvalCtx::resolveIdStructCurScope(
 
 	tb.tb_diskoff = rt_glue.getThunkArgOffset();
 	tb.tb_parambuf = rt_glue.getThunkArgParamPtr();
+	tb.tb_virt = rt_glue.getThunkArgVirt();
 	setNewOffsets(tb, idx);
 
 	return resolveTail(tb, ids, ++(ids->begin()));
@@ -256,6 +251,9 @@ bool EvalCtx::resolveIdStructFunc(
 		new ExprList(new Id(name)));
 	tb.tb_parambuf = new FCall(
 		new Id("__extractParam"),
+		new ExprList(new Id(name)));
+	tb.tb_virt = new FCall(
+		new Id("__extractVirt"),
 		new ExprList(new Id(name)));
 	return resolveTail(tb, ids, ++(ids->begin()));
 }
@@ -309,6 +307,7 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 		tb.tb_symtab = symtabByName(t->getName());
 		tb.tb_diskoff = rt_glue.getDynOffset(t);
 		tb.tb_parambuf = rt_glue.getDynParams(t);
+		tb.tb_virt = rt_glue.getDynVirt(t);
 
 		found_expr = resolveTail(tb, ids, ++(ids->begin()));
 		if (found_expr) {
@@ -329,7 +328,8 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 			Expr::rewriteReplace(
 				tb.tb_parambuf,
 				rt_glue.getThunkArgIdx(),
-				new Number(0)));
+				new Number(0)),
+			tb.tb_virt);
 
 	/* not returning a user type-- we know that the size to 
 	 * read is going to be constant. don't need to bother with computing
@@ -372,7 +372,8 @@ Expr* EvalCtx::resolve(const Id* id) const
 					Expr::rewriteReplace(
 						tf->getParams()->copyFCall(),
 						rt_glue.getThunkArgIdx(),
-						new Number(0)));
+						new Number(0)),
+					rt_glue.getThunkArgVirt());
 			}
 
 			offset = tf->getOffset()->copyFCall();
@@ -392,7 +393,8 @@ Expr* EvalCtx::resolve(const Id* id) const
 	if ((t = typeByName(id->getName())) != NULL) {
 		return FCall::mkClosure(
 			rt_glue.getDynOffset(t),
-			rt_glue.getDynParams(t));
+			rt_glue.getDynParams(t),
+			rt_glue.getDynVirt(t));
 	}
 
 	/* could not resolve */

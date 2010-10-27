@@ -19,8 +19,10 @@ static bool typeinfo_verify(const struct type_info* ti);
 
 void typeinfo_free(struct type_info* ti)
 {
-	if (ti->ti_virt && ti_xlate(ti) != NULL)
-		fsl_virt_free(ti_xlate(ti));
+	if (ti->ti_virt && ti_xlate(ti) != NULL) {
+		fsl_virt_unref(&ti_clo(ti));
+		ti_xlate(ti) = NULL;
+	}
 	if (ti_params(ti) != NULL)
 		free(ti->ti_td.td_clo.clo_params);
 	free(ti);
@@ -41,17 +43,19 @@ static bool ti_has_loop(const struct type_info* chain)
 	top_poff = ti_phys_offset(cur);
 	top_typenum = ti_typenum(cur);
 	cur = cur->ti_prev;
-	DEBUG_TYPEINFO_WRITE("TI_HAS_LOOP: LOOP");
+	DEBUG_TYPEINFO_WRITE("TI_HAS_LOOP: SCAN PARENTS");
 
 	for (; cur != NULL; cur = cur->ti_prev) {
 		/* TODO: cache physical offsets? */
 		if (ti_phys_offset(cur) == top_poff &&
 		    ti_typenum(cur) == top_typenum)
 		{
+			DEBUG_TYPEINFO_WRITE("TI_HAS_LOOP: LOOP! BAIL");
 			return true;
 		}
 	}
 
+	DEBUG_TYPEINFO_WRITE("TI_HAS_LOOP: NO LOOP.");
 	return false;
 }
 
@@ -327,7 +331,12 @@ void typeinfo_set_dyn(const struct type_info* ti)
 
 	DEBUG_TYPEINFO_ENTER();
 
+	DEBUG_TYPEINFO_WRITE("Setting parent type for set_dyn");
 	__setDyn(td_explode(&ti->ti_td));
+	DEBUG_TYPEINFO_WRITE("Dyn set.. xlate_refs: %d",
+		(ti_xlate(ti) != NULL) ?
+			ti_xlate(ti)->rtm_ref_c :
+			-1);
 
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_fieldstrong_c; i++) {
@@ -358,6 +367,11 @@ void typeinfo_set_dyn(const struct type_info* ti)
 
 		__setDyn(field->tf_typenum, &new_clo);
 	}
+
+	DEBUG_TYPEINFO_WRITE("Leaving set dyn. xlate_refs: %d",
+		(ti_xlate(ti) != NULL) ?
+			ti_xlate(ti)->rtm_ref_c :
+			-1);
 
 	DEBUG_TYPEINFO_LEAVE();
 }

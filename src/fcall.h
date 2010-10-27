@@ -66,7 +66,7 @@ public:
 
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 
-	static Expr* mkClosure(Expr* diskoff, Expr* params);
+	static Expr* mkClosure(Expr* diskoff, Expr* params, Expr* virt);
 private:
 	bool handleSpecialForms(llvm::Value* &ret) const;
 
@@ -84,6 +84,7 @@ private:
 
 	llvm::Value* 	codeGenExtractOff(void) const;
 	llvm::Value* 	codeGenExtractParam(void) const;
+	llvm::Value*	codeGenExtractVirt(void) const;
 
 	Id*		id;
 	ExprList*	exprs;

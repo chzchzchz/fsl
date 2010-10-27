@@ -17,10 +17,10 @@ const EOF_FAT12 = 0xfff;
 const EOF_FAT16 = 0xffff;
 const EOF_FAT32 = 0xffffffff;
 
+const FAT12_MAX = 0xff4;
+const FAT16_MAX = 0xfff4;
+const FAT32_MAX = 0x0ffffff6;
 const FAT_ENT_FREE = 0;
-const FAT_ENT_BAD = BAD_FAT32;
-const FAT_ENT_EOF = EOF_FAT32;
-
 const FAT_START_ENT = 2;
 
 type disk 
@@ -62,6 +62,7 @@ uint fat_next(uint cluster_num)
 
 	ft = get_fat_type(bpb);
 	f = disk.fats[0];
+
 	if (ft == FAT_TYPE_FAT12) return f.ent12[cluster_num].cluster_num;
 	else if (ft == FAT_TYPE_FAT16) return f.ent16[cluster_num].cluster_num;
 	else if (ft == FAT_TYPE_FAT32) return f.ent32[cluster_num].cluster_num;
@@ -90,26 +91,71 @@ type fat_dir(int num_ents)
 	fat_de	de[num_ents];
 }
 
+bool is_valid_cnum(u32 cnum)
+{
+	fat_type	ft;
+
+	ft = get_fat_type(bpb);
+	if (ft == FAT_TYPE_FAT12) {
+		if (cnum > FAT12_MAX)
+			return false;
+		return true;
+	} else if (ft == FAT_TYPE_FAT16) {
+		if (cnum > FAT16_MAX)
+			return false;
+		return true;
+	} else if (ft == FAT_TYPE_FAT32) {
+		if (cnum > FAT32_MAX)
+			return false;
+		return true;
+	}
+
+	return false;
+}
+
+uint de_cluster_count(fat_de de)
+{
+	u32	bpc;
+
+	if ( (ATTR_DIRECTORY & de.attr) != 0)  {
+		u32	cur_clus;
+		u32	count;
+
+		count = 0;
+		cur_clus = de.first_cluster_lo + (de.first_cluster_hi << 16);
+
+		while (is_valid_cnum(cur_clus) == true) {
+			count = count + 1;
+			cur_clus = fat_next(cur_clus);
+		}
+
+		return count;
+	}
+
+	bpc = bytes_per_cluster();
+	return ((de.file_size + bpc - 1) / bpc);
+}
+
 type fat_de
 virtual_if(
-	? file_size != 0xffffffff,
-	cluster, i, 1, (file_size / bytes_per_cluster())+1, get_nth(i)) as vfile
+	? file_size != 0xffffffff && ((ATTR_DIRECTORY & attr) == 0),
+	cluster, i, 1, de_cluster_count(fat_de), get_nth(i)) as vfile
 virtual_if(
-	? file_size > 0 && file_size != 0xffffffff && (ATTR_DIRECTORY & attr) != 0,
+	? file_size != 0xffffffff && (ATTR_DIRECTORY & attr) != 0,
 	fat_de,
-	i, 1, (file_size / bytes_per_cluster())+1, get_nth(i)) as vdir
+	i, 1, de_cluster_count(fat_de), get_nth(i)) as vdir
 points_if(
-	? file_size > 0 && first_cluster_hi != 0xffff,
-	disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))])
+	? first_cluster_hi != 0xffff,
+	disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))]) as clusters
 points_if(
 	? is_fat12(bpb) && first_cluster_hi != 0xffff && file_size > 0,
-	disk.fats[0].ent12[(first_cluster_lo + (first_cluster_hi << 16))])
+	disk.fats[0].ent12[(first_cluster_lo + (first_cluster_hi << 16))]) as clus12
 points_if(
 	? is_fat16(bpb) && first_cluster_hi != 0xffff && file_size > 0,
-	disk.fats[0].ent16[(first_cluster_lo + (first_cluster_hi << 16))])
+	disk.fats[0].ent16[(first_cluster_lo + (first_cluster_hi << 16))]) as clus16
 points_if(
 	? is_fat32(bpb) && first_cluster_hi != 0xffff && file_size > 0,
-	disk.fats[0].ent32[(first_cluster_lo + (first_cluster_hi << 16))])
+	disk.fats[0].ent32[(first_cluster_lo + (first_cluster_hi << 16))]) as clus32
 {
 	u8		name[8+3];	/* name + ext */
 	u8		attr;
@@ -190,22 +236,22 @@ assert (? is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb))
 }
 
 type fat_ent12
-points_if(? cluster_num > 0 && cluster_num < BAD_FAT12, fat.ent12[cluster_num])
-points_if(? cluster_num > 0 && cluster_num < BAD_FAT12, disk.clusters[cluster_num])
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT12, fat.ent12[cluster_num]) as next_fatent
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT12, disk.clusters[cluster_num]) as clus_data
 {
 	u12	cluster_num;
 }
 
 type fat_ent16
-points_if(? cluster_num > 0 && cluster_num < BAD_FAT16, fat.ent16[cluster_num])
-points_if(? cluster_num > 0 && cluster_num < BAD_FAT16, disk.clusters[cluster_num])
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT16, fat.ent16[cluster_num]) as next_fatent
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT16, disk.clusters[cluster_num]) as clus_data
 {
 	u16	cluster_num;
 }
 
 type fat_ent32
-points_if(? cluster_num > 0 && cluster_num < BAD_FAT32, fat.ent32[cluster_num])
-points_if(? cluster_num > 0 && cluster_num < BAD_FAT32, disk.clusters[cluster_num])
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT32, fat.ent32[cluster_num]) as next_fatent
+points_if(? cluster_num > 0 && cluster_num < BAD_FAT32, disk.clusters[cluster_num]) as clus_data
 {
 	u32	cluster_num;
 }

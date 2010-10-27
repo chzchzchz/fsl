@@ -199,7 +199,7 @@ void CodeBuilder::genThunkHeaderArgs(
 	tmp_var_map[rt_glue.getThunkArgOffsetName()] = allocai;
 	builder->CreateStore(
 		builder->CreateExtractValue(
-			builder->CreateLoad(ai), 0, "t_offset"),
+			builder->CreateLoad(ai), RT_CLO_IDX_OFFSET, "t_offset"),
 		allocai);
 
 
@@ -210,7 +210,16 @@ void CodeBuilder::genThunkHeaderArgs(
 	tmp_var_map[t->getName() + "_params"] = allocai;
 	builder->CreateStore(
 		builder->CreateExtractValue(
-			builder->CreateLoad(ai), 1, "t_params"),
+			builder->CreateLoad(ai), RT_CLO_IDX_PARAMS, "t_params"),
+		allocai);
+
+	/* __thunk_virt */
+	l_t = builder->getInt8PtrTy();
+	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgVirtName());
+	tmp_var_map[rt_glue.getThunkArgVirtName()] = allocai;
+	builder->CreateStore(
+		builder->CreateExtractValue(
+			builder->CreateLoad(ai), RT_CLO_IDX_XLATE, "t_virt"),
 		allocai);
 
 	/* __thunk_closure */
@@ -289,25 +298,28 @@ void CodeBuilder::copyClosure(
 	llvm::Value	*dst_params_ptr;
 	llvm::Value	*src_params_ptr;
 	llvm::Value*	src_loaded;
+	llvm::Value	*copied_offset, *copied_xlate;
 
 	src_loaded = builder->CreateLoad(src_ptr);
 
 	/* copy contents of src into dst */
-	builder->CreateStore(
-		builder->CreateInsertValue(
-			builder->CreateInsertValue(
-				builder->CreateLoad(dst_ptr),
-				builder->CreateExtractValue(
-					src_loaded,
-					RT_CLO_IDX_OFFSET,
-					"cb_copy_offset"),
-				RT_CLO_IDX_OFFSET),
-			builder->CreateExtractValue(
-				src_loaded,
-				RT_CLO_IDX_XLATE,
-				"cb_copy_xlate"),
-			RT_CLO_IDX_XLATE),
-		dst_ptr);
+	copied_offset = builder->CreateInsertValue(
+		builder->CreateLoad(dst_ptr),
+		builder->CreateExtractValue(
+			src_loaded,
+			RT_CLO_IDX_OFFSET,
+			"cb_copy_offset"),
+		RT_CLO_IDX_OFFSET);
+
+	copied_xlate = builder->CreateInsertValue(
+		copied_offset,
+		builder->CreateExtractValue(
+			src_loaded,
+			RT_CLO_IDX_XLATE,
+			"cb_copy_xlate"),
+		RT_CLO_IDX_XLATE);
+
+	builder->CreateStore(copied_xlate, dst_ptr);
 
 	src_params_ptr = builder->CreateExtractValue(
 		src_loaded, RT_CLO_IDX_PARAMS, "src_params");

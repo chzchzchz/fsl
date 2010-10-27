@@ -74,7 +74,8 @@ bool ThunkFieldSize::genCode(void) const
 			rt_glue.getThunkClosure(),
 			FCall::mkClosure(
 				tf_off->copyFCall(),
-				tf_params->copyFCall(0)));
+				tf_params->copyFCall(0),
+				rt_glue.getThunkArgVirt()));
 
 	code_builder->genCode(
 		getOwner()->getType(), getFCallName(), gen_expr);

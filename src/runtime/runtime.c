@@ -1,4 +1,5 @@
 /* main runtime file */
+//#define DEBUG_RT
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -74,15 +75,16 @@ typesize_t __computeArrayBits(
 	/* save old dyn closure value */
 	DEBUG_RT_WRITE("Get initial closure for type '%s'", elem_tt->tt_name);
 	__getDynClosure(elem_type, &old_dyn);
+	fsl_virt_ref(&old_dyn);
 
 	/* get base closure */
 	LOAD_CLO(&cur_clo, tf, clo_parent);
 
 	total_bits = 0;
+	DEBUG_RT_WRITE("Looping over %d elems of type %s", num_elems, elem_tt->tt_name);
 	for (i = 0; i < num_elems; i++) {
 		typesize_t		cur_size;
 
-		DEBUG_RT_WRITE("Loop: %d of %d", i, num_elems);
 		__setDyn(elem_type, &cur_clo);
 		cur_size = elem_tt->tt_size(&cur_clo);
 
@@ -93,9 +95,11 @@ typesize_t __computeArrayBits(
 		if (i != (num_elems - 1))
 			tf->tf_params(clo_parent, i+1, cur_clo.clo_params);
 	}
+	DEBUG_RT_WRITE("Looping finished. sz=%"PRIu64, total_bits);
 
 	/* reset to original */
 	__setDyn(elem_type, &old_dyn);
+	fsl_virt_unref(&old_dyn);
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_COMPUTEARRAYBITS);
 

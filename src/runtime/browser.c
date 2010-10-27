@@ -1,4 +1,5 @@
 /* browse a filesystem like a pro */
+//#define DEBUG_TOOL
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -7,6 +8,7 @@
 #include <assert.h>
 #include <stdbool.h>
 
+#include "debug.h"
 #include "runtime.h"
 #include "type_info.h"
 
@@ -132,10 +134,12 @@ static void select_field(struct type_info* cur, int field_idx)
 	diskoff_t			next_off;
 	TI_INTO_CLO			(cur);
 
+	DEBUG_TOOL_ENTER();
+
 	field = &(tt_by_ti(cur)->tt_fieldall_thunkoff[field_idx]);
 	if (field->tf_typenum == TYPENUM_INVALID) {
 		printf("Given field number does not point to type.\n");
-		return;
+		goto done;
 	}
 
 	next_off = field->tf_fieldbitoff(clo);
@@ -151,18 +155,19 @@ static void select_field(struct type_info* cur, int field_idx)
 		field->tf_params(clo, 0, params);
 	}
 
-	if (next_off == ~0)
-		return;
+	if (next_off == ~0) goto done;
 
 	td_init(&next_td, field->tf_typenum, next_off, params);
 
 	ti_next = typeinfo_alloc_by_field(&next_td, field, cur);
-	if (ti_next == NULL)
-		return;
+	if (ti_next == NULL) goto done;
 
 	menu(ti_next);
 
 	typeinfo_free(ti_next);
+
+done:
+	DEBUG_TOOL_LEAVE();
 }
 
 static void select_virt(struct type_info* cur, int vt_idx)
@@ -171,22 +176,29 @@ static void select_virt(struct type_info* cur, int vt_idx)
 	struct fsl_rt_table_virt*	vt;
 	struct type_info*		ti_next;
 	int				sel_elem;
+	int				err;
+
+	DEBUG_TOOL_ENTER();
 
 	tt = tt_by_ti(cur);
 	assert (vt_idx < tt->tt_virt_c && "Virt index out of range");
 
 	sel_elem = get_sel_elem_unbounded();
 	if (sel_elem == INT_MIN)
-		return;
+		goto done;
 
 	vt = &tt->tt_virt[vt_idx];
-	ti_next = typeinfo_alloc_virt_idx(vt, cur, sel_elem, NULL);
+	err = 0;
+	ti_next = typeinfo_alloc_virt_idx(vt, cur, sel_elem, &err);
+	DEBUG_TOOL_WRITE("virt_alloc %s[%d]: %p-- err=%d\n", vt->vt_name, sel_elem, ti_next, err);
 	if (ti_next == NULL)
-		return;
+		goto done;
 
 	menu(ti_next);
 
 	typeinfo_free(ti_next);
+done:
+	DEBUG_TOOL_LEAVE();
 }
 
 #define MCMD_DUMP	-1
@@ -234,6 +246,7 @@ static bool handle_menu_choice(
 
 static void menu(struct type_info* cur)
 {
+	DEBUG_TOOL_ENTER();
 	do {
 		int				choice;
 		ssize_t				br;
@@ -253,6 +266,7 @@ static void menu(struct type_info* cur)
 		if ((br <= 0) || !handle_menu_choice(cur, choice))
 			return;
 	} while(1);
+	DEBUG_TOOL_LEAVE();
 }
 
 int tool_entry(int argc, char* argv[])

@@ -56,9 +56,13 @@ color_table = [
 	'rgb(255,125,0)', #orange
 	'rgb(255,62,0)',
 	'rgb(255,0,0)', #red
-	'rgb(255,60,60)',
-	'rgb(255,125,125)',
-	'rgb(255,190,190)',
+	'rgb(255,0,60)',
+	'rgb(255,0,125)',
+	'rgb(255,0,190)',
+	'rgb(255,0,255)',
+	'rgb(255,60,255)',
+	'rgb(255,125,255)',
+	'rgb(255,190,255)',
 	'rgb(255,255,255)',
 ]
 
@@ -75,7 +79,7 @@ print "Colors: " + str(len(color_table))
 
 
 if len(color_table) < hit_count_logrange:
-	print "Not enough colors"
+	print ">>>>>Not enough colors"
 	sys.exit(-2)
 
 def getColor(hit_c):

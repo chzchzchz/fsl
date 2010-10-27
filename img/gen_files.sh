@@ -6,15 +6,19 @@ else
 	BRANCH_FACTOR=$1
 fi
 
-sudo chmod -R 777 /mnt/FSTEST
+if [ -z "$GEN_FILE_PATH" ]; then
+	GEN_FILE_PATH=/mnt/FSTEST
+fi
+
+sudo chmod -R 777 "${GEN_FILE_PATH}"
 
 for a in `seq ${BRANCH_FACTOR}`; do
-	echo "A$a" >/mnt/FSTEST/"$a".aaa
+	echo "A$a" >"${GEN_FILE_PATH}"/"$a".aaa
 done
 
 for b in `seq ${BRANCH_FACTOR}`; do
-	mkdir -p /mnt/FSTEST/"$b"d
+	mkdir -p "${GEN_FILE_PATH}"/"$b"d
 	for a in `seq ${BRANCH_FACTOR}`; do
-		echo "AAA$a" >/mnt/FSTEST/"$b"d/$a.qqq
+		echo "AAA$a" >"${GEN_FILE_PATH}"/"$b"d/$a.qqq
 	done
 done

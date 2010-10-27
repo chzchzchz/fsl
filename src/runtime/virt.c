@@ -1,3 +1,4 @@
+//#define DEBUG_VIRT
 #include <assert.h>
 #include <inttypes.h>
 #include <stdlib.h>
@@ -22,7 +23,9 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	assert (clo != NULL);
 
 	rtm = clo->clo_xlate;
-	assert (rtm != NULL);
+	DEBUG_VIRT_WRITE("rtmptr: %p", rtm);
+	assert (rtm != NULL && "No xlate.");
+	assert (rtm->rtm_clo != NULL && "xlate not fully initialized?");
 
 	assert (bit_off < fsl_virt_total_bits(rtm));
 	DEBUG_VIRT_WRITE("rtm->rtm_cached_min = %"PRIu64, rtm->rtm_cached_minidx);
@@ -37,6 +40,7 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 
 	/* use dyn vars set on allocation of xlate */
 	old_clo = fsl_rt_dyn_swap(rtm->rtm_dyn);
+	DEBUG_VIRT_WRITE("&rtm->rtm_clo = %p", rtm->rtm_clo);
 	DEBUG_VIRT_WRITE("rtm_clo->clo_offset: %"PRIu64" bits (%"PRIu64" bytes)",
 		rtm->rtm_clo->clo_offset,
 		rtm->rtm_clo->clo_offset / 8);
@@ -57,11 +61,56 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	return base + off;
 }
 
+static void fsl_virt_ref_all(struct fsl_rt_closure* clo)
+{
+	if (clo == NULL) return;
+	if (clo->clo_xlate == NULL) return;
+	fsl_virt_ref(clo);
+	fsl_virt_ref_all(clo->clo_xlate->rtm_clo);
+}
+
+static void fsl_virt_unref_all(struct fsl_rt_closure* clo)
+{
+	if (clo == NULL) return;
+	if (clo->clo_xlate == NULL) return;
+	fsl_virt_unref(clo);
+	fsl_virt_unref_all(clo->clo_xlate->rtm_clo);
+}
+
+
 void fsl_virt_free(struct fsl_rt_mapping* rtm)
 {
+	DEBUG_VIRT_ENTER();
 	assert (rtm != NULL);
+	assert (rtm->rtm_ref_c == 1);
+	DEBUG_VIRT_WRITE("Freeing: rtm=%p", rtm);
 	fsl_dyn_free(rtm->rtm_dyn);
+	fsl_virt_unref_all(rtm->rtm_clo);
 	free(rtm);
+	DEBUG_VIRT_LEAVE();
+}
+
+void fsl_virt_ref(struct fsl_rt_closure* clo)
+{
+	struct fsl_rt_mapping	*rtm;
+
+	rtm = clo->clo_xlate;
+	if (rtm == NULL) return;
+
+	rtm->rtm_ref_c++;
+}
+
+void fsl_virt_unref(struct fsl_rt_closure* clo)
+{
+	struct fsl_rt_mapping	*rtm;
+
+	rtm = clo->clo_xlate;
+	if (rtm == NULL) return;
+
+	if (rtm->rtm_ref_c == 1)
+		fsl_virt_free(rtm);
+	else
+		rtm->rtm_ref_c--;
 }
 
 struct fsl_rt_mapping*  fsl_virt_alloc(
@@ -79,9 +128,14 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 	rtm = malloc(sizeof(*rtm));
 	rtm->rtm_virt = vt;
 	rtm->rtm_clo = parent;
+	fsl_virt_ref_all(parent);
 	rtm->rtm_dyn = fsl_dyn_copy(fsl_env->fctx_dyn_closures);
+	rtm->rtm_ref_c = 1;
 
-	DEBUG_VIRT_WRITE("COPY DONE");
+	DEBUG_VIRT_WRITE("DYNALLOC: rtm=%p. rtm->rtm_clo=%p",
+		rtm, rtm->rtm_clo);
+
+	DEBUG_VIRT_WRITE("DYN COPY DONE");
 
 	/* XXX for the time being, assume all source types are same size */
 	if (fsl_virt_load_cache(rtm, true) == false) {
@@ -188,6 +242,8 @@ diskoff_t fsl_virt_get_nth(
 
 	if (target_idx == 0) return 0;
 
+	DEBUG_VIRT_ENTER();
+
 	total_bits = 0;
 	cur_off = 0;
 	virt_typenum = rtm->rtm_virt->vt_type_virttype;
@@ -197,11 +253,14 @@ diskoff_t fsl_virt_get_nth(
 	/* save old dyn closure value */
 	NEW_EMPTY_CLO			(old_dyn, virt_typenum);
 	__getDynClosure(virt_typenum, &old_dyn);
+	fsl_virt_ref(&old_dyn);
+
 	for (i = 0; i < target_idx; i++) {
 		typesize_t		cur_size;
 		NEW_VCLO		(new_clo, cur_off, NULL, rtm);
 
 		__setDyn(virt_typenum, &new_clo);
+
 		cur_size = tt->tt_size(&new_clo);
 		DEBUG_VIRT_WRITE("new_clo->voffset = %"PRIu64, new_clo.clo_offset);
 		DEBUG_VIRT_WRITE("fsl_total_bits= %"PRIu64, fsl_virt_total_bits(rtm));
@@ -209,17 +268,23 @@ diskoff_t fsl_virt_get_nth(
 		total_bits += cur_size;
 		cur_off += cur_size;
 
-		DEBUG_VIRT_WRITE("%"PRIu64" >= %"PRIu64"???",
+		DEBUG_VIRT_WRITE("%"PRIu64" >= %"PRIu64"??? Invalid!",
 			total_bits,
 			fsl_virt_total_bits(rtm));
 		if (total_bits >= fsl_virt_total_bits(rtm)) {
 			__setDyn(virt_typenum, &old_dyn);
+			fsl_virt_unref(&old_dyn);
+			DEBUG_VIRT_LEAVE();
 			return OFFSET_INVALID;
 		}
 	}
 
 	/* reset to original */
 	__setDyn(virt_typenum, &old_dyn);
+	fsl_virt_unref(&old_dyn);
+
+
+	DEBUG_VIRT_LEAVE();
 
 	return total_bits;
 }

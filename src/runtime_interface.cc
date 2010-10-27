@@ -14,6 +14,7 @@ extern CodeBuilder* code_builder;
 #define RTF_TYPE_CLOSURE	1
 #define RTF_TYPE_INT64		2
 #define RTF_TYPE_INT64PTR	3
+#define RTF_TYPE_INT8PTR	4
 
 #define RTF_MAX_PARAMS		7
 
@@ -46,6 +47,7 @@ struct rt_func rt_funcs[] =
 	{"__getDynParams",
 		RTF_TYPE_VOID, 2, {RTF_TYPE_INT64, RTF_TYPE_INT64PTR}},
 	{"__getDynOffset",  RTF_TYPE_INT64,  1, {RTF_TYPE_INT64} },
+	{"__getDynVirt",  RTF_TYPE_INT8PTR,  1, {RTF_TYPE_INT64} },
 	{"__getDynClosure",  RTF_TYPE_VOID,  2, {RTF_TYPE_INT64, RTF_TYPE_CLOSURE} },
 	{"fsl_fail" , RTF_TYPE_INT64 /* fake it */, 0 },
 	{ "__max2", RTF_TYPE_INT64,  2, {RTF_TYPE_INT64, RTF_TYPE_INT64} },
@@ -97,9 +99,10 @@ static const llvm::Type* rtf_type2llvm(rtftype_t t)
 	case RTF_TYPE_CLOSURE:	return code_builder->getClosureTyPtr();
 	case RTF_TYPE_INT64:	return llvm::Type::getInt64Ty(gctx);
 	case RTF_TYPE_INT64PTR:	return llvm::Type::getInt64PtrTy(gctx);
+	case RTF_TYPE_INT8PTR:	return llvm::Type::getInt8PtrTy(gctx);
 	}
 
-	assert (0 == 1);
+	assert (0 == 1 && "Undefiend llvm type");
 	return NULL;
 }
 static void rt_func_args(
@@ -214,6 +217,16 @@ Expr* RTInterface::getDynParams(const Type* user_type)
 		new ExprList(new Number(user_type->getTypeNum())));
 }
 
+
+Expr* RTInterface::getDynVirt(const class Type* user_type)
+{
+	assert (user_type != NULL);
+
+	return new FCall(
+		new Id("__getDynVirt"),
+		new ExprList(new Number(user_type->getTypeNum())));
+}
+
 Expr* RTInterface::getThunkClosure(void)
 {
 	return new Id(getThunkClosureName());
@@ -224,12 +237,17 @@ Expr* RTInterface::getThunkArgOffset(void)
 	return new Id(getThunkArgOffsetName());
 }
 
-Expr*	RTInterface::getThunkArgParamPtr(void)
+Expr* RTInterface::getThunkArgParamPtr(void)
 {
 	return new Id(getThunkArgParamPtrName());
 }
 
-Expr*	RTInterface::getThunkArgIdx(void)
+Expr* RTInterface::getThunkArgVirt(void)
+{
+	return new Id(getThunkArgVirtName());
+}
+
+Expr* RTInterface::getThunkArgIdx(void)
 {
 	return new Id(getThunkArgIdxName());
 }
@@ -242,6 +260,11 @@ const std::string RTInterface::getThunkArgIdxName(void)
 const std::string RTInterface::getThunkClosureName(void)
 {
 	return "__thunk_closure";
+}
+
+const std::string RTInterface::getThunkArgVirtName(void)
+{
+	return "__thunk_virt";
 }
 
 const std::string RTInterface::getThunkArgOffsetName(void)
@@ -305,7 +328,7 @@ Expr* RTInterface::computeArrayBits(
 	/* converted into single closure */
 	const Expr* diskoff, 	/* base */
 	const Expr* params,	/* params */
-
+	const Expr* virt,	/* virt */
 	/* nth element to find */
 	const Expr* num_elems)
 {
@@ -316,7 +339,8 @@ Expr* RTInterface::computeArrayBits(
 
 	exprs = new ExprList();
 	exprs->add(new Number(t->getTypeNum()));
-	exprs->add(FCall::mkClosure(diskoff->copy(), params->copy()));
+	exprs->add(FCall::mkClosure(
+		diskoff->copy(), params->copy(), virt->copy()));
 	exprs->add(new Number(fieldall_num));
 	exprs->add(num_elems->copy());
 

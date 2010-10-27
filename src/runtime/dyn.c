@@ -54,6 +54,7 @@ void fsl_dyn_free(struct fsl_rt_closure* dyn_closures)
 		clo = &dyn_closures[i];
 		if (clo->clo_params != NULL)
 			free(clo->clo_params);
+		fsl_virt_unref(clo);
 	}
 	free(dyn_closures);
 }
@@ -67,11 +68,16 @@ struct fsl_rt_closure* fsl_dyn_copy(const struct fsl_rt_closure* src)
 
 	ret = fsl_dyn_alloc();
 	for (i = 0; i < fsl_num_types; i++) {
-		ret[i].clo_offset = src[i].clo_offset;
-		ret[i].clo_xlate = src[i].clo_xlate;
-		if (ret[i].clo_params != NULL)
-			memcpy(ret[i].clo_params, src[i].clo_params,
+		struct fsl_rt_closure	*cur_clo;
+
+		cur_clo = &ret[i];
+		cur_clo->clo_offset = src[i].clo_offset;
+		cur_clo->clo_xlate = src[i].clo_xlate;
+		if (cur_clo->clo_params != NULL)
+			memcpy(	cur_clo->clo_params,
+				src[i].clo_params,
 				tt_by_num(i)->tt_param_c*sizeof(uint64_t));
+		fsl_virt_ref(cur_clo);
 	}
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_DYNCOPY);
@@ -132,9 +138,22 @@ void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
 		src_clo->clo_params,
 		sizeof(uint64_t)*tt_by_num(typenum)->tt_param_c);
 	DEBUG_DYN_WRITE("successfully copied closure params");
+
 	clo->clo_xlate = src_clo->clo_xlate;
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_GETCLOSURE);
+}
+
+void* __getDynVirt(uint64_t type_num)
+{
+	const struct fsl_rt_closure	*src_clo;
+
+	assert (type_num < fsl_env->fctx_num_types);
+
+	src_clo = env_get_dyn_clo(type_num);
+	assert (src_clo->clo_offset != ~0);
+
+	return src_clo->clo_xlate;
 }
 
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
@@ -148,7 +167,15 @@ void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
 	dst_clo = env_get_dyn_clo(type_num);
 	dst_clo->clo_offset = clo->clo_offset;
 	memcpy(dst_clo->clo_params, clo->clo_params, 8*tt->tt_param_c);
-	dst_clo->clo_xlate = clo->clo_xlate;
+
+	if (dst_clo->clo_xlate != clo->clo_xlate) {
+		if (dst_clo->clo_xlate != NULL) fsl_virt_unref(dst_clo);
+		dst_clo->clo_xlate = clo->clo_xlate;
+		if (dst_clo->clo_xlate != NULL) fsl_virt_ref(dst_clo);
+	}
+
+	if (dst_clo->clo_xlate != NULL)
+		assert (dst_clo->clo_xlate->rtm_clo != NULL);
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_DYNSET);
 }

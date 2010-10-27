@@ -25,10 +25,18 @@ extern func_map		funcs_map;
 extern RTInterface	rt_glue;
 
 
-Expr* FCall::mkClosure(Expr* diskoff, Expr* params)
+Expr* FCall::mkClosure(Expr* diskoff, Expr* params, Expr* virt)
 {
-	assert (diskoff != NULL && params != NULL);
-	return new FCall(new Id("__mkClosure"), new ExprList(diskoff, params));
+	ExprList	*el;
+
+	assert (diskoff != NULL && params != NULL && virt != NULL);
+
+	el = new ExprList();
+	el->add(diskoff);
+	el->add(params);
+	el->add(virt);
+
+	return new FCall(new Id("__mkClosure"), el);
 }
 
 llvm::Value* FCall::codeGenLet(void) const
@@ -91,11 +99,41 @@ llvm::Value* FCall::codeGenExtractOff(void) const
 
 	ret = code_builder->getBuilder()->CreateExtractValue(
 		code_builder->getBuilder()->CreateLoad(closure_val),
-		0,
+		RT_CLO_IDX_OFFSET,
 		"offset");
 
 	return ret;
 }
+
+llvm::Value* FCall::codeGenExtractVirt(void) const
+{
+	Expr		*expr;
+	llvm::Value	*closure_val;
+	llvm::Value	*ret;
+
+	assert (id->getName() == "__extractVirt");
+
+	if (exprs->size() != 1) {
+		cerr << "__extractVirt takes 1 param" << endl;
+		return NULL;
+	}
+
+	/* we were passed expr that is a closure */
+	expr = exprs->front();
+	closure_val = expr->codeGen();
+	if (closure_val == NULL) {
+		cerr << "__extractVirt could not get closure" << endl;
+		return NULL;
+	}
+
+	ret = code_builder->getBuilder()->CreateExtractValue(
+		code_builder->getBuilder()->CreateLoad(closure_val),
+		RT_CLO_IDX_XLATE,
+		"virt");
+
+	return ret;
+}
+
 
 llvm::Value* FCall::codeGenExtractParam(void) const
 {
@@ -119,7 +157,7 @@ llvm::Value* FCall::codeGenExtractParam(void) const
 
 	return code_builder->getBuilder()->CreateExtractValue(
 		code_builder->getBuilder()->CreateLoad(closure_val),
-		1,
+		RT_CLO_IDX_PARAMS,
 		"params");
 }
 
@@ -209,8 +247,7 @@ llvm::Value* FCall::codeGenDynParams(void) const
 
 llvm::Value* FCall::codeGenMkClosure(void) const
 {
-	llvm::Value			*diskoff;
-	llvm::Value			*params;
+	llvm::Value			*diskoff, *params, *virt;
 	llvm::Type			*ret_type;
 	llvm::AllocaInst 		*closure;
 	llvm::Value			*closure_loaded;
@@ -218,11 +255,12 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 	ExprList::const_iterator	it;
 
 	/* this is compiler generated-- do not warn user! crash crash */
-	assert (exprs->size() == 2 && "WRONGLY SPECIFIED MKCLOSURE BY FSL");
+	assert (exprs->size() == 3 && "WRONGLY SPECIFIED MKCLOSURE BY FSL");
 
 	it = exprs->begin();
 	diskoff = (*it)->codeGen(); it++;
-	params = (*it)->codeGen();
+	params = (*it)->codeGen(); it++;
+	virt = (*it)->codeGen();
 
 	if (diskoff == NULL || params == NULL) {
 		cerr << "Couldn't mkpass: ";
@@ -247,7 +285,7 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 					RT_CLO_IDX_PARAMS),
 				diskoff,
 				RT_CLO_IDX_OFFSET),
-			code_builder->getNullPtrI8(),
+			virt,
 			RT_CLO_IDX_XLATE),
 		closure);
 
@@ -327,6 +365,8 @@ bool FCall::handleSpecialForms(llvm::Value* &ret) const
 		ret = codeGenExtractOff();
 	else if (call_name == "__extractParam")
 		ret = codeGenExtractParam();
+	else if (call_name == "__extractVirt")
+		ret = codeGenExtractVirt();
 	else if (call_name == "__getDynParams_preAlloca")
 		ret = codeGenDynParams();
 	else if (call_name =="__getDynClosure_preAlloca")

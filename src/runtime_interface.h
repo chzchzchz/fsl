@@ -23,10 +23,12 @@ public:
 	Expr*	getDynOffset(const class Type* user_type);
 	Expr*	getDynParams(const class Type* user_type);
 	Expr*	getDynClosure(const class Type* user_type);
+	Expr*	getDynVirt(const class Type* user_type);
 
 	Expr*	getThunkClosure(void);
 	Expr*	getThunkArgOffset(void);
 	Expr*	getThunkArgParamPtr(void);
+	Expr*	getThunkArgVirt(void);
 	Expr*	getThunkArgIdx(void);
 
 	Expr	*getDebugCall(Expr* pass_val);
@@ -36,6 +38,7 @@ public:
 	const std::string getThunkClosureName(void);
 	const std::string getThunkArgOffsetName(void);
 	const std::string getThunkArgParamPtrName(void);
+	const std::string getThunkArgVirtName(void);
 	const std::string getThunkArgIdxName(void);
 
 
@@ -49,6 +52,7 @@ public:
 		/* converted into single closure */
 		const Expr* diskoff, 	/* base */
 		const Expr* params,	/* params */
+		const Expr* virt,	/* virt */
 		/* nth element to find */
 		const Expr* num_elems);
 	Expr	*fail(void);

@@ -46,7 +46,7 @@ struct type_info
 			struct fsl_rt_closure x;		\
 			x.clo_offset = (y)->td_clo.clo_offset;	\
 			x.clo_params = (y)->td_clo.clo_params;	\
-			x.clo_xlate = NULL
+			x.clo_xlate = (y)->td_clo.clo_xlate;
 
 #define TD_INTO_CLO(x)	const struct fsl_rt_closure *clo = &((x)->td_clo);
 

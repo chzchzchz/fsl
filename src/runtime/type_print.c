@@ -5,6 +5,7 @@
 #include <inttypes.h>
 #include <string.h>
 
+//#define DEBUG_TYPEINFO
 #include "debug.h"
 #include "type_info.h"
 
@@ -42,6 +43,8 @@ static void print_field_value(
 	unsigned int			param_c;
 	TI_INTO_CLO(ti);
 
+	DEBUG_TYPEINFO_ENTER();
+
 	/* print field name */
 	num_elems = field->tf_elemcount(clo);
 	printf("%s", field->tf_fieldname);
@@ -50,6 +53,7 @@ static void print_field_value(
 	}
 
 	/* compute field width */
+	DEBUG_TYPEINFO_WRITE("Computing width.");
 	field_typenum = field->tf_typenum;
 	if (num_elems > 1 &&
 	    field_typenum != TYPENUM_INVALID &&
@@ -63,6 +67,7 @@ static void print_field_value(
 		field_sz = field->tf_typesize(clo);
 		field_sz *= num_elems;
 	}
+	DEBUG_TYPEINFO_WRITE("Width = %d", field_sz);
 
 	field_off = field->tf_fieldbitoff(clo);
 	NEW_VCLO(last_field_clo, field_off, NULL, ti_xlate(ti));
@@ -83,6 +88,8 @@ static void print_field_value(
 	}
 
 	printf("\n");
+
+	DEBUG_TYPEINFO_LEAVE();
 }
 
 static void typeinfo_print_type(const struct type_info* ti)
@@ -286,6 +293,9 @@ void typeinfo_print_virts(const struct type_info* ti)
 	bool				none_seen;
 
 	if (ti_typenum(ti) == TYPENUM_INVALID) return;
+
+	DEBUG_TYPEINFO_ENTER();
+
 	tt = tt_by_ti(ti);
 
 	none_seen = true;
@@ -295,8 +305,17 @@ void typeinfo_print_virts(const struct type_info* ti)
 		TI_INTO_CLO			(ti);
 
 		vt = &tt->tt_virt[i];
+		DEBUG_TYPEINFO_WRITE("Type: %s. xlate=%p. voff=%"PRIu64". Virt=%s/%d",
+			tt->tt_name,
+			clo->clo_xlate,
+			ti_offset(ti),
+			vt->vt_name, i);
+
 		vt_min = vt->vt_min(clo);
+		DEBUG_TYPEINFO_WRITE("Min computed: %"PRIu64, vt_min);
+		DEBUG_TYPEINFO_WRITE("WHAT: %p", clo->clo_xlate);
 		vt_max = vt->vt_max(clo);
+		DEBUG_TYPEINFO_WRITE("Max computed: %"PRIu64, vt_max);
 		if (vt_min > vt_max)
 			continue;
 
@@ -319,6 +338,8 @@ void typeinfo_print_virts(const struct type_info* ti)
 		}
 
 	}
+
+	DEBUG_TYPEINFO_LEAVE();
 }
 
 #define DUMP_WIDTH	0x18
