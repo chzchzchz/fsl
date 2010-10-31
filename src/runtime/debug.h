@@ -69,10 +69,14 @@ extern unsigned int fsl_debug_depth;
 #define DEBUG_RT_WRITE
 #endif
 
+typedef unsigned int statenum_t;
+
 
 void fsl_debug_enter(const char *func_name);
 void fsl_debug_leave(const char *func_name);
 void fsl_debug_write(const char* fmt, ...);
 void fsl_debug_vwrite(const char* fmt, va_list vl);
+void fsl_debug_return_to_state(statenum_t);
+#define fsl_debug_get_state() fsl_debug_depth
 
 #endif

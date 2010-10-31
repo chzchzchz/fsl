@@ -1,0 +1,143 @@
+const __FSL_FSNAME = iso9660;
+const ISO_FLAG_HIDDEN =	0x01;
+const ISO_FLAG_DIR =	0x02;
+const ISO_FLAG_ASSC =	0x04;
+const ISO_FLAG_REC =	0x08;	/*record specified*/
+const ISO_FLAG_PERM =	0x10;	/*permissions specified*/
+const ISO_FLAG_NOTFINAL = 0x80;
+
+type both_endian_word
+{
+	u16	l;
+	u16	b;
+}
+
+type both_endian_dword
+{
+	u32	l;
+	u32	b;
+}
+
+type iso_date {
+	u8	year[4];
+	u8	month[2];
+	u8	day[2];
+	u8	hour[2];
+	u8	min[2];
+	u8	sec[2];
+	u8	csec[2];
+	u8	gmt_off;
+}
+
+type iso_vol_desc
+//assert (? chksum[0] == 0x67 && chksum[1] == 0x68 && chksum[2] == 0x48) TODO
+assert (? resv1 == 1 && resv2 == 0)
+//assert (? resv3[0] == 0 && resv3[1] == 0 /* ... need array ops */)
+assert (? sizeof_bytes(iso_vol_desc) == 2048)
+{
+	u8			resv1;		/*should equal 1*/
+	u8			chksum[6];
+	u8			resv2;	 	/*should equal 0*/
+	u8			sys_id[32];
+	u8			vol_id[32];
+	u8			resv3[8];       /*zeros*/
+	both_endian_dword       vol_total_sect;
+	u8			resv4[32];
+	both_endian_word        vol_set_size;
+	both_endian_word        vol_seq_no;
+	both_endian_word        sector_size;
+	both_endian_dword       path_table_len;
+	u32			l_path_entry;   /*sector*/
+	u32			l_path2_entry;
+	u32			b_path_entry;
+	u32			b_path2_entry;
+	iso_record		root_record;	/* 34 bytes? */
+	u8			vol_set_id[128];
+	u8			pub_id[128];
+	u8			data_id[128];
+	u8			app_id[128];
+	u8			copyright_id[37];
+	u8			abstract_id[37];
+	u8			biblio_id[37];
+	iso_date		vol_ctime;
+	iso_date		vol_mtime;
+	iso_date		vol_expr;
+	iso_date		vol_eff;
+	u8			resv5[2];       /* 1, 0 */
+	u8			resv6[512];
+	u8			resv7[653];
+}
+
+type iso_path_table
+{
+	u8	name_len;
+	u8	ext_sz;		/*no of sectors for ext attr record*/
+	u32	entry_loc;
+	u16	pdir_loc;	/*no of record for parent dir*/
+	u8	name[31];	/*max sz*/
+}
+
+
+uint bytes_to_blks(u32 bytes)
+{
+	u32	bsz;
+	bsz = get_block_size();
+	return (bytes + bsz - 1) / bsz;
+}
+uint get_block_size() { return disk.vol_desc.sector_size.l; }
+uint get_vol_blocks() { return disk.vol_desc.vol_total_sect.l;  }
+uint blk_to_disk(u32 blk) { return blk - 17; }
+
+uint iso_file_blocks(iso_record ir)
+{
+	if ((ir.flags & ISO_FLAG_DIR) != 0)
+		return 0;
+
+	return bytes_to_blks(ir.entry_sz.l);
+}
+
+type iso_record
+assert (? rec_sz == sizeof_bytes(iso_record))
+assert (? ident_sz <= 32)
+points_range(
+	i, 1, iso_file_blocks(iso_record),
+	disk.iso_blocks[blk_to_disk(entry_loc.l+(i-1))]) as iso_file
+virtual_if(
+	? (flags & ISO_FLAG_DIR) != 0,
+	iso_record,
+	i, 1, bytes_to_blks(entry_sz.l),
+	disk.iso_blocks[blk_to_disk(entry_loc.l+(i-1))]) as iso_dir
+{
+	u8			rec_sz;		/*no of bytes in record*/
+	u8			ext_sz;		/*sectors in extended attr*/
+	both_endian_dword	entry_loc;
+	both_endian_dword	entry_sz;
+	u8			year;		/*since 1900*/
+	u8			mon;
+	u8			day;
+	u8			hour;
+	u8			min;
+	u8			sec;
+	u8			gmt_off;
+	u8			flags;
+	u8			unit_sz;	/*for interleaved files*/
+	u8			gap_sz;
+	both_endian_word	seq_no;
+	u8			ident_sz;	/*identifier len*/
+	u8			ident[ident_sz];
+	/*identifier follows*/
+}
+
+type iso_block
+{
+	u8	block[get_block_size()];
+}
+
+type disk
+{
+        /* vol_desc begins at 16th logical sector */
+        /* sector size is assumed to be 2048 bytes */
+	skip_bytes(2048*16);
+	iso_vol_desc		vol_desc;
+	iso_block		iso_blocks[get_vol_blocks() - bytes_to_blks((from_base_bits()/8)/get_block_size())] fixed;
+}

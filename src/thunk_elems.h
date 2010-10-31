@@ -14,18 +14,22 @@ class ThunkElements : public ThunkFieldFunc
 {
 public:
 	ThunkElements(unsigned int i)
-	: ThunkFieldFunc(i) { setPrefix("thunkelems"); }
+	: ThunkFieldFunc(i), fixed(false) { setPrefix("thunkelems"); }
 
-	ThunkElements(Expr* e)
-	: ThunkFieldFunc(e) { setPrefix("thunkelems"); }
+	ThunkElements(Expr* e, bool in_fixed = false)
+	: ThunkFieldFunc(e), fixed(in_fixed) { setPrefix("thunkelems"); }
 
 	virtual ~ThunkElements() {}
 
 	virtual ThunkElements* copy(void) const;
 
 	bool isSingleton(void) const;
+	/* array, all elems same size */
+	bool isFixed() const { return fixed; }
 
 protected:
+private:
+	bool fixed;
 };
 
 

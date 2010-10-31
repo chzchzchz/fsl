@@ -97,11 +97,13 @@ typesize_t __computeArrayBits(
 	}
 	DEBUG_RT_WRITE("Looping finished. sz=%"PRIu64, total_bits);
 
+
 	/* reset to original */
 	__setDyn(elem_type, &old_dyn);
 	fsl_virt_unref(&old_dyn);
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_COMPUTEARRAYBITS);
+	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_COMPUTEARRAYBITS_LOOPS, num_elems);
 
 	DEBUG_RT_LEAVE();
 
@@ -131,14 +133,15 @@ static const char* fsl_stat_fields[FSL_NUM_STATS] =
 	"br",			/* FSL_STAT_BITS_READ */
 	"xlate_call",		/* FSL_STAT_XLATE_CALL */
 	"xlate_alloc",		/* FSL_STAT_XLATE_ALLOC */
-	"comp_array_bits",	/* FSL_STAT_COMPUTEARRAYBITS */
+	"computeArrayBits",	/* FSL_STAT_COMPUTEARRAYBITS */
 	"dyn_set",		/* FSL_STAT_DYNSET */
 	"get_param",		/* FSL_STAT_GETPARAM */
 	"get_closure",		/* FSL_STAT_GETCLOSURE */
 	"get_offset",		/* FSL_STAT_GETOFFSET */
 	"dyn_copy",		/* FSL_STAT_DYNCOPY */
 	"dyn_alloc",		/* FSL_STAT_DYNALLOC */
-	"typeinfo_alloc"	/* FSL_STAT_TYPEINFO_ALLOC */
+	"typeinfo_alloc",	/* FSL_STAT_TYPEINFO_ALLOC */
+	"comparray_elems"	/* FSL_STAT_COMPUTEARRAYBITS_LOOPS */
 };
 
 static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)

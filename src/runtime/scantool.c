@@ -195,7 +195,7 @@ static void handle_virt(struct type_info* ti, struct fsl_rt_table_virt* vt)
 		ti_cur = typeinfo_alloc_virt_idx(vt, ti, i, &err_code);
 		if (ti_cur == NULL) {
 			DEBUG_TOOL_WRITE(
-				"(skipping %s %d err=%d)",
+				"handle_virt: (skipping %s %d err=%d)",
 				vt->vt_name, i, err_code);
 			i++;
 			continue;

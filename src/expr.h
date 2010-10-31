@@ -270,7 +270,7 @@ class IdArray  : public Expr
 {
 public: 
 	IdArray(Id *in_id, Expr* expr) : 
-		id(in_id), idx(expr) 
+		id(in_id), idx(expr), fixed(false)
 	{
 		assert (id != NULL);
 		assert (idx != NULL);
@@ -309,7 +309,9 @@ public:
 
 	IdArray* copy(void) const
 	{
-		return new IdArray(id->copy(), idx->copy());
+		IdArray	*ret = new IdArray(id->copy(), idx->copy());
+		ret->fixed = fixed;
+		return ret;
 	}
 
 	bool operator==(const Expr* e) const
@@ -339,9 +341,13 @@ public:
 	llvm::Value* codeGen() const;
 
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
+
+	bool isFixed(void) const { return fixed; }
+	void setFixed(bool f) { fixed = f; }
 private:
 	Id		*id;
 	Expr		*idx;
+	bool		fixed;
 };
 
 

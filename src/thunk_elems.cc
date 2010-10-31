@@ -21,6 +21,7 @@ ThunkElements* ThunkElements::copy(void) const
 	ret = new ThunkElements(raw_expr->copy());
 	ret->setOwner(getOwner());
 	ret->setFieldName(getFieldName());
+	ret->fixed = fixed;
 
 	return ret;
 }

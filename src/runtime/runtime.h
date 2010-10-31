@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <setjmp.h>
 
 /* XXX TODO Needs local context for multi-threading.. */
 
@@ -39,7 +40,8 @@ extern struct fsl_rt_ctx* 	fsl_env;
 #define FSL_STAT_DYNCOPY		10
 #define FSL_STAT_DYNALLOC		11
 #define FSL_STAT_TYPEINFO_ALLOC		12
-#define FSL_NUM_STATS			13
+#define FSL_STAT_COMPUTEARRAYBITS_LOOPS 13
+#define FSL_NUM_STATS			14
 #define FSL_STATS_GET(x,y)		((x)->s_counters[y])
 #define FSL_STATS_INC(x,y)		(x)->s_counters[y]++
 #define FSL_STATS_ADD(x,y,z)		(x)->s_counters[y] += (z)
@@ -57,6 +59,9 @@ struct fsl_rt_ctx
 	struct fsl_rt_closure	*fctx_dyn_closures;
 	struct fsl_rt_io	*fctx_io;
 	struct fsl_rt_stat	fctx_stat;
+	bool			fctx_in_unsafe_op;
+	int			fctx_err_unsafe_op;
+	jmp_buf			fctx_except;
 };
 
 struct fsl_rt_mapping;
@@ -92,7 +97,9 @@ struct fsl_rt_closure
 #include "virt.h"
 
 #define TYPENUM_INVALID	(~0)
-#define OFFSET_INVALID (~0)
+#define OFFSET_INVALID	((uint64_t)(~0))
+#define OFFSET_EOF	((uint64_t)((~0) - 1))
+#define offset_is_bad(x)	(((uint64_t)(x)) >= OFFSET_EOF)
 
 /* XXX these should take a thunkvar when we support args */
 typedef diskoff_t(*thunkf_t)(const struct fsl_rt_closure*);

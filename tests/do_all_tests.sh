@@ -2,6 +2,7 @@
 # build
 
 src_root=`pwd`
+FILESYSTEMS="ext2 vfat nilfs2 testfs iso9660"
 
 echo "Pre-commit Tests..."
 echo "Building language."
@@ -44,12 +45,12 @@ if [ "$TEST_CONFIG" == "EXTRA" ]; then
 	done
 else
 	echo "STANDARD TESTS"
-	fs_scan_startup_img ext2 ext2-small.img
-	for fs in ext2 vfat nilfs2 testfs; do
-		fs_scan_startup "$fs"
+	for fs in $FILESYSTEMS; do
 		fs_browser_startup "$fs"
 		fs_specific_tests "$fs"
+		fs_scan_startup "$fs"
 	done
+	fs_scan_startup_img ext2 ext2-small.img
 fi
 
 rm -f failed_test_cmd

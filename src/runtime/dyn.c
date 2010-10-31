@@ -1,3 +1,4 @@
+//#define DEBUG_DYN
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -96,6 +97,10 @@ uint64_t __getDynOffset(uint64_t type_num)
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_GETOFFSET);
 
+	DEBUG_DYN_WRITE("GetDynOffset. %s: offset=%"PRIu64,
+		tt_by_num(type_num)->tt_name,
+		src_clo->clo_offset);
+
 	return src_clo->clo_offset;
 }
 
@@ -137,7 +142,8 @@ void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo)
 	memcpy(	clo->clo_params,
 		src_clo->clo_params,
 		sizeof(uint64_t)*tt_by_num(typenum)->tt_param_c);
-	DEBUG_DYN_WRITE("successfully copied closure params");
+	DEBUG_DYN_WRITE("successfully copied closure params for %s",
+		tt_by_num(typenum)->tt_name);
 
 	clo->clo_xlate = src_clo->clo_xlate;
 

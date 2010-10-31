@@ -95,10 +95,11 @@ struct type_info* typeinfo_alloc_pointsto(
 #define typeinfo_alloc_virt(v,t)	typeinfo_alloc_virt_idx(v,t,0,NULL)
 
 #define TI_ERR_OK		0
-#define TI_ERR_BADVIRT		-1
-#define TI_ERR_BADIDX		-2
-#define TI_ERR_BADALLOC		-3
-#define TI_ERR_BADVERIFY	-4
+#define TI_ERR_BADVIRT		-1	/* could not allocate virt */
+#define TI_ERR_BADIDX		-2	/* offset into virt invalid */
+#define TI_ERR_BADALLOC		-3	/* could not allocate typeinfo */
+#define TI_ERR_BADVERIFY	-4	/* loop and/or assertions failed */
+#define TI_ERR_EOF		-5	/* out of bounds access */
 
 struct type_info* typeinfo_alloc_virt_idx(
 	struct fsl_rt_table_virt* virt,

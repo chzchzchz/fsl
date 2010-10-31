@@ -82,19 +82,22 @@ public:
 	TypeDecl(Id* in_type, Id* in_name)
 	:	type(in_type),
 		name(in_name),
-		array(NULL)
+		array(NULL),
+		fixed_array(false)
 	{
 		assert (type != NULL);
 		assert (name != NULL);
 	}
 
-	TypeDecl(Id* in_type, IdArray* in_array)
+	TypeDecl(Id* in_type, IdArray* in_array, bool fixed)
 	:	type(in_type),
 		name(NULL),
-		array(in_array)
+		array(in_array),
+		fixed_array(fixed)
 	{
 		assert (type != NULL);
 		assert (array != NULL);
+		array->setFixed(fixed_array);
 	}
 
 	virtual ~TypeDecl();
@@ -111,10 +114,12 @@ public:
 	const Id* getType(void) const { return type; }
 	const Id* getScalar(void) const { return name; }
 	const IdArray* getArray(void) const { return array; }
+	const bool isFixed(void) const { return fixed_array; }
 private:
 	Id*		type;
 	Id*		name;
 	IdArray*	array;
+	bool		fixed_array;
 };
 
 class TypeParamDecl : public TypeStmt

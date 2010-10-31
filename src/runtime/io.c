@@ -20,6 +20,7 @@ uint64_t __getLocal(
 
 	assert (num_bits <= 64);
 	assert (num_bits > 0);
+	assert ((num_bits % 8) == 0 && "NO BIT READS");
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_ACCESS);
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_PHYSACCESS);
@@ -31,12 +32,17 @@ uint64_t __getLocal(
 
 	if (clo->clo_xlate != NULL) {
 		/* xlate path */
-		uint64_t	bit_off_old, bit_off_last;
+		uint64_t	bit_off_old, bit_off_next, bit_off_last;
 
 		bit_off_old = bit_off;
+		DEBUG_IO_WRITE("BIT_COUNT=%"PRIu64, num_bits);
+		DEBUG_IO_WRITE("BIT_OFF_OLD=%"PRIu64, bit_off_old);
 		bit_off = fsl_virt_xlate(clo, bit_off_old);
-		bit_off_last = fsl_virt_xlate(clo, bit_off_old + (num_bits - 1));
-		assert ((bit_off + (num_bits-1)) == (bit_off_last) &&
+
+		bit_off_next = bit_off_old + 8*((num_bits - 1)/8);
+		DEBUG_IO_WRITE("BIT_OFF_NEXT=%"PRIu64, bit_off_next);
+		bit_off_last = fsl_virt_xlate(clo, bit_off_next);
+		assert ((bit_off + 8*((num_bits-1)/8)) == (bit_off_last) &&
 			"Discontiguous getLocal not permitted");
 	}
 
@@ -53,7 +59,7 @@ uint64_t __getLocal(
 	if (io->io_cb_any != NULL) io->io_cb_any(io, bit_off);
 
 	DEBUG_IO_WRITE(
-		"Returning IO: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64"\n",
+		"Returning IO: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64,
 			bit_off, num_bits, ret);
 
 	DEBUG_IO_LEAVE();

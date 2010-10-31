@@ -23,12 +23,19 @@ Expr* ThunkField::copyNextOffset(void) const
 			new AOPMul(
 				t_size->copyFCall(),
 				t_elems->copyFCall()));
+	} else if (t_elems->isFixed() == true) {
+		ret = new AOPAdd(
+			t_fieldoff->copyFCall(),
+			new AOPMul(
+				t_size->copyFCall(),
+				t_elems->copyFCall()));
 	} else {
 		ret = new AOPAdd(
 			t_fieldoff->copyFCall(),
 			rt_glue.computeArrayBits(this));
 	}
 
+	/* XXX */
 	return Expr::rewriteReplace(
 		ret,
 		rt_glue.getThunkArgIdx(),

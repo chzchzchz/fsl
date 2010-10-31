@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 #include "debug.h"
 
 unsigned int fsl_debug_depth = 0;
@@ -46,4 +47,14 @@ void fsl_debug_vwrite(const char* fmt, va_list vl)
 	fsl_debug_indent();
 	vprintf(fmt, vl);
 	printf("\n");
+}
+
+void fsl_debug_return_to_state(statenum_t sn)
+{
+	statenum_t	old_sn;
+	assert (sn <= fsl_debug_depth && "Can't jump forward in debug state");
+
+	old_sn = fsl_debug_depth;
+	fsl_debug_depth = sn;
+	fsl_debug_write("debug: Skipped back %d levels.", sn - old_sn);
 }

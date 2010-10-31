@@ -34,15 +34,15 @@ assert ( ? get_cluster_count(d_bpb) <=
 	align_bytes(d_bpb.bytes_per_sector);
 	skip_bytes(d_bpb.bytes_per_sector * (d_bpb.reserved_sector_c - 1));
 	
-	fat		fats[d_bpb.fat_count];
+	fat		fats[d_bpb.fat_count] fixed;
 	
 	align_bytes(d_bpb.bytes_per_sector);
 	
-	fat_de		root_dir[d_bpb.root_de_c];
+	fat_de		root_dir[d_bpb.root_de_c] fixed;
 	
 	align_bytes(d_bpb.bytes_per_sector);
 
-	cluster		clusters[get_cluster_count(d_bpb)];
+	cluster		clusters[get_cluster_count(d_bpb)] fixed;
 }
 
 uint bytes_per_cluster()
@@ -88,7 +88,7 @@ cluster get_nth(uint i)
 
 type fat_dir(int num_ents)
 {
-	fat_de	de[num_ents];
+	fat_de	de[num_ents] fixed;
 }
 
 bool is_valid_cnum(u32 cnum)

@@ -55,7 +55,7 @@ void yyerror(const char* s)
 %token <token> TOKEN_LSHIFT TOKEN_RSHIFT TOKEN_MOD
 
 
-%token <token> TOKEN_SEMI TOKEN_QUESTION
+%token <token> TOKEN_SEMI TOKEN_QUESTION TOKEN_FIXED
 
 // comparison
 %token <token> TOKEN_CMPEQ TOKEN_CMPLE TOKEN_CMPGE TOKEN_CMPNE TOKEN_CMPGT TOKEN_CMPLT
@@ -347,7 +347,11 @@ type_stmt	: ident ident TOKEN_SEMI
 		}
 		| ident array TOKEN_SEMI
 		{
-			$$ = new TypeDecl((Id*)$1, (IdArray*)$2);
+			$$ = new TypeDecl((Id*)$1, (IdArray*)$2, false);
+		}
+		| ident array TOKEN_FIXED TOKEN_SEMI
+		{
+			$$ = new TypeDecl((Id*)$1, (IdArray*)$2, true);
 		}
 		| fcall TOKEN_SEMI
 		{

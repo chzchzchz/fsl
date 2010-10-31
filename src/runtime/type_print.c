@@ -1,3 +1,4 @@
+//#define DEBUG_TYPEINFO
 #include <stdbool.h>
 #include <assert.h>
 #include <stdio.h>
@@ -5,7 +6,6 @@
 #include <inttypes.h>
 #include <string.h>
 
-//#define DEBUG_TYPEINFO
 #include "debug.h"
 #include "type_info.h"
 

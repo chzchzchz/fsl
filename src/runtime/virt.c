@@ -14,6 +14,7 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	struct fsl_rt_mapping	*rtm;
 	struct fsl_rt_closure	*old_clo;
 	uint64_t		idx, off;
+	uint64_t		total_bits;
 	diskoff_t		base;
 
 	DEBUG_VIRT_ENTER();
@@ -23,11 +24,25 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	assert (clo != NULL);
 
 	rtm = clo->clo_xlate;
-	DEBUG_VIRT_WRITE("rtmptr: %p", rtm);
+	DEBUG_VIRT_WRITE("closure offset=%"PRIu64, clo->clo_offset);
+	DEBUG_VIRT_WRITE("&rtm = %p", rtm);
 	assert (rtm != NULL && "No xlate.");
 	assert (rtm->rtm_clo != NULL && "xlate not fully initialized?");
+	DEBUG_VIRT_WRITE("virt bit_off=%"PRIu64, bit_off);
+	assert ((bit_off % 8) == 0 && "Miss aligned xlate");
 
-	assert (bit_off < fsl_virt_total_bits(rtm));
+	total_bits = fsl_virt_total_bits(rtm);
+	DEBUG_VIRT_WRITE("virt bit_off=%"PRIu64" / total bits=%"PRIu64,
+		bit_off, total_bits);
+
+	if (bit_off >= total_bits && fsl_env->fctx_in_unsafe_op) {
+		DEBUG_VIRT_WRITE("Taking longjmp");
+		fsl_env->fctx_err_unsafe_op = 1;
+		DEBUG_VIRT_LEAVE();
+		longjmp(fsl_env->fctx_except, 1);
+	}
+
+	assert (bit_off < total_bits && "Accessing past virt bits");
 	DEBUG_VIRT_WRITE("rtm->rtm_cached_min = %"PRIu64, rtm->rtm_cached_minidx);
 	DEBUG_VIRT_WRITE("rtm->rtm_cached_max = %"PRIu64, rtm->rtm_cached_maxidx);
 
@@ -228,6 +243,39 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 	return true;
 }
 
+/* verify that the type does not overflow the virtual range:
+ * check size of current type against length of virt range */
+static bool fsl_virt_nth_verify_bounds(
+	const struct fsl_rt_mapping* rtm,
+	const struct fsl_rt_table_type* tt,
+	uint64_t cur_off)
+{
+	NEW_VCLO	(new_clo, cur_off, NULL, rtm);
+	typesize_t	cur_size;
+	statenum_t	sn;
+
+	fsl_env->fctx_err_unsafe_op = 0;
+	fsl_env->fctx_in_unsafe_op = true;
+	sn = fsl_debug_get_state();
+	if (setjmp(fsl_env->fctx_except) != 0) {
+		fsl_debug_return_to_state(sn);
+		DEBUG_VIRT_WRITE("nth: bad ret on setjmp");
+		fsl_env->fctx_err_unsafe_op = 0;
+		fsl_env->fctx_in_unsafe_op = false;
+		return false;
+	}
+	cur_size = tt->tt_size(&new_clo);
+	assert (fsl_env->fctx_err_unsafe_op == 0);
+	fsl_env->fctx_in_unsafe_op = false;
+
+	if (cur_size + cur_off >= fsl_virt_total_bits(rtm))
+		return false;
+
+	DEBUG_VIRT_WRITE("fsl_virt_get_nth: Bounds OK: voff=%"PRIu64, cur_off);
+
+	return true;
+}
+
 /** similar to computeArrayBits, but may fail (safely) */
 diskoff_t fsl_virt_get_nth(
 	const struct fsl_rt_mapping* rtm, unsigned int target_idx)
@@ -262,27 +310,33 @@ diskoff_t fsl_virt_get_nth(
 		__setDyn(virt_typenum, &new_clo);
 
 		cur_size = tt->tt_size(&new_clo);
-		DEBUG_VIRT_WRITE("new_clo->voffset = %"PRIu64, new_clo.clo_offset);
-		DEBUG_VIRT_WRITE("fsl_total_bits= %"PRIu64, fsl_virt_total_bits(rtm));
-		DEBUG_VIRT_WRITE("cur_size = %"PRIu64, cur_size);
+		DEBUG_VIRT_WRITE("nth: new_clo->voffset = %"PRIu64, new_clo.clo_offset);
+		DEBUG_VIRT_WRITE("nth: fsl_total_bits= %"PRIu64, fsl_virt_total_bits(rtm));
+		DEBUG_VIRT_WRITE("nth: cur_size = %"PRIu64, cur_size);
 		total_bits += cur_size;
 		cur_off += cur_size;
 
-		DEBUG_VIRT_WRITE("%"PRIu64" >= %"PRIu64"??? Invalid!",
-			total_bits,
-			fsl_virt_total_bits(rtm));
 		if (total_bits >= fsl_virt_total_bits(rtm)) {
-			__setDyn(virt_typenum, &old_dyn);
-			fsl_virt_unref(&old_dyn);
-			DEBUG_VIRT_LEAVE();
-			return OFFSET_INVALID;
+			DEBUG_VIRT_WRITE("nth %"PRIu64" >= %"PRIu64"??? Invalid!",
+				total_bits,
+				fsl_virt_total_bits(rtm));
+
+			total_bits = OFFSET_INVALID;
+			goto done;
 		}
 	}
 
+	DEBUG_VIRT_WRITE("fsl_virt_get_nth: verify bounds idx=%d voff=%"PRIu64,
+		target_idx, cur_off);
+	if (fsl_virt_nth_verify_bounds(rtm, tt, total_bits) == false) {
+		DEBUG_VIRT_WRITE("nth: bad bounds on %"PRIu64, total_bits);
+		total_bits = OFFSET_EOF;
+	}
+
 	/* reset to original */
+done:
 	__setDyn(virt_typenum, &old_dyn);
 	fsl_virt_unref(&old_dyn);
-
 
 	DEBUG_VIRT_LEAVE();
 

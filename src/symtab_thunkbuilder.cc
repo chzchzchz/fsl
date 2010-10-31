@@ -223,7 +223,7 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 			from_base_fc.copy(),
 			copyCurrentOffset());
 
-		field_elems = new ThunkElements(num_elems);
+		field_elems = new ThunkElements(num_elems, array->isFixed());
 	}
 
 	if (t != NULL && t->getNumArgs() != 0) {

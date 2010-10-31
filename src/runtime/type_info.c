@@ -110,6 +110,7 @@ static bool typeinfo_verify_asserts(const struct type_info *ti)
 		TI_INTO_CLO(ti);
 
 		as = &tt->tt_assert[i];
+		DEBUG_TYPEINFO_WRITE("check assert %d in %s", i, tt->tt_name);
 		if (as->as_assertf(clo) == false) {
 			DEBUG_TYPEINFO_WRITE(
 				"%s: Assert #%d failed!!!\n",
@@ -126,7 +127,7 @@ static bool typeinfo_verify(const struct type_info* ti)
 	DEBUG_TYPEINFO_ENTER();
 	DEBUG_TYPEINFO_WRITE("check loop %p", ti_xlate(ti));
 	if (ti_has_loop(ti) == true) {
-		DEBUG_TYPEINFO_WRITE("XXX addr already in chain! voff=%"PRIu64
+		DEBUG_TYPEINFO_WRITE("verify: addr already in chain! voff=%"PRIu64
 			" poff=%"PRIu64" (%s). xlate=%p",
 			ti_offset(ti),
 			ti_phys_offset(ti),
@@ -138,6 +139,7 @@ static bool typeinfo_verify(const struct type_info* ti)
 
 	DEBUG_TYPEINFO_WRITE("verify: check asserts %p", ti_xlate(ti));
 	if (typeinfo_verify_asserts(ti) == false) {
+		DEBUG_TYPEINFO_WRITE("verify: assertions failed");
 		DEBUG_TYPEINFO_LEAVE();
 		return false;
 	}
@@ -241,11 +243,11 @@ struct type_info* typeinfo_alloc_virt_idx(
 	}
 
 	if (idx != 0) {
-		DEBUG_TYPEINFO_WRITE("idx = %d", idx);
+		DEBUG_TYPEINFO_WRITE("alloc_virt_idx: idx = %d", idx);
 
 		array_bit_off = fsl_virt_get_nth(td_xlate(&td), idx);
 		assert (array_bit_off != 0 && "Type must be at non-zero voff");
-		if (array_bit_off == OFFSET_INVALID) {
+		if (offset_is_bad(array_bit_off)) {
 			fsl_virt_free(td_xlate(&td));
 			set_err_code(err_code, TI_ERR_BADIDX);
 			ret = NULL;
@@ -253,10 +255,12 @@ struct type_info* typeinfo_alloc_virt_idx(
 		}
 
 		td_offset(&td) = array_bit_off;
-		DEBUG_TYPEINFO_WRITE("idx = %d. Done. voff=%"PRIu64, idx, array_bit_off);
+		DEBUG_TYPEINFO_WRITE("idx = %d. Done. voff=%"PRIu64,
+			idx, array_bit_off);
 	}
 
-	DEBUG_TYPEINFO_WRITE("alloc_gen");
+	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: alloc_gen voff=%"PRIu64,
+		td_offset(&td));
 	assert (td_xlate(&td) != NULL);
 	ret = typeinfo_alloc_generic(&td, ti_prev);
 	if (ret == NULL) {
@@ -307,8 +311,13 @@ struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code)
 	/* XXX get_nth is slow, need better interface */
 	new_off = fsl_virt_get_nth(ti_xlate(ti), new_idx);
 	assert (new_off != 0 && "Next type must be at non-zero voff");
-	if (new_off == OFFSET_INVALID) {
-		set_err_code(err_code, TI_ERR_BADIDX);
+	if (offset_is_bad(new_off)) {
+		if (new_off == OFFSET_INVALID)
+			set_err_code(err_code, TI_ERR_BADIDX);
+		else if (new_off == OFFSET_EOF)
+			set_err_code(err_code, TI_ERR_EOF);
+		else
+			assert(0 == 1 && "UNKNOWN ERROR");
 		typeinfo_free(ti);
 		ti = NULL;
 		goto done;

@@ -360,6 +360,8 @@ sum(s_free_inodes_c)
 	set_bytes(1024);
 }
 
+//type ext2_file(u32 flen) { u8	file_dat[flen]; }
+
 type ext2_inode
 assert (? is_fast_symlink(ext2_inode) || i_block_direct[0] != 0)
 assert (? i_dtime == 0)

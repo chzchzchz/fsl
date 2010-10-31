@@ -54,10 +54,19 @@ Expr* EvalCtx::setNewOffsetsArray(
 	if (t != NULL) {
 		/* non-constant type size-- call out to runtime */
 		Expr	*array_elem_base;
+		bool	is_union;
 
 		*new_params = Expr::rewriteReplace(
 			*new_params, new Id("@"), idx->simplify());
-		if (t->isUnion() == false) {
+		is_union = t->isUnion();
+		if (is_union == true || tf->getElems()->isFixed()) {
+			Expr	*sz;
+
+			sz = new AOPMul(
+				replaceClosure(tf->getSize()->copyFCall(), tb),
+				evalReplace(*this, idx->simplify()));
+			array_elem_base = new AOPAdd(new_base, sz);
+		} else {
 			array_elem_base = rt_glue.computeArrayBits(
 				parent,
 				tf->getFieldNum(),
@@ -67,14 +76,8 @@ Expr* EvalCtx::setNewOffsetsArray(
 				evalReplace(*this, idx->simplify()));
 			array_elem_base = new AOPAdd(
 				new_base, array_elem_base);
-		} else {
-			Expr	*sz;
-
-			sz = new AOPMul(
-				replaceClosure(tf->getSize()->copyFCall(), tb),
-				evalReplace(*this, idx->simplify()));
-			array_elem_base = new AOPAdd(new_base, sz);
 		}
+
 		new_base = array_elem_base;
 	} else {
 		/* constant type size-- just multiply */
