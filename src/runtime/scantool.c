@@ -71,6 +71,9 @@ static void scan_type_pointsto(
 			pt->pt_range(clo, k, params),
 			params);
 
+		assert (offset_is_bad(td_offset(&next_td)) == false &&
+			"VERIFY RANGE CALL.");
+
 		FSL_DYN_LOAD(dyn_saved);
 		new_ti = typeinfo_alloc_pointsto(&next_td, pt, k, ti);
 		if (new_ti == NULL) {
@@ -80,6 +83,7 @@ static void scan_type_pointsto(
 			DEBUG_TOOL_WRITE("found pointsto");
 		}
 
+		DEBUG_TOOL_WRITE("Followng points-to");
 		scan_type(new_ti);
 
 		typeinfo_free(new_ti);
@@ -203,10 +207,11 @@ static void handle_virt(struct type_info* ti, struct fsl_rt_table_virt* vt)
 
 		if (vt->vt_name != NULL) DEBUG_TOOL_WRITE("virt initialized! %s (%d)", vt->vt_name, i);
 		else DEBUG_TOOL_WRITE("virt initialized! (%d)", i);
-		DEBUG_TOOL_WRITE("voff=%"PRIu64, ti_cur->ti_td.td_clo.clo_offset);
+		DEBUG_TOOL_WRITE("voff=%"PRIu64, ti_offset(ti_cur));
 
 		assert (ti_cur->ti_td.td_clo.clo_xlate != NULL);
 
+		DEBUG_TOOL_WRITE("Following virtual %s[%d]", vt->vt_name, i);
 		scan_type(ti_cur);
 
 		DEBUG_TOOL_WRITE("virt done");
@@ -257,6 +262,9 @@ static void scan_type(struct type_info* ti)
 	voff = ti_offset(ti);
 	poff = ti_phys_offset(ti);
 	size = ti_size(ti);
+
+	DEBUG_TOOL_WRITE("poff=%"PRIu64, poff);
+	assert (offset_in_range(poff) && "NOT ON DISK?");
 #if 0
 	printf("scanning: %s (%d usertypes) voff=%"PRIu64
 			" bits. poff=%"PRIu64

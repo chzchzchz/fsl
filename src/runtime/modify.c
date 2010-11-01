@@ -6,6 +6,7 @@
 
 static int lookup(struct type_info* cur_type, const char* v);
 
+/* return pointer to path-expr past the head element */
 static const char* chop_head(const char* v)
 {
 	char	*dot_loc;
@@ -22,7 +23,7 @@ static const char* chop_head(const char* v)
 	return dot_loc;
 }
 
-/* allocated null terinated string */
+/* allocated null terminated string */
 static char* get_cur(const char* v)
 {
 	char	*next_dot, *ret;
@@ -41,15 +42,11 @@ static char* get_cur(const char* v)
 
 	return ret;
 }
-#if 0
-static void lookup_pointstos
-static void lookup_virt(
-	struct type_info* cur_type,
-#endif
 
 static int lookup_fields(
-	struct type_info* cur_type,
-	const char* cur_elem, const char* next_elems)
+	struct type_info* cur_type, /* path prior car */
+	const char* cur_elem,	/* path car */
+	const char* next_elems	/* path cdr */)
 {
 	struct type_info		*next_ti;
 	struct type_desc		*next_td;
@@ -59,6 +56,7 @@ static int lookup_fields(
 	uint64_t			next_field_off;
 	unsigned int			field_idx;
 
+	/* check if name is in type */
 	tt = tt_by_ti(cur_type);
 	next_field = NULL;
 	for (field_idx = 0; field_idx < tt->tt_fieldall_c; field_idx++) {
@@ -72,10 +70,8 @@ static int lookup_fields(
 		}
 	}
 
-	if (next_field == NULL) {
-		printf("Could not find '%s'\n", cur_elem);
-		return 0;
-	}
+	/* could not find name in fields */
+	if (next_field == NULL) return 0;
 
 	if (next_field->tf_typenum == TYPENUM_INVALID) {
 		/* physical.. no typethunks */
@@ -84,7 +80,7 @@ static int lookup_fields(
 			return -1;
 		}
 		printf("HIT THE PHYSICAL.");
-		assert (0 == 1);
+		assert (0 == 1 && "Can not purse physical types");
 	}
 
 	tt_next_field = tt_by_num(next_field->tf_typenum);
@@ -97,8 +93,7 @@ static int lookup_fields(
 		next_field_off, next_field_params);
 
 	next_ti = typeinfo_alloc(next_td, field_idx, cur_type);
-	if (next_ti == NULL)
-		return -1;
+	if (next_ti == NULL) return -1;
 
 	return lookup(next_ti, next_elems);
 }
@@ -118,13 +113,11 @@ static int lookup(struct type_info* cur_type, const char* v)
 	rest_elems = chop_head(v);
 	if ((ret = lookup_fields(cur_type, cur_elem, rest_elems)) > 0)
 		goto done;
-#if 0
-/* not yet */
-	if ((ret = lookup_pointsto(cur_type, cur_elem, rest_elems)) > 0)
+	else if ((ret = lookup_pointsto(cur_type, cur_elem, rest_elems)) > 0)
 		goto done;
-	if ((ret = lookup_virts(cur_type, cur_elem, rest_elems)) > 0)
+	else if ((ret = lookup_virts(cur_type, cur_elem, rest_elems)) > 0)
 		goto done;
-#endif
+
 	ret = -1;
 	free(cur_elem);
 

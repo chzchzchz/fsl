@@ -100,6 +100,7 @@ struct fsl_rt_closure
 #define OFFSET_INVALID	((uint64_t)(~0))
 #define OFFSET_EOF	((uint64_t)((~0) - 1))
 #define offset_is_bad(x)	(((uint64_t)(x)) >= OFFSET_EOF)
+#define offset_in_range(x)	(((uint64_t)(x)) < (__FROM_OS_BDEV_BYTES*8))
 
 /* XXX these should take a thunkvar when we support args */
 typedef diskoff_t(*thunkf_t)(const struct fsl_rt_closure*);

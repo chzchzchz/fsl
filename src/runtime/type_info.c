@@ -68,12 +68,17 @@ static struct type_info* typeinfo_alloc_generic(
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_TYPEINFO_ALLOC);
 
+	if (offset_in_range(td_offset(ti_td)) == false) {
+		return NULL;
+	}
+
 	ret = malloc(sizeof(struct type_info));
 	memset(ret, 0, sizeof(*ret));
 
 	/* set typenum */
 	ti_typenum(ret) = td_typenum(ti_td);
 	/* set offset */
+	assert (td_offset(ti_td) < __FROM_OS_BDEV_BYTES*8);
 	ti_offset(ret) = td_offset(ti_td);
 	/* set params */
 	tt = tt_by_num(ti_typenum(ret));
@@ -183,8 +188,9 @@ struct type_info* typeinfo_alloc_by_field(
 
 	DEBUG_TYPEINFO_ENTER();
 
-	DEBUG_TYPEINFO_WRITE("Filling out generic details");
+	DEBUG_TYPEINFO_WRITE("alloc_by_field: td_offset=%"PRIu64, td_offset(ti_td));
 
+	DEBUG_TYPEINFO_WRITE("Filling out generic details");
 	ret = typeinfo_alloc_generic(ti_td, ti_prev);
 	if (ret == NULL) {
 		DEBUG_TYPEINFO_LEAVE();
@@ -398,9 +404,7 @@ diskoff_t ti_phys_offset(const struct type_info* ti)
 		return voff;
 	}
 
-	DEBUG_TYPEINFO_WRITE("enter xlate %p", ti_xlate(ti));
 	off = fsl_virt_xlate(&ti->ti_td.td_clo, voff);
-	DEBUG_TYPEINFO_WRITE("leave xlate %p", ti_xlate(ti));
 
 	return off;
 }
