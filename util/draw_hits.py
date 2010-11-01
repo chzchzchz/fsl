@@ -19,7 +19,12 @@ hit_img_fname=sys.argv[3]
 BOTTOM_LEGEND_PX=50
 pixels_per_side=1024
 disk_bytes=hit_disk_size
+
 bytes_per_pixel=disk_bytes/(pixels_per_side**2)
+if bytes_per_pixel == 0:
+	pixels_per_side /= 2
+	bytes_per_pixel=disk_bytes/(pixels_per_side**2)
+
 out_size = pixels_per_side,(pixels_per_side+1+BOTTOM_LEGEND_PX)
 im = Image.new("RGB", out_size, ImageColor.getrgb('black'))
 
@@ -123,7 +128,7 @@ for x in range(pixels_per_side):
 for i in range(int(hit_count_logrange)):
 	x_start = i*(pixels_per_side/hit_count_logrange)
 	color = getColor(2**(i+hit_count_logmin))
-	for x_idx in range(int(pixels_per_side/hit_count_logrange)):
+	for x_idx in range(int(math.ceil(pixels_per_side/hit_count_logrange))):
 		for y in range(BOTTOM_LEGEND_PX):
 			im.putpixel(
 				(int(x_idx+x_start),int(pixels_per_side+1+y)),
