@@ -93,6 +93,7 @@ struct type_info* typeinfo_alloc_pointsto(
 	const struct type_info			*ti_prev);
 
 #define typeinfo_alloc_virt(v,t)	typeinfo_alloc_virt_idx(v,t,0,NULL)
+#define typeinfo_follow_virt(ti, vt, idx, err) typeinfo_alloc_virt_idx(vt, ti, idx, err)
 
 #define TI_ERR_OK		0
 #define TI_ERR_BADVIRT		-1	/* could not allocate virt */
@@ -110,6 +111,22 @@ struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code);
 
 
 void typeinfo_set_dyn(const struct type_info* ti);
+
+struct type_info* typeinfo_follow_field_off_idx(
+	const struct	type_info* ti_parent,
+	const struct	fsl_rt_table_field* ti_field,
+	size_t		offset,
+	uint64_t	idx);
+#define typeinfo_follow_field(tip, tif) \
+	typeinfo_follow_field_off(	\
+		tip,tif,(tif)->tf_fieldbitoff(&ti_clo(top)))
+#define typeinfo_follow_field_off(tip,tif,off) typeinfo_follow_field_off_idx(tip,tif,off,0)
+
+
+struct type_info* typeinfo_follow_pointsto(
+	const struct type_info* ti_parent,
+	const struct fsl_rt_table_pointsto* ti_pt,
+	uint64_t idx);
 
 #include "type_print.h"
 

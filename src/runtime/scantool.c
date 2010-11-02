@@ -34,7 +34,6 @@ static void scan_type_pointsto(
 	struct fsl_rt_table_type	*tt;
 	uint64_t			k;
 	uint64_t			min_idx, max_idx;
-	TI_INTO_CLO			(ti);
 
 	DEBUG_TOOL_ENTER();
 	FSL_DYN_SAVE(dyn_saved);
@@ -44,8 +43,8 @@ static void scan_type_pointsto(
 
 	tt = tt_by_num(pt->pt_type_dst);
 
-	min_idx = pt->pt_min(clo);
-	max_idx = pt->pt_max(clo);
+	min_idx = pt->pt_min(&ti_clo(ti));
+	max_idx = pt->pt_max(&ti_clo(ti));
 	if (min_idx > max_idx) {
 		FSL_DYN_RESTORE(dyn_saved);
 		DEBUG_TOOL_LEAVE();
@@ -60,22 +59,11 @@ static void scan_type_pointsto(
 
 	for (k = min_idx; k <= max_idx; k++) {
 		struct type_info	*new_ti;
-		struct type_desc	next_td;
-		uint64_t		params[tt->tt_param_c];
 
 		DEBUG_TOOL_WRITE("allocating pt[%d]", k);
-		next_td.td_typenum = pt->pt_type_dst;
-
-		td_init(&next_td,
-			pt->pt_type_dst,
-			pt->pt_range(clo, k, params),
-			params);
-
-		assert (offset_is_bad(td_offset(&next_td)) == false &&
-			"VERIFY RANGE CALL.");
 
 		FSL_DYN_LOAD(dyn_saved);
-		new_ti = typeinfo_alloc_pointsto(&next_td, pt, k, ti);
+		new_ti = typeinfo_follow_pointsto(ti, pt, k);
 		if (new_ti == NULL) {
 			DEBUG_TOOL_WRITE("skipped");
 			continue;
@@ -99,9 +87,8 @@ static void scan_type_pointsto_all(const struct type_info* ti)
 	unsigned int			i;
 
 	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_pointsto_c; i++) {
+	for (i = 0; i < tt->tt_pointsto_c; i++)
 		scan_type_pointsto(ti, i);
-	}
 }
 
 static void dump_field(
@@ -126,50 +113,33 @@ static void handle_field(
 {
 	struct type_info*		new_ti;
 	struct fsl_rt_table_field*	field;
-	struct type_desc		next_td;
 	uint64_t			num_elems;
-	unsigned int			param_c;
 	unsigned int			i;
-	TI_INTO_CLO			(ti);
+	size_t				off;
+
+	if (ti_typenum(ti) == TYPENUM_INVALID) return;
 
 	field = &tt_by_ti(ti)->tt_fieldstrong_table[field_idx];
-	if (field->tf_typenum != TYPENUM_INVALID)
-		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
-	else
-		param_c = 0;
-	uint64_t params[param_c];
 
-	field->tf_params(clo, 0, params);
-	td_params(&next_td) = params;
-
-	td_init(&next_td,
-		field->tf_typenum,
-		field->tf_fieldbitoff(clo),
-		params);
-
-	num_elems = field->tf_elemcount(clo);
+	num_elems = field->tf_elemcount(&ti_clo(ti));
+	off = field->tf_fieldbitoff(&ti_clo(ti));
 	for (i = 0; i < num_elems; i++) {
-
 		/* dump data */
 		INDENT(ti);
-		if (num_elems == 1) dump_field(field, td_offset(&next_td), -1);
-		else dump_field(field, td_offset(&next_td), i);
 
-		if (next_td.td_typenum == TYPENUM_INVALID)
-			return;
+		new_ti = typeinfo_follow_field_off(ti, field, off);
+		if (new_ti == NULL) continue;
+
+		if (num_elems == 1) dump_field(field, ti_offset(new_ti), -1);
+		else dump_field(field, ti_offset(new_ti), i);
 
 		/* recurse */
-		new_ti = typeinfo_alloc_by_field(&next_td, field, ti);
 		if (i < num_elems - 1) {
-			size_t	sz;
 			/* move to next element */
-			TD_INTO_CLO_DECL(new_clo, &next_td);
-			sz = tt_by_num(field->tf_typenum)->tt_size(&new_clo);
-			td_offset(&next_td) += sz;
-		}
-
-		if (new_ti == NULL) {
-			continue;
+			if (ti_typenum(new_ti) == TYPENUM_INVALID)
+				off += field->tf_typesize(&ti_clo(ti));
+			else
+				off += tt_by_ti(new_ti)->tt_size(&ti_clo(new_ti));
 		}
 
 		DEBUG_TOOL_WRITE("following field %s", field->tf_fieldname);
@@ -196,7 +166,7 @@ static void handle_virt(struct type_info* ti, struct fsl_rt_table_virt* vt)
 
 		DEBUG_TOOL_WRITE("alloc virt %s[%d]", vt->vt_name, i);
 		FSL_DYN_LOAD(dyn_saved);
-		ti_cur = typeinfo_alloc_virt_idx(vt, ti, i, &err_code);
+		ti_cur = typeinfo_follow_virt(ti, vt, i, &err_code);
 		if (ti_cur == NULL) {
 			DEBUG_TOOL_WRITE(
 				"handle_virt: (skipping %s %d err=%d)",
@@ -256,6 +226,8 @@ static void scan_type(struct type_info* ti)
 	typesize_t	size;
 	voff_t		voff;
 	poff_t		poff;
+
+	if (ti_typenum(ti) == TYPENUM_INVALID) return;
 
 	DEBUG_TOOL_ENTER();
 

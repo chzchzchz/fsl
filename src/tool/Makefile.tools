@@ -1,6 +1,7 @@
 #INPUT: FSNAME
 TOOL_OBJS= fsl.$(FSNAME).table.o fsl.$(FSNAME).types.o
-TOOL_BINS= scantool-$(FSNAME) browser-$(FSNAME)
+TOOL_NAMES := browser modify scantool
+TOOL_BINS := $(TOOL_NAMES:%=%-$(FSNAME))
 RT_OBJS=../runtime/runtime.o 	\
 	../runtime/type_info.o	\
 	../runtime/virt.o	\
@@ -29,11 +30,15 @@ all: $(TOOL_BINS)
 clean:
 	rm -f $(TOOL_BINS) $(TOOL_OBJS)
 
-browser-$(FSNAME): $(TOOL_OBJS)
-	gcc $(CFLAGS) -o $@ $^  $(BROWSER_OBJS)
+browser-$(FSNAME): $(TOOL_OBJS) $(BROWSER_OBJS)
+	gcc $(CFLAGS) -o $@ $^
 
-scantool-$(FSNAME): $(TOOL_OBJS)
-	gcc $(CFLAGS) -o $@ $^  $(SCANTOOL_OBJS)
+scantool-$(FSNAME): $(TOOL_OBJS) $(SCANTOOL_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+
+modify-$(FSNAME): $(TOOL_OBJS) $(MODIFY_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+
 
 fsl.$(FSNAME).types.o: fsl.$(FSNAME).types.s
 	as -g $< -o $@

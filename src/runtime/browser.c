@@ -21,18 +21,16 @@ static void select_pointsto(struct type_info* cur, int pt_idx);
 
 static void select_pointsto(struct type_info* cur, int pt_idx)
 {
-	struct fsl_rt_table_pointsto	*pt;
-	struct type_info		*ti_next;
-	struct type_desc		next_td;
-	int				pt_elem_idx;
-	unsigned int			min_idx, max_idx;
-	TI_INTO_CLO			(cur);
+	const struct fsl_rt_table_pointsto	*pt;
+	struct type_info			*ti_next;
+	int					pt_elem_idx;
+	unsigned int				min_idx, max_idx;
 
 	pt = &(tt_by_ti(cur)->tt_pointsto[pt_idx]);
 
 	/* get the range element idx */
-	min_idx = pt->pt_min(clo);
-	max_idx = pt->pt_max(clo);
+	min_idx = pt->pt_min(&ti_clo(cur));
+	max_idx = pt->pt_max(&ti_clo(cur));
 	if (min_idx != max_idx) {
 		pt_elem_idx = get_sel_elem(min_idx, max_idx);
 		if (pt_elem_idx == INT_MIN)
@@ -42,17 +40,8 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 		pt_elem_idx = min_idx;
 	}
 
-	uint64_t	params[tt_by_num(pt->pt_type_dst)->tt_param_c];
-
-	/* jump to it */
-	td_init(&next_td,
-		pt->pt_type_dst,
-		pt->pt_range(clo, pt_elem_idx, params),
-		params);
-
-	ti_next = typeinfo_alloc_pointsto(&next_td, pt, pt_elem_idx, cur);
-	if (ti_next == NULL)
-		return;
+	ti_next = typeinfo_follow_pointsto(cur, pt, pt_elem_idx);
+	if (ti_next == NULL) return;
 
 	menu(ti_next);
 
@@ -129,10 +118,8 @@ static void select_field(struct type_info* cur, int field_idx)
 	struct fsl_rt_table_field	*field;
 	struct type_info		*ti_next;
 	uint64_t			num_elems;
-	uint64_t			params[tt_by_ti(cur)->tt_param_c];
-	struct type_desc		next_td;
 	diskoff_t			next_off;
-	TI_INTO_CLO			(cur);
+	uint64_t			sel_idx;
 
 	DEBUG_TOOL_ENTER();
 
@@ -142,24 +129,18 @@ static void select_field(struct type_info* cur, int field_idx)
 		goto done;
 	}
 
-	next_off = field->tf_fieldbitoff(clo);
-	num_elems = field->tf_elemcount(clo);
+	next_off = field->tf_fieldbitoff(&ti_clo(cur));
+	num_elems = field->tf_elemcount(&ti_clo(cur));
 
+	sel_idx = 0;
 	if (num_elems > 1) {
-		uint64_t	sel_idx;
 		next_off = select_field_array(
 			cur, field, num_elems, next_off, &sel_idx);
-		if (next_off != ~0)
-			field->tf_params(clo, sel_idx, params);
-	} else {
-		field->tf_params(clo, 0, params);
 	}
 
 	if (next_off == ~0) goto done;
 
-	td_init(&next_td, field->tf_typenum, next_off, params);
-
-	ti_next = typeinfo_alloc_by_field(&next_td, field, cur);
+	ti_next = typeinfo_follow_field_off_idx(cur, field, next_off, sel_idx);
 	if (ti_next == NULL) goto done;
 
 	menu(ti_next);
@@ -189,8 +170,9 @@ static void select_virt(struct type_info* cur, int vt_idx)
 
 	vt = &tt->tt_virt[vt_idx];
 	err = 0;
-	ti_next = typeinfo_alloc_virt_idx(vt, cur, sel_elem, &err);
-	DEBUG_TOOL_WRITE("virt_alloc %s[%d]: %p-- err=%d\n", vt->vt_name, sel_elem, ti_next, err);
+	ti_next = typeinfo_follow_virt(cur, vt, sel_elem, &err);
+	DEBUG_TOOL_WRITE("virt_alloc %s[%d]: %p-- err=%d\n",
+		vt->vt_name, sel_elem, ti_next, err);
 	if (ti_next == NULL)
 		goto done;
 

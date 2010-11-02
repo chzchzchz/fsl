@@ -68,9 +68,7 @@ static struct type_info* typeinfo_alloc_generic(
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_TYPEINFO_ALLOC);
 
-	if (offset_in_range(td_offset(ti_td)) == false) {
-		return NULL;
-	}
+	if (offset_in_range(td_offset(ti_td)) == false) return NULL;
 
 	ret = malloc(sizeof(struct type_info));
 	memset(ret, 0, sizeof(*ret));
@@ -82,15 +80,18 @@ static struct type_info* typeinfo_alloc_generic(
 	ti_offset(ret) = td_offset(ti_td);
 	/* set params */
 	tt = tt_by_num(ti_typenum(ret));
-	if (tt->tt_param_c > 0) {
+	if (	ti_typenum(ret) == TYPENUM_INVALID ||
+		(tt = tt_by_ti(ret))->tt_param_c == 0)
+	{
+		ti_params(ret) = NULL;
+	} else {
 		unsigned int	len;
 		assert (ti_td->td_clo.clo_params != NULL);
 
 		len = sizeof(uint64_t) * tt->tt_param_c;
 		ti_params(ret) = malloc(len);
 		memcpy(ti_params(ret), ti_td->td_clo.clo_params, len);
-	} else
-		ti_params(ret) = NULL;
+	}
 
 	/* set xlate -- if this is a virt type, its xlate is already
 	 * allocated by typeinfo_alloc_virt.. */
@@ -108,6 +109,8 @@ static bool typeinfo_verify_asserts(const struct type_info *ti)
 	unsigned int			i;
 
 	assert (ti != NULL);
+
+	if (ti_typenum(ti) == TYPENUM_INVALID) return true;
 
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_assert_c; i++) {
@@ -170,7 +173,8 @@ struct type_info* typeinfo_alloc_pointsto(
 	if (ti_pointsto->pt_name) ret->ti_print_name = ti_pointsto->pt_name;
 	ret->ti_print_idxval = ti_pointsto_elem;
 
-	typeinfo_set_dyn(ret);
+
+	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
 	if (typeinfo_verify(ret) == false) {
 		typeinfo_free(ret);
 		return NULL;
@@ -203,7 +207,7 @@ struct type_info* typeinfo_alloc_by_field(
 
 	DEBUG_TYPEINFO_WRITE("Setting Dyn");
 
-	typeinfo_set_dyn(ret);
+	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
 
 	DEBUG_TYPEINFO_WRITE("Verifying");
 
@@ -283,7 +287,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 
 
 	DEBUG_TYPEINFO_WRITE("now set_dyns");
-	typeinfo_set_dyn(ret);
+	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify");
 	if (typeinfo_verify(ret) == false) {
 		DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify BAD!\n");
@@ -416,6 +420,49 @@ typesize_t ti_size(const struct type_info* ti)
 	assert (ti_typenum(ti) != TYPENUM_INVALID);
 
 	ret = tt_by_ti(ti)->tt_size(&ti->ti_td.td_clo);
+
+	return ret;
+}
+
+struct type_info* typeinfo_follow_field_off_idx(
+	const struct type_info* ti_parent,
+	const struct fsl_rt_table_field* ti_field,
+	size_t off,
+	uint64_t idx)
+{
+	struct type_desc	field_td;
+	unsigned int		param_c;
+
+	if (ti_typenum(ti_parent) == TYPENUM_INVALID)
+		param_c = 0;
+	else
+		param_c = tt_by_ti(ti_parent)->tt_param_c;
+	uint64_t	parambuf[param_c];
+
+	ti_field->tf_params(&ti_clo(ti_parent), idx, parambuf);
+	td_init(&field_td, ti_field->tf_typenum, off, parambuf);
+
+	return typeinfo_alloc_by_field(&field_td, ti_field, ti_parent);
+}
+
+struct type_info* typeinfo_follow_pointsto(
+	const struct type_info* ti_parent,
+	const struct fsl_rt_table_pointsto* ti_pt,
+	uint64_t idx)
+{
+	struct type_info	*ret;
+	struct type_desc	pt_td;
+	uint64_t		parambuf[tt_by_ti(ti_parent)->tt_param_c];
+
+	td_init(&pt_td,
+		ti_pt->pt_type_dst,
+		ti_pt->pt_range(&ti_clo(ti_parent), idx, parambuf),
+		parambuf);
+
+	assert (offset_is_bad(td_offset(&pt_td)) == false &&
+		"VERIFY RANGE CALL.");
+
+	ret = typeinfo_alloc_pointsto(&pt_td, ti_pt, idx, ti_parent);
 
 	return ret;
 }
