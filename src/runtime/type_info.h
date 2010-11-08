@@ -16,7 +16,9 @@ struct type_desc
 struct type_info
 {
 	struct type_desc		ti_td;
-	const struct type_info		*ti_prev;
+	struct type_info		*ti_prev;
+
+	unsigned int			ti_ref_c;
 
 	const char			*ti_print_name;
 	uint64_t			ti_print_idxval;
@@ -83,14 +85,14 @@ poff_t ti_phys_offset(const struct type_info* ti);
 
 void typeinfo_free(struct type_info* ti);
 struct type_info* typeinfo_alloc_by_field(
-	const struct type_desc* ti_td,
+	const struct type_desc		*ti_td,
 	const struct fsl_rt_table_field	*ti_field,
-	const struct type_info*	ti_prev);
+	struct type_info*		ti_prev);
 struct type_info* typeinfo_alloc_pointsto(
 	const struct type_desc			*ti_td,
 	const struct fsl_rt_table_pointsto	*ti_pointsto,
 	unsigned int				ti_pointsto_elem,
-	const struct type_info			*ti_prev);
+	struct type_info*			ti_prev);
 
 #define typeinfo_alloc_virt(v,t)	typeinfo_alloc_virt_idx(v,t,0,NULL)
 #define typeinfo_follow_virt(ti, vt, idx, err) typeinfo_alloc_virt_idx(vt, ti, idx, err)
@@ -113,10 +115,10 @@ struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code);
 void typeinfo_set_dyn(const struct type_info* ti);
 
 struct type_info* typeinfo_follow_field_off_idx(
-	const struct	type_info* ti_parent,
-	const struct	fsl_rt_table_field* ti_field,
-	size_t		offset,
-	uint64_t	idx);
+	struct type_info*		ti_parent,
+	const struct fsl_rt_table_field* ti_field,
+	size_t				offset,
+	uint64_t			idx);
 #define typeinfo_follow_field_off(tip,tif,off)			\
 		typeinfo_follow_field_off_idx(tip,tif,off,0)
 #define typeinfo_follow_field(tip, tif) 			\
@@ -125,9 +127,9 @@ struct type_info* typeinfo_follow_field_off_idx(
 
 
 struct type_info* typeinfo_follow_pointsto(
-	const struct type_info* ti_parent,
-	const struct fsl_rt_table_pointsto* ti_pt,
-	uint64_t idx);
+	struct type_info*			ti_parent,
+	const struct fsl_rt_table_pointsto*	ti_pt,
+	uint64_t				idx);
 
 #include "type_print.h"
 

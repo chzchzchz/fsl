@@ -12,19 +12,25 @@
 static bool ti_has_loop(const struct type_info* chain);
 static struct type_info* typeinfo_alloc_generic(
 	const struct type_desc	*ti_td,
-	const struct type_info	*ti_prev);
+	struct type_info	*ti_prev);
 static bool typeinfo_verify_asserts(const struct type_info *ti);
 static bool typeinfo_verify(const struct type_info* ti);
-
+static void typeinfo_ref(struct type_info* ti);
+static unsigned int typeinfo_unref(struct type_info* ti);
 
 void typeinfo_free(struct type_info* ti)
 {
+	if (typeinfo_unref(ti)) return;
+
 	if (ti->ti_virt && ti_xlate(ti) != NULL) {
 		fsl_virt_unref(&ti_clo(ti));
 		ti_xlate(ti) = NULL;
 	}
 	if (ti_params(ti) != NULL)
 		free(ti->ti_td.td_clo.clo_params);
+
+	if (ti->ti_prev != NULL) typeinfo_free(ti->ti_prev);
+
 	free(ti);
 }
 
@@ -61,7 +67,7 @@ static bool ti_has_loop(const struct type_info* chain)
 
 static struct type_info* typeinfo_alloc_generic(
 	const struct type_desc	*ti_td,
-	const struct type_info	*ti_prev)
+	struct type_info	*ti_prev)
 {
 	struct fsl_rt_table_type	*tt;
 	struct type_info		*ret;
@@ -99,6 +105,9 @@ static struct type_info* typeinfo_alloc_generic(
 
 	ret->ti_prev = ti_prev;
 	ret->ti_depth = (ti_prev != NULL) ? ti_prev->ti_depth + 1 : 0;
+
+	typeinfo_ref(ret);
+	if (ti_prev != NULL) typeinfo_ref(ti_prev);
 
 	return ret;
 }
@@ -160,7 +169,7 @@ struct type_info* typeinfo_alloc_pointsto(
 	const struct type_desc			*ti_td,
 	const struct fsl_rt_table_pointsto	*ti_pointsto,
 	unsigned int				ti_pointsto_elem,
-	const struct type_info			*ti_prev)
+	struct type_info			*ti_prev)
 {
 	struct type_info*		ret;
 
@@ -186,7 +195,7 @@ struct type_info* typeinfo_alloc_pointsto(
 struct type_info* typeinfo_alloc_by_field(
 	const struct type_desc		*ti_td,
 	const struct fsl_rt_table_field	*ti_field,
-	const struct type_info		*ti_prev)
+	struct type_info		*ti_prev)
 {
 	struct type_info*	ret;
 
@@ -430,10 +439,10 @@ typesize_t ti_size(const struct type_info* ti)
 }
 
 struct type_info* typeinfo_follow_field_off_idx(
-	const struct type_info* ti_parent,
-	const struct fsl_rt_table_field* ti_field,
-	size_t off,
-	uint64_t idx)
+	struct type_info*			ti_parent,
+	const struct fsl_rt_table_field*	ti_field,
+	size_t					off,
+	uint64_t				idx)
 {
 	struct type_desc	field_td;
 	unsigned int		param_c;
@@ -451,9 +460,9 @@ struct type_info* typeinfo_follow_field_off_idx(
 }
 
 struct type_info* typeinfo_follow_pointsto(
-	const struct type_info* ti_parent,
-	const struct fsl_rt_table_pointsto* ti_pt,
-	uint64_t idx)
+	struct type_info*			ti_parent,
+	const struct fsl_rt_table_pointsto*	ti_pt,
+	uint64_t				idx)
 {
 	struct type_info	*ret;
 	struct type_desc	pt_td;
@@ -470,4 +479,16 @@ struct type_info* typeinfo_follow_pointsto(
 	ret = typeinfo_alloc_pointsto(&pt_td, ti_pt, idx, ti_parent);
 
 	return ret;
+}
+
+static void typeinfo_ref(struct type_info* ti)
+{
+	ti->ti_ref_c++;
+}
+
+static unsigned int typeinfo_unref(struct type_info* ti)
+{
+	assert (ti->ti_ref_c > 0);
+	ti->ti_ref_c--;
+	return ti->ti_ref_c;
 }

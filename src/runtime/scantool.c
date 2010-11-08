@@ -10,9 +10,9 @@
 #define pt_from_idx(x,y)	(&(tt_by_ti(x)->tt_pointsto[y]))
 
 static void print_indent(unsigned int depth);
-static void scan_type_pointsto(const struct type_info* ti, unsigned int pt_idx);
-static void scan_type_pointsto_all(const struct type_info* ti);
-static void scan_type_strongtypes(const struct type_info* ti);
+static void scan_type_pointsto(struct type_info* ti, unsigned int pt_idx);
+static void scan_type_pointsto_all(struct type_info* ti);
+static void scan_type_strongtypes(struct type_info* ti);
 static void scan_type_virt(struct type_info* ti);
 static void scan_type(struct type_info* ti);
 
@@ -26,9 +26,7 @@ static void print_indent(unsigned int depth)
 	}
 }
 
-static void scan_type_pointsto(
-	const struct type_info* ti,
-	unsigned int pt_idx)
+static void scan_type_pointsto(struct type_info* ti, unsigned int pt_idx)
 {
 	struct fsl_rt_table_pointsto	*pt;
 	struct fsl_rt_table_type	*tt;
@@ -81,7 +79,7 @@ static void scan_type_pointsto(
 	DEBUG_TOOL_LEAVE();
 }
 
-static void scan_type_pointsto_all(const struct type_info* ti)
+static void scan_type_pointsto_all(struct type_info* ti)
 {
 	const struct fsl_rt_table_type	*tt;
 	unsigned int			i;
@@ -107,9 +105,7 @@ static void dump_field(
 	printf("@offset=0x%" PRIx64 " (%" PRIu64 ")\n", bitoff, bitoff);
 }
 
-static void handle_field(
-	const struct type_info* ti,
-	unsigned int field_idx)
+static void handle_field(struct type_info* ti, unsigned int field_idx)
 {
 	struct fsl_rt_table_field*	field;
 	uint64_t			num_elems;
@@ -210,7 +206,7 @@ static void scan_type_virt(struct type_info* ti)
 }
 
 /* dump all data for strong usertypes that are aggregate to the given type */
-static void scan_type_strongtypes(const struct type_info* ti)
+static void scan_type_strongtypes(struct type_info* ti)
 {
 	struct fsl_rt_table_type	*tt;
 	unsigned int			i;
