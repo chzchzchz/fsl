@@ -111,7 +111,6 @@ static void handle_field(
 	const struct type_info* ti,
 	unsigned int field_idx)
 {
-	struct type_info*		new_ti;
 	struct fsl_rt_table_field*	field;
 	uint64_t			num_elems;
 	unsigned int			i;
@@ -120,18 +119,20 @@ static void handle_field(
 	if (ti_typenum(ti) == TYPENUM_INVALID) return;
 
 	field = &tt_by_ti(ti)->tt_fieldstrong_table[field_idx];
-
 	num_elems = field->tf_elemcount(&ti_clo(ti));
 	off = field->tf_fieldbitoff(&ti_clo(ti));
+
 	for (i = 0; i < num_elems; i++) {
+		struct type_info*		new_ti;
+
 		/* dump data */
 		INDENT(ti);
 
+		if (num_elems == 1) dump_field(field, off, -1);
+		else dump_field(field, off, i);
+
 		new_ti = typeinfo_follow_field_off(ti, field, off);
 		if (new_ti == NULL) continue;
-
-		if (num_elems == 1) dump_field(field, ti_offset(new_ti), -1);
-		else dump_field(field, ti_offset(new_ti), i);
 
 		/* recurse */
 		if (i < num_elems - 1) {

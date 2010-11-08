@@ -417,9 +417,14 @@ typesize_t ti_size(const struct type_info* ti)
 {
 	typesize_t ret;
 
-	assert (ti_typenum(ti) != TYPENUM_INVALID);
-
-	ret = tt_by_ti(ti)->tt_size(&ti->ti_td.td_clo);
+	if (ti_typenum(ti) == TYPENUM_INVALID) {
+		assert (ti->ti_field != NULL && "Expected field entry");
+		assert (ti->ti_prev != NULL && "No parent?");
+		/* TYPENUM_INVALID => constant size => don't need parent */
+		ret = ti->ti_field->tf_typesize(NULL);
+	} else {
+		ret = tt_by_ti(ti)->tt_size(&ti->ti_td.td_clo);
+	}
 
 	return ret;
 }

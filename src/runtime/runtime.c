@@ -162,12 +162,14 @@ static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 	} else
 		out_file = stdout;
 
+	fprintf(out_file, "# dumping stats.\n");
 	for (i = 0; i < FSL_NUM_STATS; i++) {
 		fprintf(out_file,
 			"%s %"PRIu64"\n",
 			fsl_stat_fields[i],
 			FSL_STATS_GET(&fctx->fctx_stat, i));
 	}
+	fprintf(out_file, "# stats done.\n");
 
 	if (stat_fname != NULL)
 		fclose(out_file);

@@ -117,10 +117,11 @@ struct type_info* typeinfo_follow_field_off_idx(
 	const struct	fsl_rt_table_field* ti_field,
 	size_t		offset,
 	uint64_t	idx);
-#define typeinfo_follow_field(tip, tif) \
-	typeinfo_follow_field_off(	\
-		tip,tif,(tif)->tf_fieldbitoff(&ti_clo(top)))
-#define typeinfo_follow_field_off(tip,tif,off) typeinfo_follow_field_off_idx(tip,tif,off,0)
+#define typeinfo_follow_field_off(tip,tif,off)			\
+		typeinfo_follow_field_off_idx(tip,tif,off,0)
+#define typeinfo_follow_field(tip, tif) 			\
+	typeinfo_follow_field_off(				\
+		tip,tif,(tif)->tf_fieldbitoff(&ti_clo(tip)))
 
 
 struct type_info* typeinfo_follow_pointsto(

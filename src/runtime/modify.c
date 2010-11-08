@@ -8,20 +8,39 @@
 #include "debug.h"
 #include "type_info.h"
 
-static int lookup(struct type_info* cur_ti, const char* v);
+#define set_err(x,y)	do { if ((x) != NULL) (*x) = y; } while (0)
+#define ret_err(x,y)	do { set_err(x,y); return NULL; } while (0)
 
-static int lookup_fields(
-	struct type_info* cur_ti, /* path prior car */
-	const char* cur_elem,	/* path car */
-	const char* next_elems	/* path cdr */);
-static int lookup_virts(
-	struct type_info* cur_ti, /* path prior car */
-	const char* cur_elem,	/* path car */
-	const char* next_elems	/* path cdr */);
-static int lookup_pointstos(
-	struct type_info* cur_ti, /* path prior car */
-	const char* cur_elem,	/* path car */
-	const char* next_elems	/* path cdr */);
+#define LOOKUP_RC_UNEXPECT_PRIM	(-8)
+#define LOOKUP_RC_NOPARENT	(-7)
+#define LOOKUP_RC_BADPATH	(-6)
+#define LOOKUP_RC_NOTFOUND	(-5)
+#define LOOKUP_RC_BADFIELD	(-4)
+#define LOOKUP_RC_NOPOINTSTO	(-3)
+#define LOOKUP_RC_NOVIRT	(-2)
+#define LOOKUP_RC_NOFIELD	(-1)
+#define LOOKUP_RC_OK		(0)
+
+static struct type_info* lookup(
+	struct type_info* cur_ti, const char* v, int* err);
+static struct type_info* __lookup(
+	struct type_info* cur_ti, const char* v, int* err);
+
+static struct type_info* lookup_fields(
+	struct type_info*	cur_ti, /* path prior car */
+	const char*		cur_elem,	/* path car */
+	const char* 		next_elems,	/* path cdr */
+	int*			err);
+static struct type_info* lookup_virts(
+	struct type_info*	cur_ti, /* path prior car */
+	const char*		cur_elem,	/* path car */
+	const char*		next_elems,	/* path cdr */
+	int*			err);
+static struct type_info* lookup_pointstos(
+	struct type_info*	cur_ti, /* path prior car */
+	const char*		cur_elem,	/* path car */
+	const char*		next_elems,	/* path cdr */
+	int*			err);
 
 /* return pointer to path-expr past the head element */
 static const char* chop_head(const char* v)
@@ -84,7 +103,7 @@ static char* get_name(const char* cur)
 }
 
 /* allocated null terminated string */
-static char* get_cur(const char* v)
+static char* get_head(const char* v)
 {
 	char	*next_dot, *ret;
 	int	dot_off;
@@ -95,9 +114,9 @@ static char* get_cur(const char* v)
 	if (next_dot == NULL)
 		return strdup(v);
 
-	dot_off = v - next_dot;
+	dot_off = next_dot - v;
 
-	ret = strdup(next_dot);
+	ret = strdup(v);
 	ret[dot_off] = '\0';	/* NUL it */
 
 	return ret;
@@ -118,7 +137,6 @@ static const struct fsl_rt_table_virt* find_virt(
 		const struct fsl_rt_table_virt	*vt;
 		vt = &tt->tt_virt[virt_idx];
 		if (vt->vt_name && strcmp(fn, vt->vt_name) == 0) {
-			/* found it */
 			ret = vt;
 			break;
 		}
@@ -129,17 +147,19 @@ static const struct fsl_rt_table_virt* find_virt(
 	return ret;
 }
 
-static int lookup_virts(
+static struct type_info* lookup_virts(
 	struct type_info* cur_ti, /* path prior car */
 	const char* cur_elem,	/* path car */
-	const char* next_elems	/* path cdr */)
+	const char* next_elems,	/* path cdr */
+	int* err)
 {
-	const struct fsl_rt_table_virt*	vt;
+	struct type_info			*next_ti;
+	const struct fsl_rt_table_virt		*vt;
 
 	vt = find_virt(cur_ti, cur_elem);
-	if (vt == NULL) return 0;
+	if (vt == NULL) ret_err(err, LOOKUP_RC_NOVIRT);
 
-	assert (0 == 1 && "BUSTED");
+	return lookup(next_ti, next_elems, err);
 }
 
 static const struct fsl_rt_table_pointsto* find_pt(
@@ -170,17 +190,24 @@ static const struct fsl_rt_table_pointsto* find_pt(
 	return ret;
 }
 
-static int lookup_pointstos(
+static struct type_info* lookup_pointstos(
 	struct type_info* cur_ti, /* path prior car */
 	const char* cur_elem,	/* path car */
-	const char* next_elems	/* path cdr */)
+	const char* next_elems,	/* path cdr */
+	int* err)
 {
+	struct type_info			*next_ti;
 	const struct fsl_rt_table_pointsto	*pt;
+	uint64_t				pt_min, pt_max, pt_idx;
 
 	pt = find_pt(cur_ti, cur_elem);
-	if (pt == NULL) return 0;
+	if (pt == NULL) ret_err(err, LOOKUP_RC_NOPOINTSTO);
 
-	assert (0 == 1 && "BUSTED");
+	pt_min = pt->pt_min(&ti_clo(cur_ti));
+	/* XXX: need to be able to pull in idx!=0*/
+	next_ti = typeinfo_follow_pointsto(cur_ti, pt, 0);
+
+	return lookup(next_ti, next_elems, err);
 }
 
 static const struct fsl_rt_table_field* find_field(
@@ -211,10 +238,11 @@ static const struct fsl_rt_table_field* find_field(
 	return ret;
 }
 
-static int lookup_fields(
+static struct type_info* lookup_fields(
 	struct type_info* cur_ti, /* path prior car */
 	const char* cur_elem,	/* path car */
-	const char* next_elems	/* path cdr */)
+	const char* next_elems,	/* path cdr */
+	int*	err)
 {
 	struct type_info		*next_ti;
 	struct type_desc		next_td;
@@ -226,61 +254,66 @@ static int lookup_fields(
 	next_field = find_field(cur_ti, cur_elem);
 
 	/* could not find name in fields */
-	if (next_field == NULL) return 0;
+	if (next_field == NULL) ret_err(err, LOOKUP_RC_NOFIELD);
 
 	/* primitive type? */
 	if (next_field->tf_typenum == TYPENUM_INVALID) {
 		/* physical.. no typethunks */
-		if (next_elems != NULL) {
-			printf("OOPS. Path doesn't terminate on primitive.");
-			return -1;
-		}
-		printf("HIT THE PHYSICAL.");
-		assert (0 == 1 && "Can not purse physical types");
+
+		// Path should always terminate on primitive.
+		if (next_elems != NULL) ret_err(err, LOOKUP_RC_UNEXPECT_PRIM);
+
+//		typeinfo_print_field_value(cur_ti, next_field);
+		return typeinfo_follow_field(cur_ti, next_field);
 	}
 
-	tt_next_field = tt_by_num(next_field->tf_typenum);
-	uint64_t next_field_params[tt_next_field->tt_param_c];
+	next_ti = typeinfo_follow_field(cur_ti, next_field);
+	if (next_ti == NULL) ret_err(err, LOOKUP_RC_BADFIELD);
 
-	next_field_off = next_field->tf_fieldbitoff(&ti_clo(cur_ti));
-	next_field->tf_params(&ti_clo(cur_ti), 0, next_field_params);
-
-	td_init(&next_td,
-		next_field->tf_typenum,
-		next_field_off,
-		next_field_params);
-
-	next_ti = typeinfo_alloc_by_field(&next_td, next_field, cur_ti);
-	if (next_ti == NULL) return -1;
-
-	return lookup(next_ti, next_elems);
+	return lookup(next_ti, next_elems, err);
 }
 
-static int lookup(struct type_info* cur_ti, const char* v)
+static struct type_info* __lookup(
+	struct type_info* cur_ti, const char* v, int *err)
 {
 	char				*cur_elem;
 	const char			*rest_elems;
-	int				ret;
+	struct type_info		*ret;
 
-	if (cur_ti == NULL) return -1;
-	if (v == NULL) return -1;
+	assert (v != NULL && "Don't pass null into lookup");
+	assert (cur_ti != NULL && "No parent");
 
-	cur_elem = get_cur(v);
-	if (cur_elem == NULL) return -1;
+	cur_elem = get_head(v);
+	if (cur_elem == NULL) ret_err(err, LOOKUP_RC_BADPATH);
 
 	rest_elems = chop_head(v);
-	if ((ret = lookup_fields(cur_ti, cur_elem, rest_elems)) > 0)
+	if ((ret = lookup_fields(cur_ti, cur_elem, rest_elems, err)) != NULL)
 		goto done;
-	else if ((ret = lookup_pointstos(cur_ti, cur_elem, rest_elems)) > 0)
+	else if ((ret = lookup_pointstos(cur_ti, cur_elem, rest_elems, err)) != NULL)
 		goto done;
-	else if ((ret = lookup_virts(cur_ti, cur_elem, rest_elems)) > 0)
+	else if ((ret = lookup_virts(cur_ti, cur_elem, rest_elems, err)) != NULL)
 		goto done;
-
-	ret = -1;
-	free(cur_elem);
 
 done:
-	if (ret > 0) ret = 0;
+	/* lookup is passed ownership of cur_elem */
+	if (ret != NULL) {
+		printf("%s", cur_elem);
+		set_err(err, LOOKUP_RC_OK);
+	}
+
+	free(cur_elem);
+
+	return ret;
+}
+
+/* takes ownership of cur_ti */
+static struct type_info* lookup(
+	struct type_info* cur_ti, const char* v, int *err)
+{
+	struct type_info	*ret;
+
+	ret = __lookup(cur_ti, v, err);
+	typeinfo_free(cur_ti);
 
 	return ret;
 }
@@ -288,9 +321,10 @@ done:
 int tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
+	struct type_info	*lookup_ti;
 	struct type_desc	init_td = td_origin();
 	char			*var_name, *first_entry;
-	int			ret;
+	int			err;
 
 	printf("Welcome to fsl modify. Modify mode: \"%s\"\n", fsl_rt_fsname);
 
@@ -299,7 +333,6 @@ int tool_entry(int argc, char* argv[])
 		return -2;
 	}
 
-
 	origin_ti = typeinfo_alloc_by_field(&init_td, NULL, NULL);
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
@@ -307,7 +340,7 @@ int tool_entry(int argc, char* argv[])
 	}
 
 	var_name = argv[0];
-	first_entry = get_cur(var_name);
+	first_entry = get_head(var_name);
 	if (first_entry == NULL ||
 	    strcmp(first_entry, tt_by_ti(origin_ti)->tt_name) != 0)
 	{
@@ -317,12 +350,19 @@ int tool_entry(int argc, char* argv[])
 	}
 	free(first_entry);
 
-	ret = lookup(origin_ti, chop_head(var_name));
 	printf("Finding %s\n", var_name);
-	assert (0 == 1 && "NOT DONE YET");
+	lookup_ti = __lookup(origin_ti, chop_head(var_name), &err);
+	if (lookup_ti == NULL) {
+		fprintf(stderr, "Error finding %s: err=%d\n", var_name, err);
+	} else {
+		printf("Found it!...\n");
+		typeinfo_print(lookup_ti);
+		printf("\n");
+	}
 
+	if (lookup_ti != NULL) typeinfo_free(lookup_ti);
 	typeinfo_free(origin_ti);
 	printf("Have a nice day.\n");
 
-	return ret;
+	return err;
 }

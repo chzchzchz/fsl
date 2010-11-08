@@ -15,9 +15,6 @@ static void typeinfo_print_virt(const struct type_info* ti);
 #define typeinfo_print_pointsto(x) typeinfo_print_default(x)
 
 static void typeinfo_print_path_helper(const struct type_info* ti);
-static void print_field_value(
-	const struct type_info		*ti,
-	const struct fsl_rt_table_field	*field);
 static void typeinfo_print_type(const struct type_info* ti);
 
 static void typeinfo_print_path_helper(const struct type_info* ti)
@@ -32,7 +29,8 @@ static void typeinfo_print_path_helper(const struct type_info* ti)
 	printf("/");
 }
 
-static void print_field_value(
+
+void typeinfo_print_field_value(
 	const struct type_info		*ti,
 	const struct fsl_rt_table_field	*field)
 {
@@ -149,7 +147,6 @@ static void typeinfo_print_field(const struct type_info* ti)
 #endif
 }
 
-
 static void typeinfo_print_default(const struct type_info* ti)
 {
 	assert (ti->ti_print_name != NULL);
@@ -232,7 +229,7 @@ void typeinfo_print_fields(const struct type_info* ti)
 		else
 			printf("--- ");
 
-		print_field_value(ti, field);
+		typeinfo_print_field_value(ti, field);
 	}
 }
 
