@@ -278,6 +278,14 @@ struct type_info* typeinfo_alloc_virt_idx(
 			idx, array_bit_off);
 	}
 
+	/* verify we have a valid offset into disk */
+	if (!offset_in_range(fsl_virt_xlate_safe(&td.td_clo, td_offset(&td)))) {
+		DEBUG_TYPEINFO_WRITE("Bad poff in virt.");
+		fsl_virt_free(td_xlate(&td));
+		ret = NULL;
+		goto done;
+	}
+
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: alloc_gen voff=%"PRIu64,
 		td_offset(&td));
 	assert (td_xlate(&td) != NULL);
@@ -288,12 +296,14 @@ struct type_info* typeinfo_alloc_virt_idx(
 		goto done;
 	}
 
+	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: poff=%"PRIu64,
+		ti_phys_offset(ret));
+
 	assert (ti_xlate(ret) != NULL);
 
 	ret->ti_virt = virt;
 	ret->ti_print_name = (virt->vt_name) ? virt->vt_name : "virt";
 	ret->ti_print_idxval = idx;
-
 
 	DEBUG_TYPEINFO_WRITE("now set_dyns");
 	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
@@ -308,6 +318,9 @@ struct type_info* typeinfo_alloc_virt_idx(
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify OK!");
 
 done:
+	assert (ret == NULL || (offset_in_range(ti_phys_offset(ret)))
+		&& "Returning with bad offset.");
+
 	DEBUG_TYPEINFO_LEAVE();
 	return ret;
 }
@@ -403,6 +416,7 @@ void typeinfo_set_dyn(const struct type_info* ti)
 
 	DEBUG_TYPEINFO_LEAVE();
 }
+
 
 diskoff_t ti_phys_offset(const struct type_info* ti)
 {

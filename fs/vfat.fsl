@@ -17,6 +17,7 @@ const EOF_FAT12 = 0xfff;
 const EOF_FAT16 = 0xffff;
 const EOF_FAT32 = 0xffffffff;
 
+const DEL_FLAG = 0xe5;
 const FAT12_MAX = 0xff4;
 const FAT16_MAX = 0xfff4;
 const FAT32_MAX = 0x0ffffff6;
@@ -70,10 +71,9 @@ uint fat_next(uint cluster_num)
 	return fsl_fail();
 }
 
-cluster get_nth(uint i)
+cluster get_nth(fat_de de, uint i)
 {
 	u32	cur_cluster;
-	fat_de	de;
 
 	de = fat_de;
 	cur_cluster = (de.first_cluster_hi << 16) + de.first_cluster_lo;
@@ -136,14 +136,17 @@ uint de_cluster_count(fat_de de)
 	return ((de.file_size + bpc - 1) / bpc);
 }
 
+const DIR_MASK = ATTR_DIRECTORY|ATTR_VOLUME_ID|LAST_LONG_ENTRY_MASK;
+
 type fat_de
+assert (? name[0] != DEL_FLAG && name[0] != 0)
 virtual_if(
-	? file_size != 0xffffffff && ((ATTR_DIRECTORY & attr) == 0),
-	cluster, i, 1, de_cluster_count(fat_de), get_nth(i)) as vfile
+	? file_size != 0xffffffff && ((DIR_MASK & attr) == 0),
+	cluster, i, 1, de_cluster_count(fat_de), get_nth(fat_de, i)) as vfile
 virtual_if(
-	? file_size != 0xffffffff && (ATTR_DIRECTORY & attr) != 0,
+	? file_size != 0xffffffff && ((DIR_MASK & attr) == ATTR_DIRECTORY),
 	fat_de,
-	i, 1, de_cluster_count(fat_de), get_nth(i)) as vdir
+	i, 1, de_cluster_count(fat_de), get_nth(fat_de, i)) as vdir
 points_if(
 	? first_cluster_hi != 0xffff,
 	disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))]) as clusters

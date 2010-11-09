@@ -21,7 +21,9 @@ struct fsl_rt_mapping
 struct fsl_rt_mapping*  fsl_virt_alloc(
 	struct fsl_rt_closure* parent_clo, struct fsl_rt_table_virt* virt);
 uint64_t fsl_virt_xlate(
-	const struct fsl_rt_closure* clo, uint64_t bit_off);
+	const struct fsl_rt_closure* clo, uint64_t bit_voff);
+uint64_t fsl_virt_xlate_safe(
+	const struct fsl_rt_closure* clo, uint64_t bit_voff);
 diskoff_t fsl_virt_get_nth(const struct fsl_rt_mapping* rtm, unsigned int idx);
 void fsl_virt_free(struct fsl_rt_mapping*);
 void fsl_virt_unref(struct fsl_rt_closure* clo);

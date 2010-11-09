@@ -9,6 +9,31 @@
 
 static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify);
 
+uint64_t fsl_virt_xlate_safe(
+	const struct fsl_rt_closure* clo, uint64_t bit_voff)
+{
+	statenum_t	sn;
+	uint64_t	ret;
+
+	fsl_env->fctx_except.ex_err_unsafe_op = 0;
+	fsl_env->fctx_except.ex_in_unsafe_op = true;
+	sn = fsl_debug_get_state();
+	if (setjmp(fsl_env->fctx_except.ex_jmp) != 0) {
+		fsl_debug_return_to_state(sn);
+		DEBUG_VIRT_WRITE("xlate_safe: bad ret on setjmp");
+		fsl_env->fctx_except.ex_err_unsafe_op = 0;
+		fsl_env->fctx_except.ex_in_unsafe_op = false;
+		return OFFSET_INVALID;
+	}
+
+	ret = fsl_virt_xlate(clo, bit_voff);
+	assert (fsl_env->fctx_except.ex_err_unsafe_op == 0);
+	fsl_env->fctx_except.ex_in_unsafe_op = false;
+
+	return ret;
+}
+
+
 uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 {
 	struct fsl_rt_mapping	*rtm;
@@ -35,11 +60,11 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	DEBUG_VIRT_WRITE("virt bit_off=%"PRIu64" / total bits=%"PRIu64,
 		bit_off, total_bits);
 
-	if (bit_off >= total_bits && fsl_env->fctx_in_unsafe_op) {
+	if (bit_off >= total_bits && fsl_env->fctx_except.ex_in_unsafe_op) {
 		DEBUG_VIRT_WRITE("Taking longjmp");
-		fsl_env->fctx_err_unsafe_op = 1;
+		fsl_env->fctx_except.ex_err_unsafe_op = 1;
 		DEBUG_VIRT_LEAVE();
-		longjmp(fsl_env->fctx_except, 1);
+		longjmp(fsl_env->fctx_except.ex_jmp, 1);
 	}
 
 	assert (bit_off < total_bits && "Accessing past virt bits");
@@ -254,19 +279,19 @@ static bool fsl_virt_nth_verify_bounds(
 	typesize_t	cur_size;
 	statenum_t	sn;
 
-	fsl_env->fctx_err_unsafe_op = 0;
-	fsl_env->fctx_in_unsafe_op = true;
+	fsl_env->fctx_except.ex_err_unsafe_op = 0;
+	fsl_env->fctx_except.ex_in_unsafe_op = true;
 	sn = fsl_debug_get_state();
-	if (setjmp(fsl_env->fctx_except) != 0) {
+	if (setjmp(fsl_env->fctx_except.ex_jmp) != 0) {
 		fsl_debug_return_to_state(sn);
 		DEBUG_VIRT_WRITE("nth: bad ret on setjmp");
-		fsl_env->fctx_err_unsafe_op = 0;
-		fsl_env->fctx_in_unsafe_op = false;
+		fsl_env->fctx_except.ex_err_unsafe_op = 0;
+		fsl_env->fctx_except.ex_in_unsafe_op = false;
 		return false;
 	}
 	cur_size = tt->tt_size(&new_clo);
-	assert (fsl_env->fctx_err_unsafe_op == 0);
-	fsl_env->fctx_in_unsafe_op = false;
+	assert (fsl_env->fctx_except.ex_err_unsafe_op == 0);
+	fsl_env->fctx_except.ex_in_unsafe_op = false;
 
 	if (cur_size + cur_off >= fsl_virt_total_bits(rtm))
 		return false;
@@ -276,7 +301,7 @@ static bool fsl_virt_nth_verify_bounds(
 	return true;
 }
 
-/** similar to computeArrayBits, but may fail (safely) */
+/** similar to computeArrayBits, but may fail (safely). Returns a voff */
 diskoff_t fsl_virt_get_nth(
 	const struct fsl_rt_mapping* rtm, unsigned int target_idx)
 {

@@ -26,9 +26,11 @@ void __debugClosureOutcall(uint64_t typenum, struct fsl_rt_closure* clo)
 {
 	assert (clo != NULL);
 
-	printf("DEBUG_WRITE_TYPE: %s-- off=%"PRIu64". xlate=%p\n",
+	printf("DEBUG_WRITE_TYPE: %s-- voff=%"PRIu64". poff=%"PRIu64". xlate=%p\n",
 		tt_by_num(typenum)->tt_name,
 		clo->clo_offset,
+		(clo->clo_xlate) ?
+			fsl_virt_xlate(clo, clo->clo_offset) : clo->clo_offset,
 		clo->clo_xlate);
 }
 

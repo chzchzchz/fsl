@@ -66,16 +66,27 @@ static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line
 
 	file_offset = cache_line * FSL_IO_CACHE_BYTES;
 	if (fseeko(io->io_backing, file_offset, SEEK_SET) != 0) {
-		fprintf(stderr, "BAD SEEK! bit_off=%"PRIx64"\n", file_offset*8);
-		exit(-2);
+		if (fsl_env->fctx_except.ex_in_unsafe_op) {
+			fsl_env->fctx_except.ex_err_unsafe_op = 1;
+			longjmp(fsl_env->fctx_except.ex_jmp, 1);
+		}
+
+		fprintf(stderr, "BAD SEEK! bit_off=%"PRIu64"\n", file_offset*8);
+		assert (0 == 1);
 	}
 
 	br = fread(ce->ce_data, FSL_IO_CACHE_BYTES, 1, io->io_backing);
 	if (br != 1) {
-		fprintf(stderr, "BAD FREAD bit_off=%"PRIx64
+		if (fsl_env->fctx_except.ex_in_unsafe_op) {
+			fsl_env->fctx_except.ex_err_unsafe_op = 1;
+			longjmp(fsl_env->fctx_except.ex_jmp, 1);
+		}
+
+		fprintf(stderr, "BAD FREAD bit_off=%"PRIu64
 				" br=%"PRIu64". bits=%"PRIu64"\n",
 			file_offset*8, br, (uint64_t)FSL_IO_CACHE_BITS);
-		exit(-4);
+
+		assert (0 == 1 && "READ ERORR, NO EXCEPTION");
 	}
 
 	return ce->ce_data;

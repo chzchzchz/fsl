@@ -52,6 +52,14 @@ struct fsl_rt_stat
 };
 
 #include "io.h"
+struct fsl_rt_except
+{
+	bool			ex_in_unsafe_op;
+	int			ex_err_unsafe_op;
+	jmp_buf			ex_jmp;
+	struct type_info	*ex_caller;
+};
+
 
 struct fsl_rt_ctx
 {
@@ -59,9 +67,7 @@ struct fsl_rt_ctx
 	struct fsl_rt_closure	*fctx_dyn_closures;
 	struct fsl_rt_io	*fctx_io;
 	struct fsl_rt_stat	fctx_stat;
-	bool			fctx_in_unsafe_op;
-	int			fctx_err_unsafe_op;
-	jmp_buf			fctx_except;
+	struct fsl_rt_except	fctx_except;
 };
 
 struct fsl_rt_mapping;
