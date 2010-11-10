@@ -40,7 +40,8 @@ RTOBJS= runtime/runtime.o	\
 	runtime/hits.o		\
 	runtime/log.o		\
 	runtime/cache.o		\
-	runtime/type_print.o
+	runtime/type_print.o	\
+	runtime/scan.o
 
 TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o
 

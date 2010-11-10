@@ -233,10 +233,10 @@ struct type_info* typeinfo_alloc_by_field(
 #define set_err_code(x,y)		if ((x) != NULL) *(x) = y
 
 struct type_info* typeinfo_alloc_virt_idx(
-	struct fsl_rt_table_virt* virt,
-	struct type_info*	ti_prev,
-	unsigned int		idx,
-	int			*err_code)
+	const struct fsl_rt_table_virt*	virt,
+	struct type_info*		ti_prev,
+	unsigned int			idx,
+	int*				err_code)
 {
 	struct type_desc	td;
 	struct type_info*	ret;

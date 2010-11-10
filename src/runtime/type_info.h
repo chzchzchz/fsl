@@ -105,7 +105,7 @@ struct type_info* typeinfo_alloc_pointsto(
 #define TI_ERR_EOF		-5	/* out of bounds access */
 
 struct type_info* typeinfo_alloc_virt_idx(
-	struct fsl_rt_table_virt* virt,
+	const struct fsl_rt_table_virt* virt,
 	struct type_info*	ti_prev,
 	unsigned int		idx_no,
 	int			*err_code);
