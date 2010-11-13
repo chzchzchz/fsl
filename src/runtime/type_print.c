@@ -29,7 +29,6 @@ static void typeinfo_print_path_helper(const struct type_info* ti)
 	printf("/");
 }
 
-
 void typeinfo_print_field_value(
 	const struct type_info		*ti,
 	const struct fsl_rt_table_field	*field)
@@ -129,20 +128,18 @@ static void typeinfo_print_field(const struct type_info* ti)
 	tt = tt_by_ti(ti->ti_prev);
 	len = field->tf_typesize(clo);
 #ifdef PRINT_BITS
-	printf("%s.%s@%"PRIu64"--%"PRIu64,//" (%"PRIu64" bits)",
+	printf("%s.%s@%"PRIu64"--%"PRIu64,
 		tt->tt_name,
 		field->tf_fieldname,
 		ti_offset(ti),
 		ti_offset(ti) + len
-//		, len
 	);
 #else
-	printf("%s.%s@%"PRIu64"--%"PRIu64,//" (%"PRIu64" bytes)",
+	printf("%s.%s@%"PRIu64"--%"PRIu64,
 		tt->tt_name,
 		field->tf_fieldname,
 		ti_offset(ti)/8,
 		(ti_offset(ti) + len)/8
-	//	,len/8
 	);
 #endif
 }
@@ -365,4 +362,11 @@ void typeinfo_dump_data(const struct type_info* ti)
 	printf("\n");
 	if (type_sz % 8)
 		printf("OOPS-- size is not byte-aligned\n");
+}
+
+void typeinfo_print_value(const struct type_info* ti)
+{
+	assert (ti != NULL);
+	assert (ti->ti_field != NULL && "Only fields supported");
+	typeinfo_print_field_value(ti->ti_prev, ti->ti_field);
 }

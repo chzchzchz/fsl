@@ -296,10 +296,8 @@ static struct type_info* __lookup(
 
 done:
 	/* lookup is passed ownership of cur_elem */
-	if (ret != NULL) {
-		printf("%s", cur_elem);
+	if (ret != NULL)
 		set_err(err, LOOKUP_RC_OK);
-	}
 
 	free(cur_elem);
 
@@ -357,6 +355,8 @@ int tool_entry(int argc, char* argv[])
 	} else {
 		printf("Found it!...\n");
 		typeinfo_print(lookup_ti);
+		printf("\n");
+		typeinfo_print_value(lookup_ti);
 		printf("\n");
 	}
 
