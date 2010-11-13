@@ -3,7 +3,7 @@
 
 #define fsl_virt_src_types(x)	(((x)->rtm_cached_maxidx-(x)->rtm_cached_minidx)+1)
 #define fsl_virt_total_bits(x)	((x)->rtm_cached_srcsz*fsl_virt_src_types(x))
-
+#define fsl_virt_elem_bits(x)	((x)->rtm_cached_srcsz)
 
 struct fsl_rt_mapping
 {
