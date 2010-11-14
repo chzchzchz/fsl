@@ -40,9 +40,10 @@ RTOBJS= runtime/runtime.o	\
 	runtime/hits.o		\
 	runtime/log.o		\
 	runtime/cache.o		\
-	runtime/type_print.o
+	runtime/type_print.o	\
+	runtime/scan.o
 
-TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o
+TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o runtime/fragtool.o
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core) 

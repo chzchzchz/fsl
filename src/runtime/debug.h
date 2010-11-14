@@ -69,6 +69,16 @@ extern unsigned int fsl_debug_depth;
 #define DEBUG_RT_WRITE
 #endif
 
+#ifdef DEBUG_SCAN
+#define DEBUG_SCAN_ENTER()	fsl_debug_enter(__FUNCTION__)
+#define DEBUG_SCAN_LEAVE()	fsl_debug_leave(__FUNCTION__)
+#define DEBUG_SCAN_WRITE	fsl_debug_write
+#else
+#define DEBUG_SCAN_ENTER()	do {} while (0)
+#define DEBUG_SCAN_LEAVE()	do {} while (0)
+#define DEBUG_SCAN_WRITE
+#endif
+
 typedef unsigned int statenum_t;
 
 
