@@ -227,8 +227,8 @@ u32 indir_count(ext2_indir_block id)
 	max_blks = get_block_size()/4;
 	while (i < max_blks) {
 		if (id.blk_ptr[i] != 0)
-			ret = ret + 1;
-		i = i + 1;
+			ret++;
+		i++;
 	}
 	return ret;
 }
@@ -252,8 +252,8 @@ u32 bi_count(ext2_biindir_block id)
 	max_blks = get_block_size()/4;
 	while (i < max_blks) {
 		if (id.blk_ptr[i] != 0)
-			ret = ret + 1;
-		i = i + 1;
+			ret++;
+		i++;
 	}
 	return ret;
 }
@@ -277,8 +277,8 @@ u32 tri_count(ext2_triindir_block id)
 	max_blks = get_block_size()/4;
 	while (i < max_blks) {
 		if (id.blk_ptr[i] != 0)
-			ret = ret + 1;
-		i = i + 1;
+			ret++;
+		i++;
 	}
 	return ret;
 }

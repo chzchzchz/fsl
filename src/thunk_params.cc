@@ -2,7 +2,9 @@
 #include "code_builder.h"
 #include "runtime_interface.h"
 #include "thunk_type.h"
+#include "eval.h"
 
+extern symtab_map       symtabs;
 extern CodeBuilder*	code_builder;
 extern RTInterface	rt_glue;
 
@@ -50,7 +52,6 @@ FCall* ThunkParams::copyFCall(unsigned int idx) const
 
 	return new FCall(new Id(getFCallName()), fc_exprs);
 }
-
 
 ThunkParams* ThunkParams::copy(void) const
 {
@@ -149,6 +150,7 @@ bool ThunkParams::genCodeExprs(void) const
 	llvm::AllocaInst		*params_out_ptr;
 	llvm::AllocaInst		*paramsf_idx;
 	llvm::Function::arg_iterator	arg_it;
+	EvalCtx				ectx(symtabs[getType()->getName()]);
 	ExprList::const_iterator	it;
 	unsigned int			i;
 
@@ -192,8 +194,9 @@ bool ThunkParams::genCodeExprs(void) const
 		llvm::Value	*idx_val;
 
 		cur_expr = *it;
+
 		idxed_expr = Expr::rewriteReplace(
-			cur_expr->copy(),
+			eval(ectx, cur_expr),
 			new Id("@"),
 			rt_glue.getThunkArgIdx());
 

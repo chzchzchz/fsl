@@ -5,6 +5,7 @@
 #include "expr.h"
 
 class ThunkType;
+class Type;
 
 class ThunkFunc
 {
@@ -26,6 +27,8 @@ public:
 		assert (owner != NULL  && "Owner not set");
 		return owner; 
 	}
+
+	const Type* getType(void) const;
 
 private:
 	const ThunkType*	owner;

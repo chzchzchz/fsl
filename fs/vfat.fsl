@@ -68,7 +68,7 @@ uint fat_next(uint cluster_num)
 	else if (ft == FAT_TYPE_FAT16) return f.ent16[cluster_num].cluster_num;
 	else if (ft == FAT_TYPE_FAT32) return f.ent32[cluster_num].cluster_num;
 
-	return fsl_fail();
+	return fsl_fail(1);
 }
 
 cluster get_nth(fat_de de, uint i)
@@ -125,7 +125,7 @@ uint de_cluster_count(fat_de de)
 		cur_clus = de.first_cluster_lo + (de.first_cluster_hi << 16);
 
 		while (is_valid_cnum(cur_clus) == true) {
-			count = count + 1;
+			count++;
 			cur_clus = fat_next(cur_clus);
 		}
 
@@ -271,7 +271,7 @@ free(ent32, disk.clusters, 0)
 	} else if (is_fat32(bpb)) {
 		fat_ent32	ent32[FAT_START_ENT+get_cluster_count(bpb)];
 	} else {
-		fsl_fail();
+		fsl_fail(2);
 	}
 	set_bytes(get_fat_sectors(bpb)*bpb.bytes_per_sector);
 }

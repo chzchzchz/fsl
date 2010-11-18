@@ -36,3 +36,8 @@ FCall* ThunkFunc::copyFCall(void) const
 {
 	return new FCall(new Id(getFCallName()), getOwner()->copyExprList());
 }
+
+const Type* ThunkFunc::getType(void) const
+{
+	return getOwner()->getType();
+}

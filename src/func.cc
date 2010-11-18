@@ -263,16 +263,16 @@ Value* FuncCondStmt::codeGen(void) const
 	builder = code_builder->getBuilder();
 	f = getFunction();
 
+	/* setup allocate BBs */
 	bb_origin = builder->GetInsertBlock();
-
 	bb_then = BasicBlock::Create(getGlobalContext(), "func_then", f);
 	if (is_false != NULL)
 		bb_else = BasicBlock::Create(getGlobalContext(), "func_else", f);
 	else
 		bb_else = NULL;
-
 	bb_merge = BasicBlock::Create(getGlobalContext(), "func_merge", f);
 
+	/* generate conditional jump */
 	builder->SetInsertPoint(bb_origin);
 	cond_v = cond_codeGen(&ectx, cond);
 	if (cond_v == NULL) {
@@ -281,22 +281,30 @@ Value* FuncCondStmt::codeGen(void) const
 	}
 	builder->CreateCondBr(cond_v, bb_then, (is_false) ? bb_else : bb_merge);
 
-
+	/* create true condition */
 	builder->SetInsertPoint(bb_then);
 	is_true->codeGen();
-	if (bb_then->empty() || bb_then->back().isTerminator() == false)
+	/* if we didn't jump out of scope, go to merged BB */
+	if (bb_then->empty()|| bb_then->back().isTerminator() == false)
+		builder->CreateBr(bb_merge);
+	/* patch up */
+	bb_cur = builder->GetInsertBlock();
+	if (bb_cur->empty())
 		builder->CreateBr(bb_merge);
 
+
+	/* create false condition */
 	if (bb_else != NULL) {
 		builder->SetInsertPoint(bb_else);
 		is_false->codeGen();
 		if (bb_else->empty() || bb_else->back().isTerminator() == false)
 			builder->CreateBr(bb_merge);
-	}
 
-	bb_cur = builder->GetInsertBlock();
-	if (bb_cur->empty())
-		builder->CreateBr(bb_merge);
+		/* patch up */
+		bb_cur = builder->GetInsertBlock();
+		if (bb_cur->empty())
+			builder->CreateBr(bb_merge);
+	}
 
 	builder->SetInsertPoint(bb_merge);
 
@@ -519,6 +527,8 @@ void Func::genCode(void) const
 {
 	llvm::Function			*llvm_f;
 	llvm::BasicBlock		*f_bb;
+
+	cerr << "Generating code for " << name->getName() << endl;
 
 	llvm_f = code_builder->getModule()->getFunction(getName());
 	if (llvm_f == NULL) {

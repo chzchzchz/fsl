@@ -451,7 +451,7 @@ Expr* EvalCtx::resolve(const IdArray* ida) const
 	}
 	
 /* TODO -- add support for constant arrays */
-	assert (0 == 1);
+	assert (0 == 1 && "Could not resolve");
 	
 	/* could not resolve */
 	return NULL;

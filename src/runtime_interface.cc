@@ -49,7 +49,7 @@ struct rt_func rt_funcs[] =
 	{"__getDynOffset",  RTF_TYPE_INT64,  1, {RTF_TYPE_INT64} },
 	{"__getDynVirt",  RTF_TYPE_INT8PTR,  1, {RTF_TYPE_INT64} },
 	{"__getDynClosure",  RTF_TYPE_VOID,  2, {RTF_TYPE_INT64, RTF_TYPE_CLOSURE} },
-	{"fsl_fail" , RTF_TYPE_INT64 /* fake it */, 0 },
+	{"fsl_fail" , RTF_TYPE_INT64 /* fake it */, 1, {RTF_TYPE_INT64} },
 	{ "__max2", RTF_TYPE_INT64,  2, {RTF_TYPE_INT64, RTF_TYPE_INT64} },
 	{"__max3",
 		RTF_TYPE_INT64,
@@ -287,7 +287,7 @@ Expr* RTInterface::maxValue(ExprList* exprs)
 
 Expr* RTInterface::fail(void)
 {
-	return new FCall(new Id("fsl_fail"), new ExprList());
+	return new FCall(new Id("fsl_fail"), new ExprList(new Number(0)));
 }
 
 /* compute number of bits in a given array */

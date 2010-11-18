@@ -52,10 +52,10 @@ Value* Id::codeGen() const
 
 	if (gen_func_block != NULL)
 		ai = gen_func_block->getVar(getName());
-	else if ((gv = code_builder->getGlobalVar(getName())) != NULL) {
+	else if ((gv = code_builder->getGlobalVar(getName())) != NULL)
 		return get_builder()->CreateLoad(gv, getName());
-	}
 
+	/* create variable, if one does not already exist */
 	if (ai == NULL)
 		ai = code_builder->getTmpAllocaInst(getName());
 
