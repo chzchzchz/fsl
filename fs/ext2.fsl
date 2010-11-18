@@ -235,7 +235,7 @@ u32 indir_count(ext2_indir_block id)
 
 type ext2_indir_block
 points_range(
-	i, 1, indir_count(ext2_indir_block),
+	i, 1, indir_count(this),
 	disk.blocks[blk_ptr[i-1] - blocks_off(disk.sb)].data_blk)
 {
 	u32	blk_ptr[get_block_size()/4];
@@ -260,7 +260,7 @@ u32 bi_count(ext2_biindir_block id)
 
 type ext2_biindir_block
 points_range(
-	i, 1, bi_count(ext2_biindir_block),
+	i, 1, bi_count(this),
 	disk.blocks[blk_ptr[i-1] - blocks_off(disk.sb)].indir_blk)
 {
 	u32	blk_ptr[get_block_size()/4];
@@ -292,7 +292,7 @@ points_range(
 }
 
 type ext2_inode_block
-assert (? sizeof_bytes(ext2_inode_block) == get_block_size())
+assert (? sizeof_bytes(this) == get_block_size())
 {
 	ext2_inode	ino[get_block_size()/sizeof_bytes(ext2_inode)];
 }
@@ -311,7 +311,7 @@ points_range(
 sum(free_block_c)
 sum(free_inode_c)
 sum(used_dir_c)
-assert(? sizeof_bytes(ext2_group_desc) == 32)
+assert(? sizeof_bytes(this) == 32)
 {
 	u32	block_bmp;
 	u32	inode_bmp;
@@ -363,7 +363,7 @@ sum(s_free_inodes_c)
 //type ext2_file(u32 flen) { u8	file_dat[flen]; }
 
 type ext2_inode
-assert (? is_fast_symlink(ext2_inode) || i_block_direct[0] != 0)
+assert (? is_fast_symlink(this) || i_block_direct[0] != 0)
 assert (? i_dtime == 0)
 virtual_if(
 	? S_ISREG(i_mode) == true,
@@ -376,18 +376,18 @@ virtual_if(
 	i, 1, size_to_blocks(i_size),
 	get_nth(i-1)) as vdir
 points_range(
-	i, 1, num_direct_blocks(ext2_inode),
+	i, 1, num_direct_blocks(this),
 	disk.blocks[i_block_direct[i-1] - blocks_off(disk.sb)].data_blk) as direct
 points_if(
-	? is_fast_symlink(ext2_inode) == false &&
+	? is_fast_symlink(this) == false &&
 	   size_to_blocks(i_size) > EXT2_NDIR_BLOCKS,
 	disk.blocks[i_block_indir - blocks_off(disk.sb)].indir_blk) as indir
 points_if(
-	? is_fast_symlink(ext2_inode) == false && 
+	? is_fast_symlink(this) == false &&
 	  size_to_blocks(i_size) > (EXT2_NDIR_BLOCKS + blocks_per_indir()),
 	disk.blocks[i_block_biindir - blocks_off(disk.sb)].biindir_blk) as biindir
 points_if(
-	? is_fast_symlink(ext2_inode) == false && 
+	? is_fast_symlink(this) == false &&
 	  size_to_blocks(i_size) >
 		(EXT2_NDIR_BLOCKS + blocks_per_indir()*
 			(1 + blocks_per_indir())),
@@ -406,7 +406,7 @@ points_if(
 	u32	i_flags;
 	u32	i_osd_resv;
 
-	if (is_fast_symlink(ext2_inode) == false) {
+	if (is_fast_symlink(this) == false) {
 		u32	i_block_direct[EXT2_NDIR_BLOCKS];
 		u32	i_block_indir;
 		u32	i_block_biindir;

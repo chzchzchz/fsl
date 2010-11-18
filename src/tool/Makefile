@@ -7,6 +7,8 @@ TOOLS_FRAG := $(FILESYSTEMS:%=fragtool-%)
 
 TOOLS_ALL=$(TOOLS_BROWSER) $(TOOLS_SCAN) $(TOOLS_MODIFY) $(TOOLS_FRAG)
 
+export CFLAGS
+
 all: $(TOOLS_ALL)
 
 fragtool-% scantool-% modify-% browser-%: ../../fs/%.fsl

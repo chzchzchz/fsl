@@ -1,5 +1,8 @@
 NUM_JOBS=6
 MAKECMD=make -j$(NUM_JOBS)
+CFLAGS=-g -O3
+#CFLAGS=-g
+export CFLAGS
 
 all: code tools tests draw
 

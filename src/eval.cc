@@ -130,6 +130,7 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 	Expr				*front;
 	Expr				*ret_size;
 	Id				*front_id;
+	Expr				*resolved_closure;
 	symtab_map::const_iterator	it;
 
 	/* fc name is either sizeof_bytes of sizeof_bits */
@@ -154,20 +155,16 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 		return NULL;
 	}
 
-	/* find symtab that gives matching name */
-	it = symtabs.find(front_id->getName());
-	if (it == symtabs.end()) {
-		cerr	<< "Could not find type for " 
-			<< front_id->getName() 
-			<< endl;
+	resolved_closure = ectx.resolve(front_id);
+	t = ectx.getType(front_id);
+	if (t == NULL) {
+		cerr << "sizeof can't find type for " << front_id->getName();
+		cerr << endl;
 		return NULL;
 	}
 
 	/* st = symbol table for type to get size of */
-	st = (*it).second;
-
-	/* type of symbol table */
-	t = st->getOwnerType();
+	st = symtabs[t->getName()];
 
 	/* get typified size expression,
 	 * fill in closure parameter with the dynamic type */
@@ -175,7 +172,7 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 	ret_size = Expr::rewriteReplace(
 		ret_size,
 		rt_glue.getThunkClosure(),
-		rt_glue.getDynClosure(t));
+		resolved_closure);
 
 	if (bits == false) {
 		/* convert bits to bytes */

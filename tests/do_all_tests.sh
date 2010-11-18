@@ -7,8 +7,8 @@ FILESYSTEMS="ext2 vfat nilfs2 testfs iso9660"
 echo "Pre-commit Tests..."
 echo "Building language."
 
-cd "${src_root}/src/"
-make -j6  1>/dev/null
+cd "${src_root}/"
+make tools  1>/dev/null
 makeret=$?
 if [ $makeret -ne 0 ]; then
 	echo "Tests failed. Could not build lang."

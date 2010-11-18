@@ -1,3 +1,7 @@
+ifndef CFLAGS
+    $(error No CFLAGS. Run from top level.)
+endif
+
 OBJS=	parser.o		\
 	lex.yy.o		\
 	main.o			\
@@ -49,10 +53,10 @@ DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core) 
 LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual//;s/-fPIC//;s/-DNDEBUG//g") -Wall
 LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
-DEBUG_FLAG=-g
-CFLAGS= $(DEBUG_FLAG) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
-RTCFLAGS= $(DEBUG_FLAG) $(DEFINE_FLAGS) -O3
-#RTCFLAGS= $(DEBUG_FLAG) $(DEFINE_FLAGS)
+COMP_CFLAGS= $(CFLAGS) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
+RTCFLAGS= $(CFLAGS) $(DEFINE_FLAGS)
+
+export CFLAGS
 
 all: lang
 
@@ -72,7 +76,7 @@ lex.yy.cc: lang.lex parser.hh
 	flex -o $@ $^
 
 .cc.o:
-	g++ $(DEBUG_FLAG) -O3 -c $< $(LLVM_FLAGS) -o $@
+	g++ $(COMP_CFLAGS) -O3 -c $< $(LLVM_FLAGS) -o $@
 
 .c.o:
 	gcc $(RTCFLAGS) -c $< -o $@

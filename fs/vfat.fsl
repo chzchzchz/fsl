@@ -142,11 +142,11 @@ type fat_de
 assert (? name[0] != DEL_FLAG && name[0] != 0)
 virtual_if(
 	? file_size != 0xffffffff && ((DIR_MASK & attr) == 0),
-	cluster, i, 1, de_cluster_count(fat_de), get_nth(fat_de, i)) as vfile
+	cluster, i, 1, de_cluster_count(this), get_nth(this, i)) as vfile
 virtual_if(
 	? file_size != 0xffffffff && ((DIR_MASK & attr) == ATTR_DIRECTORY),
 	fat_de,
-	i, 1, de_cluster_count(fat_de), get_nth(fat_de, i)) as vdir
+	i, 1, de_cluster_count(this), get_nth(this, i)) as vdir
 points_if(
 	? first_cluster_hi != 0xffff,
 	disk.clusters[(first_cluster_lo + (first_cluster_hi << 16))]) as clusters
@@ -214,7 +214,7 @@ type bpb_32 {
 }
 
 type bpb
-assert (? is_fat12(bpb) || is_fat16(bpb) || is_fat32(bpb))
+assert (? is_fat12(this) || is_fat16(this) || is_fat32(this))
 {
 	u8		jmp[3];
 	u8		oem_name[8];

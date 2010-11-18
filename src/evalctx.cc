@@ -363,6 +363,10 @@ Expr* EvalCtx::resolve(const Id* id) const
 	}
 	
 	if (cur_scope != NULL) {
+		/* short-circuit, use current thunk (e.g. current type inst) */
+		if (id->getName() == "this")
+			return rt_glue.getThunkClosure();
+
 		/* is is in the current scope? */
 		if ((st_ent = cur_scope->lookup(id->getName())) != NULL) {
 			const ThunkField	*tf;
@@ -393,12 +397,8 @@ Expr* EvalCtx::resolve(const Id* id) const
 	}
 
 	/* support for access of dynamic types.. gets base bits for type */
-	if ((t = typeByName(id->getName())) != NULL) {
-		return FCall::mkClosure(
-			rt_glue.getDynOffset(t),
-			rt_glue.getDynParams(t),
-			rt_glue.getDynVirt(t));
-	}
+	if ((t = typeByName(id->getName())) != NULL)
+		return rt_glue.getDynClosure(t);
 
 	/* could not resolve */
 	return NULL;
@@ -503,6 +503,10 @@ const Type* EvalCtx::getTypeId(const Id* id) const
 
 	if (cur_scope != NULL) {
 		const SymbolTableEnt*	st_ent;
+
+		if (id->getName() == "this")
+			return cur_scope->getOwnerType();
+
 		st_ent = cur_scope->lookup(id->getName());
 		if (st_ent != NULL) {
 			return types_map[st_ent->getTypeName()];
