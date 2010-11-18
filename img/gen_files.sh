@@ -13,12 +13,12 @@ fi
 sudo chmod -R 777 "${GEN_FILE_PATH}"
 
 for a in `seq ${BRANCH_FACTOR}`; do
-	echo "A$a" >"${GEN_FILE_PATH}"/"$a".aaa
+	echo "${a}.aaa " >"${GEN_FILE_PATH}"/"$a".aaa
 done
 
 for b in `seq ${BRANCH_FACTOR}`; do
 	mkdir -p "${GEN_FILE_PATH}"/"$b"d
 	for a in `seq ${BRANCH_FACTOR}`; do
-		echo "AAA$a" >"${GEN_FILE_PATH}"/"$b"d/$a.qqq
+		echo "${b}d/$a.qqq " >"${GEN_FILE_PATH}"/"$b"d/$a.qqq
 	done
 done
