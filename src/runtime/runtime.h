@@ -77,7 +77,6 @@ struct fsl_rt_closure
 	diskoff_t			clo_offset; /* virtual offset of type */
 	parambuf_t			clo_params; /* params into type */
 	struct fsl_rt_mapping		*clo_xlate; /* "page table"/address space */
-
 };
 
 #define NEW_CLO(x,y,z)	NEW_VCLO(x,y,z,NULL)

@@ -4,6 +4,7 @@
 #include "AST.h"
 #include "type.h"
 #include "func.h"
+#include "writepkt.h"
 #include "parser.hh"
 
 #define IN_TOKEN(x)			\
@@ -62,6 +63,8 @@ WHITESPACE [ 	]
 "typedef"	IN_TOKEN(TOKEN_TYPEDEF);
 "as"		IN_TOKEN(TOKEN_AS);
 "fixed"		IN_TOKEN(TOKEN_FIXED);
+"write"		IN_TOKEN(TOKEN_WRITE);
+"<-"		IN_TOKEN(TOKEN_WRITEARROW);
 "("		IN_TOKEN(TOKEN_LPAREN);
 ")"		IN_TOKEN(TOKEN_RPAREN);
 "{"		IN_TOKEN(TOKEN_LBRACE);
@@ -94,6 +97,7 @@ WHITESPACE [ 	]
 "++"		IN_TOKEN(TOKEN_PLUSPLUS);
 "--"		IN_TOKEN(TOKEN_SUBSUB);
 "|"		IN_TOKEN(TOKEN_BITOR);
+"!"		IN_TOKEN(TOKEN_EXCLAIM);
 "||"		IN_TOKEN(TOKEN_LOGOR);
 "&&"		IN_TOKEN(TOKEN_LOGAND);
 "&"		IN_TOKEN(TOKEN_BITAND);

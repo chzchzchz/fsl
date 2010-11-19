@@ -9,6 +9,8 @@ format: ext2.img vfat.img nilfs2.img ext2-small.img ext2-many.img format-ext2-ma
 clean:
 	rm -f *.img
 
+postmark: format-ext2-postmark.img format-vfat-postmark.img
+
 
 format-ext2-postmark.img: ext2-postmark.img
 	./loopback_fs_setup.sh ext2-postmark.img ext2  && ./gen_postmark.sh && ./loopback_fs_teardown.sh

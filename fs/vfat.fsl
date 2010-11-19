@@ -138,8 +138,15 @@ uint de_cluster_count(fat_de de)
 
 const DIR_MASK = ATTR_DIRECTORY|ATTR_VOLUME_ID|LAST_LONG_ENTRY_MASK;
 
+bool is_deleted(fat_de de)
+{
+	if (de.name[0] == DEL_FLAG || de.name[0] == 0)
+		return true;
+	return false;
+}
+
 type fat_de
-assert (? name[0] != DEL_FLAG && name[0] != 0)
+assert (? is_deleted(this) == false)
 virtual_if(
 	? file_size != 0xffffffff && ((DIR_MASK & attr) == 0),
 	cluster, i, 1, de_cluster_count(this), get_nth(this, i)) as vfile

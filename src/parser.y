@@ -3,6 +3,7 @@
 #include "AST.h"
 #include "type.h"
 #include "func.h"
+#include "writepkt.h"
 #include "deftype.h"
 #include "detached_preamble.h"
 
@@ -42,9 +43,10 @@ void yyerror(const char* s)
 	CondExpr		*c_expr;
 	Preamble		*p_preamble;
 	CondOrExpr		*c_or_e;
+	WritePkt		*w_wp;
+	WritePktStmt		*w_ws;
+	WritePktBlk		*w_wb;
 }
-
-
 
 //  braces
 %token <token> TOKEN_LPAREN TOKEN_RPAREN TOKEN_LBRACE TOKEN_RBRACE 
@@ -53,9 +55,7 @@ void yyerror(const char* s)
 // arith
 %token <token> TOKEN_BITOR TOKEN_BITAND TOKEN_ADD TOKEN_SUB TOKEN_MUL TOKEN_DIV
 %token <token> TOKEN_LSHIFT TOKEN_RSHIFT TOKEN_MOD
-
-
-%token <token> TOKEN_SEMI TOKEN_QUESTION TOKEN_FIXED
+%token <token> TOKEN_SEMI TOKEN_QUESTION TOKEN_FIXED TOKEN_WRITE TOKEN_EXCLAIM
 
 // comparison
 %token <token> TOKEN_CMPEQ TOKEN_CMPLE TOKEN_CMPGE TOKEN_CMPNE TOKEN_CMPGT TOKEN_CMPLT
@@ -64,7 +64,7 @@ void yyerror(const char* s)
 
 %token <token> TOKEN_CONST
 
-%token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS TOKEN_ASSIGNDIV TOKEN_ASSIGNMUL TOKEN_ASSIGNMOD TOKEN_PLUSPLUS TOKEN_SUBSUB
+%token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS TOKEN_ASSIGNDIV TOKEN_ASSIGNMUL TOKEN_ASSIGNMOD TOKEN_PLUSPLUS TOKEN_SUBSUB TOKEN_WRITEARROW
 
 %token <token> TOKEN_WHEN TOKEN_TYPEDEF TOKEN_DOUBLECOLON TOKEN_AS
 
@@ -87,7 +87,8 @@ void yyerror(const char* s)
 %type <args> type_args type_args_list
 %type <t_block> type_block type_stmts
 %type <t_preamble> type_preamble
-
+%type <w_ws> write_stmt
+%type <w_wb> write_block write_stmts
 
 %type <c_expr> cond_expr
 %type <enm_enum> enum_ents
@@ -151,9 +152,11 @@ program_stmt	: TOKEN_CONST ident TOKEN_ASSIGN expr TOKEN_SEMI
 		}
 		| ident ident type_args func_block
 		{
-			$$ = new Func(
-				(Id*)$1, (Id*)$2, 
-				$3, (FuncBlock*)$4);
+			$$ = new Func((Id*)$1, (Id*)$2, $3, (FuncBlock*)$4);
+		}
+		| TOKEN_WRITE ident type_args write_block
+		{
+			$$ = new WritePkt((Id*)$2, $3, (WritePktBlk*)$4);
 		}
 		| TOKEN_TYPEDEF ident TOKEN_ASSIGN ident TOKEN_SEMI
 		{
@@ -268,19 +271,10 @@ enum_ent	: ident { $$ = new EnumEnt($1); }
 		;
 
 	
-type_args	: TOKEN_LPAREN type_args_list TOKEN_RPAREN
-		{
-			$$ = $2;
-		}
-		| TOKEN_LPAREN TOKEN_RPAREN
-		{
-			$$ = new ArgsList();
-		}
+type_args	: TOKEN_LPAREN type_args_list TOKEN_RPAREN { $$ = $2; }
+		| TOKEN_LPAREN TOKEN_RPAREN { $$ = new ArgsList(); }
 		;
-type_args_list	: type_args_list TOKEN_COMMA ident ident
-		{
-			$1->add($3, $4);
-		}
+type_args_list	: type_args_list TOKEN_COMMA ident ident { $1->add($3, $4); }
 		| ident ident
 		{
 			$$ = new ArgsList();
@@ -288,10 +282,7 @@ type_args_list	: type_args_list TOKEN_COMMA ident ident
 		}
 		;
 
-type_preamble 	: type_preamble preamble
-		{
-			$1->add($2);
-		}
+type_preamble 	: type_preamble preamble { $1->add($2); }
 		| preamble
 		{
 			$$ = new TypePreamble();
@@ -299,10 +290,7 @@ type_preamble 	: type_preamble preamble
 		}
 		;
 
-id_list		: id_list ident
-		{
-			$1->add($2);
-		}
+id_list		: id_list ident  { $1->add($2); }
 		| ident
 		{
 			$$ = new PtrList<Id>();
@@ -333,27 +321,14 @@ preamble	: ident TOKEN_LPAREN preamble_args_list TOKEN_RPAREN
 		{
 			$$ = new Preamble($1, $3, NULL, $6);
 		}
-		| ident
-		{
-			$$ = new Preamble($1);
-		}
-		| ident TOKEN_WHEN id_list
-		{
-			$$ = new Preamble($1, NULL, $3);
-		}
+		| ident { $$ = new Preamble($1); }
+		| ident TOKEN_WHEN id_list { $$ = new Preamble($1, NULL, $3); }
 		;
 
 
-type_block	: TOKEN_LBRACE type_stmts TOKEN_RBRACE
-		{
-			$$ = $2;
-		}
-		;
+type_block	: TOKEN_LBRACE type_stmts TOKEN_RBRACE { $$ = $2; } ;
 
-type_stmts	: type_stmts type_stmt
-		{
-			$1->add($2);
-		}
+type_stmts	: type_stmts type_stmt { $1->add($2); }
 		| type_stmt
 		{
 			$$ = new TypeBlock();
@@ -425,10 +400,7 @@ cond_expr	: TOKEN_LPAREN cond_expr TOKEN_RPAREN { $$ = $2; }
 expr_list	: TOKEN_LBRACE expr_list_ent TOKEN_RBRACE { $$ = $2; }
 		;
 
-expr_list_ent	: expr_list_ent TOKEN_COMMA expr
-		{
-			$1->add($3);
-		}
+expr_list_ent	: expr_list_ent TOKEN_COMMA expr { $1->add($3); }
 		| expr
 		{
 			$$ = new ExprList();
@@ -498,3 +470,21 @@ arith		: 	expr TOKEN_BITOR expr  	{ $$ = new AOPOr($1, $3); }
 		|	expr TOKEN_RSHIFT expr 	{ $$ = new AOPRShift($1, $3); }
 		|	expr TOKEN_MOD expr	{ $$ = new AOPMod($1, $3); }
 		;
+
+write_stmts	: write_stmts write_stmt { $1->add($2); }
+		| write_stmt { $$ = new WritePktBlk(); $$->add($1) }
+		;
+write_stmt	: ident_struct TOKEN_WRITEARROW expr TOKEN_EXCLAIM
+		{ $$ = new WritePktStruct($1, $3);}
+		| ident_struct TOKEN_WRITEARROW write_block TOKEN_EXCLAIM
+		{ $$ = new WritePktStruct($1, $3);}
+		| array TOKEN_WRITEARROW expr TOKEN_EXCLAIM
+		{ $$ = new WritePktArray((IdArray*)$1, $3);}
+		| array TOKEN_WRITEARROW write_block TOKEN_EXCLAIM
+		{ $$ = new WritePktArray((IdArray*)$1, $3); }
+		| ident TOKEN_WRITEARROW expr TOKEN_EXCLAIM
+		{ $$ = new WritePktId((Id*)$1, $3);}
+		| ident TOKEN_WRITEARROW write_block TOKEN_EXCLAIM
+		{ $$ = new WritePktId((Id*)$1, $3); }
+		;
+write_block	: TOKEN_LBRACE write_stmts TOKEN_RBRACE { $$ = $2; }
