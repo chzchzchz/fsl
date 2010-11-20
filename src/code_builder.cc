@@ -15,6 +15,7 @@
 #include "cond.h"
 #include "runtime_interface.h"
 #include "code_builder.h"
+#include "varscope.h"
 #include "util.h"
 
 using namespace std;
@@ -27,13 +28,20 @@ CodeBuilder::CodeBuilder(const char* mod_name) : tmp_c(0)
 	builder = new llvm::IRBuilder<>(llvm::getGlobalContext());
 	mod = new llvm::Module(mod_name, llvm::getGlobalContext());
 	debug_output = false;
+	vscope = new VarScope(builder);
 	makeClosureTy();
 }
 
 CodeBuilder::~CodeBuilder(void)
 {
+	delete vscope;
 	delete mod;
 	delete builder;
+}
+
+unsigned int CodeBuilder::getTmpVarCount(void) const
+{
+	return vscope->size();
 }
 
 void CodeBuilder::createGlobal(const char* str, uint64_t v, bool is_const)
@@ -175,122 +183,31 @@ void CodeBuilder::genCodeEmpty(const std::string& name)
 	builder->CreateRetVoid();
 }
 
-
 void CodeBuilder::genThunkHeaderArgs(
 	llvm::Function* f, 
 	const Type* t,
 	const ArgsList* extra_args)
 {
-	const llvm::Type		*l_t;
-	llvm::AllocaInst		*allocai;
 	llvm::Function::arg_iterator	ai;
 	llvm::IRBuilder<>		tmpB(
 		&f->getEntryBlock(), f->getEntryBlock().begin());
 
 	assert (t != NULL);
 
-	tmp_var_map.clear();
+	vscope->clear();
 
+	/* closure arg */
 	ai = f->arg_begin();
-
-	/* create the hidden argument __thunk_off_arg */
-	l_t = builder->getInt64Ty();
-	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgOffsetName());
-	tmp_var_map[rt_glue.getThunkArgOffsetName()] = allocai;
-	builder->CreateStore(
-		builder->CreateExtractValue(
-			builder->CreateLoad(ai), RT_CLO_IDX_OFFSET, "t_offset"),
-		allocai);
-
-
-	/* __thunk_params */
-	l_t = llvm::Type::getInt64PtrTy(llvm::getGlobalContext());
-	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgParamPtrName());
-	tmp_var_map[rt_glue.getThunkArgParamPtrName()] = allocai;
-	tmp_var_map[t->getName() + "_params"] = allocai;
-	builder->CreateStore(
-		builder->CreateExtractValue(
-			builder->CreateLoad(ai), RT_CLO_IDX_PARAMS, "t_params"),
-		allocai);
-
-	/* __thunk_virt */
-	l_t = builder->getInt8PtrTy();
-	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgVirtName());
-	tmp_var_map[rt_glue.getThunkArgVirtName()] = allocai;
-	builder->CreateStore(
-		builder->CreateExtractValue(
-			builder->CreateLoad(ai), RT_CLO_IDX_XLATE, "t_virt"),
-		allocai);
-
-	/* __thunk_closure */
-	allocai = tmpB.CreateAlloca(
-		getClosureTyPtr(), 0, rt_glue.getThunkClosureName());
-	tmp_var_map[rt_glue.getThunkClosureName()] = allocai;
-	builder->CreateStore(ai, allocai);
-
-
-	/* get past the closure pointer */
+	vscope->loadClosureIntoThunkVars(ai, tmpB);
 	ai++;
+	/* now past the closure pointer */
 
 	/* create the rest of the arguments */
-	genTypeArgs(t, &tmpB);
+	vscope->genTypeArgs(t, &tmpB);
 	if (extra_args != NULL)
-		genArgs(ai, &tmpB, extra_args);
+		vscope->genArgs(ai, &tmpB, extra_args);
 }
 
-void CodeBuilder::genTypeArgs(
-	const Type* t,
-	llvm::IRBuilder<>		*tmpB)
-{
-	unsigned int			arg_c;
-	const llvm::Type		*l_t;
-	const ArgsList			*args;
-	llvm::AllocaInst		*params_ai;
-
-	args = t->getArgs();
-	if (args == NULL)
-		return;
-
-	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
-	arg_c = args->size();
-
-	params_ai = tmp_var_map[t->getName() + "_params"];
-	assert (params_ai != NULL && "Didn't allocate params?");
-
-	for (unsigned int i = 0; i < arg_c; i++) {
-		string				arg_name;
-		string				arg_type;
-		llvm::AllocaInst		*allocai;
-		llvm::Value			*idx_val;
-		llvm::Value			*param_elem_val;
-		llvm::Value			*param_elem_ptr;
-
-		arg_type = (args->get(i).first)->getName();
-		arg_name = (args->get(i).second)->getName();
-
-		if (symtabs.count(arg_type) != 0) {
-			/* XXX TODO SUPPORT TYPE ARGS! */
-			cerr << t->getName() << ": ";
-			cerr << "Type args only supports scalar args" << endl;
-			exit(-1);
-		}
-
-		allocai = tmpB->CreateAlloca(l_t, 0, arg_name);
-
-		idx_val = llvm::ConstantInt::get(
-			llvm::getGlobalContext(),
-			llvm::APInt(32, i));
-
-		param_elem_ptr = builder->CreateGEP(
-			builder->CreateLoad(params_ai), 
-			idx_val);
-
-		param_elem_val = builder->CreateLoad(param_elem_ptr);
-
-		builder->CreateStore(param_elem_val, allocai);
-		tmp_var_map[arg_name] = allocai;
-	}
-}
 
 void CodeBuilder::copyClosure(
 	const Type* copy_type, llvm::Value *src_ptr, llvm::Value *dst_ptr)
@@ -327,31 +244,6 @@ void CodeBuilder::copyClosure(
 		builder->CreateLoad(dst_ptr), RT_CLO_IDX_PARAMS, "dst_params");
 
 	emitMemcpy64(dst_params_ptr, src_params_ptr, copy_type->getNumArgs());
-}
-
-void CodeBuilder::genArgs(
-	llvm::Function::arg_iterator	&ai,
-	llvm::IRBuilder<>		*tmpB,
-	const ArgsList			*args)
-{
-	unsigned int			arg_c;
-	const llvm::Type		*l_t;
-
-	if (args == NULL)
-		return;
-
-	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
-	arg_c = args->size();
-
-	for (unsigned int i = 0; i < arg_c; i++, ai++) {
-		string				arg_name;
-		llvm::AllocaInst		*allocai;
-
-		arg_name = (args->get(i).second)->getName();
-		allocai = tmpB->CreateAlloca(l_t, 0, arg_name);
-		builder->CreateStore(ai, allocai);
-		tmp_var_map[arg_name] = allocai;
-	}
 }
 
 void CodeBuilder::write(ostream& os)
@@ -414,13 +306,11 @@ void CodeBuilder::genCodeCond(
 	builder->CreateRet(false_v);
 }
 
-
 void CodeBuilder::write(std::string& os)
 {
 	ofstream	ofs(os.c_str());
 	write(ofs);
 }
-
 
 llvm::Type* CodeBuilder::getClosureTyPtr(void)
 {
@@ -444,50 +334,22 @@ void CodeBuilder::makeClosureTy(void)
 
 llvm::AllocaInst* CodeBuilder::createTmpI64Ptr(void)
 {
-	llvm::AllocaInst	*ret;
-	
-	ret = builder->CreateAlloca(
-		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()),
-		0,
-		"__AAA" + int_to_string(tmp_c++));
-	tmp_var_map[ret->getName()] = ret;
-
-	return ret;
+	return vscope->createTmpI64Ptr();
 }
 
 llvm::AllocaInst* CodeBuilder::getTmpAllocaInst(const std::string& s) const
 {
-	llvm_var_map::const_iterator	it;
-	
-	it = tmp_var_map.find(s);
-	if (it == tmp_var_map.end())
-		return NULL;
-
-	return (*it).second;
+	return vscope->getTmpAllocaInst(s);
 }
 
 void CodeBuilder::printTmpVars(void) const
 {
-	cerr << "DUmping tmpvars" << endl;
-	for (	llvm_var_map::const_iterator it = tmp_var_map.begin();
-		it != tmp_var_map.end();
-		it++)
-	{
-		cerr << (*it).first << endl;
-	}
-	cerr << "Done dumping." << endl;
+	vscope->print();
 }
 
 llvm::AllocaInst* CodeBuilder::createTmpI64(const std::string& name)
 {
-	llvm::AllocaInst	*ret;
-	
-	ret = builder->CreateAlloca(builder->getInt64Ty(), 0, name);
-	assert (name == ret->getName());
-
-	tmp_var_map[name] = ret;
-
-	return ret;
+	return vscope->createTmpI64(name);
 }
 
 void CodeBuilder::emitMemcpy64(
@@ -552,48 +414,10 @@ llvm::Value* CodeBuilder::getNullPtrI8(void)
 	return ret;
 }
 
-static unsigned int closure_c = 0;
 llvm::AllocaInst* CodeBuilder::createTmpClosure(
 	const Type* t, const std::string& name)
 {
-	llvm::AllocaInst	*ai, *params_ai, *ai_ptr;
-	string			our_name, our_name_ptr;
-
-	if (name == "") {
-		our_name = "__clo_" + int_to_string(closure_c);
-		our_name_ptr = "__ptr_" + our_name;
-		closure_c++;
-	} else {
-		our_name = name;
-		our_name_ptr = "__ptr_" + name;
-	}
-
-	ai = builder->CreateAlloca(getClosureTy(), 0, our_name);
-
-	ai_ptr = builder->CreateAlloca(getClosureTyPtr(), 0, our_name_ptr);
-	builder->CreateStore(ai, ai_ptr);
-	tmp_var_map[ai_ptr->getName()] = ai_ptr;
-	builder->CreateStore(
-		builder->CreateInsertValue(
-			builder->CreateLoad(ai),
-			getNullPtrI8(),
-			RT_CLO_IDX_XLATE),
-		ai);
-
-	/* no params, no need to allocate space on stack */
-	if (t->getNumArgs() == 0)
-		return ai_ptr;
-
-	params_ai = createPrivateTmpI64Array(
-		t->getNumArgs(), our_name + "_params");
-	builder->CreateStore(
-		builder->CreateInsertValue(
-			builder->CreateLoad(ai),
-			params_ai,
-			RT_CLO_IDX_PARAMS),
-		ai);
-
-	return ai_ptr;
+	return vscope->createTmpClosure(t, name);
 }
 
 llvm::AllocaInst* CodeBuilder::createPrivateTmpI64Array(

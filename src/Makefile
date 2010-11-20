@@ -33,7 +33,8 @@ OBJS=	parser.o		\
 	args.o				\
 	virt.o				\
 	writepkt.o			\
-	instance_iter.o
+	instance_iter.o		\
+	varscope.o
 
 RTOBJS= runtime/runtime.o	\
 	runtime/type_info.o 	\

@@ -37,9 +37,6 @@ void Func::genLoadArgs(void) const
 {
 	Function			*f;
 	Function::arg_iterator		ai;
-	unsigned int			arg_c;
-
-	arg_c = args->size();
 
 	f = getFunction();
 	ai = f->arg_begin();
@@ -47,40 +44,13 @@ void Func::genLoadArgs(void) const
 		&f->getEntryBlock(),
 		f->getEntryBlock().begin());
 
-	for (unsigned int i = 0; i < arg_c; i++, ai++) {
-		AllocaInst		*allocai;
-		const llvm::Type	*t;
-		const ::Type*		user_type;
-		string			arg_name, type_name;
-		bool			is_user_type;
 
-		type_name = (args->get(i).first)->getName();
-		arg_name = (args->get(i).second)->getName();
-
-		is_user_type = (types_map.count(type_name) > 0);
-		if (is_user_type) {
-			user_type = types_map[type_name];
-			t = code_builder->getClosureTyPtr();
-		} else {
-			user_type = NULL;
-			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
-		}
-
-		allocai = tmpB.CreateAlloca(t, 0, arg_name);
-		block->addVar(user_type, arg_name, allocai);
-		code_builder->getBuilder()->CreateStore(ai, allocai);
-	}
+	block->vscope.genArgs(ai, &tmpB, args);
 
 	/* handle return value if passing type */
 	if (f->getReturnType() == tmpB.getVoidTy()) {
-		AllocaInst		*allocai;
-		const llvm::Type	*t;
-
-		t = code_builder->getClosureTyPtr();
-
-		allocai = tmpB.CreateAlloca(t, 0, "__ret_closure");
-		block->addVar(types_map[getRet()], "__ret_closure", allocai);
-		code_builder->getBuilder()->CreateStore(ai, allocai);
+		block->vscope.createTmpClosurePtr(
+			types_map[getRet()], "__ret_closure", ai, tmpB);
 	}
 }
 
@@ -88,31 +58,26 @@ Value* FuncDecl::codeGen(void) const
 {
 	FuncBlock		*scope;
 	Function		*f = getFunc()->getFunction();
-	AllocaInst		*ai;
 	const ::Type		*user_type;
 	IRBuilder<>	tmpB(&f->getEntryBlock(), f->getEntryBlock().begin());
 
 	/* XXX no support for arrays yet */
 	assert (array == NULL);
 
-	if (types_map.count(type->getName()) != 0) {
-		user_type = types_map[type->getName()];
-		ai = code_builder->createTmpClosure(
-			user_type, scalar->getName());
-	} else if (ctypes_map.count(type->getName()) != 0) {
-		const llvm::Type	*t;
-		t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
-		user_type = NULL;
-		ai = tmpB.CreateAlloca(t, 0, scalar->getName());
-	} else {
-		cerr << getLineNo() << ": could not resolve type for "
-			<< type->getName();
+	scope = getOwner();
+	if (scope->getVar(scalar->getName()) != NULL) {
+		cerr << "Already added variable " << scalar->getName() << endl;
 		return NULL;
 	}
 
-	scope = getOwner();
-	if (scope->addVar(user_type, scalar->getName(), ai) == false) {
-		cerr << "Already added variable " << scalar->getName() << endl;
+	if (types_map.count(type->getName()) != 0) {
+		user_type = types_map[type->getName()];
+		scope->vscope.createTmpClosure(user_type, scalar->getName());
+	} else if (ctypes_map.count(type->getName()) != 0) {
+		scope->vscope.createTmpI64(scalar->getName());
+	} else {
+		cerr << getLineNo() << ": could not resolve type for "
+			<< type->getName();
 		return NULL;
 	}
 
@@ -186,7 +151,7 @@ Value* FuncAssign::codeGen(void) const
 	assert (array == NULL && "Can't assign to arrays yet");
 
 	var_loc = getOwner()->getVar(scalar->getName());
-	assert (var_loc != NULL);
+	assert (var_loc != NULL && "Expected variable name to assign to");
 
 	builder = code_builder->getBuilder();
 	if (e_v->getType() == code_builder->getClosureTy()) {
@@ -372,48 +337,26 @@ Value* FuncBlock::codeGen(void) const
 
 AllocaInst* FuncBlock::getVar(const std::string& s) const
 {
-	funcvar_map::const_iterator	it;
+	AllocaInst	*ret;
 
-	it = vars.find(s);
-	if (it == vars.end()) {
-		if (getOwner() == NULL)
-			return NULL;
-
-		return getOwner()->getVar(s);
+	if ((ret = vscope.getVar(s)) == NULL) {
+		FuncBlock	*owner;
+		if ((owner = getOwner()) == NULL) return NULL;
+		return owner->getVar(s);
 	}
-
-	return ((*it).second).fv_ai;
+	return ret;
 }
 
 const ::Type* FuncBlock::getVarType(const std::string& s) const
 {
-	funcvar_map::const_iterator	it;
+	const ::Type	*ret;
 
-	it = vars.find(s);
-	if (it == vars.end()) {
-		if (getOwner() == NULL)
-			return NULL;
-
-		return getOwner()->getVarType(s);
+	if ((ret = vscope.getVarType(s)) == NULL) {
+		FuncBlock	*owner;
+		if ((owner = getOwner()) == NULL) return NULL;
+		return owner->getVarType(s);
 	}
-
-	return ((*it).second).fv_t;
-}
-
-bool FuncBlock::addVar(
-	const ::Type* t,
-	const std::string& name, llvm::AllocaInst* ai)
-{
-	struct FuncVar	fv;
-
-	if (vars.count(name) != 0)
-		return false;
-
-	fv.fv_ai = ai;
-	fv.fv_t = t;
-
-	vars[name] = fv;
-	return true;
+	return ret;
 }
 
 Function* Func::getFunction(void) const

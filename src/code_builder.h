@@ -13,6 +13,8 @@
 
 typedef std::map<std::string, llvm::AllocaInst*>	llvm_var_map;
 
+class VarScope;
+
 class CodeBuilder
 {
 public:
@@ -51,7 +53,7 @@ public:
 	void write(std::ostream& os);
 	void write(std::string& os);
 
-	unsigned int getTmpVarCount(void) const { return tmp_var_map.size(); }
+	unsigned int getTmpVarCount(void) const;
 	llvm::AllocaInst* getTmpAllocaInst(const std::string& s) const;
 	void printTmpVars(void) const;
 	llvm::AllocaInst* createTmpI64(const std::string& name);
@@ -71,7 +73,6 @@ public:
 
 	llvm::AllocaInst* createTmpI64Ptr(void);
 	
-
 	llvm::GlobalVariable* getGlobalVar(const std::string& varname) const;
 
 	void setDebug(bool b) { debug_output = b; }
@@ -95,21 +96,12 @@ public:
 private:
 	void makeClosureTy(void);
 
-	void genArgs(
-		llvm::Function::arg_iterator	&ai,
-		llvm::IRBuilder<>		*tmpB,
-		const class ArgsList		*args);
-
-	void genTypeArgs(
-		const Type			*t,
-		llvm::IRBuilder<>		*tmpB);
-	
 
 	CodeBuilder() {}
 	llvm::Module		*mod;
 	llvm::IRBuilder<> 	*builder;
 	llvm::Type		*closure_struct;
-	llvm_var_map		tmp_var_map;
+	VarScope		*vscope;
 	bool			debug_output;
 	unsigned int		tmp_c;	
 };

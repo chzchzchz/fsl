@@ -9,15 +9,9 @@
 #include "collection.h"
 #include "expr.h"
 #include "code_builder.h"
+#include "varscope.h"
 
 extern int yylineno;
-
-struct FuncVar
-{
-	const Type*		fv_t;
-	llvm::AllocaInst*	fv_ai;
-};
-
 
 typedef std::map<std::string, class Func*>		func_map;
 typedef std::list<class Func*>				func_list;
@@ -47,7 +41,7 @@ private:
 class FuncBlock : public FuncStmt, public PtrList<FuncStmt>
 {
 public:
-	FuncBlock() {}
+	FuncBlock() { }
 	virtual ~FuncBlock() {}
 	llvm::Value* codeGen() const;
 	virtual void add(FuncStmt* fs) 
@@ -58,10 +52,9 @@ public:
 
 	llvm::AllocaInst* getVar(const std::string& s) const;
 	const Type* getVarType(const std::string& s) const;
-	bool addVar(const Type*, const std::string& name, llvm::AllocaInst* ai);
 
+	VarScope	vscope;
 private:
-	funcvar_map	vars;
 };
 
 class FuncCondStmt : public FuncStmt
