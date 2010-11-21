@@ -370,6 +370,11 @@ public:
 	}
 
 	const TypeBlock* getBlock() const { return block; }
+	unsigned int getParamBufEntryCount() const
+	{
+		if (args == NULL) return 0;
+		return args->getNumParamBufEntries();
+	}
 
 	preamble_list getPreambles(const std::string& name) const;
 	void addPreamble(Preamble* p);

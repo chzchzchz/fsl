@@ -1,10 +1,12 @@
 #ifndef THUNKPARAMS_H
 #define THUNKPARAMS_H
 
+#include <llvm/Support/IRBuilder.h>
 #include "thunk_fieldfunc.h"
 
 #define THUNKPARAM_PREFIX	"__thunkparams_"
 #define THUNKPARAM_EMPTYNAME	THUNKPARAM_PREFIX"empty"
+
 /*
  * used to convert parent params into type params
  */
@@ -39,9 +41,15 @@ public:
 protected:
 	const std::string getFCallName(void) const;
 private:
+	bool storeIntoParamBuf(llvm::AllocaInst *params_out_ptr) const;
+	void storeClosureIntoParamBuf(
+		llvm::AllocaInst* params_out_ptr, unsigned int pb_idx,
+		const Type* t, llvm::Value* clo_val) const;
+
 	bool		no_params;
 	ExprList	*exprs;
 };
+
 
 
 #endif

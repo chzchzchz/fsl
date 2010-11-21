@@ -62,11 +62,6 @@ public:
 		return thunkfuncs_map.end();
 	}
 
-	unsigned int getThunkArgCount(void) const
-	{
-		return t_type->getNumArgs() + 1;
-	}
-
 	/* generate code for all registered functions */
 	bool genCode(void) const;
 

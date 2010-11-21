@@ -12,6 +12,7 @@
 #include "expr.h"
 #include "util.h"
 #include "runtime_interface.h"
+#include "typeclosure.h"
 
 using namespace std;
 using namespace llvm;
@@ -97,10 +98,8 @@ llvm::Value* FCall::codeGenExtractOff(void) const
 		return NULL;
 	}
 
-	ret = code_builder->getBuilder()->CreateExtractValue(
-		code_builder->getBuilder()->CreateLoad(closure_val),
-		RT_CLO_IDX_OFFSET,
-		"offset");
+	TypeClosure	tc(closure_val);
+	ret = tc.getOffset();
 
 	return ret;
 }
@@ -109,7 +108,6 @@ llvm::Value* FCall::codeGenExtractVirt(void) const
 {
 	Expr		*expr;
 	llvm::Value	*closure_val;
-	llvm::Value	*ret;
 
 	assert (id->getName() == "__extractVirt");
 
@@ -126,12 +124,8 @@ llvm::Value* FCall::codeGenExtractVirt(void) const
 		return NULL;
 	}
 
-	ret = code_builder->getBuilder()->CreateExtractValue(
-		code_builder->getBuilder()->CreateLoad(closure_val),
-		RT_CLO_IDX_XLATE,
-		"virt");
-
-	return ret;
+	TypeClosure	tc(closure_val);
+	return tc.getXlate();
 }
 
 
@@ -155,10 +149,8 @@ llvm::Value* FCall::codeGenExtractParam(void) const
 		return NULL;
 	}
 
-	return code_builder->getBuilder()->CreateExtractValue(
-		code_builder->getBuilder()->CreateLoad(closure_val),
-		RT_CLO_IDX_PARAMS,
-		"params");
+	TypeClosure	tc(closure_val);
+	return tc.getParamBuf();
 }
 
 llvm::Value* FCall::codeGenDynClosure(void) const
@@ -221,7 +213,7 @@ llvm::Value* FCall::codeGenDynParams(void) const
 	builder = code_builder->getBuilder();
 
 	parambuf = code_builder->createPrivateTmpI64Array(
-		typenums_map[type_num]->getNumArgs(),
+		typenums_map[type_num]->getParamBufEntryCount(),
 		"dynparam");
 
 	parambuf_ptr = code_builder->createTmpI64Ptr();
@@ -250,7 +242,6 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 	llvm::Value			*diskoff, *params, *virt;
 	llvm::Type			*ret_type;
 	llvm::AllocaInst 		*closure;
-	llvm::Value			*closure_loaded;
 	llvm::IRBuilder<>		*builder;
 	ExprList::const_iterator	it;
 
@@ -274,21 +265,11 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 	ret_type = code_builder->getClosureTy();
 	closure = builder->CreateAlloca(ret_type, 0, "mkpasser");
 	
-	closure_loaded = builder->CreateLoad(closure);
+	TypeClosure	tc(closure);
 
 	builder->CreateStore(
-		builder->CreateInsertValue(
-			builder->CreateInsertValue(
-				builder->CreateInsertValue(
-					closure_loaded,
-					params,
-					RT_CLO_IDX_PARAMS),
-				diskoff,
-				RT_CLO_IDX_OFFSET),
-			virt,
-			RT_CLO_IDX_XLATE),
+		tc.setAll(diskoff, params, virt),
 		closure);
-
 	
 	return closure;
 }
@@ -399,16 +380,16 @@ Value* FCall::codeGenClosureRetCall(std::vector<llvm::Value*>& args) const
 	callee_func = funcs_map[id->getName()];
 	assert (callee_func != NULL);
 
-	param_c = types_map[callee_func->getRet()]->getNumArgs();
+	param_c = types_map[callee_func->getRet()]->getParamBufEntryCount();
 	
 	tmp_tp = builder->CreateAlloca(code_builder->getClosureTy());
 	tmp_params = code_builder->createPrivateTmpI64Array(
-		param_c, "BURRITOS"); 
-	builder->CreateInsertValue(
-		builder->CreateLoad(tmp_tp),
-		tmp_params,
-		RT_CLO_IDX_PARAMS);
+		param_c, "BURRITOS");
+	TypeClosure	tc(tmp_tp);
 
+	builder->CreateStore(
+		tc.setParamBuf(tmp_params),
+		tmp_tp);
 
 	args.push_back(tmp_tp);
 	ret = builder->CreateCall(

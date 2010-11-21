@@ -4,6 +4,7 @@
 #include "thunk_type.h"
 #include "eval.h"
 
+extern type_map		types_map;
 extern symtab_map       symtabs;
 extern CodeBuilder*	code_builder;
 extern RTInterface	rt_glue;
@@ -28,7 +29,7 @@ FCall* ThunkParams::copyFCall(void) const
 			new Id("paramsAllocaByCount"),
 			new ExprList(
 			new Number(
-				(t != NULL) ? t->getNumArgs() : 0))));
+				(t != NULL) ? t->getParamBufEntryCount() : 0))));
 
 	return new FCall(new Id(getFCallName()), fc_exprs);
 }
@@ -48,7 +49,8 @@ FCall* ThunkParams::copyFCall(unsigned int idx) const
 			new Id("paramsAllocaByCount"), 
 			new ExprList(
 			new Number(
-				(t != NULL) ? t->getNumArgs() : 0))));
+				(t != NULL) ?
+					t->getParamBufEntryCount() : 0))));
 
 	return new FCall(new Id(getFCallName()), fc_exprs);
 }
@@ -67,6 +69,7 @@ ThunkParams* ThunkParams::copy(void) const
 	}
 
 	ret->setFieldName(getFieldName());
+	ret->setFieldType(getFieldType());
 	ret->setOwner(getOwner());
 
 	return ret;
@@ -78,7 +81,6 @@ bool ThunkParams::genCodeEmpty(void)
 		return true;
 
 	code_builder->genCodeEmpty(THUNKPARAM_EMPTYNAME);
-
 	::has_gen_empty_code = true;
 
 	return true;
@@ -90,7 +92,6 @@ bool ThunkParams::genProtoEmpty(void)
 		return true;
 
 	genProtoByName(THUNKPARAM_EMPTYNAME);
-
 	::has_gen_empty_proto = true;
 
 	return true;
@@ -150,11 +151,6 @@ bool ThunkParams::genCodeExprs(void) const
 	llvm::AllocaInst		*params_out_ptr;
 	llvm::AllocaInst		*paramsf_idx;
 	llvm::Function::arg_iterator	arg_it;
-	EvalCtx				ectx(symtabs[getType()->getName()]);
-	ExprList::const_iterator	it;
-	unsigned int			i;
-
-	assert (exprs != NULL);
 
 	mod = code_builder->getModule();
 	builder = code_builder->getBuilder();
@@ -170,7 +166,7 @@ bool ThunkParams::genCodeExprs(void) const
 
 	arg_it = f->arg_begin();	/* closure */
 
-	/* set passed in '@' to map to the Id '@' */
+	/* map passed '@' to the Id '@' */
 	arg_it++;			/* idx */
 	assert (arg_it != f->arg_end());
 	paramsf_idx = code_builder->createTmpI64(rt_glue.getThunkArgIdxName());
@@ -185,24 +181,51 @@ bool ThunkParams::genCodeExprs(void) const
 		"__thunkparams_out");
 	builder->CreateStore(arg_it, params_out_ptr);
 	
-	/* assign all values in expr list to elements in 
-	 * the passed pointer */
-	for (it = exprs->begin(), i = 0; it != exprs->end(); it++, i++) {
+	if (storeIntoParamBuf(params_out_ptr) == false)
+		return false;
+
+	builder->CreateRetVoid();
+
+	return true;
+}
+
+bool ThunkParams::storeIntoParamBuf(llvm::AllocaInst *params_out_ptr) const
+{
+	const Type			*t;
+	const ArgsList			*args;
+	llvm::IRBuilder<>		*builder;
+	EvalCtx				ectx(symtabs[getType()->getName()]);
+	ExprList::const_iterator	it;
+	unsigned int			pb_idx, arg_idx;
+
+	assert (exprs != NULL);
+	if ((t = getFieldType()) && t->getArgs() && exprs->size() == 0)
+		assert (0 == 1 && "Type needs args, but none given");
+	if (exprs->size() == 0) return true;
+
+	builder = code_builder->getBuilder();
+
+	assert (t != NULL && "Only types can take arguments");
+	args = t->getArgs();
+	assert (args != NULL && "Field has arguments, but type does not!");
+
+	/* assign all values in expr list to elements in passed parambuf ptr */
+	pb_idx = 0;
+	for (	it = exprs->begin(), arg_idx = 0;
+		it != exprs->end();
+		it++, arg_idx++)
+	{
 		Expr		*cur_expr, *idxed_expr;
 		llvm::Value	*expr_val;
-		llvm::Value	*cur_param_ptr;
-		llvm::Value	*idx_val;
+		arg_elem	cur_arg;
 
+		/* generate code for idx */
 		cur_expr = *it;
-
 		idxed_expr = Expr::rewriteReplace(
 			eval(ectx, cur_expr),
 			new Id("@"),
 			rt_glue.getThunkArgIdx());
-
-
 		expr_val = idxed_expr->codeGen();
-
 		delete idxed_expr;
 
 		if (expr_val == NULL) {
@@ -214,19 +237,54 @@ bool ThunkParams::genCodeExprs(void) const
 			assert (0 == 1);
 			return false;
 		}
-	
-		idx_val = llvm::ConstantInt::get(
-			llvm::getGlobalContext(),
-			llvm::APInt(32, i));
-		cur_param_ptr = builder->CreateGEP(
-			builder->CreateLoad(params_out_ptr), idx_val);
-		
-		builder->CreateStore(expr_val, cur_param_ptr);
+
+		cur_arg = args->get(arg_idx);
+		if (types_map.count((cur_arg.first)->getName()) > 0) {
+			const Type	*arg_type;
+			arg_type = types_map[(cur_arg.first)->getName()];
+			storeClosureIntoParamBuf(
+				params_out_ptr, pb_idx,
+				arg_type, expr_val);
+			pb_idx += arg_type->getParamBufEntryCount();
+		} else {
+			builder->CreateStore(
+				expr_val,
+				code_builder->loadPtr(params_out_ptr, pb_idx));
+			pb_idx++;
+		}
 	}
-		
-	builder->CreateRetVoid();
 
 	return true;
+}
+
+/* load closure into parambuf */
+void ThunkParams::storeClosureIntoParamBuf(
+	llvm::AllocaInst* params_out_ptr, unsigned int pb_idx,
+	const Type* t, llvm::Value* clo) const
+{
+	llvm::IRBuilder<>	*builder;
+	llvm::Value		*cur_param_ptr;
+	const ArgsList		*args;
+	int			ent_c;
+
+	assert (0 == 1 && "AIEEE");
+#if 0
+	builder= code_builder->getBuilder();
+
+	/* offset */
+	cur_param_ptr = code_builder->loadPtr(params_out_ptr, pb_idx);
+	/* xlate */
+	cur_param_ptr = code_builder->loadPtr(params_out_ptr, pb_idx+1);}
+
+	args = t->getArgs();
+	if (args == NULL) return;
+
+	ent_c = t->getParamBufEntryCount() - 2;
+	assert (ent_c >= 0 && "Has args but <= 2 parambuf ents??");
+	/* copy elements from clo_val's parambuf into this one */
+	code_builder->emitMemcpy(
+		code_builder->loadPtr(params_out_ptr, pb_idx+2),
+#endif
 }
 
 ThunkParams* ThunkParams::createNoParams()

@@ -50,6 +50,10 @@ public:
 	llvm::AllocaInst* createTmpI64(const std::string& name);
 	llvm::AllocaInst* createTmpClosure(
 		const Type* t, const std::string& name);
+	/* create tmp closure from contents of parambuf */
+	llvm::AllocaInst* createTmpClosure(
+		const Type* t, const std::string& name,
+		llvm::AllocaInst* parambuf_ai, unsigned int pb_base_idx);
 	llvm::AllocaInst* createTmpClosurePtr(
 		const Type* t, const std::string& name,
 		llvm::Function::arg_iterator ai,

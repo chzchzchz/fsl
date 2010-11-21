@@ -4,6 +4,7 @@
 #include "runtime_interface.h"
 #include "code_builder.h"
 #include "util.h"
+#include "typeclosure.h"
 #include <iostream>
 
 
@@ -21,6 +22,7 @@ VarScope::VarScope(llvm::IRBuilder<>* in_b)
 : builder(in_b), tmp_c(0) {}
 
 
+/* pull args from parambuf */
 void VarScope::genTypeArgs(
 	const Type* 		t,
 	llvm::IRBuilder<>	*tmpB)
@@ -29,6 +31,7 @@ void VarScope::genTypeArgs(
 	const llvm::Type		*l_t;
 	const ArgsList			*args;
 	llvm::AllocaInst		*params_ai;
+	unsigned int			elem_idx;
 
 	args = t->getArgs();
 	if (args == NULL) return;
@@ -40,38 +43,32 @@ void VarScope::genTypeArgs(
 	params_ai = vars_map[rt_glue.getThunkArgParamPtrName()].tv_ai;
 	assert (params_ai != NULL && "Didn't allocate params?");
 
+	elem_idx = 0;
 	for (unsigned int i = 0; i < arg_c; i++) {
+		bool				is_user_type;
+		const Type			*user_type;
 		string				arg_name;
 		string				arg_type;
 		llvm::AllocaInst		*allocai;
-		llvm::Value			*idx_val;
 		llvm::Value			*param_elem_val;
-		llvm::Value			*param_elem_ptr;
 
 		arg_type = (args->get(i).first)->getName();
 		arg_name = (args->get(i).second)->getName();
 
-		if (symtabs.count(arg_type) != 0) {
-			/* XXX TODO SUPPORT TYPE ARGS! */
-			cerr << t->getName() << ": ";
-			cerr << "Type args only supports scalar args" << endl;
-			exit(-1);
+		is_user_type = (symtabs.count(arg_type) > 0);
+		if (is_user_type) {
+			user_type = types_map[arg_type];
+			allocai = createTmpClosure(
+				user_type, arg_name, params_ai, elem_idx);
+			elem_idx += user_type->getParamBufEntryCount();
+		} else {
+			param_elem_val = builder->CreateLoad(
+				code_builder->loadPtr(params_ai, elem_idx));
+
+			allocai = createTmpI64(arg_name);
+			builder->CreateStore(param_elem_val, allocai);
+			elem_idx++;
 		}
-
-		allocai = tmpB->CreateAlloca(l_t, 0, arg_name);
-
-		idx_val = llvm::ConstantInt::get(
-			llvm::getGlobalContext(),
-			llvm::APInt(32, i));
-
-		param_elem_ptr = builder->CreateGEP(
-			builder->CreateLoad(params_ai),
-			idx_val);
-
-		param_elem_val = builder->CreateLoad(param_elem_ptr);
-
-		builder->CreateStore(param_elem_val, allocai);
-		vars_map[arg_name] = TypedVar(NULL, allocai);
 	}
 }
 
@@ -81,33 +78,25 @@ void VarScope::loadClosureIntoThunkVars(
 {
 	const llvm::Type		*l_t;
 	llvm::AllocaInst		*allocai;
+	TypeClosure			tc(ai);
 
 	/* create the hidden argument __thunk_off_arg */
 	l_t = builder->getInt64Ty();
 	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgOffsetName());
 	vars_map[rt_glue.getThunkArgOffsetName()] = TypedVar(NULL, allocai);
-	builder->CreateStore(
-		builder->CreateExtractValue(
-			builder->CreateLoad(ai), RT_CLO_IDX_OFFSET, "t_offset"),
-		allocai);
+	builder->CreateStore(tc.getOffset(), allocai);
 
 	/* __thunk_params */
 	l_t = llvm::Type::getInt64PtrTy(llvm::getGlobalContext());
 	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgParamPtrName());
 	vars_map[rt_glue.getThunkArgParamPtrName()] = TypedVar(NULL, allocai);
-	builder->CreateStore(
-		builder->CreateExtractValue(
-			builder->CreateLoad(ai), RT_CLO_IDX_PARAMS, "t_params"),
-		allocai);
+	builder->CreateStore(tc.getParamBuf(), allocai);
 
 	/* __thunk_virt */
 	l_t = builder->getInt8PtrTy();
 	allocai = tmpB.CreateAlloca(l_t, 0, rt_glue.getThunkArgVirtName());
 	vars_map[rt_glue.getThunkArgVirtName()] = TypedVar(NULL, allocai);
-	builder->CreateStore(
-		builder->CreateExtractValue(
-			builder->CreateLoad(ai), RT_CLO_IDX_XLATE, "t_virt"),
-		allocai);
+	builder->CreateStore(tc.getXlate(), allocai);
 
 	/* __thunk_closure */
 	allocai = tmpB.CreateAlloca(
@@ -225,34 +214,71 @@ llvm::AllocaInst* VarScope::createTmpClosure(
 	ai = builder->CreateAlloca(
 		code_builder->getClosureTy(),
 		0, our_name);
+	TypeClosure	tc(ai);
 
 	ai_ptr = builder->CreateAlloca(
 		code_builder->getClosureTyPtr(),
 		0, our_name_ptr);
-	builder->CreateStore(ai, ai_ptr);
 	vars_map[our_name_ptr] = TypedVar(t, ai_ptr);
 	vars_map[our_name] = TypedVar(t, ai_ptr);
-	builder->CreateStore(
-		builder->CreateInsertValue(
-			builder->CreateLoad(ai),
-			code_builder->getNullPtrI8(),
-			RT_CLO_IDX_XLATE),
-		ai);
+	builder->CreateStore(ai, ai_ptr);
+	builder->CreateStore(tc.setXlate(NULL), ai);
 
 	/* no params, no need to allocate space on stack */
-	if (t->getNumArgs() == 0)
-		return ai_ptr;
+	if (t->getNumArgs() == 0) return ai_ptr;
 
+	/* allocate space for parambuf */
 	params_ai = code_builder->createPrivateTmpI64Array(
-		t->getNumArgs(), our_name + "_params");
-	builder->CreateStore(
-		builder->CreateInsertValue(
-			builder->CreateLoad(ai),
-			params_ai,
-			RT_CLO_IDX_PARAMS),
-		ai);
+		t->getParamBufEntryCount(), our_name + "_params");
+	builder->CreateStore(tc.setParamBuf(params_ai), ai);
 
 	return ai_ptr;
+}
+
+/* load a closure out of a parambuf */
+llvm::AllocaInst* VarScope::createTmpClosure(
+	const Type* t, const std::string& name,
+	llvm::AllocaInst* parambuf_ai, unsigned int pb_base_idx)
+{
+	llvm::AllocaInst	*clo_ptr;
+	llvm::LoadInst		*clo;
+	llvm::Value		*clo_pb;
+	llvm::Value		*pb_val;
+
+	clo_ptr = createTmpClosure(t, name);
+	clo = builder->CreateLoad(clo_ptr);
+	TypeClosure		tc(clo);
+
+	/* offset */
+	pb_val = builder->CreateLoad(
+		code_builder->loadPtr(parambuf_ai, pb_base_idx));
+	builder->CreateStore(tc.setOffset(pb_val), clo);
+
+	/* xlate ptr */
+	pb_val = builder->CreateLoad(
+		code_builder->loadPtr(parambuf_ai, pb_base_idx+1));
+	builder->CreateStore(tc.setXlate(pb_val), clo);
+
+	if (t->getNumArgs() == 0) return clo_ptr;
+
+	/* dump out rest of values */
+	clo_pb = tc.getParamBuf();
+	for (unsigned int i = 0; i < t->getNumArgs(); i++) {
+		llvm::Value	*idx_val;
+
+		pb_val = builder->CreateLoad(
+			code_builder->loadPtr(parambuf_ai, pb_base_idx+2+i));
+
+		idx_val = llvm::ConstantInt::get(
+			llvm::getGlobalContext(),
+			llvm::APInt(32, i));
+		builder->CreateStore(
+			pb_val,
+			builder->CreateGEP(clo_pb, idx_val));
+
+	}
+
+	return clo_ptr;
 }
 
 void VarScope::print(void) const

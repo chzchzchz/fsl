@@ -164,7 +164,8 @@ void TableGen::genInstanceType(const Type *t)
 	assert_count = asserts_map[t->getName()]->getNumAsserts();
 
 	sw.writeStr("tt_name", t->getName());
-	sw.write("tt_param_c", t->getNumArgs());
+	sw.write("tt_param_c", t->getParamBufEntryCount());
+	sw.write("tt_arg_c", t->getNumArgs());
 	sw.write("tt_size", size_fc->getName());
 	sw.write("tt_fieldstrong_c", st->size());
 	sw.write("tt_fieldstrong_table", "__rt_tab_thunks_" + t->getName());

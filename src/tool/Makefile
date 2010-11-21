@@ -15,4 +15,4 @@ fragtool-% scantool-% modify-% browser-%: ../../fs/%.fsl
 	FSNAME=$* make -f Makefile.tools
 
 clean:
-	rm  -f *.s *.o *.bc *.ll fsl.*.*.c scantool* browser*
+	rm  -f *.s *.o *.bc *.ll fsl.*.*.c $(TOOLS_ALL)

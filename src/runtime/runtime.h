@@ -129,6 +129,7 @@ struct fsl_rt_table_type
 {
 	const char			*tt_name;
 	unsigned int			tt_param_c;
+	unsigned int			tt_arg_c;
 
 	sizef_t				tt_size;
 

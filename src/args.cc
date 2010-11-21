@@ -1,3 +1,4 @@
+#include "typeclosure.h"
 #include "type.h"
 #include "args.h"
 
@@ -32,9 +33,9 @@ bool ArgsList::lookupType(const string& name, string& type_ret) const
 	return true;
 }
 
-pair<Id*, Id*> ArgsList::get(unsigned int i) const
+arg_elem ArgsList::get(unsigned int i) const
 {
-	return pair<Id*, Id*>(types[i], names[i]);
+	return arg_elem(types[i], names[i]);
 }
 
 bool ArgsList::hasField(const string& name) const
@@ -60,6 +61,25 @@ ArgsList* ArgsList::copy(void) const
 	for (unsigned int i = 0; i < size(); i++) {
 		pair<Id*, Id*>	p(get(i));
 		ret->add(p.first->copy(), p.second->copy());
+	}
+
+	return ret;
+}
+
+/* number of entries in parambuf to store everything */
+unsigned int ArgsList::getNumParamBufEntries(void) const
+{
+	unsigned int		ret;
+
+	ret = 0;
+	for (unsigned int i = 0; i < names.size(); i++) {
+		const Type	*t;
+		t = getType(names[i]->getName());
+		if (t != NULL) {
+			ret += t->getParamBufEntryCount();
+			ret += RT_CLO_ELEMS-1; /* store offset+xlate */
+		} else
+			ret++;
 	}
 
 	return ret;

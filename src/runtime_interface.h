@@ -4,10 +4,6 @@
 #include <string>
 #include "expr.h"
 
-#define RT_CLO_IDX_OFFSET			0
-#define RT_CLO_IDX_PARAMS			1
-#define RT_CLO_IDX_XLATE			2
-
 class RTInterface
 {
 public:

@@ -72,8 +72,8 @@ public:
 		const std::string& name = "");
 
 	llvm::AllocaInst* createTmpI64Ptr(void);
-	
 	llvm::GlobalVariable* getGlobalVar(const std::string& varname) const;
+	llvm::Value* loadPtr(llvm::Value* ptr, unsigned int idx);
 
 	void setDebug(bool b) { debug_output = b; }
 

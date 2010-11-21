@@ -16,6 +16,7 @@
 #include "runtime_interface.h"
 #include "code_builder.h"
 #include "varscope.h"
+#include "typeclosure.h"
 #include "util.h"
 
 using namespace std;
@@ -214,36 +215,19 @@ void CodeBuilder::copyClosure(
 {
 	llvm::Value	*dst_params_ptr;
 	llvm::Value	*src_params_ptr;
-	llvm::Value*	src_loaded;
-	llvm::Value	*copied_offset, *copied_xlate;
-
-	src_loaded = builder->CreateLoad(src_ptr);
+	TypeClosure	tc_src(src_ptr), tc_dst(dst_ptr);
 
 	/* copy contents of src into dst */
-	copied_offset = builder->CreateInsertValue(
-		builder->CreateLoad(dst_ptr),
-		builder->CreateExtractValue(
-			src_loaded,
-			RT_CLO_IDX_OFFSET,
-			"cb_copy_offset"),
-		RT_CLO_IDX_OFFSET);
+	builder->CreateStore(
+		tc_dst.setOffsetXlate(tc_src.getOffset(), tc_src.getXlate()),
+		dst_ptr);
 
-	copied_xlate = builder->CreateInsertValue(
-		copied_offset,
-		builder->CreateExtractValue(
-			src_loaded,
-			RT_CLO_IDX_XLATE,
-			"cb_copy_xlate"),
-		RT_CLO_IDX_XLATE);
+	src_params_ptr = tc_src.getParamBuf();
+	dst_params_ptr = tc_dst.getParamBuf();
 
-	builder->CreateStore(copied_xlate, dst_ptr);
-
-	src_params_ptr = builder->CreateExtractValue(
-		src_loaded, RT_CLO_IDX_PARAMS, "src_params");
-	dst_params_ptr = builder->CreateExtractValue(
-		builder->CreateLoad(dst_ptr), RT_CLO_IDX_PARAMS, "dst_params");
-
-	emitMemcpy64(dst_params_ptr, src_params_ptr, copy_type->getNumArgs());
+	emitMemcpy64(
+		dst_params_ptr, src_params_ptr,
+		copy_type->getParamBufEntryCount());
 }
 
 void CodeBuilder::write(ostream& os)
@@ -386,6 +370,15 @@ void CodeBuilder::emitMemcpy64(
 	builder->CreateCall(memcpy_f, args, args+5);
 }
 
+llvm::Value* CodeBuilder::loadPtr(llvm::Value* ptr, unsigned int idx)
+{
+	llvm::Value	*idx_val;
+
+	idx_val = llvm::ConstantInt::get(
+		llvm::getGlobalContext(),
+		llvm::APInt(32, idx));
+	return builder->CreateGEP(builder->CreateLoad(ptr), idx_val);
+}
 
 llvm::AllocaInst* CodeBuilder::createTmpI64(void)
 {

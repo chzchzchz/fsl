@@ -112,7 +112,7 @@ void InstanceIter::genCodeLookup(void) const
 	ret_params = builder->CreateExtractValue(
 		builder->CreateLoad(ret_typepass), 1, "params");
 	ai++;	/* parambuf output */
-	code_builder->emitMemcpy64(ai, ret_params, dst_type->getNumArgs());
+	code_builder->emitMemcpy64(ai, ret_params, dst_type->getParamBufEntryCount());
 
 	ret_off = builder->CreateExtractValue(
 		builder->CreateLoad(ret_typepass), 0, "offset");

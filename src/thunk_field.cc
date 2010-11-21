@@ -129,13 +129,17 @@ void ThunkField::setFields(ThunkType& in_owner)
 
 	t_fieldoff->setFieldName(fieldname);
 	t_elems->setFieldName(fieldname);
-	t_params->setFieldName(fieldname);
 	t_size->setFieldName(fieldname);
+
+	t_params->setFieldName(fieldname);
+	t_params->setFieldType(t_size->getType());
 
 	in_owner.registerFunc(t_fieldoff);
 	in_owner.registerFunc(t_size);
 	in_owner.registerFunc(t_elems);
 	in_owner.registerFunc(t_params);
+
+	assert (t_params->getFieldType() == t_size->getType());
 }
 
 ThunkField::~ThunkField() 
