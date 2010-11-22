@@ -1,6 +1,7 @@
 #include "eval.h"
 #include "func.h"
 #include "runtime_interface.h"
+#include "code_builder.h"
 #include <string.h>
 
 extern const Func	*gen_func;
@@ -8,6 +9,7 @@ extern func_map		funcs_map;
 extern type_map		types_map;
 extern symtab_map	symtabs;
 extern const_map	constants;
+extern CodeBuilder	*code_builder;
 extern RTInterface	rt_glue;
 
 using namespace std;
@@ -216,8 +218,7 @@ bool EvalCtx::resolveIdStructCurScope(
 
 	tb.tb_type = tb.tb_lastsym->getType();
 	if (tb.tb_type != NULL)
-		tb.tb_symtab = symtabByName(
-			tb.tb_type->getName());
+		tb.tb_symtab = symtabByName(tb.tb_type->getName());
 	else
 		tb.tb_symtab = NULL;
 
@@ -229,14 +230,39 @@ bool EvalCtx::resolveIdStructCurScope(
 	return resolveTail(tb, ids, ++(ids->begin()));
 }
 
+bool EvalCtx::resolveIdStructVarScope(
+	const IdStruct* ids,
+	const std::string& name,
+	const VarScope* vs,
+	struct TypeBase& tb) const
+{
+	/* pull the typepass out of the vscoped arguments */
+	if (vs == NULL) return false;
+
+	tb.tb_lastsym = NULL;
+	tb.tb_type = vs->getVarType(name);
+	if (tb.tb_type == NULL) return false;
+
+	tb.tb_symtab = symtabByName(tb.tb_type->getName());
+	tb.tb_diskoff = new FCall(
+		new Id("__extractOff"),
+		new ExprList(new Id(name)));
+	tb.tb_parambuf = new FCall(
+		new Id("__extractParam"),
+		new ExprList(new Id(name)));
+	tb.tb_virt = new FCall(
+		new Id("__extractVirt"),
+		new ExprList(new Id(name)));
+	return resolveTail(tb, ids, ++(ids->begin()));
+}
+
 bool EvalCtx::resolveIdStructFunc(
 		const IdStruct* ids,
 		const std::string& name,
-		const Expr* idx,
 		struct TypeBase& tb) const
 {
 	/* function scoped */
-	/* pull the typepass our of the function arguments */
+	/* pull the typepass out of the function arguments */
 
 	if (cur_func_blk == NULL)
 		return false;
@@ -270,7 +296,7 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	string				name;
 	Expr				*idx;
 	Expr				*ret;
-	Expr				*parent_closure;
+	Expr				*parent_closure = NULL;
 	bool				found_expr;
 
 	assert (ids != NULL);
@@ -280,10 +306,18 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 
 	found_expr = false;
 
-	found_expr = resolveIdStructCurScope(ids, name, idx, tb);
-	if (found_expr) {
-		/* closure is from parent type.. */
-		parent_closure = rt_glue.getThunkClosure();
+	if (cur_scope != NULL) {
+		found_expr = resolveIdStructVarScope(
+			ids, name, code_builder->getVarScope(), tb);
+		if (found_expr) parent_closure = new Id(name);
+	}
+
+	if (!found_expr) {
+		found_expr = resolveIdStructCurScope(ids, name, idx, tb);
+		if (found_expr) {
+			/* closure is from parent type.. */
+			parent_closure = rt_glue.getThunkClosure();
+		}
 	}
 
 	if (!found_expr && idx != NULL) {
@@ -295,7 +329,7 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	}
 
 	if (!found_expr) {
-		found_expr = resolveIdStructFunc(ids, name, idx, tb);
+		found_expr = resolveIdStructFunc(ids, name, tb);
 		if (found_expr) {
 			/* closure is from head of idstruct */
 			parent_closure = new Id(name);

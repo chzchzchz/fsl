@@ -73,10 +73,15 @@ private:
 		const Expr* idx,
 		struct TypeBase& tb) const;
 
+	bool resolveIdStructVarScope(
+		const IdStruct* ids,
+		const std::string& name,
+		const VarScope* vs,
+		struct TypeBase& tb) const;
+
 	bool resolveIdStructFunc(
 		const IdStruct* ids,
 		const std::string& name,
-		const Expr* idx,
 		struct TypeBase& tb) const;
 
 	Expr* setNewOffsetsArray(

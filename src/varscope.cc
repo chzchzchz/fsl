@@ -60,7 +60,7 @@ void VarScope::genTypeArgs(
 			user_type = types_map[arg_type];
 			allocai = createTmpClosure(
 				user_type, arg_name, params_ai, elem_idx);
-			elem_idx += user_type->getParamBufEntryCount();
+			elem_idx += user_type->getParamBufEntryCount()+2;
 		} else {
 			param_elem_val = builder->CreateLoad(
 				code_builder->loadPtr(params_ai, elem_idx));
@@ -194,12 +194,12 @@ llvm::AllocaInst* VarScope::createTmpClosurePtr(
 	return allocai;
 }
 
-
 static unsigned int closure_c = 0;
 llvm::AllocaInst* VarScope::createTmpClosure(
 	const Type* t, const std::string& name)
 {
 	llvm::AllocaInst	*ai, *params_ai, *ai_ptr;
+	llvm::Value		*offset;
 	string			our_name, our_name_ptr;
 
 	if (name == "") {
@@ -211,9 +211,7 @@ llvm::AllocaInst* VarScope::createTmpClosure(
 		our_name_ptr = "__ptr_" + name;
 	}
 
-	ai = builder->CreateAlloca(
-		code_builder->getClosureTy(),
-		0, our_name);
+	ai = builder->CreateAlloca(code_builder->getClosureTy(), 0, our_name);
 	TypeClosure	tc(ai);
 
 	ai_ptr = builder->CreateAlloca(
@@ -221,16 +219,23 @@ llvm::AllocaInst* VarScope::createTmpClosure(
 		0, our_name_ptr);
 	vars_map[our_name_ptr] = TypedVar(t, ai_ptr);
 	vars_map[our_name] = TypedVar(t, ai_ptr);
-	builder->CreateStore(ai, ai_ptr);
-	builder->CreateStore(tc.setXlate(NULL), ai);
 
 	/* no params, no need to allocate space on stack */
-	if (t->getNumArgs() == 0) return ai_ptr;
+	if (t->getNumArgs() != 0) {
+		/* allocate space for parambuf */
+		params_ai = code_builder->createPrivateTmpI64Array(
+			t->getParamBufEntryCount(), our_name + "_params");
+	} else
+		params_ai = NULL;
 
-	/* allocate space for parambuf */
-	params_ai = code_builder->createPrivateTmpI64Array(
-		t->getParamBufEntryCount(), our_name + "_params");
-	builder->CreateStore(tc.setParamBuf(params_ai), ai);
+	offset = llvm::ConstantInt::get(
+		llvm::getGlobalContext(),
+		llvm::APInt(64, 0));
+
+	builder->CreateStore(
+		tc.setAll(offset, params_ai, NULL),
+		ai);
+	builder->CreateStore(ai, ai_ptr);
 
 	return ai_ptr;
 }
@@ -243,47 +248,49 @@ llvm::AllocaInst* VarScope::createTmpClosure(
 	llvm::AllocaInst	*clo_ptr;
 	llvm::LoadInst		*clo;
 	llvm::Value		*clo_pb;
-	llvm::Value		*pb_val;
+	llvm::Value		*off_val, *xlate_val;
+	llvm::Value		*idx_val;
 
 	clo_ptr = createTmpClosure(t, name);
 	clo = builder->CreateLoad(clo_ptr);
 	TypeClosure		tc(clo);
 
 	/* offset */
-	pb_val = builder->CreateLoad(
+	off_val = builder->CreateLoad(
 		code_builder->loadPtr(parambuf_ai, pb_base_idx));
-	builder->CreateStore(tc.setOffset(pb_val), clo);
+	builder->CreateStore(tc.setOffset(off_val), clo);
 
 	/* xlate ptr */
-	pb_val = builder->CreateLoad(
+	xlate_val = builder->CreateLoad(
 		code_builder->loadPtr(parambuf_ai, pb_base_idx+1));
-	builder->CreateStore(tc.setXlate(pb_val), clo);
+	builder->CreateStore(
+		tc.setXlate(
+			builder->CreateIntToPtr(
+				xlate_val,
+				builder->getInt8PtrTy())),
+		clo);
 
 	if (t->getNumArgs() == 0) return clo_ptr;
 
 	/* dump out rest of values */
 	clo_pb = tc.getParamBuf();
-	for (unsigned int i = 0; i < t->getNumArgs(); i++) {
-		llvm::Value	*idx_val;
-
-		pb_val = builder->CreateLoad(
-			code_builder->loadPtr(parambuf_ai, pb_base_idx+2+i));
-
-		idx_val = llvm::ConstantInt::get(
-			llvm::getGlobalContext(),
-			llvm::APInt(32, i));
-		builder->CreateStore(
-			pb_val,
-			builder->CreateGEP(clo_pb, idx_val));
-
-	}
+	idx_val = llvm::ConstantInt::get(
+		llvm::getGlobalContext(),
+		llvm::APInt(32, pb_base_idx+2));
+	code_builder->emitMemcpy64(
+		//code_builder->loadPtr(clo_pb,0),
+		clo_pb,
+		//code_builder->loadPtr(parambuf_ai, pb_base_idx+2),
+		builder->CreateGEP(parambuf_ai, idx_val),
+		t->getParamBufEntryCount()
+	);
 
 	return clo_ptr;
 }
 
 void VarScope::print(void) const
 {
-	cerr << "DUmping tmpvars" << endl;
+	cerr << "Dumping varscope" << endl;
 	for (	var_map::const_iterator it = vars_map.begin();
 		it != vars_map.end();
 		it++)

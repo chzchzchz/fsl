@@ -285,7 +285,7 @@ llvm::Value* FCall::codeGenParamsAllocaByCount(void) const
 	assert (n != NULL);
 
 	parambuf = code_builder->createPrivateTmpI64Array(
-		n->getValue(), "paramallocacount");
+		n->getValue(), "param_alloca_by_count");
 
 	return parambuf;
 }	

@@ -458,13 +458,15 @@ struct type_info* typeinfo_follow_field_off_idx(
 	size_t					off,
 	uint64_t				idx)
 {
-	struct type_desc	field_td;
-	unsigned int		param_c;
+	struct type_desc		field_td;
+	unsigned int			param_c;
 
-	if (ti_typenum(ti_parent) == TYPENUM_INVALID)
+	if (ti_field->tf_typenum != TYPENUM_INVALID) {
+		const struct fsl_rt_table_type	*field_type;
+		field_type = tt_by_num(ti_field->tf_typenum);
+		param_c = field_type->tt_param_c;
+	} else
 		param_c = 0;
-	else
-		param_c = tt_by_ti(ti_parent)->tt_param_c;
 	uint64_t	parambuf[param_c];
 
 	ti_field->tf_params(&ti_clo(ti_parent), idx, parambuf);

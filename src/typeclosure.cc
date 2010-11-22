@@ -38,11 +38,13 @@ llvm::Value* TypeClosure::load(void) const
 	return builder->CreateLoad(clo_ptr);
 }
 
-llvm::Value* TypeClosure::setXlate(llvm::Value* v)
+llvm::Value* TypeClosure::setXlate(llvm::Value* xlate)
 {
+	assert (xlate == NULL || xlate->getType() == builder->getInt8PtrTy());
+
 	return builder->CreateInsertValue(
 		load(),
-		(v == NULL) ? code_builder->getNullPtrI8() : NULL,
+		(xlate == NULL) ? code_builder->getNullPtrI8() : xlate,
 		RT_CLO_IDX_XLATE);
 }
 
@@ -62,21 +64,22 @@ llvm::Value* TypeClosure::setParamBuf(llvm::Value* v)
 llvm::Value* TypeClosure::setAll(
 	llvm::Value* offset, llvm::Value* pb, llvm::Value* xlate)
 {
+	assert (xlate == NULL || xlate->getType() == builder->getInt8PtrTy());
 	return builder->CreateInsertValue(
 		builder->CreateInsertValue(
 			builder->CreateInsertValue(
 				load(),
 				offset,
 				RT_CLO_IDX_OFFSET),
-			(pb == NULL) ? code_builder->getNullPtrI8() : pb,
+			(pb == NULL) ? code_builder->getNullPtrI64() : pb,
 			RT_CLO_IDX_PARAMS),
 		(xlate == NULL) ? code_builder->getNullPtrI8() : xlate,
 		RT_CLO_IDX_XLATE);
 }
 
-
 llvm::Value* TypeClosure::setOffsetXlate(llvm::Value* off, llvm::Value* xlate)
 {
+	assert (xlate == NULL || xlate->getType() == builder->getInt8PtrTy());
 	return builder->CreateInsertValue(
 		builder->CreateInsertValue(
 			load(),

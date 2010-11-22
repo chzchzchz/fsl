@@ -138,7 +138,7 @@ static void select_field(struct type_info* cur, int field_idx)
 			cur, field, num_elems, next_off, &sel_idx);
 	}
 
-	if (next_off == ~0) goto done;
+	if (next_off == OFFSET_INVALID) goto done;
 
 	ti_next = typeinfo_follow_field_off_idx(cur, field, next_off, sel_idx);
 	if (ti_next == NULL) goto done;

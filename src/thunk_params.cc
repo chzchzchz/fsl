@@ -2,6 +2,7 @@
 #include "code_builder.h"
 #include "runtime_interface.h"
 #include "thunk_type.h"
+#include "typeclosure.h"
 #include "eval.h"
 
 extern type_map		types_map;
@@ -17,10 +18,9 @@ static bool has_gen_empty_code = false;
 FCall* ThunkParams::copyFCall(void) const
 {
 	ExprList	*fc_exprs;
-
 	const Type	*t;
 
-	t = getOwner()->getType();
+	t = getFieldType();
 
 	fc_exprs = new ExprList();
 	fc_exprs->add(rt_glue.getThunkClosure());	/* parent closure */
@@ -37,10 +37,9 @@ FCall* ThunkParams::copyFCall(void) const
 FCall* ThunkParams::copyFCall(unsigned int idx) const
 {
 	ExprList	*fc_exprs;
-
 	const Type	*t;
 
-	t = getOwner()->getType();
+	t = getFieldType();
 
 	fc_exprs = new ExprList();
 	fc_exprs->add(rt_glue.getThunkClosure());	/* parent closure */
@@ -245,7 +244,7 @@ bool ThunkParams::storeIntoParamBuf(llvm::AllocaInst *params_out_ptr) const
 			storeClosureIntoParamBuf(
 				params_out_ptr, pb_idx,
 				arg_type, expr_val);
-			pb_idx += arg_type->getParamBufEntryCount();
+			pb_idx += arg_type->getParamBufEntryCount() + 2;
 		} else {
 			builder->CreateStore(
 				expr_val,
@@ -266,25 +265,33 @@ void ThunkParams::storeClosureIntoParamBuf(
 	llvm::Value		*cur_param_ptr;
 	const ArgsList		*args;
 	int			ent_c;
+	TypeClosure		tc(clo);
 
-	assert (0 == 1 && "AIEEE");
-#if 0
 	builder= code_builder->getBuilder();
 
 	/* offset */
 	cur_param_ptr = code_builder->loadPtr(params_out_ptr, pb_idx);
+	builder->CreateStore(tc.getOffset(), cur_param_ptr);
+
 	/* xlate */
-	cur_param_ptr = code_builder->loadPtr(params_out_ptr, pb_idx+1);}
+	cur_param_ptr = code_builder->loadPtr(params_out_ptr, pb_idx+1);
+	builder->CreateStore(
+		builder->CreatePtrToInt(
+			tc.getXlate(),
+			builder->getInt64Ty(),
+			"xlate_64cast"),
+		cur_param_ptr);
 
 	args = t->getArgs();
 	if (args == NULL) return;
 
-	ent_c = t->getParamBufEntryCount() - 2;
+	ent_c = t->getParamBufEntryCount();
 	assert (ent_c >= 0 && "Has args but <= 2 parambuf ents??");
-	/* copy elements from clo_val's parambuf into this one */
-	code_builder->emitMemcpy(
+	/* copy elements from clo's parambuf into param_out_ptr */
+	code_builder->emitMemcpy64(
 		code_builder->loadPtr(params_out_ptr, pb_idx+2),
-#endif
+		tc.getParamBuf(),
+		ent_c);
 }
 
 ThunkParams* ThunkParams::createNoParams()

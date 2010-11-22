@@ -93,6 +93,8 @@ public:
 	void emitMemcpy64(
 		llvm::Value* dst, llvm::Value* src, 
 		unsigned int elems);
+
+	const VarScope* getVarScope() const { return vscope; }
 private:
 	void makeClosureTy(void);
 
