@@ -53,6 +53,7 @@ typedef blockcount_t = u64;
 typedef segnum_t = u64;
 typedef vblknum_t = u64;
 typedef inonum_t = u64;
+typedef blkoff_t = u64;
 
 uint get_block_size(nilfs_sb nsb)
 {
@@ -61,15 +62,112 @@ uint get_block_size(nilfs_sb nsb)
 
 nilfs_segment get_segment(segnum_t segnum)
 {
-	if (segnum == 0)
-		return disk.first_seg;
-
-	return disk.more_segs[segnum - 1];
+	return disk.segs[segnum];
 }
 
 u64 nilfs_sb2_offset_bytes(u64 devsize) 
 { 
 	return (((devsize) >> 12) - 1) << 12; 
+}
+
+nilfs_block nilfs_get_block(blocknum_t bn)
+{
+	nilfs_segment	seg;
+	seg = get_segment(block_to_segnum(bn));
+	return seg.seg_blocks[bn % nilfs_sb.s_blocks_per_segment];
+}
+
+/* get actual block from vblock value */
+nilfs_block nilfs_get_vblock_block(vblknum_t vblk)
+{
+	nilfs_finfo	fi;
+
+	/* 1. find DAT file */
+	/* 2. scan DAT file */
+	fi = nilfs_get_inode_block_finfo(NILFS_INO_DAT, 0);
+	DEBUG_WRITE_TYPE = fi;
+	/* XXX WRONG */
+	return nilfs_get_block(10);
+}
+
+nilfs_block nilfs_get_inode_block(nilfs_inode ni, inonum_t inum, blkoff_t boff)
+{
+	int	err;
+	err = fsl_fail(10000);
+	return nilfs_get_block(0);
+}
+
+vblknum_t nilfs_get_inode_vblock(inonum_t ino, blkoff_t boff)
+{
+	nilfs_finfo	fi;
+	int		blk_i;
+	int		max_blk_i;
+
+	if (ino == NILFS_INO_DAT) DEBUG_WRITE = fsl_fail(1);
+
+	fi = nilfs_get_inode_block_finfo(ino, boff);
+	blk_i = 0;
+	max_blk_i = fi.fi_ndatablk;
+	// is this necessary?
+	while (blk_i < max_blk_i) {
+		if (fi.fi_file_data[blk_i].bi_blkoff == boff)
+			return fi.fi_file_data[blk_i].bi_vblocknr;
+		blk_i++;
+	}
+	DEBUG_WRITE = fsl_fail(2);
+	return 0;
+}
+
+/* finds finfo corresponding to block we want */
+nilfs_finfo nilfs_get_inode_block_finfo(inonum_t inum, blkoff_t boff)
+{
+	nilfs_finfo		fi;
+	int			num_segs;
+	int			i;
+
+	i = 0;
+	num_segs = nilfs_sb.s_nsegments;
+	// iterate over every segment
+	while (i < num_segs)  {
+		nilfs_segment		cur_seg;
+		nilfs_segment_summary	cur_segsum;
+		int			finfo_i;
+		int			finfo_max;
+
+		cur_seg = get_segment(i);
+		cur_segsum = cur_seg.seg_sum;
+		finfo_max = cur_segsum.ss_header.ss_nfinfo;
+		finfo_i = 0;
+		while (finfo_i < finfo_max) {
+			fi = cur_segsum.ss_finfo[finfo_i];
+			if (fi.fi_ino == inum) {
+				int	blk_i;
+				int	max_blk_i;
+
+				blk_i = 0;
+				if (inum == NILFS_INO_DAT) {
+					max_blk_i = fi.fi_nblocks - fi.fi_ndatablk;
+					while (blk_i < max_blk_i) {
+						if (fi.fi_dat_node[i].bi_blkoff == blk_i)
+							return fi;
+						blk_i++;
+					}
+				} else {
+					max_blk_i = fi.fi_ndatablk;
+					while (blk_i < max_blk_i) {
+						if (fi.fi_file_data[i].bi_blkoff == boff)
+							return fi;
+						blk_i++;
+					}
+				}
+			}
+			finfo_i++;
+		}
+		i++;
+	}
+
+	DEBUG_WRITE = fsl_fail(3);
+	return fi;
 }
 
 blocknum_t nilfs_segblock_first(segnum_t segnum)
@@ -88,7 +186,6 @@ blocknum_t nilfs_segblock_last(segnum_t segnum)
 }
 
 blockcount_t nilfs_seg_blocks(segnum_t segnum)
-
 {
 	return (nilfs_segblock_last(segnum) - nilfs_segblock_first(segnum))+1;
 }
@@ -116,21 +213,19 @@ type disk
 	set_bytes(nsb.s_first_data_block * get_block_size(nsb));
 
 	/* first segment does not take up entire segment */
-	nilfs_segment		first_seg;
-
-	set_bytes(nilfs_segblock_first(1) * get_block_size(nsb));
-	nilfs_segment		more_segs[nsb.s_nsegments];
+	nilfs_segment		segs[nsb.s_nsegments];
 
 	set_bytes(nilfs_sb2_offset_bytes(__FROM_OS_BDEV_BYTES));
-	nilfs_sb	nsb2;
+	nilfs_sb		nsb2;
 }
 
 type nilfs_segment
 assert(? seg_sum.ss_header.ss_magic == NILFS_SEGSUM_MAGIC)
+points(get_segment(block_to_segnum(seg_sum.ss_header.ss_next))) as p_nextseg
 {
-	nilfs_segment_summary	seg_sum;
+	nilfs_segment_summary(this)	seg_sum;
 	/* XXX more needs to be done here */
-	nilfs_block		seg_blocks[seg_sum.ss_header.ss_nblocks-1];
+	nilfs_block			seg_blocks[seg_sum.ss_header.ss_nblocks-1] fixed;
 }
 
 const NILFS_SEGSUM_MAGIC = 0x1eaffa11;
@@ -141,9 +236,14 @@ const NILFS_SS_SR	= (1 << 2);	/* has super root */
 const NILFS_SS_SYNDT	= (1 << 3);	/* includes data only updates */
 const NILFS_SS_GC	= (1 << 4);	/* segment written for cleaner op */
 
+int segsum_len(nilfs_segment_summary_header ss)
+{
+	if (ss.ss_magic != NILFS_SEGSUM_MAGIC) return 56;
+	return ss.ss_bytes;
+}
+
 type nilfs_segment_summary_header
 assert(? ss_magic == NILFS_SEGSUM_MAGIC)
-assert(? sizeof_bytes(nilfs_segment_summary_header) == ss_bytes)
 {
 	u32		ss_datasum;		/* checksum of data */
 	u32		ss_sumsum;		/* checksum of seg sum */
@@ -157,13 +257,13 @@ assert(? sizeof_bytes(nilfs_segment_summary_header) == ss_bytes)
 	u32		ss_nfinfo;		/* number of finfo entries */
 	u32		ss_sumbytes;		/* size of segment summary */
 	u32		ss_pad;			/* ... */
+	set_bytes(segsum_len(this));
 }
 
-type nilfs_segment_summary 
-points(get_segment(ss_header.ss_next))
+type nilfs_segment_summary(nilfs_segment seg)
 {
 	nilfs_segment_summary_header	ss_header;
-	nilfs_finfo			ss_finfo[ss_header.ss_nfinfo];
+	nilfs_finfo(seg, @)		ss_finfo[ss_header.ss_nfinfo];
 	align_bytes(get_block_size(disk.nsb));		/* takes up a block */
 }
 
@@ -172,7 +272,12 @@ type nilfs_block
 	u8	dat[get_block_size(nilfs_sb)];
 }
 
-type nilfs_inode 
+type nilfs_inode(inonum_t inum)
+virtual_if(
+	? i_blocks > 0,
+	nilfs_block,
+	i, 1, i_blocks,
+	nilfs_get_inode_block(this, inum, i)) as vfile
 {
 	u64  i_blocks;
 	u64  i_size;
@@ -194,18 +299,16 @@ type nilfs_inode
 
 /* superroot */
 type nilfs_sr {
-	u32		sr_sum;
-	u16		sr_bytes;
-	u16		sr_flags;
-	u64		sr_nongc_ctime;
-	nilfs_inode	sr_dat;
-	nilfs_inode	sr_cpfile;
-	nilfs_inode	sr_sufile;
+	u32					sr_sum;
+	u16					sr_bytes;
+	u16					sr_flags;
+	u64					sr_nongc_ctime;
+	nilfs_inode(NILFS_INO_ROOT)		sr_dat;
+	nilfs_inode(NILFS_INO_CPFILE)		sr_cpfile;
+	nilfs_inode(NILFS_INO_SUFILE)		sr_sufile;
 }
 
-
-
-type nilfs_sb 
+type nilfs_sb
 assert(? s_magic == NILFS_SUPER_MAGIC)
 {
 	u32	s_rev_level;		/* Revision level */
@@ -273,8 +376,47 @@ type nilfs_dir_entry {
 	u8		pad;
 }
 
-type nilfs_finfo 
+int is_ino_dat(nilfs_finfo fi)
+{
+	if (fi.fi_ino == NILFS_INO_DAT) return 1; return 0;
+}
+
+int get_segoff(nilfs_segment_summary ss, int fi_idx)
+{
+	int	i;
+	int	ret;
+	i = 0;
+	ret = 0;
+	while (i < fi_idx) {
+		ret += ss.ss_finfo[i].fi_nblocks;
+		i++;
+	}
+	return ret;
+}
+
+int get_finfo_blocks(nilfs_segment seg, int n_finfo)
+{
+	nilfs_segment_summary	ss;
+	int			i;
+	int			ret;
+
+	i = 0;
+	ret = 0;
+	ss = seg.seg_sum;
+	while (i < n_finfo) {
+		ret += ss.ss_finfo[i].fi_nblocks;
+		i++;
+	}
+
+	return ret;
+}
+
+type nilfs_finfo(nilfs_segment seg, int idx)
 assert( ? fi_nblocks >= fi_ndatablk )
+points_range(
+	i, 1, fi_ndatablk,
+	seg.seg_blocks[get_finfo_blocks(seg, idx)+(i-1)]) as p_dat_blks
+//points_if( ? fi_ino >= NILFS_INO_ROOT, get_inode(fi_ino)) as p_ino
 {
 	inonum_t	fi_ino;			/* inode number */
 	u64 		fi_cno;			/* checkpoint number */
@@ -282,19 +424,19 @@ assert( ? fi_nblocks >= fi_ndatablk )
 	u32 		fi_ndatablk;		/* number of file data blocks */
 
 	if (fi_ino == NILFS_INO_DAT) {
-		u64		fi_dat_data[fi_ndatablk]; /* blkoff */
-		nilfs_binfo_dat	fi_dat_node[fi_nblocks - fi_ndatablk];
+		u64		fi_dat_blkoff[fi_ndatablk]; /* blkoff */
+		nilfs_binfo_dat	fi_dat_node[fi_nblocks - fi_ndatablk] fixed;
 	} else {
 		/* file */
-		nilfs_binfo_v	fi_file_data[fi_ndatablk];
-		vblknum_t	fi_file_node[fi_nblocks - fi_ndatablk];
+		nilfs_binfo_v	fi_file_data[fi_ndatablk] fixed;
+		vblknum_t	fi_file_node[fi_nblocks - fi_ndatablk] fixed;
 	}
 }
 
 /* information for the block to which a virtual block number is assigned */
 type nilfs_binfo_v {
 	vblknum_t	bi_vblocknr;		/* virtual block number */
-	u64		bi_blkoff;		/* block offset */
+	blkoff_t	bi_blkoff;		/* block offset */
 }
 
 /* information for the block which belongs to the DAT file */
@@ -326,7 +468,6 @@ type nilfs_btree_node {
 	u32	bn_pad;
 }
 
-
 type nilfs_palloc_group_desc {
 	u32	pg_nfrees;	/* number of free entries in block group */
 }
@@ -357,5 +498,5 @@ type nilfs_checkpoint {
 	/* Do not change the byte offset of ifile inode.
 	   To keep the compatibility of the disk format,
 	   additional fields should be added behind cp_ifile_inode. */
-	nilfs_inode		cp_ifile_inode;
+	nilfs_inode(NILFS_INO_IFILE)	cp_ifile_inode;
 }

@@ -87,13 +87,13 @@ void InstanceIter::genCodeLookup(void) const
 	local_syms = symtabs[src_type->getName()];
 	assert (local_syms != NULL);
 
-	expr_eval_bits = eval(EvalCtx(local_syms), raw_expr);
-	assert (expr_eval_bits != NULL);
-
 	bb_bits = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f);
 	builder->SetInsertPoint(bb_bits);
 	code_builder->genThunkHeaderArgs(f, src_type);
+
+	expr_eval_bits = eval(EvalCtx(local_syms), raw_expr);
+	assert (expr_eval_bits != NULL);
 
 	ai = f->arg_begin();	/* closure */
 	ai++;			/* idx */

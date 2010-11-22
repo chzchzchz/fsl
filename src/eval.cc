@@ -32,9 +32,7 @@ public:
 	{
 		Expr	*new_expr;
 		new_expr = getNewExpr(id);
-		if (new_expr == NULL)
-			return id->copy();
-		return new_expr;
+		return (new_expr == NULL) ? id->copy() : new_expr;
 	}
 
 private:
@@ -63,31 +61,21 @@ public:
 	{
 		Expr	*result;
 		result = ectx.resolve(id);
-		if (result == NULL) 
-			return id->copy();
-		return result;
+		return (result == NULL) ? id->copy() : result;
 	}
 
 	virtual Expr* visit(const IdStruct* ids)
 	{	
 		Expr	*result;
-
 		result = ectx.resolve(ids);
-		if (result == NULL)
-			return ids->copy();
-
-		return result;
+		return (result == NULL) ? ids->copy() : result;
 	}
 
 	virtual Expr* visit(const IdArray* ida)
 	{
 		Expr	*result;
-
 		result = ectx.resolve(ida);
-		if (result == NULL)
-			return ida->copy();
-
-		return result;
+		return (result == NULL) ? ida->copy() : result;
 	}
 	
 	virtual Expr* visit(const FCall* fc)
@@ -211,9 +199,7 @@ Expr* eval(const EvalCtx& ectx, const Expr* expr)
 		our_expr = tmp_expr;
 	}
 
-	/* 
-	 * resolve all unknown ids into function calls
-	 */
+	/* resolve all unknown ids into function calls */
 	tmp_expr = expr_resolve_ids(ectx, our_expr);
 	if (tmp_expr != NULL) {
 		delete our_expr;

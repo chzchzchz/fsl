@@ -536,14 +536,22 @@ const Type* EvalCtx::getTypeId(const Id* id) const
 	assert (id != NULL);
 
 	if (cur_scope != NULL) {
+		const Type*		our_type;
 		const SymbolTableEnt*	st_ent;
+		const ArgsList*		args;
 
-		if (id->getName() == "this")
-			return cur_scope->getOwnerType();
+		our_type = cur_scope->getOwnerType();
+		if (id->getName() == "this") return our_type;
 
 		st_ent = cur_scope->lookup(id->getName());
-		if (st_ent != NULL) {
-			return types_map[st_ent->getTypeName()];
+		if (st_ent != NULL) return types_map[st_ent->getTypeName()];
+
+		/* might be a parameter to the type.. */
+		args = our_type->getArgs();
+		if (args != NULL) {
+			const Type	*ret;
+			ret = args->getType(id->getName());
+			if (ret != NULL) return ret;
 		}
 	}
 
@@ -583,12 +591,10 @@ const Type* EvalCtx::getTypeIdStruct(const IdStruct* ids) const
 		const SymbolTableEnt	*cur_st_ent;
 		string			fieldname;
 
-		if (cur_type == NULL)
-			return NULL;
+		if (cur_type == NULL) return NULL;
 
 		cur_symtab = symtabByName(cur_type->getName());
-		if (cur_symtab == NULL)
-			return NULL;
+		if (cur_symtab == NULL) return NULL;
 
 		if ((id = dynamic_cast<const Id*>(*it)) != NULL) {
 			fieldname = id->getName();
@@ -635,8 +641,7 @@ const Type* EvalCtx::getType(const Expr* e) const
 	}
 
 	id = dynamic_cast<const Id*>(e);
-	if (id != NULL)
-		return getTypeId(id);
+	if (id != NULL) return getTypeId(id);
 
 	ida = dynamic_cast<const IdArray*>(e);
 	if (ida != NULL) {
@@ -645,13 +650,12 @@ const Type* EvalCtx::getType(const Expr* e) const
 	}
 
 	ids = dynamic_cast<const IdStruct*>(e);
-	if (ids != NULL) {
-		return getTypeIdStruct(ids);
-	}
-
+	if (ids != NULL) return getTypeIdStruct(ids);
 
 	/* arith expression? */
-	cout << "WTF????????" << endl;
+	cerr << "EvalCtx::getType(): WTF????????";
+	e->print(cerr);
+	cerr << endl;
+
 	return NULL;
 }
-
