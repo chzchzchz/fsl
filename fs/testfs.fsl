@@ -1,5 +1,7 @@
 const __FSL_FSNAME = testfs;
 
+include "testfs_include.fsl"
+
 type disk
 {
 	u32		whatever;	/* 0--4 */
@@ -19,7 +21,7 @@ type some_type(u32 n)
 type another_type(some_type st)
 {
 	u32	f;
-	u32	k[st.v[0]+2];
+	u32	k[plus(st.v[0],2)];
 }
 
 type t3(some_type st, another_type at)

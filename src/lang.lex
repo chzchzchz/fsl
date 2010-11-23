@@ -33,6 +33,11 @@
 
 extern "C" int yywrap();
 int yywrap() {return 1;} 
+
+
+void yy_new_buf(void) { yypush_buffer_state(yy_create_buffer(yyin,YY_BUF_SIZE)); }
+void yy_old_buf(void) { yypop_buffer_state(); }
+
 %}
 
 DIGIT	[0-9]
@@ -41,9 +46,9 @@ ID	[_a-zA-Z][_a-zA-Z0-9]*
 SPACE	[ ]
 TAB	[	]
 WHITESPACE [ 	]
+QSTR	\"([^"\n]|\\["\\n])*\"
 %x COMMENT
 %x COMMENT2
-
 %%
 
 "0x"{HEXDIGIT}+	IN_TOKEN_HEX(TOKEN_NUM);
@@ -64,6 +69,7 @@ WHITESPACE [ 	]
 "as"		IN_TOKEN(TOKEN_AS);
 "fixed"		IN_TOKEN(TOKEN_FIXED);
 "write"		IN_TOKEN(TOKEN_WRITE);
+"include"	IN_TOKEN(TOKEN_INCLUDE);
 "<-"		IN_TOKEN(TOKEN_WRITEARROW);
 "("		IN_TOKEN(TOKEN_LPAREN);
 ")"		IN_TOKEN(TOKEN_RPAREN);
@@ -72,6 +78,7 @@ WHITESPACE [ 	]
 "["		IN_TOKEN(TOKEN_LBRACK);
 "]"		IN_TOKEN(TOKEN_RBRACK);
 {ID}		IN_TOKEN_TEXT(TOKEN_ID);
+{QSTR}		IN_TOKEN_TEXT(TOKEN_STR);
 "."		IN_TOKEN(TOKEN_DOT);
 "\n"		{ yyset_lineno(yyget_lineno() + 1); }
 "//"		{ BEGIN(COMMENT); }
@@ -114,6 +121,4 @@ WHITESPACE [ 	]
 "\@"		IN_TOKEN(TOKEN_AT);
 .		{ printf("Couldn't tokenize: %s\n", yytext); } 
 %%
-
-
 

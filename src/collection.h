@@ -28,6 +28,11 @@ public:
 		}
 	}
 	virtual void add(T* t) { assert (t != NULL); push_back(t); }
+	virtual void clear_nofree(void)
+	{
+		std::list<T*>::clear();
+	}
+
 	virtual void clear(void)
 	{
 		typename std::list<T*>::iterator	it;

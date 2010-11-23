@@ -2,8 +2,8 @@ ifndef CFLAGS
     $(error No CFLAGS. Run from top level.)
 endif
 
-OBJS=	parser.o		\
-	lex.yy.o		\
+OBJS=	lex.yy.o		\
+	parser.o		\
 	main.o			\
 	type.o			\
 	eval.o			\
@@ -75,7 +75,7 @@ parser.hh: parser.cc
 parser.cc: parser.y
 	bison -d -o $@ $^
 
-lex.yy.cc: lang.lex parser.hh
+lex.yy.cc: lang.lex
 	flex -o $@ $^
 
 .cc.o:

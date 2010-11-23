@@ -11,10 +11,13 @@ GlobalBlock*	global_scope;
 extern int yylex();
 extern int yylineno;
 extern char* yytext;
+extern FILE* yyin;
+extern void yy_new_buf(void);
+extern void yy_old_buf(void);
 void yyerror(const char* s)
 { 
 	std::cerr	<<  "Oops: " <<  s <<  ". Line: " <<  yylineno
-			<<". Text: '" << yytext << "'" << std::endl; 
+			<<". Text: '" << yytext << "'. " << std::endl;
 }
 
 %}
@@ -64,11 +67,11 @@ void yyerror(const char* s)
 
 %token <token> TOKEN_CONST
 
-%token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS TOKEN_ASSIGNDIV TOKEN_ASSIGNMUL TOKEN_ASSIGNMOD TOKEN_PLUSPLUS TOKEN_SUBSUB TOKEN_WRITEARROW
+%token <token> TOKEN_ASSIGN TOKEN_ASSIGNPLUS TOKEN_ASSIGNMINUS TOKEN_ASSIGNDIV TOKEN_ASSIGNMUL TOKEN_ASSIGNMOD TOKEN_PLUSPLUS TOKEN_SUBSUB TOKEN_WRITEARROW TOKEN_INCLUDE
 
 %token <token> TOKEN_WHEN TOKEN_TYPEDEF TOKEN_DOUBLECOLON TOKEN_AS
 
-%token <text> TOKEN_ID
+%token <text> TOKEN_ID TOKEN_STR
 %token <val> TOKEN_NUM
 
 // keywords
@@ -112,6 +115,42 @@ program_stmts	: program_stmts program_stmt
 		{
 			$1->add($2);
 			$$ = $1;
+		}
+		| program_stmts TOKEN_INCLUDE TOKEN_STR
+		{
+			// INCLUDE DIRECTIVE TAKE CONTROL.
+			GlobalBlock	*old_gblk;
+			FILE		*old_yyin;
+			int		old_yylineno;
+			std::string	s(*$3);
+
+			/* save */
+			old_yylineno = yylineno;
+			old_yyin = yyin;
+			old_gblk = $1;
+
+			/* parse included file */
+			yyin = fopen(s.substr(1,s.size()-2).c_str(), "r");
+			if (yyin == NULL) yyin = fopen(
+				(std::string("../../fs/")+
+				s.substr(1,s.size()-2)).c_str(), "r");
+			if (yyin == NULL) yyin = fopen(
+				(std::string("../fs/")+
+				s.substr(1,s.size()-2)).c_str(), "r");
+			assert (yyin != NULL || "BAD INCLUDE FILE");
+			yy_new_buf();
+			yyparse();
+			fclose(yyin);
+			yy_old_buf();
+
+			/* merge parsed global scope with saved global scope */
+			/* restore */
+			yyin = old_yyin;
+			yylineno = old_yylineno;
+			old_gblk->splice(old_gblk->begin(), *global_scope);
+			global_scope->clear_nofree();
+			delete global_scope;
+			$$ = old_gblk;
 		}
 		| program_stmt
 		{
