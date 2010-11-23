@@ -23,6 +23,7 @@ LLC_FLAGS=-O3
 #OPT_FLAGS=
 #LLC_FLAGS=-O3
 SRC_FSL=../../fs/$(FSNAME).fsl
+SRC_FSL_ALL=$(wildcard ../../$(FSNAME)*.fsl)
 
 all: $(TOOL_BINS)
 
@@ -42,6 +43,9 @@ fragtool-$(FSNAME): $(TOOL_OBJS) $(FRAGTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 
 
+fsl.$(FSNAME).table.o: fsl.$(FSNAME).table.c
+	gcc $(CFLAGS) -I.. -c $^ -o $@
+
 fsl.$(FSNAME).types.o: fsl.$(FSNAME).types.s
 	as -g $< -o $@
 
@@ -51,8 +55,5 @@ fsl.$(FSNAME).types.s: fsl.$(FSNAME).types.bc
 fsl.$(FSNAME).types.bc: fsl.$(FSNAME).types.ll
 	opt $(OPT_FLAGS) $^ -o $@
 
-fsl.$(FSNAME).table.c fsl.$(FSNAME).types.ll: $(SRC_FSL)
-	../lang $(FSNAME) <$^
-
-fsl.$(FSNAME).table.o: fsl.$(FSNAME).table.c
-	gcc $(CFLAGS) -I.. -c $^ -o $@
+fsl.$(FSNAME).table.c fsl.$(FSNAME).types.ll: $(SRC_FSL_ALL)
+	../lang $(FSNAME) <$(SRC_FSL)

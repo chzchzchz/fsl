@@ -9,10 +9,22 @@ TOOLS_ALL=$(TOOLS_BROWSER) $(TOOLS_SCAN) $(TOOLS_MODIFY) $(TOOLS_FRAG)
 
 export CFLAGS
 
-all: $(TOOLS_ALL)
+all: $(TOOLS_BROWSER)
 
-fragtool-% scantool-% modify-% browser-%: ../../fs/%.fsl
-	FSNAME=$* make -f Makefile.tools
+%: browser-%
+	echo $@
+
+browser-testfs: $(wildcard ../../fs/testfs*.fsl)
+	echo $@
+	FSNAME=testfs make -f Makefile.tools
+browser-iso9660: $(wildcard ../../fs/iso9660*.fsl)
+	FSNAME=iso9660 make -f Makefile.tools
+browser-nilfs2: $(wildcard ../../fs/nilfs2*.fsl)
+	FSNAME=nilfs2 make -f Makefile.tools
+browser-vfat: $(wildcard ../../fs/vfat*.fsl)
+	FSNAME=vfat make -f Makefile.tools
+browser-ext2: $(wildcard ../../fs/ext2*.fsl)
+	FSNAME=ext2 make -f Makefile.tools
 
 clean:
 	rm  -f *.s *.o *.bc *.ll fsl.*.*.c $(TOOLS_ALL)
