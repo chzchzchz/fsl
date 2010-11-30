@@ -60,21 +60,21 @@ public:
 	virtual Expr* visit(const Id* id)
 	{
 		Expr	*result;
-		result = ectx.resolve(id);
+		result = ectx.resolveVal(id);
 		return (result == NULL) ? id->copy() : result;
 	}
 
 	virtual Expr* visit(const IdStruct* ids)
 	{	
 		Expr	*result;
-		result = ectx.resolve(ids);
+		result = ectx.resolveVal(ids);
 		return (result == NULL) ? ids->copy() : result;
 	}
 
 	virtual Expr* visit(const IdArray* ida)
 	{
 		Expr	*result;
-		result = ectx.resolve(ida);
+		result = ectx.resolveVal(ida);
 		return (result == NULL) ? ida->copy() : result;
 	}
 	
@@ -143,7 +143,7 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 		return NULL;
 	}
 
-	resolved_closure = ectx.resolve(front_id);
+	resolved_closure = ectx.resolveVal(front_id);
 	t = ectx.getType(front_id);
 	if (t == NULL) {
 		cerr << "sizeof can't find type for " << front_id->getName();

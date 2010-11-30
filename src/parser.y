@@ -49,6 +49,7 @@ void yyerror(const char* s)
 	WritePkt		*w_wp;
 	WritePktStmt		*w_ws;
 	WritePktBlk		*w_wb;
+	wblk_list		*w_wbs;
 }
 
 //  braces
@@ -101,6 +102,7 @@ void yyerror(const char* s)
 %type <p_preamble> preamble
 %type <id_l> id_list
 %type <c_or_e_l> preamble_args_list
+%type <w_wbs> write_blocks
 
 %start program
 
@@ -193,9 +195,11 @@ program_stmt	: TOKEN_CONST ident TOKEN_ASSIGN expr TOKEN_SEMI
 		{
 			$$ = new Func((Id*)$1, (Id*)$2, $3, (FuncBlock*)$4);
 		}
-		| TOKEN_WRITE ident type_args write_block
+		| TOKEN_WRITE ident type_args write_blocks
 		{
-			$$ = new WritePkt((Id*)$2, $3, (WritePktBlk*)$4);
+			wblk_list	*wblist = $4;
+			$$ = new WritePkt((Id*)$2, $3, *wblist);
+			delete wblist;
 		}
 		| TOKEN_TYPEDEF ident TOKEN_ASSIGN ident TOKEN_SEMI
 		{
@@ -482,6 +486,7 @@ ident_struct	:	ident_struct TOKEN_DOT struct_type { $1->add($3); }
 
 struct_type	: ident {$$ = $1; }
 		| array {$$ = $1; }
+		| fcall { $$ = $1; }
 		;
 
 array	:	ident TOKEN_LBRACK expr TOKEN_RBRACK
@@ -514,16 +519,33 @@ write_stmts	: write_stmts write_stmt { $1->add($2); }
 		| write_stmt { $$ = new WritePktBlk(); $$->add($1) }
 		;
 write_stmt	: ident_struct TOKEN_WRITEARROW expr TOKEN_EXCLAIM
-		{ $$ = new WritePktStruct($1, $3);}
-		| ident_struct TOKEN_WRITEARROW write_block TOKEN_EXCLAIM
-		{ $$ = new WritePktStruct($1, $3);}
+		{ $$ = new WritePktStruct($1, $3); }
+		| ident_struct TOKEN_WRITEARROW expr TOKEN_QUESTION cond_expr TOKEN_EXCLAIM
+		{ $$ = new WritePktStruct($1, $3); $$->setCond($5); }
+		| write_block TOKEN_EXCLAIM
+		{ $$ = new WritePktAnon($1);}
+		| write_block TOKEN_QUESTION cond_expr TOKEN_EXCLAIM
+		{ $$ = new WritePktAnon($1); $$->setCond($3); }
 		| array TOKEN_WRITEARROW expr TOKEN_EXCLAIM
 		{ $$ = new WritePktArray((IdArray*)$1, $3);}
-		| array TOKEN_WRITEARROW write_block TOKEN_EXCLAIM
-		{ $$ = new WritePktArray((IdArray*)$1, $3); }
 		| ident TOKEN_WRITEARROW expr TOKEN_EXCLAIM
 		{ $$ = new WritePktId((Id*)$1, $3);}
-		| ident TOKEN_WRITEARROW write_block TOKEN_EXCLAIM
-		{ $$ = new WritePktId((Id*)$1, $3); }
+		| ident expr_list TOKEN_EXCLAIM
+		{ $$ = new WritePktCall((Id*)$1, $2); }
+		| ident expr_list TOKEN_QUESTION cond_expr TOKEN_EXCLAIM
+		{ $$ = new WritePktCall((Id*)$1, $2); $$->setCond($4); }
+
 		;
 write_block	: TOKEN_LBRACE write_stmts TOKEN_RBRACE { $$ = $2; }
+write_blocks	: write_blocks TOKEN_WRITEARROW write_block
+		{
+			$1->push_back($3);
+			$$ = $1;
+		}
+		| write_block
+		{
+			wblk_list	*wbl;
+			wbl = new wblk_list();
+			wbl->push_back($1);
+			$$ = wbl;
+		}

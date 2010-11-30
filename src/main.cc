@@ -15,6 +15,7 @@
 #include "table_gen.h"
 #include "detached_preamble.h"
 #include "runtime_interface.h"
+#include "writepkt.h"
 
 #include <stdint.h>
 #include <fstream>
@@ -27,6 +28,8 @@ using namespace std;
 
 func_map		funcs_map;
 func_list		funcs_list;
+writepkt_map		writepkts_map;
+writepkt_list		writepkts_list;
 const Func		*gen_func;
 const FuncBlock		*gen_func_block;
 ctype_map		ctypes_map;
@@ -185,7 +188,6 @@ static void load_user_funcs(const GlobalBlock* gb)
 		f->genCode();
 	}
 }
-
 
 /**
  * build up symbol tables, disambiguate if possible
@@ -415,6 +417,31 @@ static void gen_virtuals(void)
 	}
 }
 
+static void gen_writepkts(const GlobalBlock* gb)
+{
+	for (	GlobalBlock::const_iterator it = gb->begin();
+		it != gb->end();
+		it++)
+	{
+		WritePkt	*wpkt;
+
+		wpkt = dynamic_cast<WritePkt*>(*it);
+		if (wpkt == NULL) continue;
+
+		/* add to mappings.. */
+		writepkts_list.push_back(wpkt);
+		writepkts_map[wpkt->getName()] = wpkt;
+		wpkt->genProtos();
+	}
+
+	for (	writepkt_list::const_iterator it = writepkts_list.begin();
+		it != writepkts_list.end();
+		it++)
+	{
+		(*it)->genCode();
+	}
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -469,6 +496,9 @@ int main(int argc, char *argv[])
 	 * functions */
 	cout << "Loading user functions" << endl;
 	load_user_funcs(global_scope);
+
+	cerr << "Generating write packets" << endl;
+	gen_writepkts(global_scope);
 
 	cout << "Loading thunks" << endl;
 	gen_thunk_code();

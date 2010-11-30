@@ -112,6 +112,12 @@ typesize_t __computeArrayBits(
 	return total_bits;
 }
 
+void __writeVal(uint64_t loc, uint64_t sz, uint64_t val)
+{
+	assert (0 == 1 && "NOT YET IMPLEMENTED");
+}
+
+
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
 {

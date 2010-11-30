@@ -44,8 +44,7 @@ void Func::genLoadArgs(void) const
 		&f->getEntryBlock(),
 		f->getEntryBlock().begin());
 
-
-	block->vscope.genArgs(ai, &tmpB, args);
+	block->vscope.loadArgs(ai, &tmpB, args);
 
 	/* handle return value if passing type */
 	if (f->getReturnType() == tmpB.getVoidTy()) {

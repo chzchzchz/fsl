@@ -43,7 +43,6 @@ bool ArgsList::hasField(const string& name) const
 	return (name_to_type.count(name) != 0);
 }
 
-
 const Type* ArgsList::getType(const string& name) const
 {
 	string	type_name;

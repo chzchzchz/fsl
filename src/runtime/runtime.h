@@ -60,7 +60,6 @@ struct fsl_rt_except
 	struct type_info	*ex_caller;
 };
 
-
 struct fsl_rt_ctx
 {
 	unsigned int		fctx_num_types;
@@ -123,6 +122,8 @@ typedef void(*paramsf_t)(
 	parambuf_t /* out */);
 typedef bool(*condf_t)(const struct fsl_rt_closure*);
 typedef bool(*assertf_t)(const struct fsl_rt_closure*);
+typedef void(*wpktf_t)(const void* params);
+typedef void(*wpkt_paramf_t)(const struct fsl_rt_closure*, void* params);
 
 /* if you change a table struct, remember to update it in table_gen.cc!! */
 struct fsl_rt_table_type
@@ -176,6 +177,13 @@ struct fsl_rt_table_field
 	unsigned int	tf_fieldnum;
 };
 
+struct fsl_rt_iter
+{
+	points_rangef_t	pt_range;
+	points_minf_t	pt_min;
+	points_maxf_t	pt_max;
+};
+
 struct fsl_rt_table_pointsto
 {
 	typenum_t	pt_type_dst;
@@ -200,6 +208,31 @@ struct fsl_rt_table_assert
 	assertf_t	as_assertf;
 };
 
+struct fsl_rt_table_wpkt
+{
+	unsigned int			wpkt_func_c;
+	wpktf_t				*wpkt_funcs;
+	unsigned int			wpkt_blk_c;
+	struct fsl_rt_table_wpkt	*wpkt_blks;
+	struct fsl_rt_table_wpkt	*wpkt_next;
+};
+
+struct fsl_rt_table_wpkt_inst
+{
+	wpkt_paramf_t			wpi_params;
+	struct fsl_rt_table_wpkt	*wpi_wpkt;
+};
+
+struct fsl_rt_table_reloc
+{
+	typenum_t			rel_type;
+	struct fsl_rt_iter		rel_src;
+	struct fsl_rt_iter		rel_choice;
+
+	struct fsl_rt_table_wpkt_inst	rel_alloc;
+	struct fsl_rt_table_wpkt_inst	rel_replace;
+	struct fsl_rt_table_wpkt_inst	rel_relink;
+};
 
 /* exported variables from types module.. */
 extern uint64_t __FROM_OS_BDEV_BYTES;
@@ -229,6 +262,7 @@ void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo);
 void __getDynParams(uint64_t typenum, parambuf_t params_out);
 void *__getDynVirt(uint64_t typenum);
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo);
+void __writeVal(uint64_t loc, uint64_t sz, uint64_t val);
 
 uint64_t __max2(uint64_t a0, uint64_t a1);
 uint64_t __max3(uint64_t a0, uint64_t a1, uint64_t a2);

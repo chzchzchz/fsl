@@ -16,6 +16,8 @@ public:
 	Expr*	getLocalArray(
 		Expr* clo,
 		Expr* idx, Expr* bits_in_type, Expr* base_offset, Expr* bits_in_array);
+
+	Expr*	writeVal(const Expr* loc, const Expr* sz, const Expr* val);
 	Expr*	getDynOffset(const class Type* user_type);
 	Expr*	getDynParams(const class Type* user_type);
 	Expr*	getDynClosure(const class Type* user_type);
@@ -36,7 +38,6 @@ public:
 	const std::string getThunkArgParamPtrName(void);
 	const std::string getThunkArgVirtName(void);
 	const std::string getThunkArgIdxName(void);
-
 
 	Expr	*maxValue(ExprList* exprs);
 	Expr	*computeArrayBits(const class ThunkField* tf);

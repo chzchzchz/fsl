@@ -52,6 +52,7 @@ public:
 
 	llvm::AllocaInst* getVar(const std::string& s) const;
 	const Type* getVarType(const std::string& s) const;
+	const VarScope* getVarScope(void) const { return &vscope; }
 
 	VarScope	vscope;
 private:
@@ -233,8 +234,5 @@ private:
 	ArgsList	*args;
 	FuncBlock	*block;
 };
-
-void gen_func_code(Func* f);
-void gen_func_proto(const Func* f);
 
 #endif

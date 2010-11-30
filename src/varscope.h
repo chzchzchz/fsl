@@ -40,9 +40,12 @@ public:
 
 	void clear(void) { vars_map.clear(); }
 
-	void genArgs(
+	void loadArgs(
 		llvm::Function::arg_iterator	&ai,
 		llvm::IRBuilder<>		*tmpB,
+		const ArgsList			*args);
+	void loadArgsFromArray(
+		llvm::Value			*ai,	/* just an array ptr */
 		const ArgsList			*args);
 
 	llvm::AllocaInst* createTmpI64Ptr(void);
@@ -53,7 +56,7 @@ public:
 	/* create tmp closure from contents of parambuf */
 	llvm::AllocaInst* createTmpClosure(
 		const Type* t, const std::string& name,
-		llvm::AllocaInst* parambuf_ai, unsigned int pb_base_idx);
+		llvm::Value* parambuf_ai, unsigned int pb_base_idx);
 	llvm::AllocaInst* createTmpClosurePtr(
 		const Type* t, const std::string& name,
 		llvm::Function::arg_iterator ai,

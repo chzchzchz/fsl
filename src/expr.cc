@@ -17,6 +17,7 @@ using namespace llvm;
 extern CodeBuilder	*code_builder;
 extern const Func	*gen_func;
 extern const FuncBlock	*gen_func_block;
+extern const VarScope	*gen_vscope;
 
 #define get_builder()	code_builder->getBuilder()
 
@@ -34,7 +35,6 @@ Value* Expr::ErrorV(const string& s) const
 	return NULL;
 }
 
-
 Value* Id::codeGen() const 
 {
 	AllocaInst		*ai = NULL;
@@ -42,6 +42,11 @@ Value* Id::codeGen() const
 
 	if (getName() == "__NULLPTR")
 		return code_builder->getNullPtrI64();
+
+	if (gen_vscope != NULL) {
+		ai = gen_vscope->getVar(getName());
+		return get_builder()->CreateLoad(ai, getName());
+	}
 
 	/* load.. */
 	if (gen_func_block == NULL && code_builder->getTmpVarCount() == 0) {

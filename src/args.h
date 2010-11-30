@@ -4,6 +4,9 @@
 typedef std::map<std::string, std::string>	arg_map;
 typedef std::pair<Id*, Id*>			arg_elem;
 
+#define argelem_type(x)	((x).first)->getName()
+#define argelem_name(x) ((x).second)->getName()
+
 class ArgsList
 {
 public:

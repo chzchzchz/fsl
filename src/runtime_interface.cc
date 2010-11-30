@@ -87,6 +87,7 @@ struct rt_func rt_funcs[] =
 		 RTF_TYPE_INT64,  /* field idx into parent type */
 		 RTF_TYPE_INT64 /* element number to grab */}
 	},
+	{"__writeVal", RTF_TYPE_VOID, 3, {RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64}},
 	{ NULL }
 };
 
@@ -345,4 +346,14 @@ Expr* RTInterface::computeArrayBits(
 	exprs->add(num_elems->copy());
 
 	return new FCall(new Id("__computeArrayBits"), exprs);
+}
+
+Expr* RTInterface::writeVal(const Expr* loc, const Expr* sz, const Expr* val)
+{
+	ExprList	*exprs = new ExprList();
+
+	exprs->add(loc->copy());
+	exprs->add(sz->copy());
+	exprs->add(val->copy());
+	return new FCall(new Id("__writeVal"), exprs);
 }

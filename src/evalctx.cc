@@ -156,30 +156,23 @@ bool EvalCtx::resolveTail(
 	assert (ids != NULL);
 
 	/* nothing more to pass over */
-	if (ids_begin == ids->end())
-		return true;
+	if (ids_begin == ids->end()) return true;
 
 	/* can only crawl if we're sitting on a type */
-	if (tb.tb_type == NULL)
-		return false;
+	if (tb.tb_type == NULL) return false;
 
-	if (toName(*ids_begin, name, idx) == false)
-		return false;
+	if (toName(*ids_begin, name, idx) == false) return false;
 
 	tb.tb_lastsym = tb.tb_symtab->lookup(name);
-	if (tb.tb_lastsym == NULL)
-		return false;
+	if (tb.tb_lastsym == NULL) return false;
 
-	if (setNewOffsets(tb, idx) == false)
-		goto cleanup_err;
-
+	if (setNewOffsets(tb, idx) == false) goto cleanup_err;
 
 	tb.tb_type = tb.tb_lastsym->getType();
 	tb.tb_symtab = (tb.tb_type) ? symtabByName(tb.tb_type->getName()):NULL;
 
 	ids_begin++;
-	if (resolveTail(tb, ids, ids_begin) == false)
-		goto cleanup_err;
+	if (resolveTail(tb, ids, ids_begin) == false) goto cleanup_err;
 
 	if (idx != NULL) delete idx;
 
@@ -263,9 +256,7 @@ bool EvalCtx::resolveIdStructFunc(
 {
 	/* function scoped */
 	/* pull the typepass out of the function arguments */
-
-	if (cur_func_blk == NULL)
-		return false;
+	assert  (cur_func_blk != NULL);
 
 	tb.tb_lastsym = NULL;
 	tb.tb_type = cur_func->getArgs()->getType(name);
@@ -287,28 +278,92 @@ bool EvalCtx::resolveIdStructFunc(
 	return resolveTail(tb, ids, ++(ids->begin()));
 }
 
-
-Expr* EvalCtx::resolve(const IdStruct* ids) const
+bool EvalCtx::resolveIdStructFHead(
+	const IdStruct* ids, struct TypeBase& tb, Expr* &parent_closure) const
 {
-	const ThunkField		*thunk_field;
-	const Type			*t;
-	struct TypeBase			tb;
-	string				name;
-	Expr				*idx;
-	Expr				*ret;
-	Expr				*parent_closure = NULL;
-	bool				found_expr;
+	const Type	*t;
+	const FCall	*ids_f;
+	const Func	*f;
+	bool		found_expr;
+	Expr		*evaled_ids_f;
+
+	ids_f = dynamic_cast<const FCall*>(ids->front());
+	assert (ids_f != NULL);
+
+	/* idstruct of form func(...).a.b.c... */
+	if (funcs_map.count(ids_f->getName()) == 0) {
+		cerr << "BAD FUNC NAME" << endl;
+		return false;
+	}
+
+	f = funcs_map[ids_f->getName()];
+	assert (f != NULL);
+
+	t = types_map[f->getRet()];
+	if (t == NULL) {
+		cerr << "BAD RETURN TYPE" << endl;
+		return false;
+	}
+
+	evaled_ids_f = eval(*this, ids_f);
+	if (evaled_ids_f == NULL) {
+		cerr << "OOPS. ";
+		ids_f->print(cerr);
+		cerr << endl;
+		return false;
+	}
+
+	tb.tb_lastsym = NULL;
+	tb.tb_type = t;
+	tb.tb_symtab = symtabByName(tb.tb_type->getName());
+	tb.tb_diskoff = new FCall(
+		new Id("__extractOff"),
+		new ExprList(evaled_ids_f->copy()));
+	tb.tb_parambuf = new FCall(
+		new Id("__extractParam"),
+		new ExprList(evaled_ids_f->copy()));
+	tb.tb_virt = new FCall(
+		new Id("__extractVirt"),
+		new ExprList(evaled_ids_f->copy()));
+	found_expr = resolveTail(tb, ids, ++(ids->begin()));
+	if (!found_expr) goto done;
+
+	parent_closure = evaled_ids_f->copy();
+done:
+	delete evaled_ids_f;
+	return found_expr;
+}
+
+
+bool EvalCtx::resolveTB(
+	const IdStruct* ids, struct TypeBase& tb,
+	Expr* &parent_closure) const
+{
+	const Type		*t;
+	string			name;
+	Expr			*idx;
+	bool			found_expr;
+
+	parent_closure = NULL;
 
 	assert (ids != NULL);
 
-	if (toName(ids->front(), name, idx) == false)
-		return NULL;
+	if (dynamic_cast<const FCall*>(ids->front()) != NULL)
+		return resolveIdStructFHead(ids, tb, parent_closure);
+
+	if (toName(ids->front(), name, idx) == false) return false;
 
 	found_expr = false;
 
 	if (cur_scope != NULL) {
 		found_expr = resolveIdStructVarScope(
 			ids, name, code_builder->getVarScope(), tb);
+		if (found_expr) parent_closure = new Id(name);
+	}
+
+	if (cur_vscope != NULL) {
+		found_expr = resolveIdStructVarScope(
+			ids, name, cur_vscope, tb);
 		if (found_expr) parent_closure = new Id(name);
 	}
 
@@ -325,10 +380,10 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 		 * being resolved within the type scope */
 		delete idx;
 		cerr << "Idx on Func Arg." << endl;
-		return NULL;
+		return false;
 	}
 
-	if (!found_expr) {
+	if (!found_expr && cur_func_blk != NULL) {
 		found_expr = resolveIdStructFunc(ids, name, tb);
 		if (found_expr) {
 			/* closure is from head of idstruct */
@@ -352,8 +407,24 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 		}
 	}
 
+	delete idx;
+
 	/* nothing found, return error. */
-	if (!found_expr) return NULL;
+	if (!found_expr) return false;
+
+	return true;
+}
+
+Expr* EvalCtx::resolveVal(const IdStruct* ids) const
+{
+	const ThunkField		*thunk_field;
+	struct TypeBase			tb;
+	Expr				*parent_closure;
+
+	assert (ids != NULL);
+
+	if (resolveTB(ids, tb, parent_closure) == false)
+		return NULL;
 
 	/* massage the result into something we can use-- disk read or typepass */
 
@@ -373,16 +444,15 @@ Expr* EvalCtx::resolve(const IdStruct* ids) const
 	 * parameters for the size function-- inline it! */
 	delete tb.tb_parambuf;
 
-	ret = rt_glue.getLocal(
+	return rt_glue.getLocal(
 		parent_closure,
 		tb.tb_diskoff,
 		thunk_field->getSize()->copyConstValue());
-	return ret;
 }
 
 /** convert an id into a constant or convert to 
  *  access call or dynamic call */
-Expr* EvalCtx::resolve(const Id* id) const
+Expr* EvalCtx::resolveVal(const Id* id) const
 {
 	const_map::const_iterator	const_it;
 	const SymbolTableEnt		*st_ent;
@@ -471,7 +541,7 @@ Expr* EvalCtx::resolveArrayInType(const IdArray* ida) const
 			thunk_field->getElems()->copyFCall()));
 }
 
-Expr* EvalCtx::resolve(const IdArray* ida) const
+Expr* EvalCtx::resolveVal(const IdArray* ida) const
 {
 	Expr				*ret;
 	const_map::const_iterator	const_it;
@@ -491,6 +561,26 @@ Expr* EvalCtx::resolve(const IdArray* ida) const
 	return NULL;
 }
 
+/* get the disk location of the value in the idstruct */
+Expr* EvalCtx::resolveLoc(const IdStruct* ids, Expr*& size) const
+{
+	Expr			*loc;
+	Expr			*parent_closure;
+	const ThunkField	*thunk_field;
+	struct TypeBase		tb;
+
+	if (resolveTB(ids, tb, parent_closure) == false)
+		return NULL;
+
+	loc = tb.tb_diskoff;
+	delete tb.tb_parambuf;
+	delete tb.tb_virt;
+
+	thunk_field = tb.tb_lastsym->getFieldThunk();
+	size = thunk_field->getSize()->copyConstValue();
+	return loc;
+}
+
 bool EvalCtx::toName(const Expr* e, std::string& in_str, Expr* &idx) const
 {
 	const Id		*id;
@@ -504,7 +594,7 @@ bool EvalCtx::toName(const Expr* e, std::string& in_str, Expr* &idx) const
 	}
 
 	ida = dynamic_cast<const IdArray*>(e);
-	if (ida != NULL) {
+	 if (ida != NULL) {
 		in_str = ida->getName();
 		idx = (ida->getIdx())->simplify();
 		return true;
