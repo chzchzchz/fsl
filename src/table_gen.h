@@ -16,6 +16,9 @@ public:
 private:
 	void genTableHeaders(void);
 
+	void genWritePktTables(void);
+	void genWritePktTable(const WritePkt* wpkt);
+
 	void genPointsTables(void);
 	void genPointsTable(const Points* pt);
 
@@ -57,6 +60,7 @@ private:
 	void genInstanceVirtual(const VirtualType* vt);
 	void genInstanceAssertion(const Assertion* assertion);
 
+	void genExternsWriteStmts(const WritePkt* wp);
 	void genExternsAsserts(const Asserts* as);
 	void genExternsPoints(const Points* pt);
 	void genExternsVirts(const VirtualTypes* vt);

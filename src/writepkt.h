@@ -101,7 +101,7 @@ private:
 	int		blk_num;
 };
 
-class WritePkt : public GlobalStmt, PtrList<WritePktBlk>
+class WritePkt : public GlobalStmt, public PtrList<WritePktBlk>
 {
 public:
 	WritePkt(

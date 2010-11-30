@@ -4,6 +4,7 @@
 #include <map>
 #include <typeinfo>
 
+#include "util.h"
 #include "struct_writer.h"
 #include "AST.h"
 #include "type.h"
@@ -13,6 +14,7 @@
 #include "points_to.h"
 #include "asserts.h"
 #include "virt.h"
+#include "writepkt.h"
 #include "table_gen.h"
 #include "thunk_fieldoffset_cond.h"
 
@@ -27,7 +29,7 @@ extern assert_map		asserts_map;
 extern assert_list		asserts_list;
 extern typevirt_map		typevirts_map;
 extern typevirt_list		typevirts_list;
-
+extern writepkt_list		writepkts_list;
 
 using namespace std;
 
@@ -402,7 +404,6 @@ void TableGen::genExternsPoints(const Points* pt)
 	}
 }
 
-
 void TableGen::genPointsTable(const Points* pt)
 {
 	StructWriter	sw(
@@ -430,7 +431,6 @@ void TableGen::genPointsTable(const Points* pt)
 		genInstancePointsRange(*it);
 	}
 }
-
 
 void TableGen::genPointsTables(void)
 {
@@ -516,7 +516,6 @@ void TableGen::genVirtsTable(const VirtualTypes* v)
 
 }
 
-
 void TableGen::genAssertsTable(const Asserts* as)
 {
 	StructWriter	sw(
@@ -560,6 +559,92 @@ void TableGen::genScalarConstants(void)
 	out << "\";" << endl;
 }
 
+void TableGen::genExternsWriteStmts(const WritePkt* wpkt)
+{
+	WritePkt::const_iterator	it;
+	const string args[] = {"const uint64_t*"};
+
+	for (it = wpkt->begin(); it != wpkt->end(); it++) {
+		const WritePktBlk	*wblk = *it;
+
+		for (	WritePktBlk::const_iterator it2 = wblk->begin();
+			it2 != wblk->end();
+			it2++)
+		{
+			const WritePktStmt	*wstmt = *it2;
+			printExternFunc(
+				wstmt->getFuncName(),
+				vector<string>(args, args+1),
+				"void");
+		}
+	}
+}
+
+void TableGen::genWritePktTable(const WritePkt* wpkt)
+{
+	WritePkt::const_iterator	it;
+	unsigned int			n;
+	unsigned int			num_blks;
+
+	/* generate dump of write stmts in a few tables */
+	for (it = wpkt->begin(), n = 0; it != wpkt->end(); it++, n++) {
+		const WritePktBlk	*wblk = *it;
+
+		out << "static wpktf_t wpkt_funcs_" <<
+			wpkt->getName() << n << "[] = \n";
+
+		{
+		StructWriter			sw(out);
+		for (	WritePktBlk::const_iterator it2 = wblk->begin();
+			it2 != wblk->end();
+			it2++)
+		{
+			const WritePktStmt	*wstmt = *it2;
+			sw.write(wstmt->getFuncName());
+		}
+		}
+		out << ";\n";
+	}
+
+	list<WritePktBlk*>	l(*wpkt);
+
+	reverse(l.begin(), l.end());
+	/* now generate writepkt structs.. */
+	num_blks = wpkt->size();
+	for (it = l.begin(), n = num_blks-1; it != l.end(); it++, n--) {
+		const WritePktBlk*	wblk = *it;
+		StructWriter	sw(
+			out,
+			"fsl_rt_table_wpkt",
+			wpkt->getName() + int_to_string(n),
+			true);
+		sw.write("wpkt_func_c", wblk->size());
+		sw.write("wpkt_funcs",
+			"wpkt_funcs_" + wpkt->getName() + int_to_string(n));
+		/* XXX need to support embedded blocks.. */
+		sw.write("wpkt_blk_c", 0);
+		sw.write("wpkt_blks", "NULL");
+
+		if (n != 0)
+			sw.write(
+				"wpkt_next",
+				wpkt->getName() + int_to_string(n-1));
+		else
+			sw.write("wpkt_next", "NULL");
+	}
+}
+
+void TableGen::genWritePktTables(void)
+{
+	writepkt_list::const_iterator it;
+
+	for (it = writepkts_list.begin(); it != writepkts_list.end(); it++)
+		genExternsWriteStmts(*it);
+
+	for (it = writepkts_list.begin(); it != writepkts_list.end(); it++)
+		genWritePktTable(*it);
+}
+
 void TableGen::gen(const string& fname)
 {
 	out.open(fname.c_str());
@@ -572,6 +657,7 @@ void TableGen::gen(const string& fname)
 	genPointsTables();
 	genAssertsTables();
 	genVirtsTables();
+	genWritePktTables();
 
 	genTable_fsl_rt_table();
 

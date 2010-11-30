@@ -31,10 +31,7 @@ public:
 
 	virtual ~StructWriter(void) 
 	{
-		if (is_toplevel)
-			out << "};\n";
-		else
-			out << "}\n";
+		out << ((is_toplevel) ? "};\n" : "}\n");
 	}
 
 	void writeStr(const std::string& fieldname, const std::string& val)
@@ -61,6 +58,11 @@ public:
 		out << '.' << fieldname << '=' << ((is_true) ? "true" : "false");
 	}
 
+	void write(const std::string& name)
+	{
+		writeComma();
+		out  << name;
+	}
 
 	void beginWrite(void) 
 	{

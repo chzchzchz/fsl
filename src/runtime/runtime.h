@@ -122,7 +122,7 @@ typedef void(*paramsf_t)(
 	parambuf_t /* out */);
 typedef bool(*condf_t)(const struct fsl_rt_closure*);
 typedef bool(*assertf_t)(const struct fsl_rt_closure*);
-typedef void(*wpktf_t)(const void* params);
+typedef void(*wpktf_t)(const uint64_t* params);
 typedef void(*wpkt_paramf_t)(const struct fsl_rt_closure*, void* params);
 
 /* if you change a table struct, remember to update it in table_gen.cc!! */
