@@ -8,6 +8,7 @@
 #include <llvm/Support/IRBuilder.h>
 #include <llvm/Support/raw_os_ostream.h>
 
+#include "args.h"
 #include <map>
 #include <stdint.h>
 
@@ -95,6 +96,17 @@ public:
 		unsigned int elems);
 
 	const VarScope* getVarScope() const { return vscope; }
+
+	void storeClosureIntoParamBuf(
+		llvm::AllocaInst* params_out_ptr, unsigned int pb_idx,
+		const Type* t, llvm::Value* clo);
+
+	int storeExprIntoParamBuf(
+		const arg_elem& cur_arg,
+		const Expr	*expr,
+		llvm::AllocaInst* params_out_ptr,
+		unsigned int pb_base_idx);
+
 private:
 	void makeClosureTy(void);
 

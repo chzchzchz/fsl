@@ -42,10 +42,6 @@ protected:
 	const std::string getFCallName(void) const;
 private:
 	bool storeIntoParamBuf(llvm::AllocaInst *params_out_ptr) const;
-	void storeClosureIntoParamBuf(
-		llvm::AllocaInst* params_out_ptr, unsigned int pb_idx,
-		const Type* t, llvm::Value* clo_val) const;
-
 	bool		no_params;
 	ExprList	*exprs;
 };

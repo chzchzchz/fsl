@@ -23,9 +23,7 @@ VarScope::VarScope(llvm::IRBuilder<>* in_b)
 
 
 /* pull args from parambuf */
-void VarScope::genTypeArgs(
-	const Type* 		t,
-	llvm::IRBuilder<>	*tmpB)
+void VarScope::genTypeArgs(const Type* t)
 {
 	const llvm::Type		*l_t;
 	const ArgsList			*args;

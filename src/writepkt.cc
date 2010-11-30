@@ -4,9 +4,12 @@
 #include "util.h"
 #include "cond.h"
 #include "writepkt.h"
+#include "type.h"
+#include "symtab.h"
 #include "runtime_interface.h"
 
 extern CodeBuilder	*code_builder;
+extern symtab_map	symtabs;
 extern RTInterface	rt_glue;
 
 const VarScope* gen_vscope;
@@ -40,7 +43,6 @@ void WritePktArray::print(std::ostream& out) const
 	out << ")";
 }
 
-
 void WritePktBlk::print(std::ostream& out) const
 {
 	out << "(writepkt-blk ";
@@ -65,7 +67,6 @@ void WritePktStmt::genCode(void) const
 	assert (0 == 1);
 }
 
-
 void WritePkt::genProtos(void) const
 {
 	/* to generate:
@@ -73,11 +74,8 @@ void WritePkt::genProtos(void) const
 	 *	function proto for every pktblk line
 	 *	No function proto per pktblk
 	 */
-
-//	genProtoParameters();
 	genStmtFuncProtos();
 }
-
 
 void WritePktStruct::genCode(void) const
 {
@@ -90,8 +88,6 @@ void WritePktStruct::genCode(void) const
 	const CondExpr			*ce;
 	EvalCtx				ectx(
 		getParent()->getParent()->getVarScope());
-
-	cerr << "Generating code for wpktcall " << getFuncName() << endl;
 
 	f = code_builder->getModule()->getFunction(getFuncName());
 	if (f == NULL) {
@@ -167,14 +163,6 @@ void WritePktStruct::genCode(void) const
 	builder->CreateRetVoid();
 }
 
-
-/* these are for instances of the writepkt function... */
-void WritePkt::genProtoParameters(void) const
-{
-	assert (args->size() > 0);
-	assert (0 == 1 && "GENERATE PARAMETER PROTO");
-}
-
 void WritePktBlk::setParent(WritePkt* wp, unsigned int n)
 {
 	int	k;
@@ -216,7 +204,6 @@ void WritePkt::genStmtFuncProtos(void) const
 		}
 	}
 }
-
 
 string WritePktStmt::getFuncName(void) const
 {
@@ -266,7 +253,6 @@ void WritePktAnon::print(std::ostream& out) const
 	out << ")";
 }
 
-
 void WritePktCall::print(std::ostream& out) const
 {
 	out << "(writepkt-call ";
@@ -307,19 +293,126 @@ void WritePkt::genLoadArgs(llvm::Function* f)
 
 	arg_array_ptr = code_builder->createTmpI64Ptr();
 
-	builder->CreateStore(
-		arg_it,
-//		builder->CreateGEP(
-//			parambuf,
-//			llvm::ConstantInt::get(
-//				llvm::getGlobalContext(),
-//				llvm::APInt(32, 0))),
-		arg_array_ptr);
-
+	builder->CreateStore(arg_it, arg_array_ptr);
 
 	/* arguments are passed to wpkt functions by array of 64-bit ints */
 	/* extract arguments based on argslist */
 	vscope.clear();
 	vscope.loadArgsFromArray(arg_array_ptr, args);
 	gen_vscope = &vscope;
+}
+
+WritePktInstance* WritePkt::getInstance(
+	const std::string& protoname,
+	const class Type* clo_type,
+	ExprList* exprs) const
+{
+	return new WritePktInstance(this, clo_type, protoname, exprs);
+}
+
+WritePktInstance::WritePktInstance(
+	const WritePkt* in_parent,
+	const class Type* in_t,
+	const std::string& in_fname,
+	const ExprList*	in_exprs)
+: parent(in_parent), t(in_t), funcname(in_fname)
+{
+	exprs = in_exprs->copy();
+}
+
+unsigned int WritePktInstance::getParamBufEntries(void) const
+{
+	return getParent()->getArgs()->getNumParamBufEntries();
+}
+
+void WritePktInstance::genCode(void) const
+{
+	/* 0. create function / first bb */
+	llvm::Function			*f;
+	llvm::BasicBlock		*entry_bb;
+	llvm::IRBuilder<>		*builder;
+	llvm::Function::arg_iterator	arg_it;
+	llvm::AllocaInst		*pb_out_ptr;
+	const ArgsList			*args;
+	unsigned int			pb_idx, arg_idx;
+	EvalCtx				ectx(symtabs[t->getName()]);
+
+	cerr << "Generating code for wpktinstance " << funcname << endl;
+
+	f = code_builder->getModule()->getFunction(funcname);
+	assert (f != NULL && "Missing wpktinst prototype");
+
+	entry_bb = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", f);
+
+	builder = code_builder->getBuilder();
+	builder->SetInsertPoint(entry_bb);
+
+	/* 1. pull in type scope */
+	code_builder->genThunkHeaderArgs(f, t, NULL);
+
+	/* 2. load up output parambuf */
+	arg_it = f->arg_begin();
+	arg_it++;
+	pb_out_ptr = code_builder->createTmpI64Ptr();
+	builder->CreateStore(arg_it, pb_out_ptr);
+
+	/* 3. dump expressions into parambuf */
+	args = getParent()->getArgs();
+	assert (exprs->size() == args->size());
+	pb_idx = 0;
+	arg_idx = 0;
+	for (	ExprList::const_iterator it = exprs->begin();
+		it != exprs->end();
+		it++, arg_idx++)
+	{
+		const Expr	*cur_expr = *it;
+		int		elems_stored;
+
+		elems_stored = code_builder->storeExprIntoParamBuf(
+			args->get(arg_idx), cur_expr, pb_out_ptr, pb_idx);
+		if (elems_stored <= 0) {
+			assert (0 == 1 && "FAILED TO STORE");
+			return;
+		}
+		pb_idx += elems_stored;
+	}
+
+	/* 4. return */
+	builder->CreateRetVoid();
+}
+
+void WritePktInstance::genProto(void) const
+{
+	llvm::Function			*f;
+	llvm::FunctionType		*ft;
+	vector<const llvm::Type*>	args;
+
+
+	args.push_back(code_builder->getClosureTyPtr());
+	args.push_back(
+		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
+
+	/* writepkt inst function calls take two arguments:
+	 * 	1. source type closure
+	 * 	2. parambuf for output
+	 */
+	ft = llvm::FunctionType::get(
+		llvm::Type::getVoidTy(llvm::getGlobalContext()),
+		args,
+		false);
+
+	f = llvm::Function::Create(
+		ft,
+		llvm::Function::ExternalLinkage,
+		funcname,
+		code_builder->getModule());
+
+	/* should not be redefinitions.. */
+	if (f->getName() != funcname) {
+		cerr << "Expected name " << funcname <<" got " <<
+		f->getNameStr() << endl;
+	}
+
+	assert (f->getName() == funcname);
+	assert (f->arg_size() == 2);
 }

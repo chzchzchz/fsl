@@ -30,9 +30,7 @@ public:
 	VarScope(llvm::IRBuilder<>* in_b);
 	virtual ~VarScope() {}
 
-	void genTypeArgs(
-		const Type* 		t,
-		llvm::IRBuilder<>	*tmpB);
+	void genTypeArgs(const Type* t);
 
 	void loadClosureIntoThunkVars(
 		llvm::Function::arg_iterator 	ai,

@@ -106,7 +106,6 @@ struct fsl_rt_closure
 #define offset_is_bad(x)	(((uint64_t)(x)) >= OFFSET_EOF)
 #define offset_in_range(x)	(((uint64_t)(x)) < (__FROM_OS_BDEV_BYTES*8))
 
-/* XXX these should take a thunkvar when we support args */
 typedef diskoff_t(*thunkf_t)(const struct fsl_rt_closure*);
 typedef typesize_t(*sizef_t)(const struct fsl_rt_closure*);
 typedef uint64_t(*elemsf_t)(const struct fsl_rt_closure*);
@@ -123,7 +122,8 @@ typedef void(*paramsf_t)(
 typedef bool(*condf_t)(const struct fsl_rt_closure*);
 typedef bool(*assertf_t)(const struct fsl_rt_closure*);
 typedef void(*wpktf_t)(const uint64_t* params);
-typedef void(*wpkt_paramf_t)(const struct fsl_rt_closure*, void* params);
+typedef void(*wpkt_paramf_t)(
+	const struct fsl_rt_closure*, uint64_t* params /* output */);
 
 /* if you change a table struct, remember to update it in table_gen.cc!! */
 struct fsl_rt_table_type

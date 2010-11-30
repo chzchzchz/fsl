@@ -215,8 +215,7 @@ bool ThunkParams::storeIntoParamBuf(llvm::AllocaInst *params_out_ptr) const
 		it++, arg_idx++)
 	{
 		Expr		*cur_expr, *idxed_expr;
-		llvm::Value	*expr_val;
-		arg_elem	cur_arg;
+		int		elems_stored;
 
 		/* generate code for idx */
 		cur_expr = *it;
@@ -224,75 +223,19 @@ bool ThunkParams::storeIntoParamBuf(llvm::AllocaInst *params_out_ptr) const
 			eval(ectx, cur_expr),
 			new Id("@"),
 			rt_glue.getThunkArgIdx());
-		expr_val = idxed_expr->codeGen();
+
+		elems_stored = code_builder->storeExprIntoParamBuf(
+			args->get(arg_idx),
+			idxed_expr, params_out_ptr, pb_idx);
+
 		delete idxed_expr;
-
-		if (expr_val == NULL) {
-			cerr << "Oops. Could not generate ";
-			cur_expr->print(cerr);
-			cerr << " for thunkparams: (";
-			exprs->print(cerr);
-			cerr << ')' << endl;
-			assert (0 == 1);
-			return false;
-		}
-
-		cur_arg = args->get(arg_idx);
-		if (types_map.count((cur_arg.first)->getName()) > 0) {
-			const Type	*arg_type;
-			arg_type = types_map[(cur_arg.first)->getName()];
-			storeClosureIntoParamBuf(
-				params_out_ptr, pb_idx,
-				arg_type, expr_val);
-			pb_idx += arg_type->getParamBufEntryCount() + 2;
-		} else {
-			builder->CreateStore(
-				expr_val,
-				code_builder->loadPtr(params_out_ptr, pb_idx));
-			pb_idx++;
-		}
+		if (elems_stored <= 0) return false;
+		pb_idx += elems_stored;
 	}
 
 	return true;
 }
 
-/* load closure into parambuf */
-void ThunkParams::storeClosureIntoParamBuf(
-	llvm::AllocaInst* params_out_ptr, unsigned int pb_idx,
-	const Type* t, llvm::Value* clo) const
-{
-	llvm::IRBuilder<>	*builder;
-	llvm::Value		*cur_param_ptr;
-	const ArgsList		*args;
-	int			ent_c;
-	TypeClosure		tc(clo);
-
-	builder= code_builder->getBuilder();
-
-	/* offset */
-	cur_param_ptr = code_builder->loadPtr(params_out_ptr, pb_idx);
-	builder->CreateStore(tc.getOffset(), cur_param_ptr);
-
-	/* xlate */
-	cur_param_ptr = code_builder->loadPtr(params_out_ptr, pb_idx+1);
-	builder->CreateStore(
-		builder->CreatePtrToInt(
-			tc.getXlate(),
-			builder->getInt64Ty(),
-			"xlate_64cast"),
-		cur_param_ptr);
-
-	args = t->getArgs();
-	if (args == NULL) return;
-
-	ent_c = t->getParamBufEntryCount();
-	assert (ent_c >= 0 && "Has args but <= 2 parambuf ents??");
-	/* copy elements from clo's parambuf into param_out_ptr */
-	code_builder->emitMemcpy64(
-		code_builder->loadPtr(params_out_ptr, pb_idx+2),
-		tc.getParamBuf(),
-		ent_c);
-}
 
 ThunkParams* ThunkParams::createNoParams()
 {

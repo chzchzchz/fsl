@@ -17,7 +17,7 @@ private:
 	void genTableHeaders(void);
 
 	void genWritePktTables(void);
-	void genWritePktTable(const WritePkt* wpkt);
+	void genWritePktTable(const class WritePkt* wpkt);
 
 	void genPointsTables(void);
 	void genPointsTable(const Points* pt);

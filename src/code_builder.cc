@@ -22,6 +22,7 @@
 using namespace std;
 
 extern symtab_map	symtabs;
+extern type_map		types_map;
 extern RTInterface	rt_glue;
 
 CodeBuilder::CodeBuilder(const char* mod_name) : tmp_c(0)
@@ -72,7 +73,6 @@ llvm::GlobalVariable* CodeBuilder::getGlobalVar(const std::string& varname) cons
 	return gv;
 }
 
-
 void CodeBuilder::genProto(const string& name, uint64_t num_args)
 {
 	llvm::Function		*f;
@@ -102,7 +102,6 @@ void CodeBuilder::genProto(const string& name, uint64_t num_args)
 	assert (f->arg_size() == args.size());
 }
 
-
 void CodeBuilder::genThunkProto(
 	const std::string&	name,
 	const llvm::Type	*ret_type)
@@ -129,7 +128,6 @@ void CodeBuilder::genThunkProto(
 	assert (f->getName() == name);
 	assert (f->arg_size() == args.size());
 }
-
 
 /** generate the prototype for a thunkfunction 
  * (e.g. f(diskoff_t, parambuf_t) */
@@ -167,7 +165,6 @@ void CodeBuilder::genCode(
 	delete expr_eval_bits;
 }
 
-
 /* create empty function that returns void */
 void CodeBuilder::genCodeEmpty(const std::string& name)
 {
@@ -204,7 +201,7 @@ void CodeBuilder::genThunkHeaderArgs(
 	/* now past the closure pointer */
 
 	/* create the rest of the arguments */
-	vscope->genTypeArgs(t, &tmpB);
+	vscope->genTypeArgs(t);
 	if (extra_args != NULL)
 		vscope->loadArgs(ai, &tmpB, extra_args);
 }
@@ -427,4 +424,71 @@ llvm::AllocaInst* CodeBuilder::createPrivateTmpI64Array(
 		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
 		elem_count,
 		name);
+}
+
+/* store closure into parambuf */
+void CodeBuilder::storeClosureIntoParamBuf(
+	llvm::AllocaInst* params_out_ptr, unsigned int pb_idx,
+	const Type* t, llvm::Value* clo)
+{
+	llvm::Value		*cur_param_ptr;
+	const ArgsList		*args;
+	int			ent_c;
+	TypeClosure		tc(clo);
+
+	/* offset */
+	cur_param_ptr = loadPtr(params_out_ptr, pb_idx);
+	builder->CreateStore(tc.getOffset(), cur_param_ptr);
+
+	/* xlate */
+	cur_param_ptr = loadPtr(params_out_ptr, pb_idx+1);
+	builder->CreateStore(
+		builder->CreatePtrToInt(
+			tc.getXlate(),
+			builder->getInt64Ty(),
+			"xlate_64cast"),
+		cur_param_ptr);
+
+	args = t->getArgs();
+	if (args == NULL) return;
+
+	ent_c = t->getParamBufEntryCount();
+	assert (ent_c >= 0 && "Has args but <= 2 parambuf ents??");
+	/* copy elements from clo's parambuf into param_out_ptr */
+	emitMemcpy64(
+		loadPtr(params_out_ptr, pb_idx+2),
+		tc.getParamBuf(),
+		ent_c);
+}
+
+int CodeBuilder::storeExprIntoParamBuf(
+	const arg_elem& cur_arg,
+	const Expr	*expr,
+	llvm::AllocaInst* params_out_ptr, unsigned int pb_idx)
+{
+	llvm::Value	*expr_val;
+	int		elems_stored;
+
+	expr_val = expr->codeGen();
+	if (expr_val == NULL) {
+		cerr << "storeExprIntoParamBuf failed on expr: ";
+		expr->print(cerr);
+		cerr << endl;
+		return -1;
+	}
+
+	elems_stored = 0;
+	if (types_map.count((cur_arg.first)->getName()) > 0) {
+		const Type	*arg_type;
+		arg_type = types_map[(cur_arg.first)->getName()];
+		storeClosureIntoParamBuf(
+			params_out_ptr, pb_idx, arg_type, expr_val);
+		elems_stored = arg_type->getParamBufEntryCount() + 2;
+	} else {
+		builder->CreateStore(
+			expr_val, loadPtr(params_out_ptr, pb_idx));
+		elems_stored = 1;
+	}
+
+	return elems_stored;
 }

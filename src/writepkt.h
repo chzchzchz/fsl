@@ -16,6 +16,7 @@ typedef std::list<class WritePktBlk*>			wblk_list;
 
 class WritePktBlk;
 class WritePkt;
+class WritePktInstance;
 
 class WritePktStmt
 {
@@ -119,15 +120,15 @@ public:
 		delete args;
 	}
 
-	void generateParamThunk(
-		std::string& protoname, class EvalCtx* ectx,
+	WritePktInstance* getInstance(
+		const std::string& protoname,
+		const class Type* clo_type,
 		ExprList* exprs) const;
 
 	void genLoadArgs(llvm::Function* );
 
 	const VarScope* getVarScope(void) const { return &vscope; }
 private:
-	void genProtoParameters(void) const;
 	void genStmtFuncProtos(void) const;
 	void genStmtFuncCode(void) const;
 
@@ -145,6 +146,30 @@ public:
 	virtual void print(std::ostream& out) const;
 private:
 	WritePktBlk	*wpb;
+};
+
+class WritePktInstance
+{
+public:
+	virtual ~WritePktInstance(void)  { delete exprs; }
+	const std::string& getFuncName(void) const { return funcname; }
+	const WritePkt* getParent(void) const { return parent; }
+	unsigned int getParamBufEntries(void) const;
+	void genCode(void) const;
+	void genProto(void) const;
+private:
+	friend class WritePkt;	/* only writepkt may create this object */
+
+	WritePktInstance(
+		const WritePkt* in_parent,
+		const class Type*,
+		const std::string& fname,
+		const ExprList*	exprs);
+
+	const WritePkt		*parent;
+	const class Type	*t;
+	std::string		funcname;
+	ExprList		*exprs;
 };
 
 #endif
