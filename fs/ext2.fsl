@@ -12,21 +12,31 @@ const S_IFREG = 0x8000;
 include "ext2_func.fsl"
 include "ext2_type.fsl"
 
+typedef blknum_t = u32;
+
 /* put block in ino */
 write block_relink(ext2_inode ino, int file_off, blknum_t blknum)
 {
-	a <- a !
+	ino.i_block_direct[file_off/get_block_size()] <- blknum ?
+		(file_off/get_block_size() < num_direct_blocks(ino)) !
+	ext2_indir_lookup(ino.i_block_indir).blk_ptr[blknum-EXT2_NDIR_BLOCKS] <- blknum ?
+		(file_off/get_block_size() >= EXT2_NDIR_BLOCKS &&
+		 file_off/get_block_size() < blocks_per_indir() + EXT2_NDIR_BLOCKS) !
+	ext2_indir_in_bi_lookup(ino, file_off/get_block_size()).blk_ptr[
+		biindir_indir_offset(file_off/get_block_size())] <- blknum ?
+		(file_off/get_block_size() >= blocks_per_indir() + EXT2_NDIR_BLOCKS &&
+		 file_off/get_block_size() < (blocks_per_indir()*blocks_per_indir() +
+			 EXT2_NDIR_BLOCKS+blocks_per_indir()) ) !
 }
 
 /* allocate block from bmp */
 write block_alloc(blknum_t blknum)
 {
-	b <-  b !
-
+	get_group_bmp(blknum_to_grp(blknum)).data[blknum_to_bmpidx(blknum)] <- 0 !
 }
 
 /* put block back in bmp */
 write block_replace(blknum_t blknum)
 {
-	c <- c !
+	get_group_bmp(blknum_to_grp(blknum)).data[blknum_to_bmpidx(blknum)] <- 1 !
 }

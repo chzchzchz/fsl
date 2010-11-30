@@ -4,7 +4,7 @@ CFLAGS=-g -O3
 #CFLAGS=-g
 export CFLAGS
 
-all: code tools tests draw
+all: code tools libs tests draw
 
 clean: code-clean tests-clean
 
@@ -22,10 +22,13 @@ code:
 tools: code
 	cd src/tool && $(MAKECMD) && cd ../..
 
+libs:
+	make -C lib all
+
 code-clean:
 	cd src && make clean && cd ..
 
-tests: code tools
+tests: code tools libs
 	tests/do_all_tests.sh
 
 tests-extra:
@@ -33,3 +36,6 @@ tests-extra:
 
 tests-clean:
 	rm -f tests/scantool-*/*
+
+libs-clean:
+	make -C lib clean

@@ -30,7 +30,7 @@ points_range(
 	i, 1, indir_count(this),
 	disk.blocks[blk_ptr[i-1] - blocks_off(disk.sb)].data_blk)
 {
-	u32	blk_ptr[get_block_size()/4];
+	blknum_t blk_ptr[get_block_size()/4];
 }
 
 u32 bi_count(ext2_biindir_block id)
@@ -98,8 +98,8 @@ type ext2_group_desc(int group_num)
 points(disk.blocks[block_bmp - blocks_off(disk.sb) ].blk_bmp) as grp_blk_bmp
 points(disk.blocks[inode_bmp - blocks_off(disk.sb)].ino_bmp) as grp_ino_bmp
 points_range(
-	i, 0, inode_table_block_count(disk.sb)-1,
-	disk.blocks[(inode_table + i) - blocks_off(disk.sb)].ino_blk) as grp_ino_blk
+	i, 1, inode_table_block_count(disk.sb),
+	disk.blocks[(inode_table+i-1)-blocks_off(disk.sb)].ino_blk) as grp_ino_blk
 sum(free_block_c)
 sum(free_inode_c)
 sum(used_dir_c)
@@ -161,12 +161,12 @@ virtual_if(
 	? S_ISREG(i_mode) == true,
 	ext2_data_block,
 	i, 1, size_to_blocks(i_size),
-	get_nth(i-1)) as vfile
+	get_nth(this, i-1)) as vfile
 virtual_if(
 	? S_ISDIR(i_mode) == true,
 	ext2_dir_entry,
 	i, 1, size_to_blocks(i_size),
-	get_nth(i-1)) as vdir
+	get_nth(this, i-1)) as vdir
 points_range(
 	i, 1, num_direct_blocks(this),
 	disk.blocks[i_block_direct[i-1] - blocks_off(disk.sb)].data_blk) as direct

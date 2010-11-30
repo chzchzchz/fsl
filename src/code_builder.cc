@@ -206,7 +206,7 @@ void CodeBuilder::genThunkHeaderArgs(
 	/* create the rest of the arguments */
 	vscope->genTypeArgs(t, &tmpB);
 	if (extra_args != NULL)
-		vscope->genArgs(ai, &tmpB, extra_args);
+		vscope->loadArgs(ai, &tmpB, extra_args);
 }
 
 
