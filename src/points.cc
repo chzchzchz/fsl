@@ -102,8 +102,7 @@ void Points::loadPointsRange(void)
 	{
 		const preamble_args		*args;
 		preamble_args::const_iterator	args_it;
-		const Expr	*_bound_var, *first_val, *last_val, *data;
-		const Id	*bound_var;
+		InstanceIter			*inst_iter;
 
 		/* takes the form
 		 * points_range(bound_var, first_val, last_val, data_loc) */
@@ -115,30 +114,14 @@ void Points::loadPointsRange(void)
 		}
 
 		args_it = args->begin();
-		_bound_var = (*args_it)->getExpr(); args_it++;
-		first_val = (*args_it)->getExpr(); args_it++;
-		last_val = (*args_it)->getExpr(); args_it++;
-		data = (*args_it)->getExpr();
-
-		bound_var = dynamic_cast<const Id*>(_bound_var);
-		if (bound_var == NULL) {
-			cerr << "Expected identifier for bound variable in ";
-			if (_bound_var == NULL) 
-				cerr << " bad argtype";
-			 else
-				_bound_var->print(cerr);
-			cerr << endl;
+		inst_iter = new InstanceIter();
+		if (inst_iter->load(src_type, args_it) == false) {
+			cerr << "points_range: Could not init inst iter"<<endl;
+			delete inst_iter;
 			continue;
 		}
 
-		if (first_val == NULL || last_val == NULL || data == NULL) {
-			cerr << "points_range: Unexpected argtype" << endl;
-			continue;
-		}
-
-		loadPointsRangeInstance(
-			bound_var, first_val, last_val, data,
-			(*it)->getAddressableName());
+		loadPointsRangeInstance(inst_iter, (*it)->getAddressableName());
 	}
 }
 
@@ -196,33 +179,13 @@ void Points::loadPointsInstance(const Expr* data_loc, const Id* as_name)
 }
 
 void Points::loadPointsRangeInstance(
-	const Id*	bound_var,
-	const Expr*	first_val,
-	const Expr*	last_val,
-	const Expr*	data_loc,
+	InstanceIter*	inst_iter,
 	const Id*	as_name)
 {
-	EvalCtx		ectx(symtabs[src_type->getName()]);
-	const Type	*dst_type;
-
-	assert (bound_var != NULL);
-	assert (first_val != NULL);
-	assert (last_val != NULL);
-	assert (data_loc != NULL);
-
-	dst_type = ectx.getType(data_loc);
-	if (dst_type == NULL) {
-		cerr << "Could not resolve type for points-to: '";
-		data_loc->print(cerr);
-		cerr << "' in type " << src_type->getName() << endl;
-		return;
-	}
+	assert (inst_iter != NULL);
 
 	points_range_elems.add(new PointsRange(
-		new InstanceIter(
-			src_type, dst_type,
-			bound_var->copy(), first_val->copy(), last_val->copy(),
-			data_loc->copy()),
+		inst_iter,
 		(as_name != NULL) ? as_name->copy() : NULL,
 		points_seq++));
 }

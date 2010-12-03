@@ -53,10 +53,7 @@ private:
 		const Id*	as_name);
 
 	void loadPointsRangeInstance(
-		const Id*	bound_var,
-		const Expr*	first_val,
-		const Expr*	last_val,
-		const Expr*	data,
+		InstanceIter*	iter,
 		const Id*	as_name);
 
 	const Type*		src_type;

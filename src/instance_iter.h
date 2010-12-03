@@ -9,6 +9,11 @@
 class InstanceIter
 {
 public:
+	InstanceIter(void);
+	bool load(
+		const Type* in_src_type,
+		preamble_args::const_iterator& arg_it);
+
 	InstanceIter(
 		const Type*	in_src_type,
 		const Type*	in_dst_type,

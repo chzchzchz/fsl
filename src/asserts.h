@@ -3,9 +3,9 @@
 
 #include "collection.h"
 
-typedef PtrList<class Assertion>			assertion_list;
-typedef std::map<std::string, const class Asserts*>	assert_map;
-typedef std::list<class Asserts*>			assert_list;
+typedef PtrList<class Assertion>		assertion_list;
+typedef std::map<std::string, class Asserts*>	assert_map;
+typedef std::list<class Asserts*>		assert_list;
 
 class Asserts
 {

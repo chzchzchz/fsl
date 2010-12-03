@@ -45,14 +45,11 @@ void VirtualTypes::loadVirtuals(bool is_cond)
 VirtualType* VirtualTypes::loadVirtual(const Preamble* p, bool is_conditional)
 {
 	const preamble_args		*args;
-	const Expr			*_target_type_expr, *_binding,
-					*min_expr, *max_expr,
-					*lookup_expr;
+	const Expr			*_target_type_expr;
 	const CondExpr			*cond;
-	const Id			*binding, *target_type_expr, *as_name;
+	const Id			*target_type_expr, *as_name;
 	preamble_args::const_iterator	arg_it;
 	EvalCtx				ectx(symtabs[src_type->getName()]);
-	const Type			*xlated_type;
 	const Type			*target_type;
 	InstanceIter			*instance_iter;
 
@@ -72,17 +69,6 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p, bool is_conditional)
 		cond = NULL;
 
 	_target_type_expr = (*arg_it)->getExpr(); arg_it++;
-	_binding = (*arg_it)->getExpr(); arg_it++;
-	min_expr = (*arg_it)->getExpr(); arg_it++;
-	max_expr = (*arg_it)->getExpr(); arg_it++;
-	lookup_expr = (*arg_it)->getExpr(); arg_it++;
-
-	binding = dynamic_cast<const Id*>(_binding);
-	if (binding == NULL) {
-		cerr << "expected id for binding" << endl;
-		return NULL;
-	}
-
 	target_type_expr = dynamic_cast<const Id*>(_target_type_expr);
 	if (target_type_expr == NULL) {
 		cerr << "expected id with type name" << endl;
@@ -91,27 +77,16 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p, bool is_conditional)
 
 	if (types_map.count(target_type_expr->getName()) == 0) {
 		cerr << "Bad xlated type in virt's first parameter:'";
-		lookup_expr->print(cerr);
+		_target_type_expr->print(cerr);
 		cerr << "' in type " << src_type->getName() << endl;
 		return NULL;
 	}
 	target_type = types_map[target_type_expr->getName()];
 
-	xlated_type = ectx.getType(lookup_expr);
-	if (xlated_type == NULL) {
-		cerr << "Bad xlated type in virt's last parameter:'";
-		lookup_expr->print(cerr);
-		cerr << "' in type " << src_type->getName() << endl;
-		return NULL;
-	}
-
 	as_name = p->getAddressableName();
 
-	instance_iter = new InstanceIter(
-		src_type, xlated_type,
-		binding->copy(),
-		min_expr->copy(), max_expr->copy(),
-		lookup_expr->copy());
+	instance_iter = new InstanceIter();
+	instance_iter->load(src_type, arg_it);
 
 	if (is_conditional) {
 		return new VirtualIf(

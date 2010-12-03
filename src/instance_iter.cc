@@ -7,6 +7,7 @@ using namespace std;
 
 extern CodeBuilder* 	code_builder;
 extern symtab_map	symtabs;
+extern type_map		types_map;
 
 
 InstanceIter::~InstanceIter(void)
@@ -15,6 +16,45 @@ InstanceIter::~InstanceIter(void)
 	delete min_expr;
 	delete max_expr;
 	delete lookup_expr;
+}
+
+InstanceIter::InstanceIter(void)
+ : src_type(NULL), dst_type(NULL) {}
+
+bool InstanceIter::load(
+	const Type	*in_src_type,
+	preamble_args::const_iterator& arg_it)
+{
+
+	EvalCtx		ectx(symtabs[in_src_type->getName()]);
+	Expr		*_binding;
+
+	assert (src_type == NULL && dst_type == NULL && "Already initailized");
+
+	src_type = in_src_type;
+
+	_binding = (*arg_it)->getExpr()->copy(); arg_it++;;
+	min_expr =(*arg_it)->getExpr()->copy(); arg_it++;
+	max_expr = (*arg_it)->getExpr()->copy(); arg_it++;
+	lookup_expr = (*arg_it)->getExpr()->copy(); arg_it++;
+
+	binding = dynamic_cast<Id*>(_binding);
+	if (binding == NULL) {
+		cerr << "Expected id for binding but got:";
+		_binding->print(cerr);
+		cerr << endl;
+		return false;
+	}
+
+	dst_type = ectx.getType(lookup_expr);
+	if (dst_type == NULL) {
+		cerr << "Bad dest type in iterator: ";
+		lookup_expr->print(cerr);
+		cerr << "' in type " << src_type->getName() << endl;
+		return false;
+	}
+
+	return true;
 }
 
 InstanceIter::InstanceIter(

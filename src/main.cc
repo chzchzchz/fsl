@@ -16,6 +16,7 @@
 #include "detached_preamble.h"
 #include "runtime_interface.h"
 #include "writepkt.h"
+#include "reloc.h"
 
 #include <stdint.h>
 #include <fstream>
@@ -26,6 +27,8 @@ extern GlobalBlock* global_scope;
 
 using namespace std;
 
+typereloc_map		typerelocs_map;
+typereloc_list		typerelocs_list;
 func_map		funcs_map;
 func_list		funcs_list;
 writepkt_map		writepkts_map;
@@ -364,56 +367,25 @@ static void gen_thunk_proto(void)
 	}
 }
 
-static void gen_points_to(void)
+template<class NoteType>
+static void gen_notes(
+	std::list<NoteType*> &note_list,
+	std::map<std::string, NoteType*> &note_map
+	)
 {
 	for (	type_list::const_iterator it = types_list.begin();
 		it != types_list.end();
 		it++)
 	{
 		const Type	*t;
-		Points		*points;
+		NoteType	*note;
 		
 		t = *it;
-		points = new Points(t);
-		points->genProtos();
-		points->genCode();
-		points_list.push_back(points);
-		points_map[t->getName()] = points;
-	}
-}
-
-static void gen_asserts(void)
-{
-	for (	type_list::const_iterator it = types_list.begin();
-		it != types_list.end();
-		it++)
-	{
-		const Type	*t;
-		Asserts		*asserts;
-		
-		t = *it;
-		asserts = new Asserts(t);
-		asserts->genProtos();
-		asserts->genCode();
-		asserts_list.push_back(asserts);
-		asserts_map[t->getName()] = asserts;
-	}
-
-}
-
-static void gen_virtuals(void)
-{
-	for (	type_list::const_iterator it = types_list.begin();
-		it != types_list.end();
-		it++)
-	{
-		VirtualTypes	*virts;
-
-		virts = new VirtualTypes((*it));
-		virts->genProtos();
-		virts->genCode();
-		typevirts_list.push_back(virts);
-		typevirts_map[(*it)->getName()] = virts;
+		note = new NoteType(t);
+		note->genProtos();
+		note->genCode();
+		note_list.push_back(note);
+		note_map[t->getName()] = note;
 	}
 }
 
@@ -504,13 +476,17 @@ int main(int argc, char *argv[])
 	gen_thunk_code();
 
 	cout << "Generating points-to functions" << endl;
-	gen_points_to();
+	gen_notes<Points>(points_list, points_map);
 
 	cout << "Generating assertions" << endl;
-	gen_asserts();
+	gen_notes<Asserts>(asserts_list, asserts_map);
 
 	cout << "Generating virtuals" << endl;
-	gen_virtuals();
+	gen_notes<VirtualTypes>(typevirts_list, typevirts_map);
+
+	/* XXX NOT YET */
+//	cout << "Generating relocations" << endl;
+//	gen_notes<RelocTypes>(typerelocs_list, typerelocs_map);
 
 	cout << "Writing out module's code" << endl;
 	code_builder->write(llvm_fname);

@@ -151,7 +151,7 @@ private:
 class WritePktInstance
 {
 public:
-	virtual ~WritePktInstance(void)  { delete exprs; }
+	virtual ~WritePktInstance(void) { delete exprs; }
 	const std::string& getFuncName(void) const { return funcname; }
 	const WritePkt* getParent(void) const { return parent; }
 	unsigned int getParamBufEntries(void) const;

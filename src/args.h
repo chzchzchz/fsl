@@ -1,6 +1,11 @@
 #ifndef ARGS_H
 #define ARGS_H
 
+#include <map>
+#include <string>
+
+class Id;
+
 typedef std::map<std::string, std::string>	arg_map;
 typedef std::pair<Id*, Id*>			arg_elem;
 
