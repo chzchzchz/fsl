@@ -15,6 +15,19 @@ u32 indir_count(ext2_indir_block id)
 	return ret;
 }
 
+bool is_blk_avail(blknum_t blknum)
+{
+	int		grpnum;
+	int		bmpidx;
+	ext2_bmp_blk	bmpblk;
+
+	grpnum = blknum_to_grp(blknum);
+	bmpidx = blknum_to_bmpidx(blknum);
+	bmpblk = get_group_bmp(grpnum);
+	if (bmpblk.data[bmpidx] == 0) return true;
+	return false;
+}
+
 int blknum_to_grp(blknum_t blknum) { return blknum / ext2_sb.s_blks_per_grp; }
 int blknum_to_bmpidx(blknum_t blknum) { return blknum % ext2_sb.s_blks_per_grp; }
 

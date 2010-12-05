@@ -42,6 +42,7 @@ public:
 	void genCode(void) const;
 	void genProto(void) const;
 	void printExterns(TableGen* tg) const;
+	void genTableInstance(TableGen*) const;
 private:
 	void genCodeLookup(void) const;
 

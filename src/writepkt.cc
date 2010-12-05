@@ -6,6 +6,7 @@
 #include "writepkt.h"
 #include "type.h"
 #include "symtab.h"
+#include "struct_writer.h"
 #include "runtime_interface.h"
 
 extern CodeBuilder	*code_builder;
@@ -449,4 +450,23 @@ WritePktInstance* WritePkt::getInstance(
 
 	wpkt = writepkts_map[wpkt_fc->getName()];
 	return wpkt->getInstance(protoname, clo_type, wpkt_fc->getExprs());
+}
+
+void WritePktInstance::genExterns(TableGen* tg) const
+{
+	string	args_pr[] = {
+		"const struct fsl_rt_closure*", "uint64_t*", "uint64_t*"};
+	tg->printExternFunc(
+		funcname,
+		vector<string>(args_pr,args_pr+3),
+		"void");
+}
+
+void WritePktInstance::genTableInstance(TableGen* tg) const
+{
+	StructWriter	sw(tg->getOS());
+
+	sw.write("wpi_params", funcname);
+	sw.write(	"wpi_wpkt",
+			string("&wpkt_")+parent->getName()+int_to_string(0));
 }

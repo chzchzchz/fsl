@@ -80,7 +80,7 @@ static int get_sel_elem(int min_v, int max_v)
 
 static uint64_t select_field_array(
 	struct type_info* cur,
-	struct fsl_rt_table_field* field,
+	const struct fsl_rt_table_field* field,
 	unsigned int num_elems,
 	uint64_t next_diskoff,
 	uint64_t* sel_idx)
@@ -115,7 +115,7 @@ static uint64_t select_field_array(
 
 static void select_field(struct type_info* cur, int field_idx)
 {
-	struct fsl_rt_table_field	*field;
+	const struct fsl_rt_table_field	*field;
 	struct type_info		*ti_next;
 	uint64_t			num_elems;
 	diskoff_t			next_off;
@@ -153,8 +153,8 @@ done:
 
 static void select_virt(struct type_info* cur, int vt_idx)
 {
-	struct fsl_rt_table_type*	tt;
-	struct fsl_rt_table_virt*	vt;
+	const struct fsl_rt_table_type*	tt;
+	const struct fsl_rt_table_virt*	vt;
 	struct type_info*		ti_next;
 	int				sel_elem;
 	int				err;
@@ -193,7 +193,7 @@ static bool handle_menu_choice(
 	struct type_info* cur,
 	int choice)
 {
-	struct fsl_rt_table_type	*tt;
+const struct fsl_rt_table_type	*tt;
 
 	if (choice == MCMD_DUMP) {
 		/* dump all of current type */

@@ -421,7 +421,7 @@ void TableGen::genWritePktTable(const WritePkt* wpkt)
 		StructWriter	sw(
 			out,
 			"fsl_rt_table_wpkt",
-			wpkt->getName() + int_to_string(n),
+			string("wpkt_") + wpkt->getName() + int_to_string(n),
 			true);
 		sw.write("wpkt_func_c", wblk->size());
 		sw.write("wpkt_funcs",
@@ -433,7 +433,8 @@ void TableGen::genWritePktTable(const WritePkt* wpkt)
 		if (n != 0)
 			sw.write(
 				"wpkt_next",
-				wpkt->getName() + int_to_string(n-1));
+				string("wpkt_")+wpkt->getName()+
+					int_to_string(n-1));
 		else
 			sw.write("wpkt_next", "NULL");
 	}

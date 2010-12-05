@@ -30,7 +30,7 @@ static int scan_strongtype(struct scan_ctx*, const struct fsl_rt_table_field*);
 
 static int scan_virt_all(struct scan_ctx* ctx)
 {
-	struct fsl_rt_table_type	*tt;
+	const struct fsl_rt_table_type	*tt;
 	unsigned int			i;
 	int				ret;
 
@@ -86,7 +86,7 @@ done:
 static int scan_pointsto(
 	struct scan_ctx* ctx, const struct fsl_rt_table_pointsto* pt)
 {
-	struct fsl_rt_table_type	*tt;
+	const struct fsl_rt_table_type	*tt;
 	struct type_info		*ti;
 	int				ret;
 	uint64_t			k;

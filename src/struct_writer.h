@@ -26,7 +26,7 @@ public:
 		if (isStatic) {
 			out << "static ";
 		}
-		out << "struct " << type_name << " " << name << " = {\n";
+		out << "const struct " << type_name << " " << name << " = {\n";
 	}
 
 	virtual ~StructWriter(void) 

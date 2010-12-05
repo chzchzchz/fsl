@@ -155,7 +155,7 @@ void fsl_virt_unref(struct fsl_rt_closure* clo)
 
 struct fsl_rt_mapping*  fsl_virt_alloc(
 	struct fsl_rt_closure* parent,
-	struct fsl_rt_table_virt* vt)
+	const struct fsl_rt_table_virt* vt)
 {
 	struct fsl_rt_mapping		*rtm;
 
@@ -193,10 +193,10 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 
 static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 {
-	struct fsl_rt_table_type	*tt_vsrc;
+	const struct fsl_rt_table_type	*tt_vsrc;
 	diskoff_t                       first_type_off;
 	uint64_t			idx;
-	struct fsl_rt_table_virt	*vt;
+	const struct fsl_rt_table_virt	*vt;
 
 	vt = rtm->rtm_virt;
 
@@ -305,7 +305,7 @@ static bool fsl_virt_nth_verify_bounds(
 diskoff_t fsl_virt_get_nth(
 	const struct fsl_rt_mapping* rtm, unsigned int target_idx)
 {
-	struct fsl_rt_table_type	*tt;
+	const struct fsl_rt_table_type	*tt;
 	unsigned int			i;
 	diskoff_t			cur_off;
 	typesize_t			total_bits;

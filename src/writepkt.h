@@ -8,6 +8,7 @@
 #include "AST.h"
 #include "collection.h"
 #include "expr.h"
+#include "table_gen.h"
 #include "code_builder.h"
 
 typedef std::map<std::string, class WritePkt*>		writepkt_map;
@@ -162,6 +163,8 @@ public:
 	unsigned int getParamBufEntries(void) const;
 	void genCode(const ArgsList* args_in) const;
 	void genProto(void) const;
+	void genExterns(TableGen* tg) const;
+	void genTableInstance(TableGen* tg) const;
 private:
 	friend class WritePkt;	/* only writepkt may create this object */
 

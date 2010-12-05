@@ -1,5 +1,6 @@
 #include "code_builder.h"
 #include "instance_iter.h"
+#include "struct_writer.h"
 #include "symtab.h"
 #include "eval.h"
 
@@ -206,6 +207,16 @@ void InstanceIter::setMinExpr(const Expr* e)
 	assert (e != min_expr);
 	delete min_expr;
 	min_expr = e->copy();
+}
+
+void InstanceIter::genTableInstance(TableGen* tg) const
+{
+	StructWriter		sw(tg->getOS());
+
+	sw.write("it_type_dst", getDstType()->getTypeNum());
+	sw.write("it_range", getLookupFCallName());
+	sw.write("it_min", getMinFCallName());
+	sw.write("it_max", getMaxFCallName());
 }
 
 void InstanceIter::printExterns(TableGen* tg) const

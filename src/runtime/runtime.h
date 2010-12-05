@@ -139,28 +139,28 @@ struct fsl_rt_table_type
 
 	/* strong user-types */
 	unsigned int			tt_fieldstrong_c;
-	struct fsl_rt_table_field	*tt_fieldstrong_table;
+	const struct fsl_rt_table_field	*tt_fieldstrong_table;
 
 	unsigned int			tt_pointsto_c;
-	struct fsl_rt_table_pointsto	*tt_pointsto;
+	const struct fsl_rt_table_pointsto	*tt_pointsto;
 
 	unsigned int			tt_assert_c;
-	struct fsl_rt_table_assert	*tt_assert;
+	const struct fsl_rt_table_assert	*tt_assert;
 
 	unsigned int			tt_virt_c;
-	struct fsl_rt_table_virt	*tt_virt;
+	const struct fsl_rt_table_virt	*tt_virt;
 
 	/* all non-union fields */
 	unsigned int			tt_fieldall_c;
-	struct fsl_rt_table_field	*tt_fieldall_thunkoff;
+	const struct fsl_rt_table_field	*tt_fieldall_thunkoff;
 
 	/* all types that are not strictly weak */
 	unsigned int			tt_fieldtypes_c;
-	struct fsl_rt_table_field	*tt_fieldtypes_thunkoff;
+	const struct fsl_rt_table_field	*tt_fieldtypes_thunkoff;
 
 	/* all fields (including union fields) */
 	unsigned int			tt_field_c;
-	struct fsl_rt_table_field	*tt_field_table;
+	const struct fsl_rt_table_field	*tt_field_table;
 };
 
 struct fsl_rt_table_field
@@ -182,6 +182,7 @@ struct fsl_rt_table_field
 
 struct fsl_rt_iter
 {
+	typenum_t	it_type_dst;
 	points_rangef_t	it_range;
 	points_minf_t	it_min;
 	points_maxf_t	it_max;
@@ -223,19 +224,20 @@ struct fsl_rt_table_wpkt
 struct fsl_rt_table_wpkt_inst
 {
 	wpkt_paramf_t			wpi_params;
-	struct fsl_rt_table_wpkt	*wpi_wpkt;
+	const struct fsl_rt_table_wpkt	*wpi_wpkt;
 };
 
 struct fsl_rt_table_reloc
 {
-	typenum_t			rel_type;
-	struct fsl_rt_iter		rel_src;
+	struct fsl_rt_iter		rel_sel;
 	struct fsl_rt_iter		rel_choice;
-	bool				rel_ccond;
+	condidxf_t			rel_ccond;
 
-	struct fsl_rt_table_wpkt_inst	rel_alloc;
-	struct fsl_rt_table_wpkt_inst	rel_replace;
-	struct fsl_rt_table_wpkt_inst	rel_relink;
+	const struct fsl_rt_table_wpkt_inst	rel_alloc;
+	const struct fsl_rt_table_wpkt_inst	rel_replace;
+	const struct fsl_rt_table_wpkt_inst	rel_relink;
+
+	const char			*rel_name;
 };
 
 /* exported variables from types module.. */
@@ -244,7 +246,7 @@ extern uint64_t __FROM_OS_BDEV_BLOCK_BYTES;
 extern uint64_t __FROM_OS_SB_BLOCKSIZE_BYTES;
 
 /* these are in the generated  fsl.table.c */
-extern struct fsl_rt_table_type		fsl_rt_table[];
+extern const struct fsl_rt_table_type	fsl_rt_table[];
 extern unsigned int			fsl_rt_table_entries;
 extern unsigned int			fsl_rt_origin_typenum;
 extern char				fsl_rt_fsname[];

@@ -17,12 +17,12 @@ static int handle_virt(
 	struct type_info* ti,
 	const struct fsl_rt_table_virt* vt, int idx, struct fragscan_info* info)
 {
-	struct fsl_rt_mapping	*rtm;
-	struct type_info	*v_ti;
-	size_t			elem_len;
-	uint64_t		last_poff;
-	unsigned int		cur_elem, total_elems;
-	int			err;
+	const struct fsl_rt_mapping	*rtm;
+	struct type_info		*v_ti;
+	size_t				elem_len;
+	uint64_t			last_poff;
+	unsigned int			cur_elem, total_elems;
+	int				err;
 
 	if (idx != 0) return SCAN_RET_CONTINUE;
 
@@ -57,7 +57,7 @@ static int handle_virt(
 
 struct scan_ops ops =
 {
-	.so_virt = handle_virt
+	.so_virt = (scan_virt_f)handle_virt
 };
 
 int tool_entry(int argc, char* argv[])

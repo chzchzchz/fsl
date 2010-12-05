@@ -69,7 +69,7 @@ static struct type_info* typeinfo_alloc_generic(
 	const struct type_desc	*ti_td,
 	struct type_info	*ti_prev)
 {
-	struct fsl_rt_table_type	*tt;
+	const struct fsl_rt_table_type	*tt;
 	struct type_info		*ret;
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_TYPEINFO_ALLOC);
@@ -114,7 +114,7 @@ static struct type_info* typeinfo_alloc_generic(
 
 static bool typeinfo_verify_asserts(const struct type_info *ti)
 {
-	struct fsl_rt_table_type	*tt;
+	const struct fsl_rt_table_type	*tt;
 	unsigned int			i;
 
 	assert (ti != NULL);
@@ -367,7 +367,7 @@ done:
 void typeinfo_set_dyn(const struct type_info* ti)
 {
 	TI_INTO_CLO			(ti);
-	struct fsl_rt_table_type	*tt;
+	const struct fsl_rt_table_type	*tt;
 	unsigned int			i;
 
 	DEBUG_TYPEINFO_ENTER();
@@ -381,7 +381,7 @@ void typeinfo_set_dyn(const struct type_info* ti)
 
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_fieldstrong_c; i++) {
-		struct fsl_rt_table_field	*field;
+		const struct fsl_rt_table_field	*field;
 		unsigned int			param_c;
 		diskoff_t			diskoff;
 
