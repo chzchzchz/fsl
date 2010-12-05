@@ -207,3 +207,25 @@ void InstanceIter::setMinExpr(const Expr* e)
 	delete min_expr;
 	min_expr = e->copy();
 }
+
+void InstanceIter::printExterns(TableGen* tg) const
+{
+	string	args_pr[] = {
+		"const struct fsl_rt_closure*", "uint64_t", "uint64_t*"};
+	string	args_bound[] = {"const struct fsl_rt_closure*"};
+
+	tg->printExternFunc(
+		getLookupFCallName(),
+		vector<string>(args_pr,args_pr+3),
+		"uint64_t");
+
+	tg->printExternFunc(
+		getMinFCallName(),
+		vector<string>(args_bound,args_bound+1),
+		"uint64_t");
+
+	tg->printExternFunc(
+		getMaxFCallName(),
+		vector<string>(args_bound,args_bound+1),
+		"uint64_t");
+}

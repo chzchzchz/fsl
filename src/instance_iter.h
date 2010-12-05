@@ -2,6 +2,7 @@
 #define INSTANCEITER_H
 
 #include <string>
+#include "table_gen.h"
 #include "expr.h"
 #include "type.h"
 
@@ -33,12 +34,14 @@ public:
 	std::string getMinFCallName(void) const;
 	std::string getMaxFCallName(void) const;
 
+	const Id* getBinding(void) const { return binding; }
 	const Expr* getMinExpr(void) const { return min_expr; }
 	const Expr* getMaxExpr(void) const { return max_expr; }
 	void setMinExpr(const Expr* e);
 
 	void genCode(void) const;
 	void genProto(void) const;
+	void printExterns(TableGen* tg) const;
 private:
 	void genCodeLookup(void) const;
 

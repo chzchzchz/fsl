@@ -484,9 +484,8 @@ int main(int argc, char *argv[])
 	cout << "Generating virtuals" << endl;
 	gen_notes<VirtualTypes>(typevirts_list, typevirts_map);
 
-	/* XXX NOT YET */
-//	cout << "Generating relocations" << endl;
-//	gen_notes<RelocTypes>(typerelocs_list, typerelocs_map);
+	cout << "Generating relocations" << endl;
+	gen_notes<RelocTypes>(typerelocs_list, typerelocs_map);
 
 	cout << "Writing out module's code" << endl;
 	code_builder->write(llvm_fname);

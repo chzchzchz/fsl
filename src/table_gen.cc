@@ -14,6 +14,7 @@
 #include "points_to.h"
 #include "asserts.h"
 #include "virt.h"
+#include "reloc.h"
 #include "writepkt.h"
 #include "table_gen.h"
 #include "thunk_fieldoffset_cond.h"
@@ -30,6 +31,8 @@ extern assert_list		asserts_list;
 extern typevirt_map		typevirts_map;
 extern typevirt_list		typevirts_list;
 extern writepkt_list		writepkts_list;
+extern typereloc_map		typerelocs_map;
+extern typereloc_list		typerelocs_list;
 
 using namespace std;
 
@@ -324,213 +327,15 @@ void TableGen::genTableHeaders(void)
 	out << "#include \"runtime/runtime.h\"" << endl;
 }
 
-void TableGen::genInstanceAssertion(const Assertion* as)
+template<class T>
+void TableGen::genTableWriters(const list<T*>& tw_list)
 {
-	StructWriter	sw(out);
-	sw.write("as_assertf", as->getFCallName());
-}
-
-void TableGen::genInstancePointsRange(const PointsRange* ptr)
-{
-	StructWriter		sw(out);
-	const InstanceIter	*ii;
-	Id			*name;
-
-	ii = ptr->getInstanceIter();
-	sw.write("pt_type_dst", ii->getDstType()->getTypeNum());
-	sw.write("pt_range", ii->getLookupFCallName());
-	sw.write("pt_min", ii->getMinFCallName());
-	sw.write("pt_max", ii->getMaxFCallName());
-
-	name = ptr->getName();
-	if (name != NULL)	sw.writeStr("pt_name", name->getName());
-	else			sw.write("pt_name", "NULL");
-}
-
-void TableGen::genExternsAsserts(const Asserts* as)
-{
-	const assertion_list*	asl = as->getAsserts();
-
-	for (	assertion_list::const_iterator it = asl->begin();
-		it != asl->end();
+	for (	typename list<T*>::const_iterator it = tw_list.begin();
+		it != tw_list.end();
 		it++)
 	{
-		const Assertion*	assertion = *it;
-		printExternFuncThunk(assertion->getFCallName(), "bool");
-	}
-}
-
-void TableGen::printExternPointsRange(const PointsRange* pr)
-{
-	string	args_pr[] = {
-		"const struct fsl_rt_closure*", "uint64_t", "uint64_t*"};
-	string	args_bound[] = {"const struct fsl_rt_closure*"};
-	const InstanceIter	*ii;
-
-	ii = pr->getInstanceIter();
-	printExternFunc(
-		ii->getLookupFCallName(),
-		vector<string>(args_pr,args_pr+3),
-		"uint64_t");
-
-	printExternFunc(
-		ii->getMinFCallName(),
-		vector<string>(args_bound,args_bound+1),
-		"uint64_t");
-
-	printExternFunc(
-		ii->getMaxFCallName(),
-		vector<string>(args_bound,args_bound+1),
-		"uint64_t");
-}
-
-void TableGen::genExternsPoints(const Points* pt)
-{
-	const pointsto_list*	pt_list = pt->getPointsTo();
-	const pointsrange_list*	ptr_list = pt->getPointsRange();
-
-	for (	pointsto_list::const_iterator it = pt_list->begin();
-		it != pt_list->end();
-		it++)
-	{
-		printExternPointsRange(*it);
-	}
-
-	for (	pointsrange_list::const_iterator it = ptr_list->begin();
-		it != ptr_list->end();
-		it++)
-	{
-		printExternPointsRange(*it);
-	}
-}
-
-void TableGen::genPointsTable(const Points* pt)
-{
-	StructWriter	sw(
-		out,
-		"fsl_rt_table_pointsto",
-		"__rt_tab_pointsto_" + pt->getType()->getName() + "[]",
-		true);
-	const pointsto_list*	pt_list = pt->getPointsTo();
-	const pointsrange_list*	ptr_list = pt->getPointsRange();
-
-
-	for (	pointsto_list::const_iterator it = pt_list->begin();
-		it != pt_list->end();
-		it++)
-	{
-		sw.beginWrite();
-		genInstancePointsRange(*it);
-	}
-
-	for (	pointsrange_list::const_iterator it = ptr_list->begin();
-		it != ptr_list->end();
-		it++)
-	{
-		sw.beginWrite();
-		genInstancePointsRange(*it);
-	}
-}
-
-void TableGen::genPointsTables(void)
-{
-	for (	pointing_list::const_iterator it = points_list.begin();
-		it != points_list.end();
-		it++)
-	{
-		genExternsPoints(*it);
-		genPointsTable(*it);
-	}
-}
-
-void TableGen::genAssertsTables(void)
-{
-	for (	assert_list::const_iterator it = asserts_list.begin();
-		it != asserts_list.end();
-		it++)
-	{
-		genExternsAsserts(*it);
-		genAssertsTable(*it);
-	}
-}
-
-void TableGen::genVirtsTables(void)
-{
-	for (	typevirt_list::const_iterator it = typevirts_list.begin();
-		it != typevirts_list.end();
-		it++)
-	{
-		genExternsVirts(*it);
-		genVirtsTable(*it);
-	}
-
-}
-
-void TableGen::genExternsVirts(const VirtualTypes* vt)
-{
-	const virt_list*	virts = vt->getVirts();
-
-	for (	virt_list::const_iterator it = virts->begin();
-		it != virts->end();
-		it++)
-	{
-		printExternPointsRange(*it);
-	}
-
-}
-
-void TableGen::genInstanceVirtual(const VirtualType* vt)
-{
-	StructWriter		sw(out);
-	const InstanceIter	*ii;
-	Id			*name;
-
-	ii = vt->getInstanceIter();
-	sw.write("vt_type_src", ii->getDstType()->getTypeNum());
-	sw.write("vt_type_virttype", vt->getTargetType()->getTypeNum());
-	sw.write("vt_range", ii->getLookupFCallName());
-	sw.write("vt_min", ii->getMinFCallName());
-	sw.write("vt_max", ii->getMaxFCallName());
-
-	name = vt->getName();
-	if (name != NULL)	sw.writeStr("vt_name", name->getName());
-	else			sw.write("vt_name", "NULL");
-}
-
-void TableGen::genVirtsTable(const VirtualTypes* v)
-{
-	StructWriter	sw(
-		out,
-		"fsl_rt_table_virt",
-		"__rt_tab_virt_" + v->getType()->getName() + "[]",
-		true);
-	const virt_list *virts = v->getVirts();
-
-	for (	virt_list::const_iterator it = virts->begin();
-		it != virts->end();
-		it++)
-	{
-		sw.beginWrite();
-		genInstanceVirtual(*it);
-	}
-
-}
-
-void TableGen::genAssertsTable(const Asserts* as)
-{
-	StructWriter	sw(
-		out,
-		"fsl_rt_table_assert",
-		"__rt_tab_asserts_" + as->getType()->getName() + "[]",
-		true);
-	const assertion_list	*al = as->getAsserts();
-
-	for (	assertion_list::const_iterator it = al->begin();
-		it != al->end();
-		it++)
-	{
-		sw.beginWrite();
-		genInstanceAssertion(*it);
+		(*it)->genExterns(this);
+		(*it)->genTables(this);
 	}
 }
 
@@ -654,10 +459,11 @@ void TableGen::gen(const string& fname)
 
 	genExternsFields();
 	genUserFieldTables();
-	genPointsTables();
-	genAssertsTables();
-	genVirtsTables();
+	genTableWriters<Points>(points_list);
+	genTableWriters<Asserts>(asserts_list);
+	genTableWriters<VirtualTypes>(typevirts_list);
 	genWritePktTables();
+	genTableWriters<RelocTypes>(typerelocs_list);
 
 	genTable_fsl_rt_table();
 

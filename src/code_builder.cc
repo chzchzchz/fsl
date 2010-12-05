@@ -206,6 +206,20 @@ void CodeBuilder::genThunkHeaderArgs(
 		vscope->loadArgs(ai, &tmpB, extra_args);
 }
 
+void CodeBuilder::loadArgsFromParamBuf(llvm::Value* ai, const ArgsList* args)
+{
+	vscope->loadArgsFromArray(ai, args);
+}
+
+void CodeBuilder::loadArgsFromParamBuf(
+	llvm::Function::arg_iterator	arg_it,
+	const ArgsList			*args)
+{
+	llvm::Value	*arg_array_ptr;
+	arg_array_ptr = createTmpI64Ptr();
+	builder->CreateStore(arg_it, arg_array_ptr);
+	loadArgsFromParamBuf(arg_array_ptr, args);
+}
 
 void CodeBuilder::copyClosure(
 	const Type* copy_type, llvm::Value *src_ptr, llvm::Value *dst_ptr)

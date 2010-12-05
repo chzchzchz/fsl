@@ -1,6 +1,7 @@
 #include <assert.h>
 #include "symtab.h"
 #include "code_builder.h"
+#include "struct_writer.h"
 #include "util.h"
 
 #include "asserts.h"
@@ -100,7 +101,40 @@ void Assertion::genProtos(void)
 }
 
 
+void Assertion::genInstance(TableGen* tg) const
+{
+	StructWriter	sw(tg->getOS());
+	sw.write("as_assertf", getFCallName());
+}
+
 const string Assertion::getFCallName(void) const
 {
 	return "__assert_" + src_type->getName() + "_" + int_to_string(seq);
+}
+
+void Asserts::genExterns(TableGen* tg)
+{
+	for (	assertion_list::const_iterator it = assert_elems.begin();
+		it != assert_elems.end();
+		it++)
+	{
+		tg->printExternFuncThunk((*it)->getFCallName(), "bool");
+	}
+}
+
+void Asserts::genTables(TableGen* tg)
+{
+	StructWriter	sw(
+		tg->getOS(),
+		"fsl_rt_table_assert",
+		"__rt_tab_asserts_" + getType()->getName() + "[]",
+		true);
+
+	for (	assertion_list::const_iterator it = assert_elems.begin();
+		it != assert_elems.end();
+		it++)
+	{
+		sw.beginWrite();
+		(*it)->genInstance(tg);
+	}
 }

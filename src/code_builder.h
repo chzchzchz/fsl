@@ -90,10 +90,14 @@ public:
 		llvm::Function* f, const Type* t, 
 		const ArgsList* e_args = NULL);
 
-
 	void emitMemcpy64(
 		llvm::Value* dst, llvm::Value* src, 
 		unsigned int elems);
+
+	void loadArgsFromParamBuf(llvm::Value* ai, const ArgsList* args);
+	void loadArgsFromParamBuf(
+		llvm::Function::arg_iterator	arg_it,
+		const ArgsList			*args);
 
 	const VarScope* getVarScope() const { return vscope; }
 

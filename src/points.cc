@@ -3,6 +3,7 @@
 #include "evalctx.h"
 #include "util.h"
 #include "runtime_interface.h"
+#include "struct_writer.h"
 #include "eval.h"
 
 #include "points_to.h"
@@ -130,6 +131,7 @@ void Points::loadPointsIfInstance(
 {
 	EvalCtx		ectx(symtabs[src_type->getName()]);
 	const Type	*dst_type;
+	PointsIf	*new_pif;
 
 	assert (ce != NULL);
 	assert (data_loc != NULL);
@@ -142,17 +144,20 @@ void Points::loadPointsIfInstance(
 		return;
 	}
 
-	points_range_elems.add(new PointsIf(
+	new_pif = new PointsIf(
 		src_type, dst_type,
 		ce->copy(), data_loc->copy(),
 		(as_name != NULL) ? as_name->copy() : NULL,
-		points_seq++));
+		points_seq++);
+	points_range_elems.add(new_pif);
+	p_elems_all.push_back(new_pif);
 }
 
 void Points::loadPointsInstance(const Expr* data_loc, const Id* as_name)
 {
 	EvalCtx		ectx(symtabs[src_type->getName()]);
 	const Type	*dst_type;
+	PointsRange	*new_pr;
 
 	assert (data_loc != NULL);
 
@@ -166,7 +171,7 @@ void Points::loadPointsInstance(const Expr* data_loc, const Id* as_name)
 	}
 
 	/* convert the expression into code for the run-time tool */
-	points_to_elems.add(new PointsRange(
+	new_pr = new PointsRange(
 		new InstanceIter(
 			src_type,
 			dst_type,
@@ -175,33 +180,32 @@ void Points::loadPointsInstance(const Expr* data_loc, const Id* as_name)
 			new Number(1),
 			data_loc->copy()),
 		(as_name != NULL) ? as_name->copy() : NULL,
-		points_seq++));
+		points_seq++);
+	points_to_elems.add(new_pr);
+	p_elems_all.push_back(new_pr);
 }
 
 void Points::loadPointsRangeInstance(
 	InstanceIter*	inst_iter,
 	const Id*	as_name)
 {
+	PointsRange	*new_pr;
+
 	assert (inst_iter != NULL);
 
-	points_range_elems.add(new PointsRange(
+	new_pr = new PointsRange(
 		inst_iter,
 		(as_name != NULL) ? as_name->copy() : NULL,
-		points_seq++));
+		points_seq++);
+	points_range_elems.add(new_pr);
+	p_elems_all.push_back(new_pr);
 }
 
 void Points::genCode(void)
 {
 
-	for (	pointsto_list::const_iterator it = points_to_elems.begin();
-		it != points_to_elems.end();
-		it++)
-	{
-		(*it)->genCode();
-	}
-
-	for (	pointsrange_list::const_iterator it = points_range_elems.begin();
-		it != points_range_elems.end();
+	for (	pr_list::const_iterator it = p_elems_all.begin();
+		it != p_elems_all.end();
 		it++)
 	{
 		(*it)->genCode();
@@ -211,15 +215,8 @@ void Points::genCode(void)
 void Points::genProtos(void)
 {
 
-	for (	pointsto_list::const_iterator it = points_to_elems.begin();
-		it != points_to_elems.end();
-		it++)
-	{
-		(*it)->genProto();
-	}
-
-	for (	pointsrange_list::const_iterator it = points_range_elems.begin();
-		it != points_range_elems.end();
+	for (	pr_list::const_iterator it = p_elems_all.begin();
+		it != p_elems_all.end();
 		it++)
 	{
 		(*it)->genProto();
@@ -300,3 +297,47 @@ void PointsIf::genProto(void) const
 	PointsRange::genProto();
 }
 
+void Points::genExterns(TableGen* tg)
+{
+	for (	pr_list::const_iterator it = p_elems_all.begin();
+		it != p_elems_all.end();
+		it++)
+	{
+		(*it)->genExterns(tg);
+	}
+}
+
+void Points::genTables(TableGen* tg)
+{
+	StructWriter	sw(
+		tg->getOS(),
+		"fsl_rt_table_pointsto",
+		"__rt_tab_pointsto_" + getType()->getName() + "[]",
+		true);
+
+	for (	pr_list::const_iterator it = p_elems_all.begin();
+		it != p_elems_all.end();
+		it++)
+	{
+		sw.beginWrite();
+		(*it)->genTableInstance(tg);
+	}
+}
+
+void PointsRange::genTableInstance(TableGen* tg) const
+{
+	StructWriter		sw(tg->getOS());
+
+	sw.write("pt_type_dst", iter->getDstType()->getTypeNum());
+	sw.write("pt_range", iter->getLookupFCallName());
+	sw.write("pt_min", iter->getMinFCallName());
+	sw.write("pt_max", iter->getMaxFCallName());
+
+	if (name != NULL)	sw.writeStr("pt_name", name->getName());
+	else			sw.write("pt_name", "NULL");
+}
+
+void PointsRange::genExterns(TableGen* tg) const
+{
+	iter->printExterns(tg);
+}

@@ -2,46 +2,33 @@
 #define ASSERTS_H
 
 #include "collection.h"
+#include "table_gen.h"
 
 typedef PtrList<class Assertion>		assertion_list;
 typedef std::map<std::string, class Asserts*>	assert_map;
 typedef std::list<class Asserts*>		assert_list;
 
-class Asserts
+class Asserts : public TableWriter
 {
 public:
 	Asserts(const Type* t);
 	virtual ~Asserts(void) {}
 
-	const assertion_list* getAsserts(void) const 
-	{ 
-		return &assert_elems; 
-	}
-
-/* not yet... */
-#if 0
-	const assertrange_list* getAssertsRange(void) const
-	{
-		return &points_range_elems;
-	}
-#endif
+	const assertion_list* getAsserts(void) const { 	return &assert_elems; }
 	const Type* getType(void) const { return src_type; }
-
-	unsigned int getNumAsserts(void) const
-	{
-		return	assert_elems.size();
-	}
+	unsigned int getNumAsserts(void) const { return assert_elems.size(); }
 
 	void genCode(void);
 	void genProtos(void);
 
+	virtual void genExterns(TableGen* tg);
+	virtual void genTables(TableGen* tg);
 private:
 	void loadAsserts(void);
 
 	assertion_list		assert_elems;
 	const Type*		src_type;
 	unsigned int		seq;
-
 };
 
 class Assertion
@@ -55,7 +42,7 @@ public:
 
 	void genCode(void);
 	void genProtos(void);
-
+	void genInstance(TableGen* tg) const;
 	const std::string getFCallName(void) const;
 private:
 	Assertion() {}

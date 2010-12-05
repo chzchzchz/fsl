@@ -11,6 +11,7 @@
 extern CodeBuilder	*code_builder;
 extern symtab_map	symtabs;
 extern RTInterface	rt_glue;
+extern writepkt_map	writepkts_map;
 
 const VarScope* gen_vscope;
 
@@ -292,7 +293,6 @@ void WritePkt::genLoadArgs(llvm::Function* f)
 	arg_it = f->arg_begin();
 
 	arg_array_ptr = code_builder->createTmpI64Ptr();
-
 	builder->CreateStore(arg_it, arg_array_ptr);
 
 	/* arguments are passed to wpkt functions by array of 64-bit ints */
@@ -305,7 +305,7 @@ void WritePkt::genLoadArgs(llvm::Function* f)
 WritePktInstance* WritePkt::getInstance(
 	const std::string& protoname,
 	const class Type* clo_type,
-	ExprList* exprs) const
+	const ExprList* exprs) const
 {
 	return new WritePktInstance(this, clo_type, protoname, exprs);
 }
@@ -325,7 +325,7 @@ unsigned int WritePktInstance::getParamBufEntries(void) const
 	return getParent()->getArgs()->getNumParamBufEntries();
 }
 
-void WritePktInstance::genCode(void) const
+void WritePktInstance::genCode(const ArgsList* args_in /* bindings */) const
 {
 	/* 0. create function / first bb */
 	llvm::Function			*f;
@@ -333,32 +333,38 @@ void WritePktInstance::genCode(void) const
 	llvm::IRBuilder<>		*builder;
 	llvm::Function::arg_iterator	arg_it;
 	llvm::AllocaInst		*pb_out_ptr;
-	const ArgsList			*args;
+	const ArgsList			*args_out;
 	unsigned int			pb_idx, arg_idx;
 	EvalCtx				ectx(symtabs[t->getName()]);
+
+	args_out = getParent()->getArgs();
+	assert (args_out != NULL);
+	assert (exprs->size() == args_out->size());
 
 	cerr << "Generating code for wpktinstance " << funcname << endl;
 
 	f = code_builder->getModule()->getFunction(funcname);
+	assert (f->arg_size() == 3);
 	assert (f != NULL && "Missing wpktinst prototype");
 
 	entry_bb = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", f);
-
 	builder = code_builder->getBuilder();
 	builder->SetInsertPoint(entry_bb);
 
 	/* 1. pull in type scope */
-	code_builder->genThunkHeaderArgs(f, t, NULL);
+	code_builder->genThunkHeaderArgs(f, t);
+
+	/* 1.5. pull in input parambuf */
+	arg_it = f->arg_begin();
+	arg_it++;
+	code_builder->loadArgsFromParamBuf(arg_it, args_in);
 
 	/* 2. load up output parambuf */
-	arg_it = f->arg_begin();
 	arg_it++;
 	pb_out_ptr = code_builder->createTmpI64Ptr();
 	builder->CreateStore(arg_it, pb_out_ptr);
 
 	/* 3. dump expressions into parambuf */
-	args = getParent()->getArgs();
-	assert (exprs->size() == args->size());
 	pb_idx = 0;
 	arg_idx = 0;
 	for (	ExprList::const_iterator it = exprs->begin();
@@ -366,10 +372,14 @@ void WritePktInstance::genCode(void) const
 		it++, arg_idx++)
 	{
 		const Expr	*cur_expr = *it;
+		Expr		*evaled_cexpr;
 		int		elems_stored;
 
+		evaled_cexpr = eval(ectx, cur_expr);
 		elems_stored = code_builder->storeExprIntoParamBuf(
-			args->get(arg_idx), cur_expr, pb_out_ptr, pb_idx);
+			args_out->get(arg_idx), evaled_cexpr,
+			pb_out_ptr, pb_idx);
+		delete evaled_cexpr;
 		if (elems_stored <= 0) {
 			assert (0 == 1 && "FAILED TO STORE");
 			return;
@@ -391,10 +401,13 @@ void WritePktInstance::genProto(void) const
 	args.push_back(code_builder->getClosureTyPtr());
 	args.push_back(
 		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
+	args.push_back(
+		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
 
-	/* writepkt inst function calls take two arguments:
+	/* writepkt inst function calls take three arguments:
 	 * 	1. source type closure
-	 * 	2. parambuf for output
+	 * 	2. parambuf for input
+	 * 	3. parambuf for output
 	 */
 	ft = llvm::FunctionType::get(
 		llvm::Type::getVoidTy(llvm::getGlobalContext()),
@@ -414,5 +427,26 @@ void WritePktInstance::genProto(void) const
 	}
 
 	assert (f->getName() == funcname);
-	assert (f->arg_size() == 2);
+	assert (f->arg_size() == 3);
+}
+
+WritePktInstance* WritePkt::getInstance(
+	const Expr* wpkt_call,
+	const std::string& protoname,
+	const class Type* clo_type)
+{
+	WritePkt	*wpkt;
+	const FCall	*wpkt_fc;
+
+	assert (wpkt_call != NULL);
+	assert (clo_type != NULL);
+
+	if ((wpkt_fc = dynamic_cast<const FCall*>(wpkt_call)) == NULL)
+		return NULL;
+
+	if (writepkts_map.count(wpkt_fc->getName()) == 0)
+		return NULL;
+
+	wpkt = writepkts_map[wpkt_fc->getName()];
+	return wpkt->getInstance(protoname, clo_type, wpkt_fc->getExprs());
 }

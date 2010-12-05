@@ -4,7 +4,7 @@
 #include <string>
 #include <map>
 #include <list>
-
+#include "varscope.h"
 #include "AST.h"
 #include "collection.h"
 #include "expr.h"
@@ -123,11 +123,16 @@ public:
 	WritePktInstance* getInstance(
 		const std::string& protoname,
 		const class Type* clo_type,
-		ExprList* exprs) const;
+		const ExprList* exprs) const;
 
 	void genLoadArgs(llvm::Function* );
 
 	const VarScope* getVarScope(void) const { return &vscope; }
+
+	static WritePktInstance* getInstance(
+		const Expr* wpkt_call,
+		const std::string& protoname,
+		const class Type* clo_type);
 private:
 	void genStmtFuncProtos(void) const;
 	void genStmtFuncCode(void) const;
@@ -155,7 +160,7 @@ public:
 	const std::string& getFuncName(void) const { return funcname; }
 	const WritePkt* getParent(void) const { return parent; }
 	unsigned int getParamBufEntries(void) const;
-	void genCode(void) const;
+	void genCode(const ArgsList* args_in) const;
 	void genProto(void) const;
 private:
 	friend class WritePkt;	/* only writepkt may create this object */

@@ -11,7 +11,7 @@ typedef PtrList<class VirtualType>		virt_list;
 typedef std::list<class VirtualTypes*>		typevirt_list;
 typedef std::map<std::string, VirtualTypes*>	typevirt_map;
 
-class VirtualTypes
+class VirtualTypes : public TableWriter
 {
 public:
 	VirtualTypes(const Type* t);
@@ -23,6 +23,9 @@ public:
 	const virt_list* getVirts(void) const { return &virts; }
 	const Type* getType(void) const { return src_type; }
 	unsigned int getNumVirts(void) const { return virts.size(); }
+
+	virtual void genExterns(TableGen* tg);
+	virtual void genTables(TableGen* tg);
 private:
 	void loadVirtuals(bool conditional);
 	VirtualType* loadVirtual(const Preamble* p, bool conditional);
@@ -49,7 +52,7 @@ public:
 
 	virtual ~VirtualType(void) {}
 	const Type* getTargetType(void) const { return v_type; }
-
+	void genInstance(TableGen* tg) const;
 protected:
 	const Type*	v_type;
 };

@@ -120,10 +120,13 @@ typedef void(*paramsf_t)(
 	uint64_t /* array idx within a field */,
 	parambuf_t /* out */);
 typedef bool(*condf_t)(const struct fsl_rt_closure*);
+typedef bool(*condidxf_t)(const struct fsl_rt_closure*, uint64_t);
 typedef bool(*assertf_t)(const struct fsl_rt_closure*);
 typedef void(*wpktf_t)(const uint64_t* params);
 typedef void(*wpkt_paramf_t)(
-	const struct fsl_rt_closure*, uint64_t* params /* output */);
+	const struct fsl_rt_closure*,
+	uint64_t* params_in, /* input (e.g. indices, etc) */
+	uint64_t* params_out /* output */);
 
 /* if you change a table struct, remember to update it in table_gen.cc!! */
 struct fsl_rt_table_type
@@ -179,9 +182,9 @@ struct fsl_rt_table_field
 
 struct fsl_rt_iter
 {
-	points_rangef_t	pt_range;
-	points_minf_t	pt_min;
-	points_maxf_t	pt_max;
+	points_rangef_t	it_range;
+	points_minf_t	it_min;
+	points_maxf_t	it_max;
 };
 
 struct fsl_rt_table_pointsto
@@ -228,6 +231,7 @@ struct fsl_rt_table_reloc
 	typenum_t			rel_type;
 	struct fsl_rt_iter		rel_src;
 	struct fsl_rt_iter		rel_choice;
+	bool				rel_ccond;
 
 	struct fsl_rt_table_wpkt_inst	rel_alloc;
 	struct fsl_rt_table_wpkt_inst	rel_replace;

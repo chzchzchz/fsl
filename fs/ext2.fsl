@@ -14,7 +14,7 @@ include "ext2_type.fsl"
 
 typedef blknum_t = u32;
 
-/* put block in ino */
+/* put block 'blknum' into ino for file offset 'file_off' */
 write block_relink(ext2_inode ino, int file_off, blknum_t blknum)
 {
 	ino.i_block_direct[file_off/get_block_size()] <- blknum ?

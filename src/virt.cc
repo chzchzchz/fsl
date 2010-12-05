@@ -6,6 +6,7 @@
 #include "evalctx.h"
 #include "code_builder.h"
 #include "util.h"
+#include "struct_writer.h"
 #include "virt.h"
 
 extern CodeBuilder		*code_builder;
@@ -172,4 +173,49 @@ void VirtualIf::genProto(void) const
 {
 	code_builder->genThunkProto(getWrapperFCallName());
 	VirtualType::genProto();
+}
+
+void VirtualType::genInstance(TableGen* tg) const
+{
+	StructWriter		sw(tg->getOS());
+	const InstanceIter	*ii;
+	Id			*name;
+
+	ii = getInstanceIter();
+	sw.write("vt_type_src", ii->getDstType()->getTypeNum());
+	sw.write("vt_type_virttype", getTargetType()->getTypeNum());
+	sw.write("vt_range", ii->getLookupFCallName());
+	sw.write("vt_min", ii->getMinFCallName());
+	sw.write("vt_max", ii->getMaxFCallName());
+
+	name = getName();
+	if (name != NULL)	sw.writeStr("vt_name", name->getName());
+	else			sw.write("vt_name", "NULL");
+}
+
+void VirtualTypes::genTables(TableGen* tg)
+{
+	StructWriter	sw(
+		tg->getOS(),
+		"fsl_rt_table_virt",
+		"__rt_tab_virt_" + getType()->getName() + "[]",
+		true);
+
+	for (	virt_list::const_iterator it = virts.begin();
+		it != virts.end();
+		it++)
+	{
+		sw.beginWrite();
+		(*it)->genInstance(tg);
+	}
+}
+
+void VirtualTypes::genExterns(TableGen* tg)
+{
+	for (	virt_list::const_iterator it = virts.begin();
+		it != virts.end();
+		it++)
+	{
+		(*it)->genExterns(tg);
+	}
 }

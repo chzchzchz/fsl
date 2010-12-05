@@ -5,14 +5,16 @@
 #include <map>
 #include "collection.h"
 #include "type.h"
+#include "table_gen.h"
 #include "instance_iter.h"
 
 typedef PtrList<class PointsRange>	pointsrange_list;
 typedef pointsrange_list		pointsto_list;
 typedef std::list<class Points*>	pointing_list;
 typedef std::map<std::string, Points*>	pointing_map;
+typedef std::list<class PointsRange*>	pr_list;
 
-class Points
+class Points : public TableWriter
 {
 public:
 	Points(const Type* t);
@@ -38,6 +40,8 @@ public:
 
 	void genCode(void);
 	void genProtos(void);
+	virtual void genExterns(TableGen* tg);
+	virtual void genTables(TableGen* tg);
 
 private:
 	void loadPoints(void);
@@ -59,6 +63,7 @@ private:
 	const Type*		src_type;
 	pointsto_list		points_to_elems;
 	pointsrange_list	points_range_elems;
+	pr_list			p_elems_all;
 };
 
 class PointsRange 
@@ -77,7 +82,8 @@ public:
 
 	const InstanceIter* getInstanceIter(void) const { return iter; }
 	Id* getName(void) const { return name; }
-
+	void genTableInstance(TableGen* tg) const;
+	void genExterns(TableGen* tg) const;
 protected:
 	InstanceIter	*iter;
 	unsigned int getSeqNum(void) const { return seq; }

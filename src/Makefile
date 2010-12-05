@@ -35,6 +35,7 @@ OBJS=	lex.yy.o		\
 	writepkt.o			\
 	instance_iter.o		\
 	typeclosure.o		\
+	reloc.o			\
 	varscope.o
 
 RTOBJS= runtime/runtime.o	\

@@ -8,10 +8,7 @@ extern type_map	types_map;
 
 ArgsList::~ArgsList()
 {
-	for (unsigned int i = 0; i < types.size(); i++) {
-		delete types[i];
-		delete names[i];
-	}
+	clear();
 }
 
 void ArgsList::add(Id* type_name, Id* arg_name)
@@ -65,6 +62,23 @@ ArgsList* ArgsList::copy(void) const
 	return ret;
 }
 
+/* change arg names, but keep types */
+ArgsList* ArgsList::rebind(const list<const Id*>& ids) const
+{
+	ArgsList				*ret = new ArgsList();
+	list<const Id*>::const_iterator		it;
+
+	assert (ids.size() == types.size());
+
+	it = ids.begin();
+	for (unsigned int i = 0; i < size(); i++, it++) {
+		pair<Id*, Id*>	p(get(i));
+		ret->add(p.first->copy(), (*it)->copy());
+	}
+
+	return ret;
+}
+
 /* number of entries in parambuf to store everything */
 unsigned int ArgsList::getNumParamBufEntries(void) const
 {
@@ -82,4 +96,16 @@ unsigned int ArgsList::getNumParamBufEntries(void) const
 	}
 
 	return ret;
+}
+
+
+void ArgsList::clear(void)
+{
+	for (unsigned int i = 0; i < types.size(); i++) {
+		delete types[i];
+		delete names[i];
+	}
+	types.clear();
+	names.clear();
+	name_to_type.clear();
 }
