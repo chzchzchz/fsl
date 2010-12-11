@@ -37,6 +37,7 @@ static int handle_strong(
 	INDENT(ti);
 	off = field->tf_fieldbitoff(&ti_clo(ti));
 	dump_field(field, off);
+	return SCAN_RET_CONTINUE;
 }
 
 static int handle_ti(struct type_info* ti, void* aux)
@@ -82,7 +83,6 @@ int tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
 	struct type_desc	init_td = td_origin();
-	unsigned int 		i;
 
 	printf("Welcome to fsl scantool. Scan mode: \"%s\"\n", fsl_rt_fsname);
 

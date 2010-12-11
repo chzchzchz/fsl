@@ -154,8 +154,7 @@ void TableGen::genInstanceType(const Type *t)
 	StructWriter	sw(out);
 	SymbolTable	*st, *st_all, *st_types, *st_complete;
 	FCall		*size_fc;
-	unsigned int	pointsto_count;
-	unsigned int	assert_count;
+	const string	tname(t->getName());
 
 	st = t->getSymsByUserTypeStrong();
 	st_all = t->getSymsStrongOrConditional();
@@ -165,33 +164,34 @@ void TableGen::genInstanceType(const Type *t)
 	assert (st != NULL);
 
 	size_fc = st->getThunkType()->getSize()->copyFCall();
-	pointsto_count = points_map[t->getName()]->getNumPointing();
-	assert_count = asserts_map[t->getName()]->getNumAsserts();
 
-	sw.writeStr("tt_name", t->getName());
+	sw.writeStr("tt_name", tname);
 	sw.write("tt_param_c", t->getParamBufEntryCount());
 	sw.write("tt_arg_c", t->getNumArgs());
 	sw.write("tt_size", size_fc->getName());
 	sw.write("tt_fieldstrong_c", st->size());
-	sw.write("tt_fieldstrong_table", "__rt_tab_thunks_" + t->getName());
+	sw.write("tt_fieldstrong_table", "__rt_tab_thunks_" + tname);
 	
-	sw.write("tt_pointsto_c", pointsto_count);
-	sw.write("tt_pointsto", "__rt_tab_pointsto_" + t->getName());
+	sw.write("tt_pointsto_c", points_map[tname]->getNumPointing());
+	sw.write("tt_pointsto", "__rt_tab_pointsto_" + tname);
 
-	sw.write("tt_assert_c", assert_count);
-	sw.write("tt_assert", "__rt_tab_asserts_" + t->getName());
+	sw.write("tt_assert_c", asserts_map[tname]->getNumAsserts());
+	sw.write("tt_assert", "__rt_tab_asserts_" + tname);
+
+	sw.write("tt_reloc_c", typerelocs_map[tname]->getNumRelocs());
+	sw.write("tt_reloc", "__rt_tab_reloc_" + tname);
 
 	sw.write("tt_fieldall_c", st_all->size());
-	sw.write("tt_fieldall_thunkoff", "__rt_tab_thunksall_" + t->getName());
+	sw.write("tt_fieldall_thunkoff", "__rt_tab_thunksall_" + tname);
 
 	sw.write("tt_fieldtypes_c", st_types->size());
-	sw.write("tt_fieldtypes_thunkoff","__rt_tab_thunkstypes_"+t->getName());
+	sw.write("tt_fieldtypes_thunkoff","__rt_tab_thunkstypes_"+tname);
 
-	sw.write("tt_virt_c", typevirts_map[t->getName()]->getNumVirts() );
-	sw.write("tt_virt", "__rt_tab_virt_" + t->getName());
+	sw.write("tt_virt_c", typevirts_map[tname]->getNumVirts());
+	sw.write("tt_virt", "__rt_tab_virt_" + tname);
 
 	sw.write("tt_field_c", st_complete->size());
-	sw.write("tt_field_table", "__rt_tab_thunkcomplete_" + t->getName());
+	sw.write("tt_field_table", "__rt_tab_thunkcomplete_" + tname);
 
 	delete size_fc;
 	delete st_complete;
@@ -423,6 +423,7 @@ void TableGen::genWritePktTable(const WritePkt* wpkt)
 			"fsl_rt_table_wpkt",
 			string("wpkt_") + wpkt->getName() + int_to_string(n),
 			true);
+		sw.write("wpkt_arg_c", wpkt->getArgs()->size());
 		sw.write("wpkt_func_c", wblk->size());
 		sw.write("wpkt_funcs",
 			"wpkt_funcs_" + wpkt->getName() + int_to_string(n));

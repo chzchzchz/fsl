@@ -86,6 +86,7 @@ void WritePktStruct::genCode(void) const
 	llvm::BasicBlock		*entry_bb, *bb_doit;
 	llvm::IRBuilder<>		*builder;
 	Expr				*lhs_loc, *lhs_size;
+	Expr				*write_val;
 	Expr				*write_call;
 	const CondExpr			*ce;
 	EvalCtx				ectx(
@@ -149,12 +150,16 @@ void WritePktStruct::genCode(void) const
 		return;
 	}
 
+	write_val = eval(ectx, e);
+
 	/* 4. tell the runtime what we want to write */
 	write_call = rt_glue.writeVal(
 		lhs_loc,	/* location */
 		lhs_size,	/* size of location */
-		e		/* value */
+		write_val	/* value */
 	);
+
+	delete write_val;
 	delete lhs_loc;
 	delete lhs_size;
 

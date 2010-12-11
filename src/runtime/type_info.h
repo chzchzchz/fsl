@@ -27,6 +27,7 @@ struct type_info
 	const struct fsl_rt_table_field		*ti_field;
 	const struct fsl_rt_table_virt		*ti_virt;
 	const struct fsl_rt_table_pointsto	*ti_points;
+	const struct fsl_rt_iter		*ti_iter;
 
 	unsigned int		ti_depth;
 };
@@ -93,6 +94,12 @@ struct type_info* typeinfo_alloc_pointsto(
 	const struct fsl_rt_table_pointsto	*ti_pointsto,
 	unsigned int				ti_pointsto_elem,
 	struct type_info*			ti_prev);
+struct type_info* typeinfo_alloc_iter(
+	const struct type_desc		*ti_td,
+	const struct fsl_rt_iter	*ti_iter,
+	unsigned int			ti_iter_elem,
+	struct type_info*		ti_prev);
+
 
 #define typeinfo_alloc_virt(v,t)	typeinfo_alloc_virt_idx(v,t,0,NULL)
 #define typeinfo_follow_virt(ti, vt, idx, err) typeinfo_alloc_virt_idx(vt, ti, idx, err)
@@ -130,6 +137,12 @@ struct type_info* typeinfo_follow_pointsto(
 	struct type_info*			ti_parent,
 	const struct fsl_rt_table_pointsto*	ti_pt,
 	uint64_t				idx);
+struct type_info* typeinfo_follow_iter(
+	struct type_info*		ti_parent,
+	const struct fsl_rt_iter*	ti_iter,
+	uint64_t			idx);
+
+void typeinfo_phys_copy(struct type_info* dst, struct type_info* src);
 
 #include "type_print.h"
 

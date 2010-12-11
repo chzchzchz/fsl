@@ -23,6 +23,7 @@ public:
 	virtual void genTables(TableGen* tg);
 
 	const Type* getType() const { return src_type; }
+	unsigned int getNumRelocs(void) const { return relocs.size(); }
 private:
 	class Reloc* loadReloc(const class Preamble* p);
 
@@ -56,6 +57,7 @@ public:
 	const WritePktInstance* getRelink(void) const { return wpkt_relink; }
 	const WritePktInstance* getReplace(void) const { return wpkt_replace; }
 	const Id* getName(void) const { return as_name; }
+
 private:
 	void genCondProto(void) const;
 	void genCondCode(void) const;

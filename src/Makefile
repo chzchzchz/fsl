@@ -49,16 +49,19 @@ RTOBJS= runtime/runtime.o	\
 	runtime/log.o		\
 	runtime/cache.o		\
 	runtime/type_print.o	\
-	runtime/scan.o
+	runtime/usemap.o	\
+	runtime/bitmap.o	\
+	runtime/scan.o		\
+	runtime/relocate.o
 
-TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o runtime/fragtool.o
+TOOLOBJS= runtime/scantool.o runtime/browser.o runtime/modify.o runtime/fragtool.o runtime/relocate.o
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core) 
 LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual//;s/-fPIC//;s/-DNDEBUG//g") -Wall
 LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
 COMP_CFLAGS= $(CFLAGS) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
-RTCFLAGS= $(CFLAGS) $(DEFINE_FLAGS)
+RTCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -Wall
 
 export CFLAGS
 

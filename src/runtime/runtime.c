@@ -7,6 +7,7 @@
 #include <string.h>
 #include "debug.h"
 #include "runtime.h"
+#include "hits.h"
 
 extern uint64_t fsl_num_types;
 
@@ -54,7 +55,6 @@ typesize_t __computeArrayBits(
 	const struct fsl_rt_table_field	*tf;
 	typenum_t			elem_type;
 	unsigned int			i;
-	diskoff_t			cur_off;
 	typesize_t			total_bits;
 
 	DEBUG_RT_ENTER();
@@ -112,16 +112,9 @@ typesize_t __computeArrayBits(
 	return total_bits;
 }
 
-void __writeVal(uint64_t loc, uint64_t sz, uint64_t val)
-{
-	assert (0 == 1 && "NOT YET IMPLEMENTED");
-}
-
-
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
 {
-	FILE			*f;
 	struct fsl_rt_ctx	*fsl_ctx;
 
 	fsl_ctx = malloc(sizeof(struct fsl_rt_ctx));

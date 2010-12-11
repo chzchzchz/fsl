@@ -198,12 +198,10 @@ static struct type_info* lookup_pointstos(
 {
 	struct type_info			*next_ti;
 	const struct fsl_rt_table_pointsto	*pt;
-	uint64_t				pt_min, pt_max, pt_idx;
 
 	pt = find_pt(cur_ti, cur_elem);
 	if (pt == NULL) ret_err(err, LOOKUP_RC_NOPOINTSTO);
 
-	pt_min = pt->pt_min(&ti_clo(cur_ti));
 	/* XXX: need to be able to pull in idx!=0*/
 	next_ti = typeinfo_follow_pointsto(cur_ti, pt, 0);
 
@@ -217,13 +215,13 @@ static const struct fsl_rt_table_field* find_field(
 	const struct fsl_rt_table_type	*tt;
 	unsigned int			field_idx;
 	char				*fn;
-const struct fsl_rt_table_field	*ret = NULL;
+	const struct fsl_rt_table_field	*ret = NULL;
 
 	tt = tt_by_ti(cur_ti);
 	fn = get_name(fieldname);
 
 	for (field_idx = 0; field_idx < tt->tt_field_c; field_idx++) {
-	const struct fsl_rt_table_field	*tf;
+		const struct fsl_rt_table_field	*tf;
 
 		tf = &tt->tt_fieldall_thunkoff[field_idx];
 		if (strcmp(fieldname, tf->tf_fieldname) == 0) {
@@ -231,7 +229,6 @@ const struct fsl_rt_table_field	*ret = NULL;
 			ret = tf;
 			break;
 		}
-
 	}
 
 	free(fn);
@@ -245,11 +242,7 @@ static struct type_info* lookup_fields(
 	int*	err)
 {
 	struct type_info		*next_ti;
-	struct type_desc		next_td;
 	const struct fsl_rt_table_field	*next_field;
-const struct fsl_rt_table_type	*tt_next_field;
-	uint64_t			next_field_off;
-	unsigned int			field_idx;
 
 	next_field = find_field(cur_ti, cur_elem);
 

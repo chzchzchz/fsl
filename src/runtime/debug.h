@@ -16,7 +16,7 @@ extern unsigned int fsl_debug_depth;
 #else
 #define DEBUG_TOOL_ENTER()	do {} while (0)
 #define DEBUG_TOOL_LEAVE()	do {} while (0)
-#define DEBUG_TOOL_WRITE
+#define DEBUG_TOOL_WRITE(x, ...)
 #endif
 
 #ifdef DEBUG_TYPEINFO
@@ -26,7 +26,7 @@ extern unsigned int fsl_debug_depth;
 #else
 #define DEBUG_TYPEINFO_ENTER()	do {} while (0)
 #define DEBUG_TYPEINFO_LEAVE()	do {} while (0)
-#define DEBUG_TYPEINFO_WRITE
+#define DEBUG_TYPEINFO_WRITE(x, ...)
 #endif
 
 #ifdef DEBUG_VIRT
@@ -36,7 +36,7 @@ extern unsigned int fsl_debug_depth;
 #else
 #define DEBUG_VIRT_ENTER()	do {} while (0)
 #define DEBUG_VIRT_LEAVE()	do {} while (0)
-#define DEBUG_VIRT_WRITE
+#define DEBUG_VIRT_WRITE(x, ...)
 #endif
 
 #ifdef DEBUG_IO
@@ -46,7 +46,7 @@ extern unsigned int fsl_debug_depth;
 #else
 #define DEBUG_IO_ENTER()	do {} while (0)
 #define DEBUG_IO_LEAVE()	do {} while (0)
-#define DEBUG_IO_WRITE
+#define DEBUG_IO_WRITE(x,...)
 #endif
 
 #ifdef DEBUG_DYN
@@ -56,7 +56,7 @@ extern unsigned int fsl_debug_depth;
 #else
 #define DEBUG_DYN_ENTER()	do {} while (0)
 #define DEBUG_DYN_LEAVE()	do {} while (0)
-#define DEBUG_DYN_WRITE
+#define DEBUG_DYN_WRITE(x, ...)
 #endif
 
 #ifdef DEBUG_RT
@@ -66,7 +66,7 @@ extern unsigned int fsl_debug_depth;
 #else
 #define DEBUG_RT_ENTER()	do {} while (0)
 #define DEBUG_RT_LEAVE()	do {} while (0)
-#define DEBUG_RT_WRITE
+#define DEBUG_RT_WRITE(x, ...)
 #endif
 
 #ifdef DEBUG_SCAN
@@ -76,7 +76,7 @@ extern unsigned int fsl_debug_depth;
 #else
 #define DEBUG_SCAN_ENTER()	do {} while (0)
 #define DEBUG_SCAN_LEAVE()	do {} while (0)
-#define DEBUG_SCAN_WRITE
+#define DEBUG_SCAN_WRITE(x, ...)
 #endif
 
 typedef unsigned int statenum_t;

@@ -161,6 +161,9 @@ void Reloc::genCode(void) const
 {
 	ArgsList	*args;
 
+	sel_iter->genCode();
+	choice_iter->genCode();
+
 	args = new ArgsList();
 	args->add(new Id("u64"), choice_iter->getBinding()->copy());
 	wpkt_alloc->genCode(args);
@@ -185,6 +188,8 @@ void Reloc::genProtos(void) const
 	wpkt_relink->genProto();
 	wpkt_replace->genProto();
 	genCondProto();
+	sel_iter->genProto();
+	choice_iter->genProto();
 }
 
 string Reloc::getCondFuncName(void) const

@@ -125,6 +125,8 @@ void InstanceIter::genCodeLookup(void) const
 	assert (raw_expr != NULL);
 
 	f = mod->getFunction(fname);
+	assert (f != NULL);
+
 	local_syms = symtabs[src_type->getName()];
 	assert (local_syms != NULL);
 

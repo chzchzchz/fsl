@@ -184,14 +184,12 @@ points_if(
 		(EXT2_NDIR_BLOCKS + blocks_per_indir()*
 			(1 + blocks_per_indir())),
 	disk.blocks[i_block_triindir - blocks_off(disk.sb)].triindir_blk) as triindir
-
-/* XXX NO NO */
 relocate(
-	j, 1, i_blocks_c, ext2_data_block_lookup(FIXME),
-	i, 1, disk_blks, ext2_data_block_lookup(i), ? is_blk_avail(i),
+	j, 1, size_to_blocks(i_size), get_nth(this, j-1),
+	i, 1, get_total_blks(), ext2_data_block_lookup(i), ? is_blk_avail(i),
 	block_alloc(i),
 	block_relink(this, i, j),
-	block_replace(j))
+	block_replace(get_nth_blknum(this, j)))
 {
 	u16	i_mode;	/* file mode */
 	u16	i_uid;	/* low 16 bits of owner uid */

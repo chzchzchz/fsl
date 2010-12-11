@@ -31,6 +31,12 @@ bool is_blk_avail(blknum_t blknum)
 int blknum_to_grp(blknum_t blknum) { return blknum / ext2_sb.s_blks_per_grp; }
 int blknum_to_bmpidx(blknum_t blknum) { return blknum % ext2_sb.s_blks_per_grp; }
 
+
+int get_total_blks()
+{
+	return disk.sb.s_blocks_c;
+}
+
 int get_block_size()
 {
 	return (1024 << ext2_sb.s_log_block_sz);
@@ -46,6 +52,8 @@ ext2_bmp_blk get_group_bmp(int grpnum)
 	return disk.blocks[
 		disk.grp_desc_table[grpnum].block_bmp-blocks_off(ext2_sb)].blk_bmp;
 }
+
+ext2_group_desc get_group(int grpnum) { return disk.grp_desc_table[grpnum]; }
 
 int blocks_off(ext2_sb sb)
 {
@@ -165,9 +173,9 @@ u32 biindir_indir_offset(uint n)
 	return indir_offset;
 }
 
-ext2_data_block get_nth(ext2_inode ino, uint n)
+blknum_t get_nth_blknum(ext2_inode ino, uint n)
 {
-	u32	block_num;
+	blknum_t block_num;
 
 	if (n < EXT2_NDIR_BLOCKS) {
 		block_num = ino.i_block_direct[n];
@@ -189,8 +197,14 @@ ext2_data_block get_nth(ext2_inode ino, uint n)
 		DEBUG_WRITE=666;
 	}
 
-	/* got our blocknummmm */
-	return ext2_data_block_lookup(block_num);
+	return block_num;
+}
+
+ext2_data_block get_nth(ext2_inode ino, uint n)
+{
+	blknum_t	blknum;
+	blknum = get_nth_blknum(ino, n);
+	return ext2_data_block_lookup(blknum);
 }
 
 ext2_inode get_inode(uint ino_num_logical)

@@ -52,7 +52,6 @@ static struct fsl_io_cache_ent* fsl_io_cache_evict(
 	return to_evict;
 }
 
-
 static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line)
 {
 	struct fsl_io_cache_ent		*ce;
@@ -165,8 +164,8 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 
 	DEBUG_IO_ENTER();
 
-	line_begin = bit_off / FSL_IO_CACHE_BITS;
-	line_end = ((bit_off + num_bits - 1) / FSL_IO_CACHE_BITS);
+	line_begin = bit_to_line(bit_off);
+	line_end = bit_to_line(bit_off + num_bits - 1);
 
 	DEBUG_IO_WRITE("LINE: %"PRIu64"--%"PRIu64"\n", line_begin, line_end);
 	if (line_begin != line_end)
@@ -188,4 +187,28 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 	DEBUG_IO_LEAVE();
 
 	return ret;
+}
+
+void fsl_io_cache_drop_bytes(
+	struct fsl_rt_io* io,
+	uint64_t byte_off, uint64_t num_bytes)
+{
+	struct fsl_io_cache	*ioc;
+	uint64_t		first_line, last_line;
+	uint64_t		cur_line;
+
+	ioc = &io->io_cache;
+	first_line = byte_to_line(byte_off);
+	last_line = byte_to_line(byte_off+num_bytes+FSL_IO_CACHE_BYTES-1);
+
+	for (cur_line = first_line; cur_line <= last_line; cur_line++) {
+		uint64_t	cur_addr;
+		uint64_t	cache_idx;
+
+		cache_idx = cur_line % FSL_IO_CACHE_ENTS;
+		cur_addr = ioc->ioc_ents[cache_idx].ce_addr;
+		if (cur_addr == cur_line) {
+			ioc->ioc_ents[cache_idx].ce_addr = ~0;
+		}
+	}
 }

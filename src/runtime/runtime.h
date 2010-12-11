@@ -19,6 +19,7 @@ typedef uint64_t	diskoff_t;	/* bits */
 typedef uint64_t	voff_t;		/* virtual offset */
 typedef uint64_t	poff_t;		/* physical offset */
 typedef uint64_t	byteoff_t;
+typedef uint64_t	bitoff_t;
 typedef uint64_t	typeoff_t;
 typedef uint64_t	typesize_t;
 typedef unsigned int	typenum_t;
@@ -150,6 +151,9 @@ struct fsl_rt_table_type
 	unsigned int			tt_virt_c;
 	const struct fsl_rt_table_virt	*tt_virt;
 
+	unsigned int			tt_reloc_c;
+	const struct fsl_rt_table_reloc	*tt_reloc;
+
 	/* all non-union fields */
 	unsigned int			tt_fieldall_c;
 	const struct fsl_rt_table_field	*tt_fieldall_thunkoff;
@@ -214,6 +218,7 @@ struct fsl_rt_table_assert
 
 struct fsl_rt_table_wpkt
 {
+	unsigned int			wpkt_arg_c;
 	unsigned int			wpkt_func_c;
 	wpktf_t				*wpkt_funcs;
 	unsigned int			wpkt_blk_c;
@@ -268,7 +273,6 @@ void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo);
 void __getDynParams(uint64_t typenum, parambuf_t params_out);
 void *__getDynVirt(uint64_t typenum);
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo);
-void __writeVal(uint64_t loc, uint64_t sz, uint64_t val);
 
 uint64_t __max2(uint64_t a0, uint64_t a1);
 uint64_t __max3(uint64_t a0, uint64_t a1, uint64_t a2);

@@ -192,6 +192,31 @@ struct type_info* typeinfo_alloc_pointsto(
 	return ret;
 }
 
+struct type_info* typeinfo_alloc_iter(
+	const struct type_desc		*ti_td,
+	const struct fsl_rt_iter	*ti_iter,
+	unsigned int			ti_iter_elem,
+	struct type_info*		ti_prev)
+{
+	struct type_info*		ret;
+
+	ret = typeinfo_alloc_generic(ti_td, ti_prev);
+	if (ret == NULL)
+		return NULL;
+
+	ret->ti_iter = ti_iter;
+	ret->ti_print_name = "iter";
+	ret->ti_print_idxval = ti_iter_elem;
+
+	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
+	if (typeinfo_verify(ret) == false) {
+		typeinfo_free(ret);
+		return NULL;
+	}
+
+	return ret;
+}
+
 struct type_info* typeinfo_alloc_by_field(
 	const struct type_desc		*ti_td,
 	const struct fsl_rt_table_field	*ti_field,
@@ -318,7 +343,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify OK!");
 
 done:
-	assert (ret == NULL || (offset_in_range(ti_phys_offset(ret)))
+	assert ((ret == NULL || (offset_in_range(ti_phys_offset(ret))))
 		&& "Returning with bad offset.");
 
 	DEBUG_TYPEINFO_LEAVE();
@@ -344,12 +369,13 @@ struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code)
 	new_off = fsl_virt_get_nth(ti_xlate(ti), new_idx);
 	assert (new_off != 0 && "Next type must be at non-zero voff");
 	if (offset_is_bad(new_off)) {
-		if (new_off == OFFSET_INVALID)
+		if (new_off == OFFSET_INVALID) {
 			set_err_code(err_code, TI_ERR_BADIDX);
-		else if (new_off == OFFSET_EOF)
+		} else if (new_off == OFFSET_EOF) {
 			set_err_code(err_code, TI_ERR_EOF);
-		else
+		} else {
 			assert(0 == 1 && "UNKNOWN ERROR");
+		}
 		typeinfo_free(ti);
 		ti = NULL;
 		goto done;
@@ -497,6 +523,27 @@ struct type_info* typeinfo_follow_pointsto(
 	return ret;
 }
 
+struct type_info* typeinfo_follow_iter(
+	struct type_info*		ti_parent,
+	const struct fsl_rt_iter*	ti_iter,
+	uint64_t			idx)
+{
+	struct type_info	*ret;
+	struct type_desc	iter_td;
+	uint64_t		parambuf[tt_by_ti(ti_parent)->tt_param_c];
+	diskoff_t		diskoff;
+
+	diskoff = ti_iter->it_range(&ti_clo(ti_parent), idx, parambuf);
+	td_init(&iter_td, ti_iter->it_type_dst, diskoff, parambuf);
+
+	assert (offset_is_bad(td_offset(&iter_td)) == false &&
+		"VERIFY ITER RANGE CALL.");
+
+	ret = typeinfo_alloc_iter(&iter_td, ti_iter, idx, ti_parent);
+
+	return ret;
+}
+
 static void typeinfo_ref(struct type_info* ti)
 {
 	ti->ti_ref_c++;
@@ -507,4 +554,44 @@ static unsigned int typeinfo_unref(struct type_info* ti)
 	assert (ti->ti_ref_c > 0);
 	ti->ti_ref_c--;
 	return ti->ti_ref_c;
+}
+
+void typeinfo_phys_copy(struct type_info* dst, struct type_info* src)
+{
+	typesize_t		src_sz, dst_sz;
+	diskoff_t		src_base, dst_base;
+	unsigned int		xfer_total;
+	uint8_t			*buf;
+
+	src_sz = ti_size(src);
+	dst_sz = ti_size(dst);
+
+	assert (src_sz == dst_sz && "Can't copy with different sizes!");
+	assert (src_sz % 8 == 0);
+
+	src_sz /= 8;
+	dst_sz /= 8;
+
+	assert (ti_xlate(dst) == NULL && "VIRT NOT SUPPORTED");
+	assert (ti_xlate(src) == NULL && "VIR TNOT SUPPORTED");
+
+	src_base = ti_offset(src);
+	dst_base = ti_offset(dst);
+	assert (src_base % 8 == 0);
+	assert (dst_base % 8 == 0);
+	src_base /= 8;
+	dst_base /= 8;
+
+	buf = malloc(4096);
+	xfer_total = 0;
+	while (xfer_total < src_sz) {
+		unsigned int	to_xfer;
+		to_xfer = src_sz - xfer_total;
+		if (to_xfer > 4096) to_xfer = 4096;
+		fsl_io_read_bytes(buf, to_xfer, xfer_total + src_base);
+		fsl_io_write_bytes(buf, to_xfer, xfer_total + dst_base);
+		xfer_total += to_xfer;
+	}
+
+	free(buf);
 }

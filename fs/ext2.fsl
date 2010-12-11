@@ -33,10 +33,12 @@ write block_relink(ext2_inode ino, int file_off, blknum_t blknum)
 write block_alloc(blknum_t blknum)
 {
 	get_group_bmp(blknum_to_grp(blknum)).data[blknum_to_bmpidx(blknum)] <- 0 !
+	get_group(blknum_to_grp(blknum)).free_block_c <- get_group(blknum_to_grp(blknum)).free_block_c-1 !
 }
 
 /* put block back in bmp */
 write block_replace(blknum_t blknum)
 {
 	get_group_bmp(blknum_to_grp(blknum)).data[blknum_to_bmpidx(blknum)] <- 1 !
+	get_group(blknum_to_grp(blknum)).free_block_c <- get_group(blknum_to_grp(blknum)).free_block_c+1 !
 }

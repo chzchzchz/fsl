@@ -65,7 +65,6 @@ int tool_entry(int argc, char* argv[])
 	struct type_info	*origin_ti;
 	struct type_desc	init_td = td_origin();
 	struct fragscan_info	info;
-	unsigned int 		i;
 
 	printf("Welcome to fsl fragfind. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
 
