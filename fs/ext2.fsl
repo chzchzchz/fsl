@@ -14,18 +14,27 @@ include "ext2_type.fsl"
 
 typedef blknum_t = u32;
 
-/* put block 'blknum' into ino for file offset 'file_off' */
-write block_relink(ext2_inode ino, int file_off, blknum_t blknum)
+bool is_ok(ext2_inode ino, int file_blk, int blknum)
 {
-	ino.i_block_direct[file_off/get_block_size()] <- blknum ?
-		(file_off/get_block_size() < num_direct_blocks(ino)) !
+	DEBUG_WRITE = file_blk;
+	DEBUG_WRITE = blknum;
+	if (file_blk/get_block_size() < num_direct_blocks(ino))
+		return true;
+	return false;
+}
+
+/* put block 'blknum' into ino for file offset 'file_off' */
+write block_relink(ext2_inode ino, int file_blk, blknum_t blknum)
+{
+	ino.i_block_direct[file_blk] <- blknum ?
+		(file_blk < num_direct_blocks(ino)) !
 	ext2_indir_lookup(ino.i_block_indir).blk_ptr[blknum-EXT2_NDIR_BLOCKS] <- blknum ?
-		(file_off/get_block_size() >= EXT2_NDIR_BLOCKS &&
-		 file_off/get_block_size() < blocks_per_indir() + EXT2_NDIR_BLOCKS) !
-	ext2_indir_in_bi_lookup(ino, file_off/get_block_size()).blk_ptr[
-		biindir_indir_offset(file_off/get_block_size())] <- blknum ?
-		(file_off/get_block_size() >= blocks_per_indir() + EXT2_NDIR_BLOCKS &&
-		 file_off/get_block_size() < (blocks_per_indir()*blocks_per_indir() +
+		(file_blk >= EXT2_NDIR_BLOCKS &&
+		 file_blk < blocks_per_indir() + EXT2_NDIR_BLOCKS) !
+	ext2_indir_in_bi_lookup(ino, file_blk).blk_ptr[
+		biindir_indir_offset(file_blk)] <- blknum ?
+		(file_blk >= blocks_per_indir() + EXT2_NDIR_BLOCKS &&
+		 file_blk < (blocks_per_indir()*blocks_per_indir() +
 			 EXT2_NDIR_BLOCKS+blocks_per_indir()) ) !
 }
 

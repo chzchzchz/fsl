@@ -143,7 +143,7 @@ const uint8_t *fsl_io_cache_hitmiss(struct fsl_rt_io* io, uint64_t bit_off)
 	line_begin = bit_off / FSL_IO_CACHE_BITS;
 	cache_line = fsl_io_cache_find(&io->io_cache, line_begin);
 	if (cache_line == NULL) {
-		DEBUG_IO_WRITE("Missed line: %"PRIu64"\n", line_begin);
+		DEBUG_IO_WRITE("Missed line: %"PRIu64, line_begin);
 		cache_line = fsl_io_cache_put(io, line_begin);
 		if (io->io_cb_miss != NULL) io->io_cb_miss(io, bit_off);
 	} else {
@@ -167,7 +167,8 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 	line_begin = bit_to_line(bit_off);
 	line_end = bit_to_line(bit_off + num_bits - 1);
 
-	DEBUG_IO_WRITE("LINE: %"PRIu64"--%"PRIu64"\n", line_begin, line_end);
+	DEBUG_IO_WRITE("LINE: %"PRIu64"--%"PRIu64" byteoff=(%"PRIu64"--%"PRIu64")",
+		line_begin, line_end, bit_off/8, (bit_off+num_bits)/8);
 	if (line_begin != line_end)
 		return fsl_io_cache_get_unaligned(io, bit_off, num_bits);
 
@@ -183,6 +184,7 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 		ret <<= 8;
 		ret += cache_line[i];
 	}
+	DEBUG_IO_WRITE("cached_val = %"PRIu64, ret);
 
 	DEBUG_IO_LEAVE();
 

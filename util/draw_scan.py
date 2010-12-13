@@ -5,24 +5,37 @@ import Image
 import ImageColor
 
 #Usage:
-# ./draw_scan.py scan_data disk_size img.png
+# ./draw_scan.py scan_data disk_size img.png [dimx dimy]
 
 color_cache = dict()
 colors = [	"chartreuse", 'lime', "red", "green", "blue",
 		"gray", "yellow", "purple", 'maroon',
 		'teal', 'aqua', 'navy', 'olive']
 color_idx = 0
+ARG_IDX_DISKMAP = 1
+ARG_IDX_DISKSZ = 2
+ARG_IDX_OUTIMG = 3
+ARG_IDX_PX_W = 4
+ARG_IDX_PX_H = 5
 
-pixels_per_side=1024
-disk_bytes=int(sys.argv[2])
-bytes_per_pixel=disk_bytes/(pixels_per_side**2)
-out_size = pixels_per_side,pixels_per_side
+print sys.argv[ARG_IDX_DISKMAP]
+
+if len(sys.argv) == 6:
+	pixels_w=int(sys.argv[ARG_IDX_PX_W])
+	pixels_h=int(sys.argv[ARG_IDX_PX_H])
+else:
+	pixels_w=1024
+	pixels_h=1024
+
+disk_bytes=int(sys.argv[ARG_IDX_DISKSZ])
+bytes_per_pixel=disk_bytes/(pixels_w*pixels_h)
+out_size = pixels_w,pixels_h
 im = Image.new("RGB", out_size, ImageColor.getrgb('black'))
 
 print "BPP:" + str(bytes_per_pixel)
 
 ents=list()
-f = open(sys.argv[1], 'r')
+f = open(sys.argv[ARG_IDX_DISKMAP], 'r')
 for l in f.readlines():
 	ents.append(eval(l))
 f.close()
@@ -49,13 +62,13 @@ for e in ents:
 
 	for i in range(pixel_c):
 		pixel_off=(poff_bytes/bytes_per_pixel)+i
-		x = pixel_off % pixels_per_side
-		y = pixel_off / pixels_per_side
+		x = pixel_off % pixels_w
+		y = pixel_off / pixels_w
 		im.putpixel((x,y), ImageColor.getrgb(color))
 
 #	print str(poff_bytes)+" bytes/ ("+str(poff_bits)+")@num pixels: " + str(pixel_c)
 
-im.save(sys.argv[3])
+im.save(sys.argv[ARG_IDX_OUTIMG])
 
 for k in color_cache.keys():
 	print k +" : "+ color_cache[k]

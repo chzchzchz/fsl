@@ -52,6 +52,7 @@ static struct choice_cache	*ccache = NULL;
 static struct img		*reloc_img;
 static uint64_t			ccache_cursor;
 static uint64_t			reloc_cursor;
+static int			reloc_fail_c = 0;
 
 /* advance cursor to next allocated space */
 void reloc_img_advance_unchecked(void)
@@ -85,12 +86,13 @@ void ccache_load(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
 	ccache->cc_max = choice_max;
 	assert (ccache->cc_max >= ccache->cc_min);
 	bmp_init(&ccache->cc_bmp, (ccache->cc_max - ccache->cc_min)+1);
+	bmp_clear(&ccache->cc_bmp);
 
 	/* test all choices, set bitmap accordingly */
 	for (cur_choice = choice_min; cur_choice < choice_max; cur_choice++) {
 		bool	c_ok;
 		c_ok = rel->rel_ccond(&ti_clo(ti), cur_choice);
-		if (c_ok) ccache_set(cur_choice - choice_min);
+		if (c_ok) ccache_set(cur_choice - ccache->cc_min);
 	}
 
 	ccache_cursor = ccache->cc_min;
@@ -140,6 +142,7 @@ uint64_t choice_find(
 			printf("OOPS! Can't alloc at imgidx: %"PRIu64"\n",
 				reloc_cursor);
 
+			reloc_fail_c++;
 			/* move on to next one */
 			reloc_img_advance();
 			if (reloc_cursor == ~0) {
@@ -151,7 +154,6 @@ uint64_t choice_find(
 		}
 	}
 
-	printf("RAN OUT OF CHOICES??\n");
 	return ~0;
 }
 
@@ -171,6 +173,10 @@ void swap_rel_sel(
 	sel_off_bit = ti_offset(rel_sel_ti);
 	pxval = byte_to_pixval(reloc_img, sel_off_bit/8);
 
+#if FS_EXT2
+	assert (0 == 1);
+#endif
+
 	/* already in an OK place, don't do anything
 	 * (in future, may want to steal if we have overlaps) */
 	if (pxval != 0) return;
@@ -184,7 +190,6 @@ void swap_rel_sel(
 		return;
 	}
 
-	printf(" GOT CHOICE %"PRIu64"\n", replace_choice_idx);
 	replace_choice_ti = typeinfo_follow_iter(
 		ti, &rel->rel_choice, replace_choice_idx);
 	assert (replace_choice_ti != NULL);
@@ -206,25 +211,29 @@ void swap_rel_sel(
 	uint64_t	wpkt_params[16];	/* XXX: this should be max of wpkts */
 
 	/* wpkt_alloc => (choice_idx) */
+	FSL_WRITE_START();
 	wpi_params[0] = replace_choice_idx;
 	rel->rel_alloc.wpi_params(&ti_clo(ti), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_alloc.wpi_wpkt, wpkt_params);
 	FSL_WRITE_COMPLETE();
 
-	assert (0 == 1 && "NEED TO DO COPY HERE");
 	typeinfo_phys_copy(replace_choice_ti, rel_sel_ti);
 
 	/* wpkt_replace => (sel_idx) */
+	FSL_WRITE_START();
 	wpi_params[0] = sel_v;
 	rel->rel_replace.wpi_params(&ti_clo(ti), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_replace.wpi_wpkt, wpkt_params);
+
 	fsl_io_steal_wlog(fsl_get_io(), &wlog_replace);
 
 	/* wpkt_relink => (sel_idx, choice_idx) */
+	FSL_WRITE_START();
 	wpi_params[0] = sel_v;
 	wpi_params[1] = replace_choice_idx;
 	rel->rel_relink.wpi_params(&ti_clo(ti), wpi_params, wpkt_params);
-	fsl_io_do_wpkt(rel->rel_replace.wpi_wpkt, wpkt_params);
+	fsl_io_do_wpkt(rel->rel_relink.wpi_wpkt, wpkt_params);
+
 	FSL_WRITE_COMPLETE();
 
 	fsl_wlog_commit(&wlog_replace);
@@ -232,10 +241,8 @@ void swap_rel_sel(
 
 void do_rel_type(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
 {
-	struct type_info		*rel_new_ti;
 	const struct fsl_rt_table_type	*dst_type;
 	int				sel_cur, sel_min, sel_max;
-	int				choice_min, choice_max;
 
 	if (ccache == NULL) ccache_load(ti, rel);
 
@@ -314,7 +321,6 @@ int tool_entry(int argc, char* argv[])
 	struct type_info	*origin_ti;
 	struct type_desc	init_td = td_origin();
 	struct relocscan_info	info;
-	unsigned int 		i;
 
 	printf("Welcome to fsl relocate. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
 	assert (argc > 0 && "./relocate hd.img img.bmp");

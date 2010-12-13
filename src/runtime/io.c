@@ -1,4 +1,5 @@
 //#define DEBUG_IO
+#define _FILE_OFFSET_BITS 64
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -81,6 +82,46 @@ uint64_t __getLocal(
 	return ret;
 }
 
+static void fsl_io_write_bit(uint64_t bit_off, uint64_t val, uint64_t num_bits)
+{
+	struct fsl_rt_io	*io;
+	uint64_t		out_v;
+	int			bit_left;
+	int			mask;
+	size_t			bw;
+
+	assert (num_bits < 8);
+
+	io = fsl_get_io();
+	bit_left = bit_off % 8;
+	out_v = fsl_io_cache_get(io, bit_off - bit_left, 8);
+	/* mask for RMW */
+	mask = (1 << num_bits) - 1;
+	val = val & ((1 << num_bits) - 1);
+	/* stick it in */
+	out_v &= ~(mask << bit_left);
+	out_v |= val << bit_left;
+	/* write it */
+	if (fseeko(io->io_backing, bit_off/8, SEEK_SET) != 0) {
+		fprintf(stderr,
+			"ERROR SEEKING TO BYTE %"PRIu64"\n",
+			bit_off/8);
+		assert (0 == 1);
+		exit(-2);
+	}
+	bw = fwrite(&out_v, 1, 1, io->io_backing);
+	if (bw != 1) {
+		fprintf(stderr,
+			"ERROR WRITING BYTE %"PRIu64"\n",
+			bit_off/8);
+		assert (0 == 1);
+		exit(-3);
+	}
+
+	/* forget the cache XXX -- update cache instead of drop */
+	fsl_io_cache_drop_bytes(io, bit_off / 8, 1);
+}
+
 void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 {
 	struct fsl_rt_io	*io;
@@ -88,8 +129,13 @@ void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 	char			buf[8];
 	size_t			bw;
 
-	io = fsl_get_io();
+	/* XXX HACK for partial write */
+	if (num_bits == 1) {
+		fsl_io_write_bit(bit_off, val, num_bits);
+		return;
+	}
 
+	io = fsl_get_io();
 	/* 1. write to file */
 	/* 2. flush cache */
 	if ((bit_off % 8)) {
@@ -101,14 +147,21 @@ void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 		assert (0 == 1 && "NON-BYTE BITS");
 	}
 
-	for (i = 0; i < num_bits; i+=8) buf[i] = (val >> i) & 0xff;
+	for (i = 0; i < num_bits; i+=8) buf[i/8] = (val >> i) & 0xff;
+
+	if (fseeko(io->io_backing, bit_off/8, SEEK_SET) != 0) {
+		fprintf(stderr,
+			" ERROR SEEKING TO BYTE %"PRIu64"\n",
+			bit_off/8);
+		assert (0 == 1);
+		exit(-2);
+	}
 
 	bw = fwrite(buf, num_bits/8, 1, io->io_backing);
 	assert (bw > 0);
 
-	assert (0 == 1 && "INVALIDATE CACHE-- SUCKA");
+	fsl_io_cache_drop_bytes(io, bit_off/8, 1+((num_bits+7)/8));
 }
-
 
 uint64_t __getLocalArray(
 	const struct fsl_rt_closure* clo,
@@ -145,7 +198,7 @@ struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 
 	assert (backing_fname != NULL);
 
-	f = fopen(backing_fname, "r");
+	f = fopen(backing_fname, "r+");
 	if (f == NULL)
 		return NULL;
 
@@ -153,12 +206,10 @@ struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 	memset(ret, 0, sizeof(*ret));
 
 	ret->io_backing = f;
-	printf("%p\n", ret->io_backing);
 	fsl_rlog_init(ret);
 	fsl_wlog_init(&ret->io_wlog);
 	fsl_io_cache_init(&ret->io_cache);
 
-	printf("%p\n", ret->io_backing);
 	return ret;
 }
 
@@ -203,9 +254,30 @@ void fsl_io_steal_wlog(struct fsl_rt_io* io, struct fsl_rt_wlog* dst)
 	fsl_wlog_init(&io->io_wlog);
 }
 
-void fsl_io_do_wpkt(const struct fsl_rt_table_wpkt* wpkt, uint64_t* params)
+void fsl_io_abort_wlog(struct fsl_rt_io* io)
 {
-	assert (0 == 1 && "STUB");
+	fsl_wlog_init(&io->io_wlog);
+}
+
+void fsl_io_do_wpkt(const struct fsl_rt_table_wpkt* wpkt, const uint64_t* params)
+{
+	int	i;
+
+	assert (wpkt->wpkt_next == NULL);
+	assert (wpkt->wpkt_blks == NULL);
+
+	DEBUG_IO_ENTER();
+
+#ifdef DEBUG_IO
+	for (i = 0; i < wpkt->wpkt_param_c; i++) {
+		DEBUG_IO_WRITE("arg[%d] = %"PRIu64, i, params[i]);
+	}
+#endif
+
+	for (i = 0; i < wpkt->wpkt_func_c; i++)
+		wpkt->wpkt_funcs[i](params);
+
+	DEBUG_IO_LEAVE();
 }
 
 void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
@@ -236,4 +308,19 @@ void fsl_io_write_bytes(void* buf, unsigned int byte_c, uint64_t off)
 	assert (bw > 0);
 
 	fsl_io_cache_drop_bytes(io, off, byte_c);
+}
+
+void fsl_io_dump_pending(void)
+{
+	struct fsl_rt_io	*io = fsl_get_io();
+	int			i;
+
+	for (i = 0; i < io->io_wlog.wl_idx; i++) {
+		struct fsl_rt_wlog_ent	*we = &io->io_wlog.wl_write[i];
+		printf("PENDING: byteoff=%"PRIu64" (%"PRIu64"). v=%"PRIu64"\n",
+			we->we_bit_addr/8,
+			we->we_bit_addr,
+			we->we_val);
+	}
+
 }

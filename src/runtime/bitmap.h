@@ -12,6 +12,7 @@ typedef struct bitmap{
 void	bmp_init(bitmap* b, unsigned int elements);
 void	bmp_uninit(bitmap* b);
 
+void	bmp_clear(bitmap* b);
 int	bmp_set_avail(bitmap* b, unsigned int offset, unsigned int n);
 void	bmp_set(bitmap* b, unsigned int offset, unsigned int n);
 void	bmp_unset(bitmap* b, unsigned int offset, unsigned int n);

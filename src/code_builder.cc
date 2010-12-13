@@ -482,6 +482,7 @@ int CodeBuilder::storeExprIntoParamBuf(
 {
 	llvm::Value	*expr_val;
 	int		elems_stored;
+	string		type_name;
 
 	expr_val = expr->codeGen();
 	if (expr_val == NULL) {
@@ -492,9 +493,10 @@ int CodeBuilder::storeExprIntoParamBuf(
 	}
 
 	elems_stored = 0;
-	if (types_map.count((cur_arg.first)->getName()) > 0) {
+	type_name = (cur_arg.first)->getName();
+	if (types_map.count(type_name) > 0) {
 		const Type	*arg_type;
-		arg_type = types_map[(cur_arg.first)->getName()];
+		arg_type = types_map[type_name];
 		storeClosureIntoParamBuf(
 			params_out_ptr, pb_idx, arg_type, expr_val);
 		elems_stored = arg_type->getParamBufEntryCount() + 2;

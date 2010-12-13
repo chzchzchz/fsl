@@ -37,7 +37,6 @@ void typeinfo_print_field_value(
 	typesize_t			field_sz;
 	typenum_t			field_typenum;
 	diskoff_t			field_off;
-	unsigned int			param_c;
 	TI_INTO_CLO(ti);
 
 	DEBUG_TYPEINFO_ENTER();
@@ -74,15 +73,13 @@ void typeinfo_print_field_value(
 		uint64_t	v;
 		v = __getLocal(&last_field_clo, field_off, field_sz);
 		printf(" = %"PRIu64 " (0x%"PRIx64")", v, v);
-	} else {
-#ifdef PRINT_BITS
-		printf("@%"PRIu64"--%"PRIu64,
-			field_off, field_off + field_sz);
-#else
-		printf("@%"PRIu64"--%"PRIu64,
-			field_off/8, (field_off + field_sz)/8);
-#endif
 	}
+
+#ifdef PRINT_BITS
+	printf("@%"PRIu64"--%"PRIu64, field_off, field_off + field_sz);
+#else
+	printf("@%"PRIu64"--%"PRIu64, field_off/8, (field_off + field_sz)/8);
+#endif
 
 	printf("\n");
 

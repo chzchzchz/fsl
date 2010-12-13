@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
 #include "runtime.h"
 #include "log.h"
 
@@ -92,6 +93,7 @@ void fsl_rlog_init(struct fsl_rt_io* io)
 void fsl_wlog_init(struct fsl_rt_wlog* wl)
 {
 	memset(wl, 0, sizeof(struct fsl_rt_wlog));
+	wl->wl_idx = -1;
 }
 
 void fsl_wlog_start(struct fsl_rt_wlog* wl)
@@ -121,9 +123,24 @@ void fsl_wlog_stop(struct fsl_rt_wlog* wl)
 
 void fsl_wlog_add(struct fsl_rt_wlog* wl, bitoff_t off, uint64_t val, int len)
 {
-	assert (0 == 1 && "STUB");
-}
+	struct fsl_rt_wlog_ent	*we;
 
+	assert (wl->wl_idx >= 0 && "ADDING TO STOPPED WLOG");
+
+	/* whoops  */
+	if (wl->wl_idx == IO_MAX_ACCESS) {
+		fprintf(stderr, "PAST MAX ACCESS. AIEE\n");
+		exit(-1);
+	}
+
+	/* XXX TODO:  put checks for concurrent write */
+	we = &wl->wl_write[wl->wl_idx];
+	we->we_bit_addr = off;
+	we->we_val = val;
+	we->we_bits = len;
+
+	wl->wl_idx++;
+}
 
 void fsl_wlog_copy(struct fsl_rt_wlog* dst, const struct fsl_rt_wlog* src)
 {

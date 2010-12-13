@@ -218,7 +218,7 @@ struct fsl_rt_table_assert
 
 struct fsl_rt_table_wpkt
 {
-	unsigned int			wpkt_arg_c;
+	unsigned int			wpkt_param_c;	/* number of arg elems */
 	unsigned int			wpkt_func_c;
 	wpktf_t				*wpkt_funcs;
 	unsigned int			wpkt_blk_c;

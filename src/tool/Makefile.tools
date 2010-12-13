@@ -24,7 +24,10 @@ LLC_FLAGS=-O3
 #OPT_FLAGS=
 #LLC_FLAGS=-O3
 SRC_FSL=../../fs/$(FSNAME).fsl
-SRC_FSL_ALL=$(wildcard ../../$(FSNAME)*.fsl)
+SRC_FSL_ALL=$(wildcard ../../fs/$(FSNAME)*.fsl)
+FS_CAPITAL=$(shell echo $(FSNAME) | sed "s/[a-z]/\U&/g")
+FS_DEFINE=-DFS_$(FS_CAPITAL)
+CFLAGS+= $(FS_DEFINE)
 
 all: $(TOOL_BINS)
 

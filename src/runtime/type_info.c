@@ -274,7 +274,11 @@ struct type_info* typeinfo_alloc_virt_idx(
 
 	set_err_code(err_code, TI_ERR_OK);
 
-	DEBUG_TYPEINFO_WRITE("td_vinit");
+	DEBUG_TYPEINFO_WRITE("td_vinit parent=%s@voff=%"PRIu64". child=%s. name=%s",
+		tt_by_ti(ti_prev)->tt_name,
+		ti_offset(ti_prev),
+		tt_by_num(virt->vt_type_virttype)->tt_name,
+		virt->vt_name);
 	td_vinit(&td,
 		virt->vt_type_virttype, 0, NULL,
 		fsl_virt_alloc(&ti_to_td(ti_prev)->td_clo, virt));
@@ -584,6 +588,7 @@ void typeinfo_phys_copy(struct type_info* dst, struct type_info* src)
 
 	buf = malloc(4096);
 	xfer_total = 0;
+
 	while (xfer_total < src_sz) {
 		unsigned int	to_xfer;
 		to_xfer = src_sz - xfer_total;

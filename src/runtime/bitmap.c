@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 #include "bitmap.h"
 
@@ -13,6 +14,11 @@ void bmp_init(bitmap* b, unsigned int elements)
 	b->bmp_bytes = (elements + 7) / 8;
 	b->bmp_data = malloc(b->bmp_bytes);
 	b->bmp_size = elements;
+}
+
+void bmp_clear(bitmap* b)
+{
+	memset(b->bmp_data, 0, b->bmp_bytes);
 }
 
 void bmp_uninit(bitmap* b)

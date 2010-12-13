@@ -24,7 +24,7 @@ browser-nilfs2: $(wildcard ../../fs/nilfs2*.fsl)
 	FSNAME=nilfs2 make -f Makefile.tools
 browser-vfat: $(wildcard ../../fs/vfat*.fsl)
 	FSNAME=vfat make -f Makefile.tools
-browser-ext2: $(wildcard ../../fs/ext2*.fsl)
+browser-ext2: $(wildcard ../../fs/ext2*fsl)
 	FSNAME=ext2 make -f Makefile.tools
 
 clean:

@@ -57,8 +57,7 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	assert ((bit_off % 8) == 0 && "Miss aligned xlate");
 
 	total_bits = fsl_virt_total_bits(rtm);
-	DEBUG_VIRT_WRITE("virt bit_off=%"PRIu64" / total bits=%"PRIu64,
-		bit_off, total_bits);
+	DEBUG_VIRT_WRITE("virt total bits=%"PRIu64, total_bits);
 
 	if (bit_off >= total_bits && fsl_env->fctx_except.ex_in_unsafe_op) {
 		DEBUG_VIRT_WRITE("Taking longjmp");
@@ -91,7 +90,8 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	/* swap back to old dyn vars */
 	fsl_rt_dyn_swap(old_clo);
 
-	assert (bit_off != base+off && "Identity xlate. Probably wrong.");
+	assert (bit_off != base+off &&
+		"Base+Off=BitOff? => Identity xlate. Probably wrong.");
 	assert ((base+off) != 0 && "xlated addr == origin? Probably wrong.");
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_CALL);

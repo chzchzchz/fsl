@@ -423,7 +423,8 @@ void TableGen::genWritePktTable(const WritePkt* wpkt)
 			"fsl_rt_table_wpkt",
 			string("wpkt_") + wpkt->getName() + int_to_string(n),
 			true);
-		sw.write("wpkt_arg_c", wpkt->getArgs()->size());
+		sw.write("wpkt_param_c",
+			wpkt->getArgs()->getNumParamBufEntries());
 		sw.write("wpkt_func_c", wblk->size());
 		sw.write("wpkt_funcs",
 			"wpkt_funcs_" + wpkt->getName() + int_to_string(n));
