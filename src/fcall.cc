@@ -329,7 +329,6 @@ llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 			
 			continue;
 		}
-
 		args.push_back(cur_expr->codeGen());
 	}
 

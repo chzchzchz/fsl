@@ -125,6 +125,7 @@ void WritePktStruct::genCode(void) const
 			cerr <<  "WpktStruct: could not gen condition" << endl;
 			return;
 		}
+
 		builder->CreateCondBr(cond_v, bb_doit, bb_else);
 		builder->SetInsertPoint(bb_else);
 		builder->CreateRetVoid();
@@ -137,9 +138,13 @@ void WritePktStruct::genCode(void) const
 
 	/* 3. generate location for LHS */
 	if (ectx.getType(ids) != NULL)  {
+		cerr << "OOPS! WritePktStruct type ";
+		ids->print(cerr);
+		cerr << endl;
 		assert (0 == 1 && "EXPECTED PRIMITIVE TYPE IN WPKT");
 		return;
 	}
+
 	lhs_loc = ectx.resolveLoc(ids, lhs_size);
 	if (lhs_loc == NULL) {
 		cerr << "WritePkt: Could not resolve ";

@@ -423,8 +423,7 @@ Expr* EvalCtx::resolveVal(const IdStruct* ids) const
 
 	assert (ids != NULL);
 
-	if (resolveTB(ids, tb, parent_closure) == false)
-		return NULL;
+	if (resolveTB(ids, tb, parent_closure) == false) return NULL;
 
 	/* massage the result into something we can use-- disk read or typepass */
 
@@ -561,7 +560,7 @@ Expr* EvalCtx::resolveVal(const IdArray* ida) const
 	return NULL;
 }
 
-/* get the disk location of the value in the idstruct */
+/* get the physical disk location of the value in the idstruct */
 Expr* EvalCtx::resolveLoc(const IdStruct* ids, Expr*& size) const
 {
 	Expr			*loc;
@@ -572,9 +571,12 @@ Expr* EvalCtx::resolveLoc(const IdStruct* ids, Expr*& size) const
 	if (resolveTB(ids, tb, parent_closure) == false)
 		return NULL;
 
-	loc = tb.tb_diskoff;
+	assert (parent_closure != NULL);
+	loc = rt_glue.toPhys(parent_closure, tb.tb_diskoff);
+	delete tb.tb_diskoff;
 	delete tb.tb_parambuf;
 	delete tb.tb_virt;
+	delete parent_closure;
 
 	thunk_field = tb.tb_lastsym->getFieldThunk();
 	size = thunk_field->getSize()->copyConstValue();

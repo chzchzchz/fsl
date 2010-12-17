@@ -36,13 +36,13 @@ rm -f tests.log
 
 if [ "$TEST_CONFIG" == "EXTRA" ]; then
 	echo "EXTRA TESTS!"
-
-	for fs in ext2 vfat; do
-		imgname=$fs-many.img
-		fs_scan_startup_img $fs $fs-many.img
-		imgname=$fs-postmark.img
-		fs_scan_startup_img $fs $fs-postmark.img
-	done
+	fs="$TEST_FS"
+	${src_root}/tests/tests_extra.$fs.sh
+	ret=$?
+	if [ $ret -ne 0 ]; then
+		echo "$fs: extras falied."
+		exit $ret
+	fi
 else
 	echo "STANDARD TESTS"
 	for fs in $FILESYSTEMS; do

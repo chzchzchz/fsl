@@ -2,7 +2,7 @@
 
 source util/draw.fs.sh
 
-VFAT_REGEX="(fat'|fat_de|fat_ent|bpb|'voff' : 0.*cluster)"
+VFAT_REGEX="(fat'|fat_de|fat_ent|bpb|file_cluster|'voff' : 0.*cluster)"
 
 function draw_scan_vfat
 {

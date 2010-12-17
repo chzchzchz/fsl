@@ -13,6 +13,7 @@ static void typeinfo_print_field(const struct type_info* ti);
 static void typeinfo_print_default(const struct type_info* ti);
 static void typeinfo_print_virt(const struct type_info* ti);
 #define typeinfo_print_pointsto(x) typeinfo_print_default(x)
+#define typeinfo_print_iter(x) typeinfo_print_default(x)
 
 static void typeinfo_print_path_helper(const struct type_info* ti);
 static void typeinfo_print_type(const struct type_info* ti);
@@ -187,8 +188,10 @@ void typeinfo_print(const struct type_info* ti)
 	assert (ti->ti_prev != NULL);
 
 	if (ti->ti_field) typeinfo_print_field(ti);
-	if (ti->ti_points) typeinfo_print_pointsto(ti);
-	if (ti->ti_virt) typeinfo_print_virt(ti);
+	else if (ti->ti_points) typeinfo_print_pointsto(ti);
+	else if (ti->ti_virt) typeinfo_print_virt(ti);
+	else if (ti->ti_iter) typeinfo_print_iter(ti);
+	else printf("???");
 }
 
 void typeinfo_print_fields(const struct type_info* ti)

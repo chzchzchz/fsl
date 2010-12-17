@@ -64,9 +64,11 @@ static int handle_ti(struct type_info* ti, void* aux)
 	printf("{ 'Mode' : 'Scan', 'voff' : %"PRIu64
 		", 'poff' : %"PRIu64
 		", 'size': %"PRIu64
-		", 'name' : '%s' }\n",
+		", 'name' : '%s' "
+		", 'depth' : %d }\n",
 		voff, poff, size,
-		tt_by_ti(ti)->tt_name);
+		tt_by_ti(ti)->tt_name,
+		ti_depth(ti));
 
 done:
 	DEBUG_TOOL_LEAVE();

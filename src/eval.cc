@@ -176,8 +176,7 @@ llvm::Value* evalAndGen(const EvalCtx& ectx, const Expr* expr)
 	llvm::Value	*v;
 
 	ret = eval(ectx, expr);
-	if (ret == NULL)
-		return NULL;
+	if (ret == NULL) return NULL;
 
 	v = ret->codeGen();
 	delete ret;

@@ -207,6 +207,7 @@ struct type_info* typeinfo_alloc_iter(
 	ret->ti_iter = ti_iter;
 	ret->ti_print_name = "iter";
 	ret->ti_print_idxval = ti_iter_elem;
+	ret->ti_iter = ti_iter;
 
 	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
 	if (typeinfo_verify(ret) == false) {

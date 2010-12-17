@@ -44,8 +44,8 @@ Value* Id::codeGen() const
 		return code_builder->getNullPtrI64();
 
 	if (gen_vscope != NULL) {
-		ai = gen_vscope->getVar(getName());
-		return get_builder()->CreateLoad(ai, getName());
+		if (ai = gen_vscope->getVar(getName()))
+			return get_builder()->CreateLoad(ai, getName());
 	}
 
 	/* load.. */

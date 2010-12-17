@@ -317,10 +317,15 @@ void fsl_io_dump_pending(void)
 
 	for (i = 0; i < io->io_wlog.wl_idx; i++) {
 		struct fsl_rt_wlog_ent	*we = &io->io_wlog.wl_write[i];
-		printf("PENDING: byteoff=%"PRIu64" (%"PRIu64"). v=%"PRIu64"\n",
+		uint64_t	cur_v;
+
+		cur_v = fsl_io_cache_get(io, we->we_bit_addr, we->we_bits);
+		printf(	"PENDING: byteoff=%"PRIu64" (%"PRIu64"). v=%"PRIu64
+			" (current=%"PRIu64" / 0x%"PRIx64")\n",
 			we->we_bit_addr/8,
 			we->we_bit_addr,
-			we->we_val);
+			we->we_val,
+			cur_v, cur_v);
 	}
 
 }

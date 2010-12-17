@@ -1,9 +1,5 @@
-uint bytes_per_cluster()
-{
-	return bpb.sectors_per_cluster*bpb.bytes_per_sector;
-}
-
-uint fat_next(uint cluster_num)
+uint bytes_per_cluster() { return bpb.sectors_per_cluster*bpb.bytes_per_sector; }
+clusternum_t fat_next(uint cluster_num)
 {
 	fat_type	ft;
 	fat		f;
@@ -18,11 +14,18 @@ uint fat_next(uint cluster_num)
 	return fsl_fail(1);
 }
 
-cluster get_nth(fat_de de, uint i)
+bool is_cluster_avail(clusternum_t cn)
 {
-	u32	cur_cluster;
+	clusternum_t	v;
+	v = fat_next(cn);
+	if (v == FAT_ENT_FREE) return true;
+	return false;
+}
 
-	de = fat_de;
+clusternum_t get_nth_cnum(fat_de de, uint i)
+{
+	clusternum_t cur_cluster;
+
 	cur_cluster = (de.first_cluster_hi << 16) + de.first_cluster_lo;
 	/* follow clusters. Need while loops, better error handling */
 	while (i > 1) {
@@ -30,7 +33,28 @@ cluster get_nth(fat_de de, uint i)
 		i = i - 1;
 	}
 
-	return disk.clusters[cur_cluster];
+	return cur_cluster;
+}
+
+cluster get_nth(fat_de de, uint i)
+{
+	clusternum_t	cn;
+	cn = get_nth_cnum(de, i);
+	return get_cluster(cn);
+}
+
+cluster get_cluster(clusternum_t cn) { return disk.clusters[cn-2]; }
+
+bool is_good_dir(fat_de de)
+{
+	if (de.file_size == 0xffffffff) return false;
+	if ((DIR_MASK & de.attr) != ATTR_DIRECTORY) return false;
+	if (de.name[0] == 0x2e) {
+		if (de.name[1] == 0x20) return false;
+		if (de.name[1] == 0x2e && de.name[2] == 0x20)
+			return false;
+	}
+	return true;
 }
 
 bool is_deleted(fat_de de)
@@ -44,9 +68,11 @@ uint de_cluster_count(fat_de de)
 {
 	u32	bpc;
 
+	if (de.file_size == 0xffffffff) return 0;
+
 	if ( (ATTR_DIRECTORY & de.attr) != 0)  {
-		u32	cur_clus;
-		u32	count;
+		clusternum_t 	cur_clus;
+		u32		count;
 
 		count = 0;
 		cur_clus = de.first_cluster_lo + (de.first_cluster_hi << 16);
@@ -63,9 +89,11 @@ uint de_cluster_count(fat_de de)
 	return ((de.file_size + bpc - 1) / bpc);
 }
 
-bool is_valid_cnum(u32 cnum)
+bool is_valid_cnum(clusternum_t cnum)
 {
 	fat_type	ft;
+
+	if (cnum < FAT_START_ENT) return false;
 
 	ft = get_fat_type(bpb);
 	if (ft == FAT_TYPE_FAT12) {

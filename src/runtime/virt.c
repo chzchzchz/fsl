@@ -367,3 +367,10 @@ done:
 
 	return total_bits;
 }
+
+
+uint64_t __toPhys(const struct fsl_rt_closure* clo, uint64_t off)
+{
+	if (clo->clo_xlate == NULL) return off;
+	return fsl_virt_xlate(clo, off);
+}

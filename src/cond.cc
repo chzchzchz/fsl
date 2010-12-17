@@ -156,8 +156,6 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	return pn;
 }
 
-
-
 llvm::Value* cond_bop_codeGen(const EvalCtx* ctx, const BinBoolOp* bop)
 {
 	const BOPAnd*	bop_and;
@@ -223,4 +221,3 @@ llvm::Value* cond_codeGen(const EvalCtx* ctx, const CondExpr* cond)
 
 	return ret;
 }
-

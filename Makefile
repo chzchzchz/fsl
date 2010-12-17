@@ -31,8 +31,13 @@ code-clean:
 tests: code tools
 	tests/do_all_tests.sh
 
-tests-extra:
-	TEST_CONFIG="EXTRA" tests/do_all_tests.sh
+tests-extra: tests-extra-ext2 tests-extra-vfat
+
+tests-extra-ext2:
+	TEST_CONFIG="EXTRA" TEST_FS="ext2"  tests/do_all_tests.sh
+
+tests-extra-vfat:
+	TEST_CONFIG="EXTRA" TEST_FS="vfat" tests/do_all_tests.sh
 
 tests-clean:
 	rm -f tests/scantool-*/*

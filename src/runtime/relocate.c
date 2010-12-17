@@ -35,6 +35,7 @@ struct choice_cache {
 
 static int byte_to_pixval(struct img* im, diskoff_t in_byte)
 {
+	assert ((in_byte/bytes_per_px(im)) < (im->x*im->y));
 	return im->bmp[in_byte/bytes_per_px(im)];
 }
 
@@ -81,6 +82,8 @@ void ccache_load(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
 	choice_min = rel->rel_choice.it_min(&ti_clo(ti));
 	choice_max = rel->rel_choice.it_max(&ti_clo(ti));
 
+	DEBUG_TOOL_WRITE("Loading ccache\n");
+
 	ccache = malloc(sizeof(struct choice_cache));
 	ccache->cc_min = choice_min;
 	ccache->cc_max = choice_max;
@@ -94,6 +97,9 @@ void ccache_load(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
 		c_ok = rel->rel_ccond(&ti_clo(ti), cur_choice);
 		if (c_ok) ccache_set(cur_choice - ccache->cc_min);
 	}
+
+	DEBUG_TOOL_WRITE("Done loading ccache %d elems\n",
+		choice_max - choice_min + 1);
 
 	ccache_cursor = ccache->cc_min;
 }
@@ -125,11 +131,12 @@ uint64_t choice_find(
 			continue;
 		}
 
+		/* get offset on disk of choice type */
 		off_bits = rel->rel_choice.it_range(&ti_clo(ti), cur_choice, buf);
 		imgidx = byte_to_imgidx(reloc_img, off_bits / 8);
 		if (imgidx == reloc_cursor) {
 			/* success! */
-			ccache_unset(ccache_cursor);
+			ccache_unset(cur_choice-ccache->cc_min);
 			reloc_img_advance();
 			if (reloc_cursor == ~0) {
 				/* nothing left to do */
@@ -139,9 +146,10 @@ uint64_t choice_find(
 			return cur_choice;
 		} else if (imgidx > reloc_cursor) {
 			/* overshot.. can't alloc */
+		#ifdef DEBUG_TOOL
 			printf("OOPS! Can't alloc at imgidx: %"PRIu64"\n",
 				reloc_cursor);
-
+		#endif
 			reloc_fail_c++;
 			/* move on to next one */
 			reloc_img_advance();
@@ -173,22 +181,22 @@ void swap_rel_sel(
 	sel_off_bit = ti_offset(rel_sel_ti);
 	pxval = byte_to_pixval(reloc_img, sel_off_bit/8);
 
-#if FS_EXT2
-	assert (0 == 1);
-#endif
-
 	/* already in an OK place, don't do anything
 	 * (in future, may want to steal if we have overlaps) */
 	if (pxval != 0) return;
 
+	DEBUG_TOOL_ENTER();
+
 	/* need to move this to an unused location that
 	 * is marked in the image */
-	printf("Need to move %"PRIu64"\n", sel_off_bit/8);
+	DEBUG_TOOL_WRITE("Need to move byteoff=%"PRIu64, sel_off_bit/8);
 	replace_choice_idx = choice_find(ti, rel);
 	if (replace_choice_idx == ~0) {
-		printf("No more moves left. Oh well.\n");
+		DEBUG_TOOL_WRITE("No more moves left. Oh well.\n");
 		return;
 	}
+	DEBUG_TOOL_WRITE("exchanging: sel_v=%d with choice_v=%"PRIu64,
+		sel_v, replace_choice_idx);
 
 	replace_choice_ti = typeinfo_follow_iter(
 		ti, &rel->rel_choice, replace_choice_idx);
@@ -215,15 +223,35 @@ void swap_rel_sel(
 	wpi_params[0] = replace_choice_idx;
 	rel->rel_alloc.wpi_params(&ti_clo(ti), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_alloc.wpi_wpkt, wpkt_params);
+#ifdef DEBUG_TOOL
+	printf("ALLOC PENDING: \n");
+	fsl_io_dump_pending();
+#endif
 	FSL_WRITE_COMPLETE();
 
 	typeinfo_phys_copy(replace_choice_ti, rel_sel_ti);
+#ifdef DEBUG_TOOL
+	printf("COPIED: %"PRIu64" -> %"PRIu64"\n",
+		ti_phys_offset(rel_sel_ti) / 8,
+		ti_phys_offset(replace_choice_ti) / 8);
+
+	printf("rel_sel: ");
+	typeinfo_print_path(rel_sel_ti);
+	printf("\n");
+	printf("replace_ti: ");
+	typeinfo_print_path(replace_choice_ti);
+	printf("\n");
+#endif
 
 	/* wpkt_replace => (sel_idx) */
 	FSL_WRITE_START();
 	wpi_params[0] = sel_v;
 	rel->rel_replace.wpi_params(&ti_clo(ti), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_replace.wpi_wpkt, wpkt_params);
+	DEBUG_TOOL_WRITE("REPLACE PENDING:");
+#ifdef DEBUG_TOOL
+	fsl_io_dump_pending();
+#endif
 
 	fsl_io_steal_wlog(fsl_get_io(), &wlog_replace);
 
@@ -234,9 +262,27 @@ void swap_rel_sel(
 	rel->rel_relink.wpi_params(&ti_clo(ti), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_relink.wpi_wpkt, wpkt_params);
 
+	DEBUG_TOOL_WRITE("RELINK PENDING:");
+#ifdef DEBUG_TOOL
+	fsl_io_dump_pending();
+#endif
 	FSL_WRITE_COMPLETE();
 
 	fsl_wlog_commit(&wlog_replace);
+
+	DEBUG_TOOL_LEAVE();
+}
+
+static void update_status(void)
+{
+	static int last_reloc_cursor = 0;
+	int	percent;
+
+	if (reloc_cursor == last_reloc_cursor) return;
+	if (reloc_cursor == ~0) percent = 100;
+	else percent = (100*reloc_cursor)/(reloc_img->x*reloc_img->y);
+	printf("Status: %3d%%\r", percent);
+	last_reloc_cursor = reloc_cursor;
 }
 
 void do_rel_type(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
@@ -250,13 +296,24 @@ void do_rel_type(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
 	sel_min = rel->rel_sel.it_min(&ti_clo(ti));
 	sel_max = rel->rel_sel.it_max(&ti_clo(ti));
 
+	DEBUG_TOOL_WRITE("DO_REL_TYPE voff=%"PRIu64
+		" poff=%"PRIu64" sel_min=%d // sel_max=%d",
+		ti_offset(ti), ti_phys_offset(ti),
+		sel_min, sel_max);
+
 	for (sel_cur = sel_min; sel_cur <= sel_max; sel_cur++) {
 		struct type_info		*rel_sel_ti;
 
 		rel_sel_ti = typeinfo_follow_iter(ti, &rel->rel_sel, sel_cur);
+		if (rel_sel_ti == NULL) {
+			printf("Failed to get rel_sel_ti for idx=%d\n",
+				sel_cur);
+			continue;
+		}
 		swap_rel_sel(ti, rel, rel_sel_ti, sel_cur);
 		typeinfo_free(rel_sel_ti);
 	}
+	update_status();
 }
 
 int ti_handle(struct type_info* ti, struct relocscan_info* rinfo)

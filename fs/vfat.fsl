@@ -28,5 +28,64 @@ const DIR_MASK = ATTR_DIRECTORY|ATTR_VOLUME_ID|LAST_LONG_ENTRY_MASK;
 
 enum fat_type = {FAT_TYPE_FAT12, FAT_TYPE_FAT16, FAT_TYPE_FAT32} u8;
 
+typedef clusternum_t = u32;
+
 include "vfat_func.fsl"
 include "vfat_type.fsl"
+
+/* mark this as something we don't want people to take */
+write block_alloc(clusternum_t cn)
+{
+	disk.fats[0].ent12[cn].cluster_num <- BAD_FAT12 ? is_fat12(disk.d_bpb) == true !
+	disk.fats[0].ent16[cn].cluster_num <- BAD_FAT16 ? is_fat16(disk.d_bpb) == true !
+	disk.fats[0].ent32[cn].cluster_num <- BAD_FAT32 ? is_fat32(disk.d_bpb) == true !
+}
+
+/* restore to free pool */
+write block_replace(clusternum_t cn)
+{
+	disk.fats[0].ent12[cn].cluster_num <- FAT_ENT_FREE ? is_fat12(disk.d_bpb) !
+	disk.fats[0].ent16[cn].cluster_num <- FAT_ENT_FREE ? is_fat16(disk.d_bpb) !
+	disk.fats[0].ent32[cn].cluster_num <- FAT_ENT_FREE ? is_fat32(disk.d_bpb) !
+}
+
+/* link cluster into given file offset,
+   assumes file offset...
+
+    XXX REFACTOR THIS WHEN WE HAVE NESTED WRITEPACKETS */
+write block_relink(fat_de de, uint file_clus_off, clusternum_t new_cn)
+{
+// update de
+	de.first_cluster_lo <- new_cn & 0xffff
+		? is_fat12(disk.d_bpb) && file_clus_off == 1 !
+
+	de.first_cluster_lo <- new_cn & 0xffff
+		? is_fat16(disk.d_bpb) && file_clus_off == 1 !
+
+	de.first_cluster_lo <- new_cn & 0xffff
+		? is_fat32(disk.d_bpb) && file_clus_off == 1 !
+
+	de.first_cluster_hi <- 0 ? is_fat12(disk.d_bpb) && file_clus_off == 1 !
+	de.first_cluster_hi <- 0 ? is_fat16(disk.d_bpb) && file_clus_off == 1 !
+	de.first_cluster_hi <- new_cn >> 16 ? is_fat32(disk.d_bpb) && file_clus_off == 1 !
+
+// update fat entry that points to this
+	disk.fats[0].ent12[get_nth_cnum(de, file_clus_off-1)].cluster_num <- new_cn
+		? is_fat12(disk.d_bpb) && file_clus_off > 1 !
+
+	disk.fats[0].ent16[get_nth_cnum(de, file_clus_off-1)].cluster_num <- new_cn
+		? is_fat16(disk.d_bpb) && file_clus_off > 1 !
+
+	disk.fats[0].ent32[get_nth_cnum(de, file_clus_off-1)].cluster_num <- new_cn
+		? is_fat32(disk.d_bpb) && file_clus_off > 1 !
+
+// point this to next fat entry
+	disk.fats[0].ent12[new_cn].cluster_num <- get_nth_cnum(de, file_clus_off+1)
+		? is_fat12(disk.d_bpb) !
+
+	disk.fats[0].ent16[new_cn].cluster_num <- get_nth_cnum(de, file_clus_off+1)
+		? is_fat16(disk.d_bpb) !
+
+	disk.fats[0].ent32[new_cn].cluster_num <- get_nth_cnum(de, file_clus_off+1)
+		? is_fat32(disk.d_bpb) !
+}

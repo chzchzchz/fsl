@@ -138,10 +138,16 @@ static void select_field(struct type_info* cur, int field_idx)
 			cur, field, num_elems, next_off, &sel_idx);
 	}
 
-	if (next_off == OFFSET_INVALID) goto done;
+	if (next_off == OFFSET_INVALID) {
+		printf("No dice. Bad offset.\n");
+		goto done;
+	}
 
 	ti_next = typeinfo_follow_field_off_idx(cur, field, next_off, sel_idx);
-	if (ti_next == NULL) goto done;
+	if (ti_next == NULL) {
+		printf("No dice. Couldn't follow field.\n");
+		goto done;
+	}
 
 	menu(ti_next);
 
@@ -173,8 +179,10 @@ static void select_virt(struct type_info* cur, int vt_idx)
 	ti_next = typeinfo_follow_virt(cur, vt, sel_elem, &err);
 	DEBUG_TOOL_WRITE("virt_alloc %s[%d]: %p-- err=%d\n",
 		vt->vt_name, sel_elem, ti_next, err);
-	if (ti_next == NULL)
+	if (ti_next == NULL) {
+		printf("No dice. Couldn't follow virt type.\n");
 		goto done;
+	}
 
 	menu(ti_next);
 

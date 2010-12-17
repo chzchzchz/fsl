@@ -39,6 +39,8 @@ public:
 	const std::string getThunkArgVirtName(void);
 	const std::string getThunkArgIdxName(void);
 
+	Expr	*toPhys(const Expr* clo, const Expr* off);
+
 	Expr	*maxValue(ExprList* exprs);
 	Expr	*computeArrayBits(const class ThunkField* tf);
 	Expr	*computeArrayBits(

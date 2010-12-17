@@ -88,6 +88,7 @@ struct rt_func rt_funcs[] =
 		 RTF_TYPE_INT64 /* element number to grab */}
 	},
 	{"__writeVal", RTF_TYPE_VOID, 3, {RTF_TYPE_INT64, RTF_TYPE_INT64, RTF_TYPE_INT64}},
+	{"__toPhys", RTF_TYPE_INT64, 2, {RTF_TYPE_CLOSURE, RTF_TYPE_INT64}},
 	{ NULL }
 };
 
@@ -356,4 +357,10 @@ Expr* RTInterface::writeVal(const Expr* loc, const Expr* sz, const Expr* val)
 	exprs->add(sz->copy());
 	exprs->add(val->copy());
 	return new FCall(new Id("__writeVal"), exprs);
+}
+
+Expr* RTInterface::toPhys(const Expr* clo, const Expr* off)
+{
+	return new FCall(new Id("__toPhys"),
+		new ExprList(clo->copy(), off->copy()));
 }
