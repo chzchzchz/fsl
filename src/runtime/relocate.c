@@ -4,12 +4,16 @@
 #include <inttypes.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
 #include "runtime.h"
 #include "debug.h"
 #include "type_info.h"
 #include "bitmap.h"
 #include "scan.h"
 #include "log.h"
+#include "choice.h"
+
+#define RELNAME_RELOC	"reloc"
 
 struct img
 {
@@ -25,12 +29,6 @@ struct relocscan_info
 	unsigned int	rel_c;
 };
 
-struct choice_cache {
-	struct bitmap	cc_bmp;
-	unsigned int	cc_min;
-	unsigned int	cc_max;
-};
-
 #define bytes_per_px(a)	((a)->disk_bytes/((a)->x*(a)->y))
 
 static int byte_to_pixval(struct img* im, diskoff_t in_byte)
@@ -43,11 +41,6 @@ static uint64_t byte_to_imgidx(struct img* im, diskoff_t in_byte)
 {
 	return in_byte/bytes_per_px(im);
 }
-
-#define ccache_set(x)		bmp_set(&ccache->cc_bmp, (x), 1)
-#define ccache_unset(x)		bmp_unset(&ccache->cc_bmp, (x), 1)
-#define ccache_get_setidx(x)	bmp_get_set(&ccache->cc_bmp, (x))
-#define ccache_is_set(x)	bmp_is_set(&ccache->cc_bmp, (x))
 
 static struct choice_cache	*ccache = NULL;
 static struct img		*reloc_img;
@@ -74,34 +67,10 @@ void reloc_img_advance(void)
 	reloc_img_advance_unchecked();
 }
 
-/* XXX we are so cheating right now */
-void ccache_load(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
+static void ccache_load(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 {
-	int choice_min, choice_max, cur_choice;
-
-	choice_min = rel->rel_choice.it_min(&ti_clo(ti));
-	choice_max = rel->rel_choice.it_max(&ti_clo(ti));
-
-	DEBUG_TOOL_WRITE("Loading ccache\n");
-
-	ccache = malloc(sizeof(struct choice_cache));
-	ccache->cc_min = choice_min;
-	ccache->cc_max = choice_max;
-	assert (ccache->cc_max >= ccache->cc_min);
-	bmp_init(&ccache->cc_bmp, (ccache->cc_max - ccache->cc_min)+1);
-	bmp_clear(&ccache->cc_bmp);
-
-	/* test all choices, set bitmap accordingly */
-	for (cur_choice = choice_min; cur_choice < choice_max; cur_choice++) {
-		bool	c_ok;
-		c_ok = rel->rel_ccond(&ti_clo(ti), cur_choice);
-		if (c_ok) ccache_set(cur_choice - ccache->cc_min);
-	}
-
-	DEBUG_TOOL_WRITE("Done loading ccache %d elems\n",
-		choice_max - choice_min + 1);
-
-	ccache_cursor = ccache->cc_min;
+	ccache = choice_alloc(ti, rel);
+	ccache_cursor = choice_min(ccache);
 }
 
 /* finds the next choice that falls on reloc_cursor
@@ -109,16 +78,14 @@ void ccache_load(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
  * We need to say that we need choices to hold to some invariant
  * for this to work
  */
-uint64_t choice_find(
-	struct type_info* ti,
-	const struct fsl_rt_table_reloc* rel)
+uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 {
 	unsigned int	cur_choice;
 	unsigned int	param_c;
 
 	param_c = tt_by_num(rel->rel_choice.it_type_dst)->tt_param_c;
 	for (	cur_choice = ccache_cursor;
-		cur_choice <= ccache->cc_max;
+		cur_choice <= choice_max(ccache);
 		cur_choice++)
 	{
 		uint64_t	buf[param_c];
@@ -126,7 +93,7 @@ uint64_t choice_find(
 		uint64_t	imgidx;
 
 		/* check cache first */
-		if (!ccache_is_set(cur_choice-ccache->cc_min)) {
+		if (!choice_is_set(ccache, cur_choice-choice_min(ccache))) {
 			/* not OK to use */
 			continue;
 		}
@@ -136,11 +103,11 @@ uint64_t choice_find(
 		imgidx = byte_to_imgidx(reloc_img, off_bits / 8);
 		if (imgidx == reloc_cursor) {
 			/* success! */
-			ccache_unset(cur_choice-ccache->cc_min);
+			choice_unset(ccache, cur_choice-choice_min(ccache));
 			reloc_img_advance();
 			if (reloc_cursor == ~0) {
 				/* nothing left to do */
-				ccache_cursor = ccache->cc_max + 1;
+				ccache_cursor = choice_max(ccache) + 1;
 			} else
 				ccache_cursor = cur_choice + 1;
 			return cur_choice;
@@ -165,63 +132,40 @@ uint64_t choice_find(
 	return ~0;
 }
 
-/* compare location of selected with reloc locations */
-/* if reloc location needs to be set, try to swap in */
-/* if rel_sel location is on empty reloc location, try to swap out */
-void swap_rel_sel(
-	struct type_info* ti, const struct fsl_rt_table_reloc* rel,
-	struct type_info* rel_sel_ti, unsigned int sel_v)
+/* relocation procedure:
+ * 1. allocate
+ * 2. copy rel_sel_ti into newly allocated
+ * 2. relink newly allocated into rel_sel_ti reference
+ * 3. replace rel_sel_ti entry into free pool
+ *
+ * NOTE: relink and replace rely on *initial values* before reloc
+ * therefore it is imperative to keep wlogs for both and only
+ * commit after both have been computed
+ *
+ * Alloc must be committed before replace and relink. This ensures
+ * that things like free counts are properly reflected in replace.
+ */
+/* TODO: PUT IN OWN FILE */
+static void wpkt_relocate(
+	struct type_info* ti_parent,
+	const struct fsl_rtt_reloc* rel,
+	struct type_info* rel_sel_ti,
+	unsigned int sel_idx,
+	unsigned int choice_idx)
 {
-	diskoff_t		sel_off_bit;
-	uint64_t		replace_choice_idx;
 	struct type_info	*replace_choice_ti;
-	int			pxval;
 	struct fsl_rt_wlog	wlog_replace;
-
-	sel_off_bit = ti_offset(rel_sel_ti);
-	pxval = byte_to_pixval(reloc_img, sel_off_bit/8);
-
-	/* already in an OK place, don't do anything
-	 * (in future, may want to steal if we have overlaps) */
-	if (pxval != 0) return;
-
-	DEBUG_TOOL_ENTER();
-
-	/* need to move this to an unused location that
-	 * is marked in the image */
-	DEBUG_TOOL_WRITE("Need to move byteoff=%"PRIu64, sel_off_bit/8);
-	replace_choice_idx = choice_find(ti, rel);
-	if (replace_choice_idx == ~0) {
-		DEBUG_TOOL_WRITE("No more moves left. Oh well.\n");
-		return;
-	}
-	DEBUG_TOOL_WRITE("exchanging: sel_v=%d with choice_v=%"PRIu64,
-		sel_v, replace_choice_idx);
+	uint64_t		wpi_params[2];
+	uint64_t		wpkt_params[16]; /* XXX: this should be max of wpkts */
 
 	replace_choice_ti = typeinfo_follow_iter(
-		ti, &rel->rel_choice, replace_choice_idx);
+		ti_parent, &rel->rel_choice, choice_idx);
 	assert (replace_choice_ti != NULL);
-
-	/* relocation procedure:
-	 * 1. allocate
-	 * 2. copy rel_sel_ti into newly allocated
-	 * 2. relink newly allocated into rel_sel_ti reference
-	 * 3. replace rel_sel_ti entry into free pool
-	 *
-	 * NOTE: relink and replace rely on *initial values* before reloc
-	 * therefore it is imperative to keep wlogs for both and only
-	 * commit after both have been computed
-	 *
-	 * Alloc must be committed before replace and relink. This ensures
-	 * that things like free counts are properly reflected in replace.
-	 */
-	uint64_t	wpi_params[2];
-	uint64_t	wpkt_params[16];	/* XXX: this should be max of wpkts */
 
 	/* wpkt_alloc => (choice_idx) */
 	FSL_WRITE_START();
-	wpi_params[0] = replace_choice_idx;
-	rel->rel_alloc.wpi_params(&ti_clo(ti), wpi_params, wpkt_params);
+	wpi_params[0] = choice_idx;
+	rel->rel_alloc.wpi_params(&ti_clo(ti_parent), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_alloc.wpi_wpkt, wpkt_params);
 #ifdef DEBUG_TOOL
 	printf("ALLOC PENDING: \n");
@@ -245,8 +189,8 @@ void swap_rel_sel(
 
 	/* wpkt_replace => (sel_idx) */
 	FSL_WRITE_START();
-	wpi_params[0] = sel_v;
-	rel->rel_replace.wpi_params(&ti_clo(ti), wpi_params, wpkt_params);
+	wpi_params[0] = sel_idx;
+	rel->rel_replace.wpi_params(&ti_clo(ti_parent), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_replace.wpi_wpkt, wpkt_params);
 	DEBUG_TOOL_WRITE("REPLACE PENDING:");
 #ifdef DEBUG_TOOL
@@ -257,9 +201,9 @@ void swap_rel_sel(
 
 	/* wpkt_relink => (sel_idx, choice_idx) */
 	FSL_WRITE_START();
-	wpi_params[0] = sel_v;
-	wpi_params[1] = replace_choice_idx;
-	rel->rel_relink.wpi_params(&ti_clo(ti), wpi_params, wpkt_params);
+	wpi_params[0] = sel_idx;
+	wpi_params[1] = choice_idx;
+	rel->rel_relink.wpi_params(&ti_clo(ti_parent), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_relink.wpi_wpkt, wpkt_params);
 
 	DEBUG_TOOL_WRITE("RELINK PENDING:");
@@ -269,6 +213,42 @@ void swap_rel_sel(
 	FSL_WRITE_COMPLETE();
 
 	fsl_wlog_commit(&wlog_replace);
+
+	typeinfo_free(replace_choice_ti);
+}
+
+/* compare location of selected with reloc locations */
+/* if reloc location needs to be set, try to swap in */
+/* if rel_sel location is on empty reloc location, try to swap out */
+void swap_rel_sel(
+	struct type_info* ti, const struct fsl_rtt_reloc* rel,
+	struct type_info* rel_sel_ti, unsigned int sel_v)
+{
+	diskoff_t		sel_off_bit;
+	uint64_t		replace_choice_idx;
+	int			pxval;
+
+	sel_off_bit = ti_offset(rel_sel_ti);
+	pxval = byte_to_pixval(reloc_img, sel_off_bit/8);
+
+	/* already in an OK place, don't do anything
+	 * (in future, may want to steal if we have overlaps) */
+	if (pxval != 0) return;
+
+	DEBUG_TOOL_ENTER();
+
+	/* need to move this to an unused location that
+	 * is marked in the image */
+	DEBUG_TOOL_WRITE("Need to move byteoff=%"PRIu64, sel_off_bit/8);
+	replace_choice_idx = choice_find(ti, rel);
+	if (replace_choice_idx == ~0) {
+		DEBUG_TOOL_WRITE("No more moves left. Oh well.\n");
+		return;
+	}
+	DEBUG_TOOL_WRITE("exchanging: sel_v=%d with choice_v=%"PRIu64,
+		sel_v, replace_choice_idx);
+
+	wpkt_relocate(ti, rel, rel_sel_ti, sel_v, replace_choice_idx);
 
 	DEBUG_TOOL_LEAVE();
 }
@@ -285,9 +265,9 @@ static void update_status(void)
 	last_reloc_cursor = reloc_cursor;
 }
 
-void do_rel_type(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
+void do_rel_type(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 {
-	const struct fsl_rt_table_type	*dst_type;
+	const struct fsl_rtt_type	*dst_type;
 	int				sel_cur, sel_min, sel_max;
 
 	if (ccache == NULL) ccache_load(ti, rel);
@@ -296,7 +276,8 @@ void do_rel_type(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
 	sel_min = rel->rel_sel.it_min(&ti_clo(ti));
 	sel_max = rel->rel_sel.it_max(&ti_clo(ti));
 
-	DEBUG_TOOL_WRITE("DO_REL_TYPE voff=%"PRIu64
+	DEBUG_TOOL_WRITE(
+		"DO_REL_TYPE voff=%"PRIu64
 		" poff=%"PRIu64" sel_min=%d // sel_max=%d",
 		ti_offset(ti), ti_phys_offset(ti),
 		sel_min, sel_max);
@@ -306,7 +287,7 @@ void do_rel_type(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
 
 		rel_sel_ti = typeinfo_follow_iter(ti, &rel->rel_sel, sel_cur);
 		if (rel_sel_ti == NULL) {
-			printf("Failed to get rel_sel_ti for idx=%d\n",
+			DEBUG_TOOL_WRITE("Failed to get rel_sel_ti for idx=%d\n",
 				sel_cur);
 			continue;
 		}
@@ -318,15 +299,19 @@ void do_rel_type(struct type_info* ti, const struct fsl_rt_table_reloc* rel)
 
 int ti_handle(struct type_info* ti, struct relocscan_info* rinfo)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
 
 	tt = tt_by_ti(ti);
 	if (tt->tt_reloc_c == 0)
 		return SCAN_RET_CONTINUE;
 
-	for (i = 0; i < tt->tt_reloc_c; i++)
-		do_rel_type(ti, &tt->tt_reloc[i]);
+	for (i = 0; i < tt->tt_reloc_c; i++) {
+		const struct fsl_rtt_reloc	*rel = &tt->tt_reloc[i];
+		if (rel->rel_name == NULL) continue;
+		if (strcmp(rel->rel_name, RELNAME_RELOC) != 0) continue;
+		do_rel_type(ti, rel);
+	}
 
 	rinfo->rel_c++;
 
@@ -399,6 +384,8 @@ int tool_entry(int argc, char* argv[])
 
 	info.rel_c = 0;
 	scan_type(origin_ti, &ops, &info);
+
+	if (ccache != NULL) choice_free(ccache);
 
 	typeinfo_free(origin_ti);
 

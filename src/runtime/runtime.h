@@ -130,7 +130,7 @@ typedef void(*wpkt_paramf_t)(
 	uint64_t* params_out /* output */);
 
 /* if you change a table struct, remember to update it in table_gen.cc!! */
-struct fsl_rt_table_type
+struct fsl_rtt_type
 {
 	const char			*tt_name;
 	unsigned int			tt_param_c;
@@ -140,34 +140,34 @@ struct fsl_rt_table_type
 
 	/* strong user-types */
 	unsigned int			tt_fieldstrong_c;
-	const struct fsl_rt_table_field	*tt_fieldstrong_table;
+	const struct fsl_rtt_field	*tt_fieldstrong_table;
 
 	unsigned int			tt_pointsto_c;
-	const struct fsl_rt_table_pointsto	*tt_pointsto;
+	const struct fsl_rtt_pointsto	*tt_pointsto;
 
 	unsigned int			tt_assert_c;
-	const struct fsl_rt_table_assert	*tt_assert;
+	const struct fsl_rtt_assert	*tt_assert;
 
 	unsigned int			tt_virt_c;
-	const struct fsl_rt_table_virt	*tt_virt;
+	const struct fsl_rtt_virt	*tt_virt;
 
 	unsigned int			tt_reloc_c;
-	const struct fsl_rt_table_reloc	*tt_reloc;
+	const struct fsl_rtt_reloc	*tt_reloc;
 
 	/* all non-union fields */
 	unsigned int			tt_fieldall_c;
-	const struct fsl_rt_table_field	*tt_fieldall_thunkoff;
+	const struct fsl_rtt_field	*tt_fieldall_thunkoff;
 
 	/* all types that are not strictly weak */
 	unsigned int			tt_fieldtypes_c;
-	const struct fsl_rt_table_field	*tt_fieldtypes_thunkoff;
+	const struct fsl_rtt_field	*tt_fieldtypes_thunkoff;
 
 	/* all fields (including union fields) */
 	unsigned int			tt_field_c;
-	const struct fsl_rt_table_field	*tt_field_table;
+	const struct fsl_rtt_field	*tt_field_table;
 };
 
-struct fsl_rt_table_field
+struct fsl_rtt_field
 {
 	const char	*tf_fieldname;
 	typenum_t	tf_typenum;
@@ -192,7 +192,7 @@ struct fsl_rt_iter
 	points_maxf_t	it_max;
 };
 
-struct fsl_rt_table_pointsto
+struct fsl_rtt_pointsto
 {
 	typenum_t	pt_type_dst;
 	points_rangef_t	pt_range;
@@ -201,7 +201,7 @@ struct fsl_rt_table_pointsto
 	const char*	pt_name;
 };
 
-struct fsl_rt_table_virt
+struct fsl_rtt_virt
 {
 	typenum_t	vt_type_src;		/* ret type for range */
 	typenum_t	vt_type_virttype;	/* type we convert to */
@@ -211,36 +211,36 @@ struct fsl_rt_table_virt
 	const char*	vt_name;
 };
 
-struct fsl_rt_table_assert
+struct fsl_rtt_assert
 {
 	assertf_t	as_assertf;
 };
 
-struct fsl_rt_table_wpkt
+struct fsl_rtt_wpkt
 {
 	unsigned int			wpkt_param_c;	/* number of arg elems */
 	unsigned int			wpkt_func_c;
 	wpktf_t				*wpkt_funcs;
 	unsigned int			wpkt_blk_c;
-	struct fsl_rt_table_wpkt	*wpkt_blks;
-	struct fsl_rt_table_wpkt	*wpkt_next;
+	struct fsl_rtt_wpkt	*wpkt_blks;
+	struct fsl_rtt_wpkt	*wpkt_next;
 };
 
-struct fsl_rt_table_wpkt_inst
+struct fsl_rtt_wpkt_inst
 {
 	wpkt_paramf_t			wpi_params;
-	const struct fsl_rt_table_wpkt	*wpi_wpkt;
+	const struct fsl_rtt_wpkt	*wpi_wpkt;
 };
 
-struct fsl_rt_table_reloc
+struct fsl_rtt_reloc
 {
 	struct fsl_rt_iter		rel_sel;
 	struct fsl_rt_iter		rel_choice;
 	condidxf_t			rel_ccond;
 
-	const struct fsl_rt_table_wpkt_inst	rel_alloc;
-	const struct fsl_rt_table_wpkt_inst	rel_replace;
-	const struct fsl_rt_table_wpkt_inst	rel_relink;
+	const struct fsl_rtt_wpkt_inst	rel_alloc;
+	const struct fsl_rtt_wpkt_inst	rel_replace;
+	const struct fsl_rtt_wpkt_inst	rel_relink;
 
 	const char			*rel_name;
 };
@@ -251,8 +251,8 @@ extern uint64_t __FROM_OS_BDEV_BLOCK_BYTES;
 extern uint64_t __FROM_OS_SB_BLOCKSIZE_BYTES;
 
 /* these are in the generated  fsl.table.c */
-extern const struct fsl_rt_table_type	fsl_rt_table[];
-extern unsigned int			fsl_rt_table_entries;
+extern const struct fsl_rtt_type	fsl_rt_table[];
+extern unsigned int			fsl_rtt_entries;
 extern unsigned int			fsl_rt_origin_typenum;
 extern char				fsl_rt_fsname[];
 

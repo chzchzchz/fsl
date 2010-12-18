@@ -267,7 +267,7 @@ void RelocTypes::genTables(TableGen* tg)
 {
 	StructWriter	sw(
 		tg->getOS(),
-		"fsl_rt_table_reloc",
+		"fsl_rtt_reloc",
 		"__rt_tab_reloc_" + getType()->getName() + "[]",
 		true);
 

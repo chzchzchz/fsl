@@ -5,7 +5,7 @@
 
 struct fsl_rt_closure;
 struct fsl_rt_io;
-struct fsl_rt_table_wpkt;
+struct fsl_rtt_wpkt;
 
 typedef void (*fsl_io_callback)(struct fsl_rt_io*, uint64_t /* bit off */);
 
@@ -89,9 +89,7 @@ ssize_t fsl_io_size(struct fsl_rt_io* io);
 void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits);
 fsl_io_callback fsl_io_hook(struct fsl_rt_io* io, fsl_io_callback, int cb_type);
 void fsl_io_unhook(struct fsl_rt_io* io, int cb_type);
-void fsl_io_do_wpkt(
-	const struct fsl_rt_table_wpkt* wpkt,
-	const uint64_t* params);
+void fsl_io_do_wpkt(const struct fsl_rtt_wpkt* wpkt, const uint64_t* params);
 
 void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off);
 void fsl_io_write_bytes(void* buf, unsigned int byte_c, uint64_t off);

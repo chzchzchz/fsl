@@ -122,19 +122,19 @@ static char* get_head(const char* v)
 	return ret;
 }
 
-static const struct fsl_rt_table_virt* find_virt(
+static const struct fsl_rtt_virt* find_virt(
 	struct type_info* cur_ti,
 	const char* fieldname)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			virt_idx;
 	char				*fn;
-	const struct fsl_rt_table_virt	*ret = NULL;
+	const struct fsl_rtt_virt	*ret = NULL;
 
 	tt = tt_by_ti(cur_ti);
 	fn = get_name(fieldname);
 	for (virt_idx = 0; virt_idx < tt->tt_virt_c; virt_idx++) {
-		const struct fsl_rt_table_virt	*vt;
+		const struct fsl_rtt_virt	*vt;
 		vt = &tt->tt_virt[virt_idx];
 		if (vt->vt_name && strcmp(fn, vt->vt_name) == 0) {
 			ret = vt;
@@ -154,7 +154,7 @@ static struct type_info* lookup_virts(
 	int* err)
 {
 	struct type_info			*next_ti;
-	const struct fsl_rt_table_virt		*vt;
+	const struct fsl_rtt_virt		*vt;
 
 	vt = find_virt(cur_ti, cur_elem);
 	if (vt == NULL) ret_err(err, LOOKUP_RC_NOVIRT);
@@ -162,20 +162,20 @@ static struct type_info* lookup_virts(
 	return lookup(next_ti, next_elems, err);
 }
 
-static const struct fsl_rt_table_pointsto* find_pt(
+static const struct fsl_rtt_pointsto* find_pt(
 	struct type_info* cur_ti,
 	const char* fieldname)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			pt_idx;
 	char				*fn;
-	const struct fsl_rt_table_pointsto*	ret = NULL;
+	const struct fsl_rtt_pointsto*	ret = NULL;
 
 	tt = tt_by_ti(cur_ti);
 	fn = get_name(fieldname);
 
 	for (pt_idx = 0; pt_idx < tt->tt_pointsto_c; pt_idx++) {
-	const struct fsl_rt_table_pointsto *pt;
+	const struct fsl_rtt_pointsto *pt;
 
 		pt = &tt->tt_pointsto[pt_idx];
 		if (pt->pt_name && strcmp(fieldname, pt->pt_name) == 0) {
@@ -197,7 +197,7 @@ static struct type_info* lookup_pointstos(
 	int* err)
 {
 	struct type_info			*next_ti;
-	const struct fsl_rt_table_pointsto	*pt;
+	const struct fsl_rtt_pointsto	*pt;
 
 	pt = find_pt(cur_ti, cur_elem);
 	if (pt == NULL) ret_err(err, LOOKUP_RC_NOPOINTSTO);
@@ -208,20 +208,20 @@ static struct type_info* lookup_pointstos(
 	return lookup(next_ti, next_elems, err);
 }
 
-static const struct fsl_rt_table_field* find_field(
+static const struct fsl_rtt_field* find_field(
 	struct type_info* cur_ti,
 	const char* fieldname)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			field_idx;
 	char				*fn;
-	const struct fsl_rt_table_field	*ret = NULL;
+	const struct fsl_rtt_field	*ret = NULL;
 
 	tt = tt_by_ti(cur_ti);
 	fn = get_name(fieldname);
 
 	for (field_idx = 0; field_idx < tt->tt_field_c; field_idx++) {
-		const struct fsl_rt_table_field	*tf;
+		const struct fsl_rtt_field	*tf;
 
 		tf = &tt->tt_fieldall_thunkoff[field_idx];
 		if (strcmp(fieldname, tf->tf_fieldname) == 0) {
@@ -242,7 +242,7 @@ static struct type_info* lookup_fields(
 	int*	err)
 {
 	struct type_info		*next_ti;
-	const struct fsl_rt_table_field	*next_field;
+	const struct fsl_rtt_field	*next_field;
 
 	next_field = find_field(cur_ti, cur_elem);
 

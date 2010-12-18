@@ -9,14 +9,14 @@
 typedef int(*scan_ti_f)(struct type_info* ti, void* aux);
 typedef int(*scan_virt_f)(
 	struct type_info* ti,
-	const struct fsl_rt_table_virt*, int idx, void* aux);
+	const struct fsl_rtt_virt*, int idx, void* aux);
 typedef int(*scan_pt_f)(
 	struct type_info* ti,
-	const struct fsl_rt_table_pointsto*, int idx, void* aux);
+	const struct fsl_rtt_pointsto*, int idx, void* aux);
 typedef int(*scan_strong_f)(
-	struct type_info* ti, const struct fsl_rt_table_field*, void* aux);
+	struct type_info* ti, const struct fsl_rtt_field*, void* aux);
 typedef int(*scan_field_f)(
-	struct type_info* ti, const struct fsl_rt_table_field*, void* aux);
+	struct type_info* ti, const struct fsl_rtt_field*, void* aux);
 
 struct scan_ops {
 	scan_ti_f		so_ti;

@@ -1,6 +1,6 @@
 #INPUT: FSNAME
 TOOL_OBJS= fsl.$(FSNAME).table.o fsl.$(FSNAME).types.o
-TOOL_NAMES := browser modify scantool fragtool relocate
+TOOL_NAMES := browser modify scantool fragtool relocate defragtool
 TOOL_BINS := $(TOOL_NAMES:%=%-$(FSNAME))
 RT_OBJS=../runtime/runtime.o 	\
 	../runtime/type_info.o	\
@@ -18,7 +18,15 @@ SCANTOOL_OBJS=../runtime/scantool.o ../runtime/scan.o $(RT_OBJS)
 FRAGTOOL_OBJS=../runtime/fragtool.o ../runtime/scan.o $(RT_OBJS)
 BROWSER_OBJS=../runtime/browser.o $(RT_OBJS)
 MODIFY_OBJS=../runtime/modify.o $(RT_OBJS)
-RELOCATE_OBJS=../runtime/relocate.o ../runtime/scan.o ../runtime/bitmap.o $(RT_OBJS)
+DEFRAGTOOL_OBJS= ../runtime/defragtool.o 	\
+		../runtime/scan.o 		\
+		../runtime/choice.o 		\
+		../runtime/bitmap.o $(RT_OBJS)
+
+RELOCATE_OBJS=	../runtime/relocate.o 	\
+		../runtime/scan.o	\
+		../runtime/choice.o	\
+		../runtime/bitmap.o $(RT_OBJS)
 OPT_FLAGS=-O3
 LLC_FLAGS=-O3
 #OPT_FLAGS=
@@ -42,11 +50,11 @@ scantool-$(FSNAME): $(TOOL_OBJS) $(SCANTOOL_OBJS)
 
 modify-$(FSNAME): $(TOOL_OBJS) $(MODIFY_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-
 fragtool-$(FSNAME): $(TOOL_OBJS) $(FRAGTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-
 relocate-$(FSNAME): $(TOOL_OBJS) $(RELOCATE_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+defragtool-$(FSNAME): $(TOOL_OBJS) $(DEFRAGTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 
 

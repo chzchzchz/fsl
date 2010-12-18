@@ -18,7 +18,7 @@ static void print_indent(unsigned int depth)
 	}
 }
 
-static void dump_field(const struct fsl_rt_table_field* field, diskoff_t bitoff)
+static void dump_field(const struct fsl_rtt_field* field, diskoff_t bitoff)
 {
 	printf("%s::", field->tf_fieldname);
 	printf("%s",
@@ -31,7 +31,7 @@ static void dump_field(const struct fsl_rt_table_field* field, diskoff_t bitoff)
 
 static int handle_strong(
 	struct type_info* ti,
-	const struct fsl_rt_table_field* field, void* aux)
+	const struct fsl_rtt_field* field, void* aux)
 {
 	size_t		off;
 	INDENT(ti);

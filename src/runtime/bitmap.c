@@ -4,10 +4,8 @@
 
 #include "bitmap.h"
 
-static int	bmp_count_contig_avail(bitmap* b, unsigned int offset);
 static int	bmp_find_avail(bitmap* b, unsigned int offset);
 static int	bmp_find_set(bitmap* b, unsigned int offset);
-static int	bmp_count_contig_set(bitmap* b, unsigned int offset);
 
 void bmp_init(bitmap* b, unsigned int elements)
 {
@@ -157,7 +155,7 @@ int bmp_is_set(bitmap* b, unsigned int offset)
 	return (b->bmp_data[bmp_byte] & (1 << bmp_bitoff));
 }
 
-static int bmp_count_contig_avail(bitmap* b, unsigned int offset)
+int bmp_count_contig_avail(bitmap* b, unsigned int offset)
 {
 	int	n;
 	int	i;
@@ -218,7 +216,7 @@ static int bmp_find_set(bitmap* b, unsigned int offset)
 	return -1;
 }
 
-static int bmp_count_contig_set(bitmap* b, unsigned int offset)
+int bmp_count_contig_set(bitmap* b, unsigned int offset)
 {
 	int	n;
 	int	i;

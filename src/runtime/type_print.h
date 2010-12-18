@@ -12,6 +12,6 @@ void typeinfo_print_value(const struct type_info* ti);
 
 void typeinfo_print_field_value(
 	const struct type_info		*ti,
-	const struct fsl_rt_table_field	*field);
+	const struct fsl_rtt_field	*field);
 
 #endif

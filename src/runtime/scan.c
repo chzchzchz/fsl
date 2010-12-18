@@ -24,13 +24,13 @@ struct scan_ctx {
 static int scan_pointsto_all(struct scan_ctx* ctx);
 static int scan_virt_all(struct scan_ctx* ctx);
 static int scan_strongtype_all(struct scan_ctx* ctx);
-static int scan_pointsto(struct scan_ctx* ctx, const struct fsl_rt_table_pointsto*);
-static int scan_virt(struct scan_ctx*, const struct fsl_rt_table_virt*);
-static int scan_strongtype(struct scan_ctx*, const struct fsl_rt_table_field*);
+static int scan_pointsto(struct scan_ctx* ctx, const struct fsl_rtt_pointsto*);
+static int scan_virt(struct scan_ctx*, const struct fsl_rtt_virt*);
+static int scan_strongtype(struct scan_ctx*, const struct fsl_rtt_field*);
 
 static int scan_virt_all(struct scan_ctx* ctx)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
 	int				ret;
 
@@ -49,7 +49,7 @@ done:
 
 static int scan_strongtype_all(struct scan_ctx* ctx)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
 	int				ret;
 
@@ -67,7 +67,7 @@ done:
 
 static int scan_pointsto_all(struct scan_ctx* ctx)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
 	int				ret;
 
@@ -84,9 +84,9 @@ done:
 }
 
 static int scan_pointsto(
-	struct scan_ctx* ctx, const struct fsl_rt_table_pointsto* pt)
+	struct scan_ctx* ctx, const struct fsl_rtt_pointsto* pt)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	struct type_info		*ti;
 	int				ret;
 	uint64_t			k;
@@ -155,7 +155,7 @@ done:
 	return ret;
 }
 
-static int scan_virt(struct scan_ctx* ctx, const struct fsl_rt_table_virt* vt)
+static int scan_virt(struct scan_ctx* ctx, const struct fsl_rtt_virt* vt)
 {
 	int				err_code;
 	int				ret;
@@ -211,7 +211,7 @@ done:
 }
 
 static int scan_strongtype(
-	struct scan_ctx* ctx, const struct fsl_rt_table_field* field)
+	struct scan_ctx* ctx, const struct fsl_rtt_field* field)
 {
 	struct type_info		*ti;
 	uint64_t			num_elems;

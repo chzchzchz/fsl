@@ -34,7 +34,14 @@ relocate(
 		get_cluster(i), ? is_cluster_avail(i),
 	block_alloc(i),
 	block_relink(this, j, i),
-	block_replace(get_nth_cnum(this, j))) as reloc_file
+	block_replace(get_nth_cnum(this, j))) as reloc
+relocate(
+	j, 1, de_cluster_count(this), get_nth(this, j),
+	i, FAT_START_ENT, get_cluster_count(bpb),
+		get_cluster(i), ? is_cluster_avail(i),
+	block_alloc(i),
+	block_relink(this, j, i),
+	block_replace(get_nth_cnum(this, j))) as defrag
 /*
 points_if(
 	? first_cluster_hi != 0xffff,
@@ -155,11 +162,11 @@ free(ent12, disk.clusters, 0)
 free(ent32, disk.clusters, 0)
 {
 	if (is_fat12(bpb)) {
-		fat_ent12	ent12[FAT_START_ENT+get_cluster_count(bpb)];
+		fat_ent12	ent12[FAT_START_ENT+get_cluster_count(bpb)] fixed;
 	} else if (is_fat16(bpb)) {
-		fat_ent16	ent16[FAT_START_ENT+get_cluster_count(bpb)];
+		fat_ent16	ent16[FAT_START_ENT+get_cluster_count(bpb)] fixed;
 	} else if (is_fat32(bpb)) {
-		fat_ent32	ent32[FAT_START_ENT+get_cluster_count(bpb)];
+		fat_ent32	ent32[FAT_START_ENT+get_cluster_count(bpb)] fixed;
 	} else {
 		fsl_fail(2);
 	}

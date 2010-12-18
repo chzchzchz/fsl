@@ -1,12 +1,13 @@
 FILESYSTEMS := ext2 vfat nilfs2 iso9660 testfs
-TOOL_NAMES=browser scantool modify fragtool relocate
+TOOL_NAMES=browser scantool modify fragtool relocate defragtool
 TOOLS_BROWSER := $(FILESYSTEMS:%=browser-%)
 TOOLS_SCAN := $(FILESYSTEMS:%=scantool-%)
 TOOLS_MODIFY := $(FILESYSTEMS:%=modify-%)
 TOOLS_FRAG := $(FILESYSTEMS:%=fragtool-%)
 TOOLS_RELOC := $(FILESYSTEMS:%=relocate-%)
+TOOLS_DEFRAG := $(FILESYSTEMS:%=defragtool-%)
 
-TOOLS_ALL=$(TOOLS_BROWSER) $(TOOLS_SCAN) $(TOOLS_MODIFY) $(TOOLS_FRAG) $(TOOLS_RELOC)
+TOOLS_ALL=$(TOOLS_BROWSER) $(TOOLS_SCAN) $(TOOLS_MODIFY) $(TOOLS_FRAG) $(TOOLS_RELOC) $(TOOLS_DEFRAG)
 
 export CFLAGS
 

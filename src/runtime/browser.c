@@ -21,7 +21,7 @@ static void select_pointsto(struct type_info* cur, int pt_idx);
 
 static void select_pointsto(struct type_info* cur, int pt_idx)
 {
-	const struct fsl_rt_table_pointsto	*pt;
+	const struct fsl_rtt_pointsto	*pt;
 	struct type_info			*ti_next;
 	int					pt_elem_idx;
 	unsigned int				min_idx, max_idx;
@@ -80,7 +80,7 @@ static int get_sel_elem(int min_v, int max_v)
 
 static uint64_t select_field_array(
 	struct type_info* cur,
-	const struct fsl_rt_table_field* field,
+	const struct fsl_rtt_field* field,
 	unsigned int num_elems,
 	uint64_t next_diskoff,
 	uint64_t* sel_idx)
@@ -115,7 +115,7 @@ static uint64_t select_field_array(
 
 static void select_field(struct type_info* cur, int field_idx)
 {
-	const struct fsl_rt_table_field	*field;
+	const struct fsl_rtt_field	*field;
 	struct type_info		*ti_next;
 	uint64_t			num_elems;
 	diskoff_t			next_off;
@@ -159,8 +159,8 @@ done:
 
 static void select_virt(struct type_info* cur, int vt_idx)
 {
-	const struct fsl_rt_table_type*	tt;
-	const struct fsl_rt_table_virt*	vt;
+	const struct fsl_rtt_type*	tt;
+	const struct fsl_rtt_virt*	vt;
 	struct type_info*		ti_next;
 	int				sel_elem;
 	int				err;
@@ -197,11 +197,9 @@ done:
  * false -> go back a level from when entered
  * true -> stay on same level as when entered
  */
-static bool handle_menu_choice(
-	struct type_info* cur,
-	int choice)
+static bool handle_menu_choice(struct type_info* cur, int choice)
 {
-const struct fsl_rt_table_type	*tt;
+const struct fsl_rtt_type	*tt;
 
 	if (choice == MCMD_DUMP) {
 		/* dump all of current type */

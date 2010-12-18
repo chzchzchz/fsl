@@ -9,7 +9,7 @@ struct fsl_rt_mapping
 {
 	/* may need reference counting */
 	struct fsl_rt_closure* 		rtm_clo; 	/* for eval rtm_virt */
-	const struct fsl_rt_table_virt*	rtm_virt;	/* off_v -> off_phys */
+	const struct fsl_rtt_virt*	rtm_virt;	/* off_v -> off_phys */
 	struct fsl_rt_closure*		rtm_dyn; /* saved dyns for rtm_virt */
 	uint64_t			rtm_ref_c;
 
@@ -20,7 +20,7 @@ struct fsl_rt_mapping
 
 struct fsl_rt_mapping*  fsl_virt_alloc(
 	struct fsl_rt_closure* parent_clo,
-	const struct fsl_rt_table_virt* virt);
+	const struct fsl_rtt_virt* virt);
 uint64_t fsl_virt_xlate(
 	const struct fsl_rt_closure* clo, uint64_t bit_voff);
 uint64_t fsl_virt_xlate_safe(

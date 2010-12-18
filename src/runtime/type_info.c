@@ -69,7 +69,7 @@ static struct type_info* typeinfo_alloc_generic(
 	const struct type_desc	*ti_td,
 	struct type_info	*ti_prev)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	struct type_info		*ret;
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_TYPEINFO_ALLOC);
@@ -114,7 +114,7 @@ static struct type_info* typeinfo_alloc_generic(
 
 static bool typeinfo_verify_asserts(const struct type_info *ti)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
 
 	assert (ti != NULL);
@@ -123,7 +123,7 @@ static bool typeinfo_verify_asserts(const struct type_info *ti)
 
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_assert_c; i++) {
-		const struct fsl_rt_table_assert	*as;
+		const struct fsl_rtt_assert	*as;
 		TI_INTO_CLO(ti);
 
 		as = &tt->tt_assert[i];
@@ -166,10 +166,10 @@ static bool typeinfo_verify(const struct type_info* ti)
 }
 
 struct type_info* typeinfo_alloc_pointsto(
-	const struct type_desc			*ti_td,
-	const struct fsl_rt_table_pointsto	*ti_pointsto,
-	unsigned int				ti_pointsto_elem,
-	struct type_info			*ti_prev)
+	const struct type_desc		*ti_td,
+	const struct fsl_rtt_pointsto	*ti_pointsto,
+	unsigned int			ti_pointsto_elem,
+	struct type_info		*ti_prev)
 {
 	struct type_info*		ret;
 
@@ -220,7 +220,7 @@ struct type_info* typeinfo_alloc_iter(
 
 struct type_info* typeinfo_alloc_by_field(
 	const struct type_desc		*ti_td,
-	const struct fsl_rt_table_field	*ti_field,
+	const struct fsl_rtt_field	*ti_field,
 	struct type_info		*ti_prev)
 {
 	struct type_info*	ret;
@@ -259,7 +259,7 @@ struct type_info* typeinfo_alloc_by_field(
 #define set_err_code(x,y)		if ((x) != NULL) *(x) = y
 
 struct type_info* typeinfo_alloc_virt_idx(
-	const struct fsl_rt_table_virt*	virt,
+	const struct fsl_rtt_virt*	virt,
 	struct type_info*		ti_prev,
 	unsigned int			idx,
 	int*				err_code)
@@ -398,7 +398,7 @@ done:
 void typeinfo_set_dyn(const struct type_info* ti)
 {
 	TI_INTO_CLO			(ti);
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
 
 	DEBUG_TYPEINFO_ENTER();
@@ -412,7 +412,7 @@ void typeinfo_set_dyn(const struct type_info* ti)
 
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_fieldstrong_c; i++) {
-		const struct fsl_rt_table_field	*field;
+		const struct fsl_rtt_field	*field;
 		unsigned int			param_c;
 		diskoff_t			diskoff;
 
@@ -484,16 +484,16 @@ typesize_t ti_size(const struct type_info* ti)
 }
 
 struct type_info* typeinfo_follow_field_off_idx(
-	struct type_info*			ti_parent,
-	const struct fsl_rt_table_field*	ti_field,
-	size_t					off,
-	uint64_t				idx)
+	struct type_info*		ti_parent,
+	const struct fsl_rtt_field*	ti_field,
+	size_t				off,
+	uint64_t			idx)
 {
 	struct type_desc		field_td;
 	unsigned int			param_c;
 
 	if (ti_field->tf_typenum != TYPENUM_INVALID) {
-		const struct fsl_rt_table_type	*field_type;
+		const struct fsl_rtt_type	*field_type;
 		field_type = tt_by_num(ti_field->tf_typenum);
 		param_c = field_type->tt_param_c;
 	} else
@@ -507,9 +507,9 @@ struct type_info* typeinfo_follow_field_off_idx(
 }
 
 struct type_info* typeinfo_follow_pointsto(
-	struct type_info*			ti_parent,
-	const struct fsl_rt_table_pointsto*	ti_pt,
-	uint64_t				idx)
+	struct type_info*		ti_parent,
+	const struct fsl_rtt_pointsto*	ti_pt,
+	uint64_t			idx)
 {
 	struct type_info	*ret;
 	struct type_desc	pt_td;

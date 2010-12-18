@@ -32,7 +32,7 @@ static void typeinfo_print_path_helper(const struct type_info* ti)
 
 void typeinfo_print_field_value(
 	const struct type_info		*ti,
-	const struct fsl_rt_table_field	*field)
+	const struct fsl_rtt_field	*field)
 {
 	uint64_t			num_elems;
 	typesize_t			field_sz;
@@ -89,7 +89,7 @@ void typeinfo_print_field_value(
 
 static void typeinfo_print_type(const struct type_info* ti)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	uint64_t			len;
 	TI_INTO_CLO			(ti);
 
@@ -115,8 +115,8 @@ static void typeinfo_print_type(const struct type_info* ti)
 
 static void typeinfo_print_field(const struct type_info* ti)
 {
-	const struct fsl_rt_table_type	*tt;
-	const struct fsl_rt_table_field	*field;
+	const struct fsl_rtt_type	*tt;
+	const struct fsl_rtt_field	*field;
 	uint64_t			len;
 	TI_INTO_CLO			(ti->ti_prev);
 
@@ -196,7 +196,7 @@ void typeinfo_print(const struct type_info* ti)
 
 void typeinfo_print_fields(const struct type_info* ti)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
 
 	if (ti_typenum(ti) == TYPENUM_INVALID)
@@ -208,7 +208,7 @@ void typeinfo_print_fields(const struct type_info* ti)
 		printf("Fields:\n");
 
 	for (i = 0; i < tt->tt_fieldall_c; i++) {
-		const struct fsl_rt_table_field	*field;
+		const struct fsl_rtt_field	*field;
 		bool				is_present;
 		TI_INTO_CLO			(ti);
 
@@ -238,7 +238,7 @@ void typeinfo_print_path(const struct type_info* ti)
 
 void typeinfo_print_pointstos(const struct type_info* ti)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	bool				none_seen;
 	unsigned int			i;
 
@@ -249,7 +249,7 @@ void typeinfo_print_pointstos(const struct type_info* ti)
 
 	none_seen = true;
 	for (i = 0; i < tt->tt_pointsto_c; i++) {
-		const struct fsl_rt_table_pointsto	*pt;
+		const struct fsl_rtt_pointsto	*pt;
 		uint64_t			pt_min, pt_max;
 		TI_INTO_CLO			(ti);
 
@@ -282,7 +282,7 @@ void typeinfo_print_pointstos(const struct type_info* ti)
 
 void typeinfo_print_virts(const struct type_info* ti)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
 	bool				none_seen;
 
@@ -294,7 +294,7 @@ void typeinfo_print_virts(const struct type_info* ti)
 
 	none_seen = true;
 	for (i = 0; i < tt->tt_virt_c; i++) {
-		const struct fsl_rt_table_virt	*vt;
+		const struct fsl_rtt_virt	*vt;
 		uint64_t			vt_min, vt_max;
 		TI_INTO_CLO			(ti);
 

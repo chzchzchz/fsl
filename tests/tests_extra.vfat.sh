@@ -15,3 +15,8 @@ fi
 
 imgname=$fs-postmark.img
 fs_scan_startup_img $fs $fs-postmark.img
+fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$fs-postmark.img.scan.out | wc -l`
+if [ "$fcount" -ne 23040 ]; then
+	echo "BADCOUNT $fcount != 23040"
+	exit -2
+fi

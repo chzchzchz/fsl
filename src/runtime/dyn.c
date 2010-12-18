@@ -23,7 +23,7 @@ struct fsl_rt_closure* fsl_dyn_alloc(void)
 
 	/* initialize all dynamic closures */
 	for (i = 0; i < fsl_num_types; i++) {
-		const struct fsl_rt_table_type	*tt;
+		const struct fsl_rtt_type	*tt;
 		struct fsl_rt_closure		*cur_clo;
 		uint64_t			*param_ptr;
 
@@ -106,7 +106,7 @@ uint64_t __getDynOffset(uint64_t type_num)
 
 void __getDynParams(uint64_t typenum, parambuf_t params_out)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 
 	assert (typenum < fsl_env->fctx_num_types);
 
@@ -164,7 +164,7 @@ void* __getDynVirt(uint64_t type_num)
 
 void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo)
 {
-	const struct fsl_rt_table_type	*tt;
+	const struct fsl_rtt_type	*tt;
 	struct fsl_rt_closure		*dst_clo;
 
 	assert (type_num < fsl_env->fctx_num_types);

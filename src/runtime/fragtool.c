@@ -15,7 +15,7 @@ struct fragscan_info
 
 static int handle_virt(
 	struct type_info* ti,
-	const struct fsl_rt_table_virt* vt, int idx, struct fragscan_info* info)
+	const struct fsl_rtt_virt* vt, int idx, struct fragscan_info* info)
 {
 	const struct fsl_rt_mapping	*rtm;
 	struct type_info		*v_ti;

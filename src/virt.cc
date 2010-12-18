@@ -197,7 +197,7 @@ void VirtualTypes::genTables(TableGen* tg)
 {
 	StructWriter	sw(
 		tg->getOS(),
-		"fsl_rt_table_virt",
+		"fsl_rtt_virt",
 		"__rt_tab_virt_" + getType()->getName() + "[]",
 		true);
 

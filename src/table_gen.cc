@@ -91,11 +91,7 @@ void TableGen::genThunksTableBySymtab(
 	const string&		table_name,
 	const SymbolTable&	st)
 {
-	StructWriter	sw(
-		out, 
-		"fsl_rt_table_field", 
-		table_name + "[]",
-		true);
+	StructWriter	sw(out, "fsl_rtt_field", table_name + "[]", true);
 
 	for (	sym_list::const_iterator it = st.begin();
 		it != st.end();
@@ -310,7 +306,7 @@ void TableGen::genExternsFields(void)
 
 void TableGen::genTable_fsl_rt_table(void)
 {
-	StructWriter	sw(out, "fsl_rt_table_type", "fsl_rt_table[]");
+	StructWriter	sw(out, "fsl_rtt_type", "fsl_rt_table[]");
 
 	for (	type_list::iterator it = types_list.begin();
 		it != types_list.end();
@@ -349,7 +345,7 @@ void TableGen::genScalarConstants(void)
 	assert (origin_type->getNumArgs() == 0
 		&& "Type 'disk' should not take parameters");
 
-	out << "unsigned int fsl_rt_table_entries = "<<types_list.size()<<";\n";
+	out << "unsigned int fsl_rtt_entries = "<<types_list.size()<<";\n";
 	out << "unsigned int fsl_rt_origin_typenum = ";
 	out << origin_type->getTypeNum() << ';' << endl;
 
@@ -420,7 +416,7 @@ void TableGen::genWritePktTable(const WritePkt* wpkt)
 		const WritePktBlk*	wblk = *it;
 		StructWriter	sw(
 			out,
-			"fsl_rt_table_wpkt",
+			"fsl_rtt_wpkt",
 			string("wpkt_") + wpkt->getName() + int_to_string(n),
 			true);
 		sw.write("wpkt_param_c",

@@ -51,15 +51,15 @@ typesize_t __computeArrayBits(
 	unsigned int field_idx,
 	uint64_t num_elems)
 {
-	const struct fsl_rt_table_type	*parent_tt, *elem_tt;
-	const struct fsl_rt_table_field	*tf;
+	const struct fsl_rtt_type	*parent_tt, *elem_tt;
+	const struct fsl_rtt_field	*tf;
 	typenum_t			elem_type;
 	unsigned int			i;
 	typesize_t			total_bits;
 
 	DEBUG_RT_ENTER();
 
-	assert (typenum_parent < fsl_rt_table_entries && "Bad parent type");
+	assert (typenum_parent < fsl_rtt_entries && "Bad parent type");
 
 	parent_tt = tt_by_num(typenum_parent);
 	assert (field_idx < parent_tt->tt_field_c && "Fieldnum overflow");
@@ -68,7 +68,7 @@ typesize_t __computeArrayBits(
 	assert (field_idx == tf->tf_fieldnum && "Fieldnum mismatch");
 
 	elem_type = tf->tf_typenum;
-	assert (elem_type < fsl_rt_table_entries && "Bad array type");
+	assert (elem_type < fsl_rtt_entries && "Bad array type");
 	elem_tt = tt_by_num(elem_type);
 
 	NEW_EMPTY_CLO			(old_dyn, tf->tf_typenum);

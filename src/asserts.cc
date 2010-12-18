@@ -126,7 +126,7 @@ void Asserts::genTables(TableGen* tg)
 {
 	StructWriter	sw(
 		tg->getOS(),
-		"fsl_rt_table_assert",
+		"fsl_rtt_assert",
 		"__rt_tab_asserts_" + getType()->getName() + "[]",
 		true);
 

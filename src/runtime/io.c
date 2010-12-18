@@ -259,7 +259,7 @@ void fsl_io_abort_wlog(struct fsl_rt_io* io)
 	fsl_wlog_init(&io->io_wlog);
 }
 
-void fsl_io_do_wpkt(const struct fsl_rt_table_wpkt* wpkt, const uint64_t* params)
+void fsl_io_do_wpkt(const struct fsl_rtt_wpkt* wpkt, const uint64_t* params)
 {
 	int	i;
 
@@ -327,5 +327,4 @@ void fsl_io_dump_pending(void)
 			we->we_val,
 			cur_v, cur_v);
 	}
-
 }

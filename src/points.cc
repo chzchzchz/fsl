@@ -311,7 +311,7 @@ void Points::genTables(TableGen* tg)
 {
 	StructWriter	sw(
 		tg->getOS(),
-		"fsl_rt_table_pointsto",
+		"fsl_rtt_pointsto",
 		"__rt_tab_pointsto_" + getType()->getName() + "[]",
 		true);
 
