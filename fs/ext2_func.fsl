@@ -147,7 +147,7 @@ ext2_data_block ext2_data_block_lookup(blknum_t block_num)
 	return disk.blocks[block_num - blocks_off(disk.sb)].data_blk;
 }
 
-ext2_indir_block ext2_indir_in_bi_lookup(ext2_inode ino, uint n)
+blknum_t ext2_indir_in_bi_lookupblk(ext2_inode ino, uint n)
 {
 	ext2_indir_block	indir_blk;
 	ext2_biindir_block	biindir_blk;
@@ -161,8 +161,15 @@ ext2_indir_block ext2_indir_in_bi_lookup(ext2_inode ino, uint n)
 
 	biindir_blk = ext2_biindir_lookup(biindir_blknum);
 	indir_blknum = biindir_blk.blk_ptr[biindir_indir_offset];
-	indir_blk = ext2_indir_lookup(indir_blknum);
-	return indir_blk;
+	return indir_blknum;
+}
+
+ext2_indir_block ext2_indir_in_bi_lookup(ext2_inode ino, uint n)
+{
+	blknum_t		indir_blknum;
+	indir_blknum = ext2_indir_in_bi_lookupblk(ino, n);
+	return ext2_indir_lookup(indir_blknum);
+
 }
 
 u32 biindir_indir_offset(uint n)
@@ -173,6 +180,7 @@ u32 biindir_indir_offset(uint n)
 	return indir_offset;
 }
 
+/* 0 indexed */
 blknum_t get_nth_blknum(ext2_inode ino, uint n)
 {
 	blknum_t block_num;
@@ -204,6 +212,86 @@ ext2_data_block get_nth(ext2_inode ino, uint n)
 {
 	blknum_t	blknum;
 	blknum = get_nth_blknum(ino, n);
+	return ext2_data_block_lookup(blknum);
+}
+
+/* count number of metablocks necessary for a given size */
+uint size_to_metablocks(uint sz)
+{
+	int	ret;
+	int	num_blocks;
+	u32	per_indir;
+
+	num_blocks = size_to_blocks(sz);
+	if (num_blocks < EXT2_NDIR_BLOCKS) return 0;
+
+	ret = 1;	/* indir block */
+	num_blocks -= EXT2_NDIR_BLOCKS;
+	per_indir = blocks_per_indir();
+	if (num_blocks < per_indir) return ret;
+
+	/* filled out indir, now on to biinidr */
+	num_blocks -= per_indir;
+
+	ret++;	/* biindir block */
+	if (num_blocks < per_indir*per_indir) {
+		ret += num_blocks / per_indir;
+		return ret;
+	}
+	ret += per_indir;
+	num_blocks -= blocks_per_indir();
+	DEBUG_WRITE = 99999999; /* oh, brother! */
+	return 99999999999;
+}
+
+blknum_t get_nth_meta_blknum(ext2_inode ino, uint n)
+{
+	u32	blks_left;
+	u32	per_indir;
+	u32	indir_num;
+	u32	indir_off;
+
+	blks_left = n;
+	if (blks_left < EXT2_NDIR_BLOCKS) return get_nth_blknum(ino, n);
+	blks_left -= EXT2_NDIR_BLOCKS;
+	if (blks_left == 0) return ino.i_block_indir;
+
+	/* remove indirect block in 'n' count */
+	n--;
+	blks_left--;
+
+	per_indir = blocks_per_indir();
+	if (blks_left < per_indir) return get_nth_blknum(ino, n);
+	blks_left -= per_indir;
+
+	if (blks_left == 0) return ino.i_block_biindir;
+
+	/* remove biindir block */
+	n--;
+	blks_left--;
+
+	/* triindir? */
+	if (blks_left >= per_indir+per_indir*per_indir) {
+		DEBUG_WRITE = 6666666666666;
+		return 99999999999999;
+	}
+
+	indir_num = blks_left / per_indir;
+	indir_off = blks_left % per_indir;
+
+	n -= indir_num + 1;
+	if (indir_off == 0) {
+		/* indir blk */
+		return  ext2_indir_in_bi_lookupblk(ino, n);
+	}
+
+	return get_nth_blknum(ino, n);
+}
+
+ext2_data_block get_nth_meta(ext2_inode ino, uint n)
+{
+	blknum_t	blknum;
+	blknum = get_nth_meta_blknum(ino, n);
 	return ext2_data_block_lookup(blknum);
 }
 

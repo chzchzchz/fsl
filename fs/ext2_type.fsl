@@ -185,6 +185,12 @@ points_if(
 			(1 + blocks_per_indir())),
 	disk.blocks[i_block_triindir - blocks_off(disk.sb)].triindir_blk) as triindir
 relocate(
+	j, 1, size_to_blocks(i_size)+size_to_metablocks(i_size), get_nth_meta(this, j-1),
+	i, 1, get_total_blks(), ext2_data_block_lookup(i), ? is_blk_avail(i),
+	block_alloc(i),
+	block_relink(this, (j-1), i),
+	block_replace(get_nth_meta_blknum(this, j-1))) as defrag
+relocate(
 	j, 1, size_to_blocks(i_size), get_nth(this, j-1),
 	i, 1, get_total_blks(), ext2_data_block_lookup(i), ? is_blk_avail(i),
 	block_alloc(i),
