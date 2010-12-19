@@ -28,7 +28,7 @@ function fs_reloc_startup_img
 
 	export FSL_ENV_HITFILE="${src_root}/tests/relocate-$fs/${imgname}.hits"
 	export FSL_ENV_MISSFILE="${src_root}/tests/relocate-$fs/${imgname}.misses"
-	timefname="${src_root}"/tests/relocate-$fs/$imgname.scan.time
+	timefname="${src_root}"/tests/relocate-$fs/$imgname.reloc.time
 	{ time eval "$cmd" >cur_test.out 2>cur_test.err; } 2>${timefname}
 	retval=$?
 	unset FSL_ENV_HITFILE
@@ -43,7 +43,37 @@ function fs_reloc_startup_img
 		exit $retval
 	fi
 	# only copy if result is not bogus from crash
-	cp cur_test.out "${src_root}"/tests/scantool-$fs/$imgname.scan.out
+	cp cur_test.out "${src_root}"/tests/relocate-$fs/$imgname.reloc.out
+}
+
+function fs_defrag_startup_img
+{
+	fs="$1"
+	imgname="$2"
+	echo "Testing defragtool-$fs startup ($imgname)."
+
+	cmd="${src_root}/src/tool/defragtool-$fs ${src_root}/img/$imgname"
+	echo "$cmd" >>tests.log
+	echo "$cmd" >failed_test_cmd
+
+	export FSL_ENV_HITFILE="${src_root}/tests/defragtool-$fs/${imgname}.hits"
+	export FSL_ENV_MISSFILE="${src_root}/tests/defragtool-$fs/${imgname}.misses"
+	timefname="${src_root}"/tests/defragtool-$fs/$imgname.defrag.time
+	{ time eval "$cmd" >cur_test.out 2>cur_test.err; } 2>${timefname}
+	retval=$?
+	unset FSL_ENV_HITFILE
+	unset FSL_ENV_MISSFILE
+
+	if [ $retval -ne 0 ]; then
+		echo "Test failed: $fs."
+		echo "Output: "
+		echo "-------------"
+		cat cur_test.out
+		echo "-------------"
+		exit $retval
+	fi
+	# only copy if result is not bogus from crash
+	cp cur_test.out "${src_root}"/tests/defragtool-$fs/$imgname.defrag.out
 }
 
 function fs_scan_startup_img

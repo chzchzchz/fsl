@@ -26,13 +26,14 @@ static bool is_fragmented(
 
 	if (sel_min >= sel_max) return false;
 
+	sel_cur = sel_min;
 	rel_sel_ti = typeinfo_follow_iter(ti, &rel->rel_sel, sel_cur);
 	assert (rel_sel_ti != NULL);
 
 	last_off = ti_phys_offset(rel_sel_ti);
 	last_sz = ti_size(rel_sel_ti);
 
-	for (sel_cur = sel_min+1; sel_cur <= sel_max; sel_cur++) {
+	for (sel_cur = sel_cur+1; sel_cur <= sel_max; sel_cur++) {
 		diskoff_t	cur_off, cur_sz;
 		rel_sel_ti = typeinfo_follow_iter(ti, &rel->rel_sel, sel_cur);
 		assert (rel_sel_ti != NULL);

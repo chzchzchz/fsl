@@ -8,6 +8,14 @@ function draw_hits
 	imgsz=`ls -l img/$imgname | awk '{print $5; }'`
 	util/draw_hits.py tests/scantool-${fs}/${imgname}.hits $imgsz tests/scantool-${fs}/${imgname}.hits.png
 	util/draw_hits.py tests/scantool-${fs}/${imgname}.misses $imgsz tests/scantool-${fs}/${imgname}.misses.png
+	if [ -e tests/defragtool-${fs} ]; then
+		util/draw_hits.py tests/defragtool-${fs}/${imgname}.hits $imgsz tests/defragtool-${fs}/${imgname}.hits.png
+		util/draw_hits.py tests/defragtool-${fs}/${imgname}.misses $imgsz tests/defragtool-${fs}/${imgname}.misses.png
+	fi
+	if [ -e tests/relocate-${fs} ]; then
+		util/draw_hits.py tests/defragtool-${fs}/${imgname}.hits $imgsz tests/relocate-${fs}/${imgname}.hits.png
+		util/draw_hits.py tests/defragtool-${fs}/${imgname}.misses $imgsz tests/relocate-${fs}/${imgname}.misses.png
+	fi
 }
 
 start_time=`date +%s`

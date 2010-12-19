@@ -273,6 +273,7 @@ blknum_t get_nth_meta_blknum(ext2_inode ino, uint n)
 	/* triindir? */
 	if (blks_left >= per_indir+per_indir*per_indir) {
 		DEBUG_WRITE = 6666666666666;
+		DEBUG_WRITE = blks_left;
 		return 99999999999999;
 	}
 
