@@ -14,6 +14,7 @@
 #define FSL_ENV_VAR_STATFILE	"FSL_ENV_STATFILE"
 #define FSL_ENV_VAR_HITFILE	"FSL_ENV_HITFILE"
 #define FSL_ENV_VAR_MISSFILE	"FSL_ENV_MISSFILE"
+#define FSL_ENV_VAR_WRITEFILE	"FSL_ENV_WRITEFILE"
 
 typedef uint64_t	diskoff_t;	/* bits */
 typedef uint64_t	voff_t;		/* virtual offset */
@@ -42,7 +43,9 @@ extern struct fsl_rt_ctx* 	fsl_env;
 #define FSL_STAT_DYNALLOC		11
 #define FSL_STAT_TYPEINFO_ALLOC		12
 #define FSL_STAT_COMPUTEARRAYBITS_LOOPS 13
-#define FSL_NUM_STATS			14
+#define FSL_STAT_WRITES			14
+#define FSL_STAT_BITS_WRITTEN		15
+#define FSL_NUM_STATS			16
 #define FSL_STATS_GET(x,y)		((x)->s_counters[y])
 #define FSL_STATS_INC(x,y)		(x)->s_counters[y]++
 #define FSL_STATS_ADD(x,y,z)		(x)->s_counters[y] += (z)

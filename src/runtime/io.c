@@ -82,87 +82,6 @@ uint64_t __getLocal(
 	return ret;
 }
 
-static void fsl_io_write_bit(uint64_t bit_off, uint64_t val, uint64_t num_bits)
-{
-	struct fsl_rt_io	*io;
-	uint64_t		out_v;
-	int			bit_left;
-	int			mask;
-	size_t			bw;
-
-	assert (num_bits < 8);
-
-	io = fsl_get_io();
-	bit_left = bit_off % 8;
-	out_v = fsl_io_cache_get(io, bit_off - bit_left, 8);
-	/* mask for RMW */
-	mask = (1 << num_bits) - 1;
-	val = val & ((1 << num_bits) - 1);
-	/* stick it in */
-	out_v &= ~(mask << bit_left);
-	out_v |= val << bit_left;
-	/* write it */
-	if (fseeko(io->io_backing, bit_off/8, SEEK_SET) != 0) {
-		fprintf(stderr,
-			"ERROR SEEKING TO BYTE %"PRIu64"\n",
-			bit_off/8);
-		assert (0 == 1);
-		exit(-2);
-	}
-	bw = fwrite(&out_v, 1, 1, io->io_backing);
-	if (bw != 1) {
-		fprintf(stderr,
-			"ERROR WRITING BYTE %"PRIu64"\n",
-			bit_off/8);
-		assert (0 == 1);
-		exit(-3);
-	}
-
-	/* forget the cache XXX -- update cache instead of drop */
-	fsl_io_cache_drop_bytes(io, bit_off / 8, 1);
-}
-
-void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
-{
-	struct fsl_rt_io	*io;
-	int			i;
-	char			buf[8];
-	size_t			bw;
-
-	/* XXX HACK for partial write */
-	if (num_bits == 1) {
-		fsl_io_write_bit(bit_off, val, num_bits);
-		return;
-	}
-
-	io = fsl_get_io();
-	/* 1. write to file */
-	/* 2. flush cache */
-	if ((bit_off % 8)) {
-		printf("ARGH");
-		assert (0 == 1 && "UNALIGNED ACCESS");
-	}
-	if ((num_bits % 8)) {
-		printf("WHRG");
-		assert (0 == 1 && "NON-BYTE BITS");
-	}
-
-	for (i = 0; i < num_bits; i+=8) buf[i/8] = (val >> i) & 0xff;
-
-	if (fseeko(io->io_backing, bit_off/8, SEEK_SET) != 0) {
-		fprintf(stderr,
-			" ERROR SEEKING TO BYTE %"PRIu64"\n",
-			bit_off/8);
-		assert (0 == 1);
-		exit(-2);
-	}
-
-	bw = fwrite(buf, num_bits/8, 1, io->io_backing);
-	assert (bw > 0);
-
-	fsl_io_cache_drop_bytes(io, bit_off/8, 1+((num_bits+7)/8));
-}
-
 uint64_t __getLocalArray(
 	const struct fsl_rt_closure* clo,
 	uint64_t idx, uint64_t bits_in_type,
@@ -294,10 +213,99 @@ void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
 	assert (br > 0);
 }
 
+static void fsl_io_write_bit(uint64_t bit_off, uint64_t val, uint64_t num_bits)
+{
+	struct fsl_rt_io	*io;
+	uint64_t		out_v;
+	int			bit_left;
+	int			mask;
+	size_t			bw;
+
+	assert (num_bits < 8);
+
+	io = fsl_get_io();
+	bit_left = bit_off % 8;
+	out_v = fsl_io_cache_get(io, bit_off - bit_left, 8);
+	/* mask for RMW */
+	mask = (1 << num_bits) - 1;
+	val = val & ((1 << num_bits) - 1);
+	/* stick it in */
+	out_v &= ~(mask << bit_left);
+	out_v |= val << bit_left;
+	/* write it */
+	if (fseeko(io->io_backing, bit_off/8, SEEK_SET) != 0) {
+		fprintf(stderr,
+			"ERROR SEEKING TO BYTE %"PRIu64"\n",
+			bit_off/8);
+		assert (0 == 1);
+		exit(-2);
+	}
+	bw = fwrite(&out_v, 1, 1, io->io_backing);
+	if (bw != 1) {
+		fprintf(stderr,
+			"ERROR WRITING BYTE %"PRIu64"\n",
+			bit_off/8);
+		assert (0 == 1);
+		exit(-3);
+	}
+
+	/* forget the cache XXX -- update cache instead of drop */
+	fsl_io_cache_drop_bytes(io, bit_off / 8, 1);
+}
+
+void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
+{
+	struct fsl_rt_io	*io = fsl_get_io();
+	int			i;
+	char			buf[8];
+	size_t			bw;
+
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_WRITES);
+	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_WRITTEN, num_bits);
+	if (io->io_cb_write != NULL) io->io_cb_write(io, bit_off);
+
+	/* XXX HACK for partial write */
+	if (num_bits == 1) {
+		fsl_io_write_bit(bit_off, val, num_bits);
+		return;
+	}
+
+	/* 1. write to file */
+	/* 2. flush cache */
+	if ((bit_off % 8)) {
+		printf("ARGH");
+		assert (0 == 1 && "UNALIGNED ACCESS");
+	}
+	if ((num_bits % 8)) {
+		printf("WHRG");
+		assert (0 == 1 && "NON-BYTE BITS");
+	}
+
+	for (i = 0; i < num_bits; i+=8) buf[i/8] = (val >> i) & 0xff;
+
+	if (fseeko(io->io_backing, bit_off/8, SEEK_SET) != 0) {
+		fprintf(stderr,
+			" ERROR SEEKING TO BYTE %"PRIu64"\n",
+			bit_off/8);
+		assert (0 == 1);
+		exit(-2);
+	}
+
+	bw = fwrite(buf, num_bits/8, 1, io->io_backing);
+	assert (bw > 0);
+
+	fsl_io_cache_drop_bytes(io, bit_off/8, 1+((num_bits+7)/8));
+}
+
+
 void fsl_io_write_bytes(void* buf, unsigned int byte_c, uint64_t off)
 {
 	struct fsl_rt_io	*io = fsl_get_io();
 	size_t			bw;
+
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_WRITES);
+	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_WRITTEN, byte_c*8);
+	if (io->io_cb_write != NULL) io->io_cb_write(io, off*8);
 
 	if (fseeko(io->io_backing, off, SEEK_SET) != 0) {
 		fprintf(stderr, "BAD SEEK! bit_off=%"PRIu64"\n", off);

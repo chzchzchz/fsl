@@ -9,53 +9,76 @@
 
 #define HIT_BYTE_GRANULARITY	512
 
-static uint64_t*	hit_log;
-static uint64_t*	miss_log;
-static const char*	fname_hit;
-static const char*	fname_miss;
+struct io_ev_log
+{
+	uint64_t	*ev_log;
+	const char	*ev_fname;
+	uint64_t	ev_bytelen;
+	const char	*ev_envvar;
+	fsl_io_callback	ev_cb;
+	int		ev_cb_type;
+};
+
+static void fsl_hits_io_cb_hit(struct fsl_rt_io* io, uint64_t bit_addr);
+static void fsl_hits_io_cb_miss(struct fsl_rt_io* io, uint64_t bit_addr);
+static void fsl_hits_io_cb_write(struct fsl_rt_io* io, uint64_t bit_addr);
+
+
+static struct io_ev_log	log_hit = { .ev_envvar = FSL_ENV_VAR_HITFILE,
+	.ev_cb = fsl_hits_io_cb_hit,
+	.ev_cb_type = IO_CB_CACHE_HIT};
+static struct io_ev_log	log_miss = { .ev_envvar = FSL_ENV_VAR_MISSFILE,
+	.ev_cb = fsl_hits_io_cb_miss,
+	.ev_cb_type = IO_CB_CACHE_MISS
+};
+static struct io_ev_log	log_write = { .ev_envvar = FSL_ENV_VAR_WRITEFILE,
+	.ev_cb = fsl_hits_io_cb_write,
+	.ev_cb_type = IO_CB_WRITE};
 
 static void fsl_hits_io_cb_hit(struct fsl_rt_io* io, uint64_t bit_addr)
 {
 	bit_addr /= 8;				/* to bytes */
 	bit_addr /= HIT_BYTE_GRANULARITY;	/* to sectors */
-	hit_log[bit_addr]++;
+	log_hit.ev_log[bit_addr]++;
 }
 
 static void fsl_hits_io_cb_miss(struct fsl_rt_io* io, uint64_t bit_addr)
 {
 	bit_addr /= 8;				/* to bytes */
 	bit_addr /= HIT_BYTE_GRANULARITY;	/* to sectors */
-	miss_log[bit_addr]++;
+	log_miss.ev_log[bit_addr]++;
 }
 
+static void fsl_hits_io_cb_write(struct fsl_rt_io* io, uint64_t bit_addr)
+{
+	bit_addr /= 8;				/* to bytes */
+	bit_addr /= HIT_BYTE_GRANULARITY;	/* to sectors */
+	log_write.ev_log[bit_addr]++;
+}
 
-static void fsl_hits_init_hit(uint64_t byte_len)
+static void fsl_hits_init_ev(struct io_ev_log* ev, uint64_t byte_len)
 {
 	fsl_io_callback	old_cb;
 
-	fname_hit = getenv(FSL_ENV_VAR_HITFILE);
-	if (fname_hit == NULL)
+	ev->ev_log = NULL;
+	ev->ev_fname = getenv(ev->ev_envvar);
+	if (ev->ev_fname == NULL)
 		return;
 
-	hit_log = malloc(byte_len);
 
-	old_cb = fsl_io_hook(fsl_get_io(), fsl_hits_io_cb_hit, IO_CB_CACHE_HIT);
+	ev->ev_bytelen = byte_len;
+	ev->ev_log = malloc(ev->ev_bytelen);
+
+	old_cb = fsl_io_hook(fsl_get_io(), ev->ev_cb, ev->ev_cb_type);
 	assert (old_cb == NULL && "No nesting with hits!");
+
 }
 
-static void fsl_hits_init_miss(uint64_t byte_len)
+static void fsl_hits_uninit_ev(struct io_ev_log* ev)
 {
-	fsl_io_callback	old_cb;
-
-	fname_miss = getenv(FSL_ENV_VAR_MISSFILE);
-	if (fname_miss == NULL)
-		return;
-
-	miss_log = malloc(byte_len);
-
-	old_cb = fsl_io_hook(
-		fsl_get_io(), fsl_hits_io_cb_miss, IO_CB_CACHE_MISS);
-	assert (old_cb == NULL && "No nesting with hits!");
+	if (ev->ev_log != NULL) free(ev->ev_log);
+	ev->ev_log = NULL;
+	ev->ev_fname = NULL;
 }
 
 void fsl_hits_init(void)
@@ -64,17 +87,21 @@ void fsl_hits_init(void)
 
 	byte_len = (__FROM_OS_BDEV_BYTES/HIT_BYTE_GRANULARITY+1);
 	byte_len *= sizeof(uint64_t);
-
-	fsl_hits_init_hit(byte_len);
-	fsl_hits_init_miss(byte_len);
+	fsl_hits_init_ev(&log_hit, byte_len);
+	fsl_hits_init_ev(&log_miss, byte_len);
+	fsl_hits_init_ev(&log_write, byte_len);
 }
 
-static void fsl_hits_dump(const char* fname, uint64_t* hits)
+static void fsl_hits_dump(const struct io_ev_log* ev)
 {
 	unsigned int	num_ents;
 	unsigned int	i;
 	FILE		*f;
+	const char	*fname;
+	uint64_t	*hits;
 
+	fname = ev->ev_fname;
+	hits = ev->ev_log;
 	if (fname == NULL) return;
 	if (hits == NULL) return;
 
@@ -88,7 +115,7 @@ static void fsl_hits_dump(const char* fname, uint64_t* hits)
 	for (i = 0; i < num_ents; i++) {
 		uint64_t	addr;
 
-		if (hit_log[i] == 0) continue;
+		if (hits[i] == 0) continue;
 
 		addr = (uint64_t)i * HIT_BYTE_GRANULARITY;
 		fprintf(f,
@@ -106,15 +133,11 @@ static void fsl_hits_dump(const char* fname, uint64_t* hits)
 
 void fsl_hits_uninit(void)
 {
-	fsl_hits_dump(fname_hit, hit_log);
-	fsl_hits_dump(fname_miss, miss_log);
+	fsl_hits_dump(&log_hit);
+	fsl_hits_dump(&log_miss);
+	fsl_hits_dump(&log_write);
 
-	if (hit_log != NULL) free(hit_log);
-	if (miss_log != NULL) free(miss_log);
-
-	fname_hit = NULL;
-	fname_miss = NULL;
-
-	hit_log = NULL;
-	miss_log = NULL;
+	fsl_hits_uninit_ev(&log_hit);
+	fsl_hits_uninit_ev(&log_miss);
+	fsl_hits_uninit_ev(&log_write);
 }

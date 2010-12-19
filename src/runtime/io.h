@@ -52,17 +52,19 @@ struct fsl_io_cache
 #define IO_CB_CACHE_HIT		0	/* handled by our cache */
 #define IO_CB_CACHE_MISS	1	/* call out to OS */
 #define IO_CB_CACHE_ANY		2
-#define IO_CB_NUM		3
+#define IO_CB_WRITE		3
+#define IO_CB_NUM		4
 
 struct fsl_rt_io
 {
-	FILE			*io_backing;
+	FILE			*io_backing;	/* TODO make into plain fd */
 	union {
 		fsl_io_callback	io_cb[IO_CB_NUM];
 		struct {
 			fsl_io_callback		io_cb_hit;
 			fsl_io_callback		io_cb_miss;
 			fsl_io_callback		io_cb_any;
+			fsl_io_callback		io_cb_write;
 		};
 	};
 	struct fsl_rt_rlog	io_rlog;

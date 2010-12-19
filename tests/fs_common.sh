@@ -47,6 +47,8 @@ function fs_reloc_startup_img
 	else
 		export FSL_ENV_HITFILE="${src_root}/tests/relocate-$fs/${imgname}.hits"
 		export FSL_ENV_MISSFILE="${src_root}/tests/relocate-$fs/${imgname}.misses"
+		export FSL_ENV_STATFILE="${src_root}/tests/relocate-$fs/${imgname}.stats"
+		export FSL_ENV_WRITEFILE="${src_root}/tests/relocate-$fs/${imgname}.writes"
 		timefname="${src_root}"/tests/relocate-$fs/$imgname.reloc.time
 	fi
 	{ time eval "$cmd" >cur_test.out 2>cur_test.err; } 2>${timefname}
@@ -54,6 +56,8 @@ function fs_reloc_startup_img
 
 	unset FSL_ENV_HITFILE
 	unset FSL_ENV_MISSFILE
+	unset FSL_ENV_WRITEFILE
+	unset FSL_ENV_STATFILE
 	if [ ! -z $OPROFILE_FLAG ]; then
 		stop_oprof "${src_root}"/tests/relocate-$fs/$imgname.reloc.oprof
 	fi
@@ -86,6 +90,8 @@ function fs_defrag_startup_img
 	else
 		export FSL_ENV_HITFILE="${src_root}/tests/defragtool-$fs/${imgname}.hits"
 		export FSL_ENV_MISSFILE="${src_root}/tests/defragtool-$fs/${imgname}.misses"
+		export FSL_ENV_WRITEFILE="${src_root}/tests/defragtool-$fs/${imgname}.writes"
+		export FSL_ENV_STATFILE="${src_root}/tests/defragtool-$fs/${imgname}.stats"
 		timefname="${src_root}"/tests/defragtool-$fs/$imgname.defrag.time
 	fi
 	{ time eval "$cmd" >cur_test.out 2>cur_test.err; } 2>${timefname}
@@ -93,6 +99,8 @@ function fs_defrag_startup_img
 
 	unset FSL_ENV_HITFILE
 	unset FSL_ENV_MISSFILE
+	unset FSL_ENV_WRITEFILE
+	unset FSL_ENV_STATFILE
 	if [ ! -z $OPROFILE_FLAG ]; then
 		stop_oprof "${src_root}"/tests/defragtool-$fs/$imgname.defrag.oprof
 	fi
@@ -124,6 +132,7 @@ function fs_scan_startup_img
 	else
 		export FSL_ENV_HITFILE="${src_root}/tests/scantool-$fs/${imgname}.hits"
 		export FSL_ENV_MISSFILE="${src_root}/tests/scantool-$fs/${imgname}.misses"
+		export FSL_ENV_STATFILE="${src_root}/tests/scantool-$fs/${imgname}.stats"
 		timefname="${src_root}"/tests/scantool-$fs/$imgname.scan.time
 	fi
 	{ time eval "$cmd" >cur_test.out 2>cur_test.err; } 2>${timefname}
@@ -131,6 +140,7 @@ function fs_scan_startup_img
 
 	unset FSL_ENV_HITFILE
 	unset FSL_ENV_MISSFILE
+	unset FSL_ENV_STATFILE
 	if [ ! -z $OPROFILE_FLAG ]; then
 		stop_oprof "${src_root}"/tests/scantool-$fs/$imgname.scan.oprof
 	fi
