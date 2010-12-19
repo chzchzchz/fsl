@@ -8,13 +8,16 @@ all: code tools tests draw
 
 clean: code-clean tests-clean
 
-draw: draw-hits draw-scans
+draw: draw-hits draw-scans draw-relocs
 
 draw-hits:
 	util/draw_all_hits.sh
 
 draw-scans:
 	util/draw_all_scans.sh
+
+draw-relocs:
+	util/draw_all_relocs.sh
 
 code:
 	cd src && $(MAKECMD) && cd ..

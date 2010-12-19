@@ -16,6 +16,36 @@ function fs_browser_startup
 	fi
 }
 
+function fs_reloc_startup_img
+{
+	fs="$1"
+	imgname="$2"
+	echo "Testing reloc-$fs spockup ($imgname)."
+
+	cmd="${src_root}/src/tool/relocate-$fs ${src_root}/img/$imgname ${src_root}/tests/reloc.spock.pic"
+	echo "$cmd" >>tests.log
+	echo "$cmd" >failed_test_cmd
+
+	export FSL_ENV_HITFILE="${src_root}/tests/relocate-$fs/${imgname}.hits"
+	export FSL_ENV_MISSFILE="${src_root}/tests/relocate-$fs/${imgname}.misses"
+	timefname="${src_root}"/tests/relocate-$fs/$imgname.scan.time
+	{ time eval "$cmd" >cur_test.out 2>cur_test.err; } 2>${timefname}
+	retval=$?
+	unset FSL_ENV_HITFILE
+	unset FSL_ENV_MISSFILE
+
+	if [ $retval -ne 0 ]; then
+		echo "Test failed: $fs."
+		echo "Output: "
+		echo "-------------"
+		cat cur_test.out
+		echo "-------------"
+		exit $retval
+	fi
+	# only copy if result is not bogus from crash
+	cp cur_test.out "${src_root}"/tests/scantool-$fs/$imgname.scan.out
+}
+
 function fs_scan_startup_img
 {
 	fs="$1"

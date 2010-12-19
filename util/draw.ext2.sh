@@ -10,6 +10,7 @@ function draw_scan_ext2
 	draw_scan_fs_img ext2 "ext2-small.img" "$EXT2_REGEX"
 	draw_scan_fs_img ext2 "ext2-many.img" "$EXT2_REGEX"
 	draw_scan_fs_img ext2 "ext2-postmark.img" "$EXT2_REGEX"
+	draw_scan_fs_img ext2 "ext2-relocate.img" "$EXT2_REGEX"
 }
 
 function draw_ext2_img

@@ -9,6 +9,7 @@ function draw_scan_vfat
 	draw_scan_fs_img vfat "vfat.img" "$VFAT_REGEX"
 	draw_scan_fs_img vfat "vfat-many.img" "$VFAT_REGEX"
 	draw_scan_fs_img vfat "vfat-postmark.img" "$VFAT_REGEX"
+	draw_scan_fs_img vfat "vfat-relocate.img" "$VFAT_REGEX"
 }
 
 function draw_vfat_img
