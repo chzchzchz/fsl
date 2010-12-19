@@ -36,6 +36,13 @@ tests: code tools
 
 tests-extra: tests-extra-ext2 tests-extra-vfat
 
+tests-extra-oprof: tests-extra-ext2-oprof tests-extra-vfat-oprof
+
+tests-extra-ext2-oprof:
+	TEST_CONFIG="EXTRA" OPROFILE_FLAG="OK" TEST_FS="ext2"  tests/do_all_tests.sh
+tests-extra-vfat-oprof:
+	TEST_CONFIG="EXTRA" OPROFILE_FLAG="OK" TEST_FS="vfat"  tests/do_all_tests.sh
+
 tests-extra-ext2:
 	TEST_CONFIG="EXTRA" TEST_FS="ext2"  tests/do_all_tests.sh
 

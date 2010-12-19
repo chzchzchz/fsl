@@ -1,5 +1,20 @@
 #!/bin/bash
 
+function start_oprof
+{
+	sudo opcontrol --start --vmlinux=/usr/src/linux/vmlinux
+}
+
+function stop_oprof
+{
+	oproffile="$1"
+	echo "NOT MOVING"
+	sudo opcontrol --dump
+	sudo opreport -a --symbols >${oproffile}
+	sudo opcontrol --stop
+	sudo opcontrol --reset
+}
+
 function fs_browser_startup
 {
 	fs="$1"
@@ -26,13 +41,22 @@ function fs_reloc_startup_img
 	echo "$cmd" >>tests.log
 	echo "$cmd" >failed_test_cmd
 
-	export FSL_ENV_HITFILE="${src_root}/tests/relocate-$fs/${imgname}.hits"
-	export FSL_ENV_MISSFILE="${src_root}/tests/relocate-$fs/${imgname}.misses"
-	timefname="${src_root}"/tests/relocate-$fs/$imgname.reloc.time
+	if [ ! -z $OPROFILE_FLAG ]; then
+		start_oprof
+		timefname="${src_root}"/tests/relocate-$fs/$imgname.reloc.oprof.time
+	else
+		export FSL_ENV_HITFILE="${src_root}/tests/relocate-$fs/${imgname}.hits"
+		export FSL_ENV_MISSFILE="${src_root}/tests/relocate-$fs/${imgname}.misses"
+		timefname="${src_root}"/tests/relocate-$fs/$imgname.reloc.time
+	fi
 	{ time eval "$cmd" >cur_test.out 2>cur_test.err; } 2>${timefname}
 	retval=$?
+
 	unset FSL_ENV_HITFILE
 	unset FSL_ENV_MISSFILE
+	if [ ! -z $OPROFILE_FLAG ]; then
+		stop_oprof "${src_root}"/tests/relocate-$fs/$imgname.reloc.oprof
+	fi
 
 	if [ $retval -ne 0 ]; then
 		echo "Test failed: $fs."
@@ -56,13 +80,22 @@ function fs_defrag_startup_img
 	echo "$cmd" >>tests.log
 	echo "$cmd" >failed_test_cmd
 
-	export FSL_ENV_HITFILE="${src_root}/tests/defragtool-$fs/${imgname}.hits"
-	export FSL_ENV_MISSFILE="${src_root}/tests/defragtool-$fs/${imgname}.misses"
-	timefname="${src_root}"/tests/defragtool-$fs/$imgname.defrag.time
+	if [ ! -z $OPROFILE_FLAG ]; then
+		start_oprof
+		timefname="${src_root}"/tests/defragtool-$fs/$imgname.defrag.oprof.time
+	else
+		export FSL_ENV_HITFILE="${src_root}/tests/defragtool-$fs/${imgname}.hits"
+		export FSL_ENV_MISSFILE="${src_root}/tests/defragtool-$fs/${imgname}.misses"
+		timefname="${src_root}"/tests/defragtool-$fs/$imgname.defrag.time
+	fi
 	{ time eval "$cmd" >cur_test.out 2>cur_test.err; } 2>${timefname}
 	retval=$?
+
 	unset FSL_ENV_HITFILE
 	unset FSL_ENV_MISSFILE
+	if [ ! -z $OPROFILE_FLAG ]; then
+		stop_oprof "${src_root}"/tests/defragtool-$fs/$imgname.defrag.oprof
+	fi
 
 	if [ $retval -ne 0 ]; then
 		echo "Test failed: $fs."
@@ -85,13 +118,22 @@ function fs_scan_startup_img
 	echo "$cmd" >>tests.log
 	echo "$cmd" >failed_test_cmd
 
-	export FSL_ENV_HITFILE="${src_root}/tests/scantool-$fs/${imgname}.hits"
-	export FSL_ENV_MISSFILE="${src_root}/tests/scantool-$fs/${imgname}.misses"
-	timefname="${src_root}"/tests/scantool-$fs/$imgname.scan.time
+	if [ ! -z $OPROFILE_FLAG ]; then
+		start_oprof
+		timefname="${src_root}"/tests/scantool-$fs/$imgname.scan.oprof.time
+	else
+		export FSL_ENV_HITFILE="${src_root}/tests/scantool-$fs/${imgname}.hits"
+		export FSL_ENV_MISSFILE="${src_root}/tests/scantool-$fs/${imgname}.misses"
+		timefname="${src_root}"/tests/scantool-$fs/$imgname.scan.time
+	fi
 	{ time eval "$cmd" >cur_test.out 2>cur_test.err; } 2>${timefname}
 	retval=$?
+
 	unset FSL_ENV_HITFILE
 	unset FSL_ENV_MISSFILE
+	if [ ! -z $OPROFILE_FLAG ]; then
+		stop_oprof "${src_root}"/tests/scantool-$fs/$imgname.scan.oprof
+	fi
 
 	if [ $retval -ne 0 ]; then
 		echo "Test failed: $fs."

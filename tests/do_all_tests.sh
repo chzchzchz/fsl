@@ -37,6 +37,11 @@ rm -f tests.log
 if [ "$TEST_CONFIG" == "EXTRA" ]; then
 	echo "EXTRA TESTS!"
 	fs="$TEST_FS"
+
+	if [ "$OPROFILE_FLAG" ==  "OK" ]; then
+		export OPROFILE_FLAG
+	fi
+
 	${src_root}/tests/tests_extra.$fs.sh
 	ret=$?
 	if [ $ret -ne 0 ]; then
