@@ -1,5 +1,8 @@
 //#define DEBUG_IO
-#define _FILE_OFFSET_BITS 64
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -113,18 +116,17 @@ void __writeVal(uint64_t loc, uint64_t sz, uint64_t val)
 struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 {
 	struct fsl_rt_io	*ret;
-	FILE			*f;
+	int			fd;
 
 	assert (backing_fname != NULL);
 
-	f = fopen(backing_fname, "r+");
-	if (f == NULL)
-		return NULL;
+	fd = open(backing_fname, O_LARGEFILE | O_RDWR);
+	if (fd == -1) return NULL;
 
 	ret = malloc(sizeof(*ret));
 	memset(ret, 0, sizeof(*ret));
 
-	ret->io_backing = f;
+	ret->io_fd = fd;
 	fsl_rlog_init(ret);
 	fsl_wlog_init(&ret->io_wlog);
 	fsl_io_cache_init(&ret->io_cache);
@@ -135,14 +137,13 @@ struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 void fsl_io_free(struct fsl_rt_io* io)
 {
 	assert (io != NULL);
-	fclose(io->io_backing);
+	close(io->io_fd);
 	free(io);
 }
 
 ssize_t fsl_io_size(struct fsl_rt_io* io)
 {
-	fseeko(io->io_backing, 0, SEEK_END);
-	__FROM_OS_BDEV_BYTES = ftello(io->io_backing);
+	__FROM_OS_BDEV_BYTES = lseek64(io->io_fd, 0, SEEK_END);
 	return __FROM_OS_BDEV_BYTES;
 }
 
@@ -204,13 +205,11 @@ void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
 	struct fsl_rt_io	*io = fsl_get_io();
 	size_t			br;
 
-	if (fseeko(io->io_backing, off, SEEK_SET) != 0) {
-		fprintf(stderr, "BAD SEEK! bit_off=%"PRIu64"\n", off);
+	br = pread64(io->io_fd, buf, byte_c, off);
+	if (br < byte_c) {
+		fprintf(stderr, "BAD READ! bit_off=%"PRIu64"\n", off);
 		assert (0 == 1);
 	}
-
-	br = fread(buf, byte_c, 1, io->io_backing);
-	assert (br > 0);
 }
 
 static void fsl_io_write_bit(uint64_t bit_off, uint64_t val, uint64_t num_bits)
@@ -219,7 +218,7 @@ static void fsl_io_write_bit(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 	uint64_t		out_v;
 	int			bit_left;
 	int			mask;
-	size_t			bw;
+	ssize_t			bw;
 
 	assert (num_bits < 8);
 
@@ -232,15 +231,9 @@ static void fsl_io_write_bit(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 	/* stick it in */
 	out_v &= ~(mask << bit_left);
 	out_v |= val << bit_left;
+
 	/* write it */
-	if (fseeko(io->io_backing, bit_off/8, SEEK_SET) != 0) {
-		fprintf(stderr,
-			"ERROR SEEKING TO BYTE %"PRIu64"\n",
-			bit_off/8);
-		assert (0 == 1);
-		exit(-2);
-	}
-	bw = fwrite(&out_v, 1, 1, io->io_backing);
+	bw = pwrite64(io->io_fd, &out_v, 1, bit_off/8);
 	if (bw != 1) {
 		fprintf(stderr,
 			"ERROR WRITING BYTE %"PRIu64"\n",
@@ -258,7 +251,8 @@ void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 	struct fsl_rt_io	*io = fsl_get_io();
 	int			i;
 	char			buf[8];
-	size_t			bw;
+	ssize_t			bw;
+	int			out_byte_c;
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_WRITES);
 	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_WRITTEN, num_bits);
@@ -283,16 +277,15 @@ void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 
 	for (i = 0; i < num_bits; i+=8) buf[i/8] = (val >> i) & 0xff;
 
-	if (fseeko(io->io_backing, bit_off/8, SEEK_SET) != 0) {
+	out_byte_c = 1 + ((num_bits+7)/8);
+	bw = pwrite64(io->io_fd, buf, out_byte_c, bit_off/8);
+	if (bw != out_byte_c) {
 		fprintf(stderr,
-			" ERROR SEEKING TO BYTE %"PRIu64"\n",
+			" ERROR WRITING TO BYTE %"PRIu64"\n",
 			bit_off/8);
 		assert (0 == 1);
 		exit(-2);
 	}
-
-	bw = fwrite(buf, num_bits/8, 1, io->io_backing);
-	assert (bw > 0);
 
 	fsl_io_cache_drop_bytes(io, bit_off/8, 1+((num_bits+7)/8));
 }
@@ -301,19 +294,17 @@ void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 void fsl_io_write_bytes(void* buf, unsigned int byte_c, uint64_t off)
 {
 	struct fsl_rt_io	*io = fsl_get_io();
-	size_t			bw;
+	ssize_t			bw;
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_WRITES);
 	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_WRITTEN, byte_c*8);
 	if (io->io_cb_write != NULL) io->io_cb_write(io, off*8);
 
-	if (fseeko(io->io_backing, off, SEEK_SET) != 0) {
-		fprintf(stderr, "BAD SEEK! bit_off=%"PRIu64"\n", off);
-		assert (0 == 1);
+	bw = pwrite64(io->io_fd, buf, byte_c, off);
+	if (bw != byte_c) {
+		fprintf(stderr, "BAD WRITE! bit_off=%"PRIu64"\n", off);
 	}
-
-	bw = fwrite(buf, byte_c, 1, io->io_backing);
-	assert (bw > 0);
+	assert (bw == byte_c);
 
 	fsl_io_cache_drop_bytes(io, off, byte_c);
 }

@@ -57,7 +57,7 @@ struct fsl_io_cache
 
 struct fsl_rt_io
 {
-	FILE			*io_backing;	/* TODO make into plain fd */
+	int			io_fd;
 	union {
 		fsl_io_callback	io_cb[IO_CB_NUM];
 		struct {
