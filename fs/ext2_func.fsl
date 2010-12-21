@@ -174,9 +174,11 @@ ext2_indir_block ext2_indir_in_bi_lookup(ext2_inode ino, uint n)
 
 u32 biindir_indir_offset(uint n)
 {
-	u32 indir_offset;
-	indir_offset = (n - (EXT2_NDIR_BLOCKS + blocks_per_indir()));
-	indir_offset %= blocks_per_indir();
+	u32	indir_offset;
+	u32	bpi;
+	bpi = blocks_per_indir();
+	indir_offset = (n - (EXT2_NDIR_BLOCKS + bpi));
+	indir_offset %= bpi;
 	return indir_offset;
 }
 
@@ -235,7 +237,7 @@ uint size_to_metablocks(uint sz)
 
 	ret++;	/* biindir block */
 	if (num_blocks < per_indir*per_indir) {
-		ret += num_blocks / per_indir;
+		ret += (num_blocks / per_indir)+1;
 		return ret;
 	}
 	ret += per_indir;
@@ -244,6 +246,50 @@ uint size_to_metablocks(uint sz)
 	return 99999999999;
 }
 
+bool is_fmeta_meta(uint n)
+{
+	u32	bpi;
+
+	if (n < EXT2_NDIR_BLOCKS) return false;
+	if (n == EXT2_NDIR_BLOCKS) return true;	/* indir */
+
+	n -= EXT2_NDIR_BLOCKS + 1;
+	bpi = blocks_per_indir();
+	if (n < bpi) return false;
+	if (n == bpi) return true;	/* biindir */
+
+	n -= bpi + 1;
+	if (n > (bpi*bpi + bpi)) {
+		DEBUG_WRITE = 33333333333;
+		return false;
+	}
+
+	if ((n % (bpi+1)) == 0) return true;
+	return false;
+}
+
+u32 fmeta_to_fblk(uint n)
+{
+	u32	bpi;
+
+	if (is_fmeta_meta(n)) {
+		DEBUG_WRITE=444444444;
+		return 99999999999;
+	}
+
+	if (n < EXT2_NDIR_BLOCKS) return n;
+	n--;
+	bpi = blocks_per_indir();
+	if (n < bpi) return n;
+	n -= bpi+1;
+	if (n > (bpi*bpi + bpi)) {
+		DEBUG_WRITE = 12121212122;
+		return 999999999999;
+	}
+	return n - ((n / bpi)+1);
+}
+
+/* 0 indexed */
 blknum_t get_nth_meta_blknum(ext2_inode ino, uint n)
 {
 	u32	blks_left;

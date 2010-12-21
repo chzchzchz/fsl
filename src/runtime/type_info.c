@@ -74,7 +74,11 @@ static struct type_info* typeinfo_alloc_generic(
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_TYPEINFO_ALLOC);
 
-	if (offset_in_range(td_offset(ti_td)) == false) return NULL;
+	if (offset_in_range(td_offset(ti_td)) == false) {
+		DEBUG_TYPEINFO_WRITE("Bad range %"PRIu64,
+			td_offset(ti_td));
+		return NULL;
+	}
 
 	ret = malloc(sizeof(struct type_info));
 	memset(ret, 0, sizeof(*ret));
@@ -161,6 +165,7 @@ static bool typeinfo_verify(const struct type_info* ti)
 		return false;
 	}
 
+	DEBUG_TYPEINFO_WRITE("Verify OK");
 	DEBUG_TYPEINFO_LEAVE();
 	return true;
 }
@@ -200,9 +205,12 @@ struct type_info* typeinfo_alloc_iter(
 {
 	struct type_info*		ret;
 
+	DEBUG_TYPEINFO_ENTER();
+
 	ret = typeinfo_alloc_generic(ti_td, ti_prev);
-	if (ret == NULL)
-		return NULL;
+	if (ret == NULL) goto done;
+
+	DEBUG_TYPEINFO_WRITE("Generic alloced ptr=%p", ret);
 
 	ret->ti_iter = ti_iter;
 	ret->ti_print_name = "iter";
@@ -212,9 +220,12 @@ struct type_info* typeinfo_alloc_iter(
 	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
 	if (typeinfo_verify(ret) == false) {
 		typeinfo_free(ret);
-		return NULL;
+		ret = NULL;
+		goto done;
 	}
 
+done:
+	DEBUG_TYPEINFO_LEAVE();
 	return ret;
 }
 
@@ -538,13 +549,21 @@ struct type_info* typeinfo_follow_iter(
 	uint64_t		parambuf[tt_by_ti(ti_parent)->tt_param_c];
 	diskoff_t		diskoff;
 
+	DEBUG_TYPEINFO_ENTER();
+
 	diskoff = ti_iter->it_range(&ti_clo(ti_parent), idx, parambuf);
 	td_init(&iter_td, ti_iter->it_type_dst, diskoff, parambuf);
 
 	assert (offset_is_bad(td_offset(&iter_td)) == false &&
 		"VERIFY ITER RANGE CALL.");
 
+	DEBUG_TYPEINFO_WRITE("iter idx=%"PRIu64" / offset: %"PRIu64,
+		idx,
+		td_offset(&iter_td));
+
 	ret = typeinfo_alloc_iter(&iter_td, ti_iter, idx, ti_parent);
+
+	DEBUG_TYPEINFO_LEAVE();
 
 	return ret;
 }

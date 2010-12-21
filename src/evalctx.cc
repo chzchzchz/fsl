@@ -429,7 +429,7 @@ Expr* EvalCtx::resolveVal(const IdStruct* ids) const
 
 	/* return typepass if we are returning a user type */
 	thunk_field = tb.tb_lastsym->getFieldThunk();
-	if (thunk_field->getType() != NULL)
+	if (thunk_field->getType() != NULL) {
 		return FCall::mkClosure(
 			tb.tb_diskoff,
 			Expr::rewriteReplace(
@@ -437,6 +437,7 @@ Expr* EvalCtx::resolveVal(const IdStruct* ids) const
 				rt_glue.getThunkArgIdx(),
 				new Number(0)),
 			tb.tb_virt);
+	}
 
 	/* not returning a user type-- we know that the size to 
 	 * read is going to be constant. don't need to bother with computing

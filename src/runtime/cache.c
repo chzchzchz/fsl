@@ -166,7 +166,7 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 	cache_line = fsl_io_cache_hitmiss(io, bit_off);
 
 	cache_line += (bit_off/8) % FSL_IO_CACHE_BYTES;
-	assert ((bit_off % 8) == 0);
+	assert ((bit_off % 8) == 0 && "NOT BYTE ALIGNED??");
 
 	// copy bits, byte by byte
 	// XXX need to change to support arbitrary endians (this is little)
@@ -175,6 +175,8 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 		ret <<= 8;
 		ret += cache_line[i];
 	}
+//	ret >>= bit_off % 8;
+//	if (num_bits < 64) ret &= (1LL << num_bits)-1;
 	DEBUG_IO_WRITE("cached_val = %"PRIu64, ret);
 
 	DEBUG_IO_LEAVE();

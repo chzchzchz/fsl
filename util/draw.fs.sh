@@ -6,15 +6,15 @@ function draw_fs_img
 	FSIMG=$2
 	REGEX=$3
 	IMGNAME=$4
-	SCANOUTFNAME="${FSIMG}.scan.out"
-	OUTPNG="${FSIMG}.scan.png"
-	DRAWLOG="${FSIMG}.scan.log"
+	SCANOUTFNAME="${FSIMG}.out"
+	OUTPNG="${FSIMG}.png"
+	DRAWLOG="${FSIMG}.log"
 	if [ ! -f  $SCANOUTFNAME ]; then
 		echo "${FSIMG}: No files generated? Run some tests first."
-		exit -1
+		return
 	fi
 
-	processed_fname="${FSIMG}.scan.processed.out"
+	processed_fname="${FSIMG}.processed.out"
 	grep Mode $SCANOUTFNAME | egrep "$REGEX" >${processed_fname}
 	src_sz=`ls -l $IMGNAME  | awk '{ print $5; }'`
 

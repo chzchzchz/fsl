@@ -38,9 +38,41 @@ if [ "$TEST_CONFIG" == "EXTRA" ]; then
 	echo "EXTRA TESTS!"
 	fs="$TEST_FS"
 
-	if [ "$OPROFILE_FLAG" ==  "OK" ]; then
-		export OPROFILE_FLAG
+	if [ ! -z $USE_OPROF ]; then
+		export USE_OPROF
 	fi
+
+	if [ ! -z $USE_STATS ]; then
+		export USE_STATS
+	fi
+
+	${src_root}/tests/tests_extra.$fs.sh
+	ret=$?
+	if [ $ret -ne 0 ]; then
+		echo "$fs: extras falied."
+		exit $ret
+	fi
+elif [ "$TEST_CONFIG" == "STACK" ]; then
+	echo "STACK TESTS!"
+	fs="$TEST_FS"
+
+	unset USE_OPROF
+	unset USE_STATS
+	export XFM_PIN_STACK="YES"
+
+	${src_root}/tests/tests_extra.$fs.sh
+	ret=$?
+	if [ $ret -ne 0 ]; then
+		echo "$fs: extras falied."
+		exit $ret
+	fi
+elif [ "$TEST_CONFIG" == "MEM" ]; then
+	echo "MEM TESTS!"
+	fs="$TEST_FS"
+
+	unset USE_OPROF
+	unset USE_STATS
+	export XFM_MEM="YES"
 
 	${src_root}/tests/tests_extra.$fs.sh
 	ret=$?
@@ -50,6 +82,7 @@ if [ "$TEST_CONFIG" == "EXTRA" ]; then
 	fi
 else
 	echo "STANDARD TESTS"
+	export USE_STATS="YES"
 	for fs in $FILESYSTEMS; do
 		fs_browser_startup "$fs"
 		fs_specific_tests "$fs"

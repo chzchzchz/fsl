@@ -158,11 +158,20 @@ static void do_defrag(
 		return;
 	}
 
+	DEBUG_TOOL_WRITE("sel_count: %d", sel_count);
+#ifdef DEBUG_TOOL
+	typeinfo_print_path(ti); printf("\n");
+#endif
 	for (i = 0; i < sel_count; i++) {
 		struct type_info	*ti_sel;
+#ifdef DEBUG_TOOL
+		DEBUG_TOOL_WRITE("Getting sel_idx=%d", sel_min+i);
+		typeinfo_print_path(ti); printf("\n");
+#endif
 		ti_sel = typeinfo_follow_iter(ti, &rel->rel_sel, sel_min+i);
 		assert (ti_sel != NULL);
 		assert(choice_is_set(ccache, (cc_begin+i)-choice_min(ccache)));
+		DEBUG_TOOL_WRITE("DOING: sel_idx=%d", sel_min+i);
 		wpkt_relocate(ti, rel, ti_sel, sel_min+i, cc_begin+i);
 		choice_unset(ccache, (cc_begin+i)-choice_min(ccache));
 		typeinfo_free(ti_sel);

@@ -19,7 +19,7 @@ write block_relink(ext2_inode ino, int file_blk, blknum_t blknum)
 {
 	ino.i_block_direct[file_blk] <- blknum ?
 		(file_blk < num_direct_blocks(ino)) !
-	ext2_indir_lookup(ino.i_block_indir).blk_ptr[blknum-EXT2_NDIR_BLOCKS] <- blknum ?
+	ext2_indir_lookup(ino.i_block_indir).blk_ptr[file_blk-EXT2_NDIR_BLOCKS] <- blknum ?
 		(file_blk >= EXT2_NDIR_BLOCKS &&
 		 file_blk < blocks_per_indir() + EXT2_NDIR_BLOCKS) !
 	ext2_indir_in_bi_lookup(ino, file_blk).blk_ptr[
@@ -29,16 +29,37 @@ write block_relink(ext2_inode ino, int file_blk, blknum_t blknum)
 			 EXT2_NDIR_BLOCKS+blocks_per_indir()) ) !
 }
 
+write block_relink_meta(ext2_inode ino, int fmeta_blk, blknum_t blknum)
+{
+	ino.i_block_direct[fmeta_blk] <- blknum ? (fmeta_blk < EXT2_NDIR_BLOCKS) !
+	ino.i_block_indir <- blknum ? (fmeta_blk == EXT2_NDIR_BLOCKS) !
+	ext2_indir_lookup(ino.i_block_indir).blk_ptr[fmeta_blk-(EXT2_NDIR_BLOCKS+1)] <-
+		blknum
+		? (fmeta_blk > EXT2_NDIR_BLOCKS &&
+			fmeta_blk < ((blocks_per_indir() + EXT2_NDIR_BLOCKS)+1)) !
+	ino.i_block_biindir <- blknum
+		? (fmeta_blk == (EXT2_NDIR_BLOCKS + 1 + blocks_per_indir())) !
+	ext2_biindir_lookup(ino.i_block_biindir).blk_ptr[
+		(fmeta_blk-(EXT2_NDIR_BLOCKS+2+blocks_per_indir()))/blocks_per_indir()] <-
+			blknum
+		? (fmeta_blk > (EXT2_NDIR_BLOCKS+1+blocks_per_indir()) &&
+		 is_fmeta_meta(fmeta_blk) == true) !
+	ext2_indir_in_bi_lookup(ino, fmeta_to_fblk(fmeta_blk)).blk_ptr[
+		biindir_indir_offset(fmeta_to_fblk(fmeta_blk))] <- blknum
+		? (fmeta_blk > (EXT2_NDIR_BLOCKS + 1 + blocks_per_indir()) &&
+		 is_fmeta_meta(fmeta_blk) == false) !
+}
+
 /* allocate block from bmp */
 write block_alloc(blknum_t blknum)
 {
-	get_group_bmp(blknum_to_grp(blknum)).data[blknum_to_bmpidx(blknum)] <- 0 !
+	get_group_bmp(blknum_to_grp(blknum)).data[blknum_to_bmpidx(blknum)] <- 1 !
 	get_group(blknum_to_grp(blknum)).free_block_c <- get_group(blknum_to_grp(blknum)).free_block_c-1 !
 }
 
 /* put block back in bmp */
 write block_replace(blknum_t blknum)
 {
-	get_group_bmp(blknum_to_grp(blknum)).data[blknum_to_bmpidx(blknum)] <- 1 !
+	get_group_bmp(blknum_to_grp(blknum)).data[blknum_to_bmpidx(blknum)] <- 0 !
 	get_group(blknum_to_grp(blknum)).free_block_c <- get_group(blknum_to_grp(blknum)).free_block_c+1 !
 }

@@ -14,12 +14,46 @@
 #include "cache.h"
 #include "log.h"
 
+static uint64_t __getLocalPhys(uint64_t bit_off, uint64_t num_bits)
+{
+	struct fsl_rt_io	*io;
+	uint64_t 		ret;
+
+	io = fsl_get_io();
+	if ((bit_off % 8) != 0) {
+		int	bits_left, bits_right;
+		int	bytes_full;
+
+		bits_left = 8 - (bit_off % 8);
+		if (bits_left > num_bits) bits_left = num_bits;
+		bytes_full = (num_bits - bits_left) / 8;
+		bits_right = num_bits - (8*bytes_full + bits_left);
+		assert (bits_left > 0 && bits_left < 8);
+		assert (bits_right == 0);
+
+		ret = fsl_io_cache_get(io, 8*(bit_off/8), 8);
+		ret >>= bit_off % 8;
+		if (bytes_full != 0) {
+			uint64_t	v;
+			v = fsl_io_cache_get(
+				io, 8*(1+(bit_off/8)), 8*bytes_full);
+			ret |= v << bits_left;
+		}
+	} else {
+		/* common path */
+		ret = fsl_io_cache_get(io, bit_off, num_bits);
+	}
+
+	if (io->io_cb_any != NULL) io->io_cb_any(io, bit_off);
+
+	return ret;
+}
+
 uint64_t __getLocal(
 	const struct fsl_rt_closure* clo,
 	uint64_t bit_off, uint64_t num_bits)
 {
 	uint64_t		ret;
-	struct fsl_rt_io	*io;
 
 	assert (num_bits <= 64);
 	assert (num_bits > 0);
@@ -50,31 +84,7 @@ uint64_t __getLocal(
 			"Discontiguous getLocal not permitted");
 	}
 
-	io = fsl_get_io();
-	if ((bit_off % 8) != 0) {
-		int	bits_left, bits_right;
-		int	bytes_full;
-
-		bits_left = 8 - (bit_off % 8);
-		if (bits_left > num_bits) bits_left = num_bits;
-		bytes_full = (num_bits - bits_left) / 8;
-		bits_right = num_bits - (8*bytes_full + bits_left);
-		assert (bits_left > 0 && bits_left < 8);
-		assert (bits_right == 0);
-
-		ret = fsl_io_cache_get(io, 8*(bit_off/8), 8);
-		ret >>= bit_off % 8;
-		if (bytes_full != 0) {
-			uint64_t	v;
-			v = fsl_io_cache_get(
-				io, 8*(1+(bit_off/8)), 8*bytes_full);
-			ret |= v << bits_left;
-		}
-	} else {
-		/* common path */
-		ret = fsl_io_cache_get(io, bit_off, num_bits);
-	}
-	if (io->io_cb_any != NULL) io->io_cb_any(io, bit_off);
+	ret = __getLocalPhys(bit_off, num_bits);
 
 	DEBUG_IO_WRITE(
 		"Returning IO: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64,
@@ -277,7 +287,7 @@ void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 
 	for (i = 0; i < num_bits; i+=8) buf[i/8] = (val >> i) & 0xff;
 
-	out_byte_c = 1 + ((num_bits+7)/8);
+	out_byte_c = num_bits/8;
 	bw = pwrite64(io->io_fd, buf, out_byte_c, bit_off/8);
 	if (bw != out_byte_c) {
 		fprintf(stderr,
@@ -318,11 +328,14 @@ void fsl_io_dump_pending(void)
 		struct fsl_rt_wlog_ent	*we = &io->io_wlog.wl_write[i];
 		uint64_t	cur_v;
 
-		cur_v = fsl_io_cache_get(io, we->we_bit_addr, we->we_bits);
-		printf(	"PENDING: byteoff=%"PRIu64" (%"PRIu64"). v=%"PRIu64
-			" (current=%"PRIu64" / 0x%"PRIx64")\n",
+		printf(	"PENDING: byteoff=%"PRIu64" (%"PRIu64"); bits=%d. ",
 			we->we_bit_addr/8,
 			we->we_bit_addr,
+			we->we_bits);
+
+		cur_v = __getLocalPhys(we->we_bit_addr, we->we_bits);
+		printf("v=%"PRIu64
+			" (current=%"PRIu64" / 0x%"PRIx64")\n",
 			we->we_val,
 			cur_v, cur_v);
 	}
