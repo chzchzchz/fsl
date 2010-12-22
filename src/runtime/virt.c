@@ -8,6 +8,11 @@
 #include "debug.h"
 
 static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify);
+static void fsl_virt_cache_update(
+	struct fsl_rt_mapping* rtm, int idx, uint64_t v);
+static diskoff_t fsl_virt_cache_find(const struct fsl_rt_mapping* rtm, int idx);
+static void fsl_virt_init_cache(struct fsl_rt_mapping* rtm);
+static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx);
 
 uint64_t fsl_virt_xlate_safe(
 	const struct fsl_rt_closure* clo, uint64_t bit_voff)
@@ -33,11 +38,31 @@ uint64_t fsl_virt_xlate_safe(
 	return ret;
 }
 
+static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx)
+{
+	diskoff_t		base;
+	struct fsl_rt_closure	*old_clo;
+	uint64_t params[tt_by_num(rtm->rtm_virt->vt_type_src)->tt_param_c];
+
+	/* use dyn vars set on allocation of xlate */
+	old_clo = fsl_rt_dyn_swap(rtm->rtm_dyn);
+	DEBUG_VIRT_WRITE("&rtm->rtm_clo = %p", rtm->rtm_clo);
+	DEBUG_VIRT_WRITE("rtm_clo->clo_offset: %"PRIu64" bits (%"PRIu64" bytes)",
+		rtm->rtm_clo->clo_offset,
+		rtm->rtm_clo->clo_offset / 8);
+	base = rtm->rtm_virt->vt_range(rtm->rtm_clo, idx, params);
+	DEBUG_VIRT_WRITE("BASE FOUND: %"PRIu64, base);
+	DEBUG_VIRT_WRITE("WANTED BITOFF: %"PRIu64, bit_off);
+
+	/* swap back to old dyn vars */
+	fsl_rt_dyn_swap(old_clo);
+
+	return base;
+}
 
 uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 {
 	struct fsl_rt_mapping	*rtm;
-	struct fsl_rt_closure	*old_clo;
 	uint64_t		idx, off;
 	uint64_t		total_bits;
 	diskoff_t		base;
@@ -73,22 +98,14 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	idx = bit_off / rtm->rtm_cached_srcsz;
 	idx += rtm->rtm_cached_minidx;	/* base. */
 
+	base = fsl_virt_cache_find(rtm, idx);
+	if (base == ~0) {
+		base = fsl_virt_xlate_miss(rtm, idx);
+		fsl_virt_cache_update(rtm, idx, base);
+	} else {
+		FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_HIT);
+	}
 	off = bit_off % rtm->rtm_cached_srcsz;
-
-	uint64_t params[tt_by_num(rtm->rtm_virt->vt_type_src)->tt_param_c];
-
-	/* use dyn vars set on allocation of xlate */
-	old_clo = fsl_rt_dyn_swap(rtm->rtm_dyn);
-	DEBUG_VIRT_WRITE("&rtm->rtm_clo = %p", rtm->rtm_clo);
-	DEBUG_VIRT_WRITE("rtm_clo->clo_offset: %"PRIu64" bits (%"PRIu64" bytes)",
-		rtm->rtm_clo->clo_offset,
-		rtm->rtm_clo->clo_offset / 8);
-	base = rtm->rtm_virt->vt_range(rtm->rtm_clo, idx, params);
-	DEBUG_VIRT_WRITE("BASE FOUND: %"PRIu64, base);
-	DEBUG_VIRT_WRITE("WANTED BITOFF: %"PRIu64, bit_off);
-
-	/* swap back to old dyn vars */
-	fsl_rt_dyn_swap(old_clo);
 
 	assert (bit_off != base+off &&
 		"Base+Off=BitOff? => Identity xlate. Probably wrong.");
@@ -116,7 +133,6 @@ static void fsl_virt_unref_all(struct fsl_rt_closure* clo)
 	fsl_virt_unref(clo);
 	fsl_virt_unref_all(clo->clo_xlate->rtm_clo);
 }
-
 
 void fsl_virt_free(struct fsl_rt_mapping* rtm)
 {
@@ -182,8 +198,12 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 		/* empty type */
 		fsl_virt_free(rtm);
 		rtm = NULL;
+		goto done;
 	}
 
+	fsl_virt_init_cache(rtm);
+
+done:
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_ALLOC);
 
 	DEBUG_VIRT_WRITE("fresh new RTM %p", rtm);
@@ -191,6 +211,7 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 	return rtm;
 }
 
+/* sets up some cached values */
 static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 {
 	const struct fsl_rtt_type	*tt_vsrc;
@@ -368,9 +389,32 @@ done:
 	return total_bits;
 }
 
-
 uint64_t __toPhys(const struct fsl_rt_closure* clo, uint64_t off)
 {
 	if (clo->clo_xlate == NULL) return off;
 	return fsl_virt_xlate(clo, off);
+}
+
+static void fsl_virt_cache_update(
+	struct fsl_rt_mapping* rtm, int idx, uint64_t v)
+{
+	struct fsl_virtc_ent	*vc;
+	vc = &rtm->rtm_cache[idx % VIRT_CACHE_ENTS];
+	vc->vc_idx = idx;
+	vc->vc_off = v;
+}
+
+static diskoff_t fsl_virt_cache_find(const struct fsl_rt_mapping* rtm, int idx)
+{
+	struct fsl_virtc_ent	*vc;
+	vc = &rtm->rtm_cache[idx % VIRT_CACHE_ENTS];
+	if (vc->vc_idx != idx) return ~0;
+	return vc->vc_off;
+}
+
+static void fsl_virt_init_cache(struct fsl_rt_mapping* rtm)
+{
+	int	i;
+	for (i = 0; i < VIRT_CACHE_ENTS; i++)
+		rtm->rtm_cache[i].vc_idx = i+1;	/* idx%ENTS != i => invalid*/
 }

@@ -140,6 +140,7 @@ function fs_cmd_startup_img
 	imgname="$3"
 	doeswrite="$4"
 
+	SHANAME=`echo -n "$cmd" | shasum | cut -f1 -d' '`
 	echo "$cmd" >>tests.log
 	echo "$cmd" >failed_test_cmd
 
@@ -149,7 +150,7 @@ function fs_cmd_startup_img
 	get_timefname "$fprefix"
 	timefname=${TIMEFNAME_VAL}
 	cmd_xfrm "$cmd" "$fprefix"
-	{ time eval "${CMD_XFM_VAL}" >cur_test.out 2>cur_test.err; } 2>${timefname}
+	{ time eval "${CMD_XFM_VAL}" >cur_test.${SHANAME}.out 2>cur_test.${SHANAME}.err; } 2>${timefname}
 	retval=$?
 	unset_statfiles
 	stop_oprof "$fprefix"
@@ -158,12 +159,14 @@ function fs_cmd_startup_img
 		echo "Test failed: $fs."
 		echo "Output: "
 		echo "-------------"
-		cat cur_test.out
+		cat cur_test.${SHANAME}.out
 		echo "-------------"
 		exit $retval
 	fi
+
 	# only copy if result is not bogus from crash
-	cp cur_test.out "${outdir}/$imgname.out"
+	mv cur_test.${SHANAME}.out "${outdir}/$imgname.out"
+	rm cur_test.${SHANAME}.err
 }
 
 

@@ -10,6 +10,11 @@ if [ -z $FS_IMAGE ]; then
 	exit -1
 fi
 
+if [ -z $FS_DIR ]; then
+	FS_DIR=/mnt/FSTEST/
+fi
+
+
 sudo /sbin/losetup /dev/loop5 "$FS_IMAGE"
 
 retval=$?
@@ -23,7 +28,7 @@ if [ "$FS_TYPE" = "vfat" ]; then
 	echo $FLAGS
 fi
 
-sudo /bin/mount -t "$FS_TYPE" /dev/loop5 /mnt/FSTEST $FLAGS
+sudo /bin/mount -t "$FS_TYPE" /dev/loop5 "$FS_DIR" $FLAGS
 retval=$?
 
 if [ $retval -ne 0 ]; then

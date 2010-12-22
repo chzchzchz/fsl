@@ -45,7 +45,8 @@ extern struct fsl_rt_ctx* 	fsl_env;
 #define FSL_STAT_COMPUTEARRAYBITS_LOOPS 13
 #define FSL_STAT_WRITES			14
 #define FSL_STAT_BITS_WRITTEN		15
-#define FSL_NUM_STATS			16
+#define FSL_STAT_XLATE_HIT		16
+#define FSL_NUM_STATS			17
 #define FSL_STATS_GET(x,y)		((x)->s_counters[y])
 #define FSL_STATS_INC(x,y)		(x)->s_counters[y]++
 #define FSL_STATS_ADD(x,y,z)		(x)->s_counters[y] += (z)

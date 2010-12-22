@@ -144,7 +144,8 @@ static const char* fsl_stat_fields[FSL_NUM_STATS] =
 	"typeinfo_alloc",	/* FSL_STAT_TYPEINFO_ALLOC */
 	"comparray_elems",	/* FSL_STAT_COMPUTEARRAYBITS_LOOPS */
 	"writes",		/* FSL_STAT_WRITES */
-	"bw"			/* FSL_STAT_BITS_WRITTEN */
+	"bw",			/* FSL_STAT_BITS_WRITTEN */
+	"xlate_hit"		/* FSL_STAT_XLATE_HIT */
 };
 
 static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)

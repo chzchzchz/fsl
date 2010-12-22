@@ -5,9 +5,16 @@
 #define fsl_virt_total_bits(x)	((x)->rtm_cached_srcsz*fsl_virt_src_types(x))
 #define fsl_virt_elem_bits(x)	((x)->rtm_cached_srcsz)
 
+#define VIRT_CACHE_ENTS	8
+
+struct fsl_virtc_ent
+{
+	uint64_t	vc_idx;
+	diskoff_t	vc_off;
+};
+
 struct fsl_rt_mapping
 {
-	/* may need reference counting */
 	struct fsl_rt_closure* 		rtm_clo; 	/* for eval rtm_virt */
 	const struct fsl_rtt_virt*	rtm_virt;	/* off_v -> off_phys */
 	struct fsl_rt_closure*		rtm_dyn; /* saved dyns for rtm_virt */
@@ -16,6 +23,9 @@ struct fsl_rt_mapping
 	uint64_t			rtm_cached_minidx;
 	uint64_t			rtm_cached_maxidx;
 	uint64_t			rtm_cached_srcsz;
+
+	/* direct mapped cache */
+	struct fsl_virtc_ent		rtm_cache[VIRT_CACHE_ENTS];
 };
 
 struct fsl_rt_mapping*  fsl_virt_alloc(
