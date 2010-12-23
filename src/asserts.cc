@@ -50,10 +50,12 @@ void Asserts::loadAsserts(void)
 		it != pal.end();
 		it++)
 	{
+		const Preamble		*p;
 		const preamble_args	*args;
 		const CondExpr		*predicate;
 
-		args = (*it)->getArgsList();
+		p = *it;
+		args = p->getArgsList();
 		if (args == NULL || args->size() != 1) {
 			cerr << "assert: expects one argument" << endl;
 			continue;
@@ -65,16 +67,19 @@ void Asserts::loadAsserts(void)
 			continue;
 		}
 
-		assert_elems.add(new Assertion(src_type, predicate, seq++));
+		assert_elems.add(new Assertion(
+			src_type, predicate, p->getAddressableName(), seq++));
 	}
 }
 
 Assertion::Assertion(
-	const Type* in_src_type,
-	const CondExpr* in_pred,
+	const Type	*in_src_type,
+	const CondExpr	*in_pred,
+	const Id	*in_name,
 	unsigned int	in_seq)
 : src_type(in_src_type),
   pred(in_pred->copy()),
+  name(in_name),
   seq(in_seq)
 {
 	assert (src_type != NULL);
@@ -104,7 +109,11 @@ void Assertion::genProtos(void)
 void Assertion::genInstance(TableGen* tg) const
 {
 	StructWriter	sw(tg->getOS());
+	const Id	*name;
 	sw.write("as_assertf", getFCallName());
+	name = getName();
+	if (name != NULL)	sw.writeStr("as_name", name->getName());
+	else			sw.write("as_name", "NULL");
 }
 
 const string Assertion::getFCallName(void) const

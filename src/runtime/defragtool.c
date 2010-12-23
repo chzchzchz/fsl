@@ -207,12 +207,16 @@ static struct scan_ops ops = { .so_ti = handle_ti };
 int tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
-	struct type_desc	init_td = td_origin();
 
 	printf("Welcome to fsl defrag. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
 
 	DEBUG_TOOL_WRITE("Origin Type Allocating...\n");
-	origin_ti = typeinfo_alloc_by_field(&init_td, NULL, NULL);
+	origin_ti = typeinfo_alloc_origin();
+	if (origin_ti == NULL) {
+		printf("Could not open origin type\n");
+		printf("Failed assert: %s\n", fsl_env->fctx_failed_assert);
+		return -1;
+	}
 
 	scan_type(origin_ti, &ops, NULL);
 

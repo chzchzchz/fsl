@@ -63,15 +63,15 @@ struct scan_ops ops =
 int tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
-	struct type_desc	init_td = td_origin();
 	struct fragscan_info	info;
 
 	printf("Welcome to fsl fragfind. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
 
 	DEBUG_TOOL_WRITE("Origin Type Allocating...\n");
-	origin_ti = typeinfo_alloc_by_field(&init_td, NULL, NULL);
+	origin_ti = typeinfo_alloc_origin();
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
+		printf("Failed assert: %s\n", fsl_env->fctx_failed_assert);
 		return -1;
 	}
 

@@ -136,6 +136,7 @@ static bool typeinfo_verify_asserts(const struct type_info *ti)
 			DEBUG_TYPEINFO_WRITE(
 				"%s: Assert #%d failed!!!\n",
 				tt->tt_name, i);
+			fsl_env->fctx_failed_assert = as->as_name;
 			return false;
 		}
 	}
@@ -619,4 +620,10 @@ void typeinfo_phys_copy(struct type_info* dst, struct type_info* src)
 	}
 
 	free(buf);
+}
+
+struct type_info* typeinfo_alloc_origin(void)
+{
+	struct type_desc	init_td = td_origin();
+	return typeinfo_alloc_by_field(&init_td, NULL, NULL);
 }

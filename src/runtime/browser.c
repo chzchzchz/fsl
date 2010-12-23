@@ -260,13 +260,13 @@ static void menu(struct type_info* cur)
 int tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
-	struct type_desc	init_td = td_origin();
 
 	printf("Welcome to fsl browser. Browse mode: \"%s\"\n", fsl_rt_fsname);
 
-	origin_ti = typeinfo_alloc_by_field(&init_td, NULL, NULL);
+	origin_ti = typeinfo_alloc_origin();
 	if (origin_ti == NULL) {
 		printf("Could not open origin type\n");
+		printf("Failed assert: %s\n", fsl_env->fctx_failed_assert);
 		return -1;
 	}
 

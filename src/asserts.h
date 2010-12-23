@@ -37,6 +37,7 @@ public:
 	Assertion(
 		const Type*	in_src_type,
 		const CondExpr	*in_pred,
+		const Id	*in_name,
 		unsigned int	in_seq);
 	virtual ~Assertion(void);
 
@@ -44,12 +45,13 @@ public:
 	void genProtos(void);
 	void genInstance(TableGen* tg) const;
 	const std::string getFCallName(void) const;
+	const Id* getName(void) const { return name; }
 private:
 	Assertion() {}
 	const Type*	src_type;
 	CondExpr*	pred;
+	const Id*	name;
 	unsigned int	seq;
 };
-
 
 #endif

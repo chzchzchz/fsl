@@ -82,6 +82,8 @@ poff_t ti_phys_offset(const struct type_info* ti);
 #define typeinfo_set_depth(x,y)	do { (x)->ti_depth = (y); } while (0)
 #define ti_depth(x)	(x)->ti_depth
 
+struct type_info* typeinfo_alloc_origin(void);
+
 void typeinfo_free(struct type_info* ti);
 struct type_info* typeinfo_alloc_by_field(
 	const struct type_desc		*ti_td,

@@ -28,7 +28,6 @@ typedef uint64_t*	parambuf_t;
 
 extern struct fsl_rt_ctx* 	fsl_env;
 
-
 #define FSL_STAT_ACCESS			0
 #define FSL_STAT_PHYSACCESS		1
 #define FSL_STAT_BITS_READ		2
@@ -72,6 +71,7 @@ struct fsl_rt_ctx
 	struct fsl_rt_io	*fctx_io;
 	struct fsl_rt_stat	fctx_stat;
 	struct fsl_rt_except	fctx_except;
+	const char*		fctx_failed_assert;
 };
 
 struct fsl_rt_mapping;
@@ -218,6 +218,7 @@ struct fsl_rtt_virt
 struct fsl_rtt_assert
 {
 	assertf_t	as_assertf;
+	const char	*as_name;
 };
 
 struct fsl_rtt_wpkt
