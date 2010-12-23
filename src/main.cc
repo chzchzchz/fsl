@@ -27,6 +27,7 @@ extern GlobalBlock* global_scope;
 
 using namespace std;
 
+/* lots of "singletons" */
 typereloc_map		typerelocs_map;
 typereloc_list		typerelocs_list;
 func_map		funcs_map;
@@ -50,6 +51,7 @@ assert_list		asserts_list;
 RTInterface		rt_glue;
 typevirt_map		typevirts_map;
 typevirt_list		typevirts_list;
+const char		*fsl_src_fname;
 
 static void	load_detached_preambles(const GlobalBlock* gb);
 static void	load_user_types_list(const GlobalBlock* gb);
@@ -414,7 +416,6 @@ static void gen_writepkts(const GlobalBlock* gb)
 	}
 }
 
-
 int main(int argc, char *argv[])
 {
 	TableGen		table_gen;
@@ -432,6 +433,7 @@ int main(int argc, char *argv[])
 
 	code_builder = new CodeBuilder("fsl.types.mod");
 
+	fsl_src_fname = "TOP_FILE";
 	yyparse();
 
 	/* create prototypes for functions provided by the run-time */

@@ -25,6 +25,12 @@
 		return x;			\
 	} while (0)
 
+#define IN_TOKEN_CHR(x)				\
+	do {					\
+		yylval.val = yytext[1];		\
+		return x;			\
+	} while (0)
+
 #define IN_TOKEN_HEX(x)					\
 	do {						\
 		yylval.val = getLongHex(yytext + 2);	\
@@ -47,6 +53,7 @@ SPACE	[ ]
 TAB	[	]
 WHITESPACE [ 	]
 QSTR	\"([^"\n]|\\["\\n])*\"
+CHRLITERAL	\'[ -z]\'
 %x COMMENT
 %x COMMENT2
 %%
@@ -54,6 +61,7 @@ QSTR	\"([^"\n]|\\["\\n])*\"
 "0x"{HEXDIGIT}+	IN_TOKEN_HEX(TOKEN_NUM);
 
 {DIGIT}+	IN_TOKEN_INT(TOKEN_NUM);
+{CHRLITERAL}	IN_TOKEN_CHR(TOKEN_NUM);
 {WHITESPACE}
 "type"		IN_TOKEN(TOKEN_TYPE);
 "union"		IN_TOKEN(TOKEN_UNION);

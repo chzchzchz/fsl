@@ -49,9 +49,9 @@ bool is_good_dir(fat_de de)
 {
 	if (de.file_size == 0xffffffff) return false;
 	if ((DIR_MASK & de.attr) != ATTR_DIRECTORY) return false;
-	if (de.name[0] == 0x2e) {
-		if (de.name[1] == 0x20) return false;
-		if (de.name[1] == 0x2e && de.name[2] == 0x20)
+	if (de.name[0] == '.') {
+		if (de.name[1] == ' ') return false;
+		if (de.name[1] == '.' && de.name[2] == ' ')
 			return false;
 	}
 	return true;

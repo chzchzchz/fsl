@@ -12,11 +12,13 @@ extern int yylex();
 extern int yylineno;
 extern char* yytext;
 extern FILE* yyin;
+extern const char* fsl_src_fname;
 extern void yy_new_buf(void);
 extern void yy_old_buf(void);
 void yyerror(const char* s)
 { 
-	std::cerr	<<  "Oops: " <<  s <<  ". Line: " <<  yylineno
+	std::cerr	<<  "Oops: " <<  s <<  ". File: " << fsl_src_fname <<
+			". Line: " <<  yylineno
 			<<". Text: '" << yytext << "'. " << std::endl;
 }
 
@@ -124,22 +126,36 @@ program_stmts	: program_stmts program_stmt
 			GlobalBlock	*old_gblk;
 			FILE		*old_yyin;
 			int		old_yylineno;
+			const char	*old_src_fname;
+			char		*cur_fname;
 			std::string	s(*$3);
 
 			/* save */
 			old_yylineno = yylineno;
 			old_yyin = yyin;
 			old_gblk = $1;
+			old_src_fname = fsl_src_fname;
 
 			/* parse included file */
-			yyin = fopen(s.substr(1,s.size()-2).c_str(), "r");
-			if (yyin == NULL) yyin = fopen(
-				(std::string("../../fs/")+
-				s.substr(1,s.size()-2)).c_str(), "r");
-			if (yyin == NULL) yyin = fopen(
-				(std::string("../fs/")+
-				s.substr(1,s.size()-2)).c_str(), "r");
+			cur_fname = strdup(s.substr(1,s.size()-2).c_str());
+			yyin = fopen(cur_fname, "r");
+			if (yyin == NULL) {
+				free(cur_fname);
+				cur_fname = strdup(
+					(std::string("../../fs/")+
+					s.substr(1,s.size()-2)).c_str());
+				yyin = fopen(cur_fname, "r");
+			}
+			if (yyin == NULL) {
+				free(cur_fname);
+				cur_fname = strdup(
+					(std::string("../fs/")+
+					s.substr(1,s.size()-2)).c_str());
+				yyin = fopen(cur_fname, "r");
+			}
 			assert (yyin != NULL || "BAD INCLUDE FILE");
+			fsl_src_fname = cur_fname;
+			yylineno = 1;
 			yy_new_buf();
 			yyparse();
 			fclose(yyin);
@@ -149,6 +165,8 @@ program_stmts	: program_stmts program_stmt
 			/* restore */
 			yyin = old_yyin;
 			yylineno = old_yylineno;
+			free(cur_fname);
+			fsl_src_fname = old_src_fname;
 			old_gblk->splice(old_gblk->begin(), *global_scope);
 			global_scope->clear_nofree();
 			delete global_scope;
