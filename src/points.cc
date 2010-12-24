@@ -26,6 +26,7 @@ Points::Points(const Type* t)
 	loadPoints();
 	loadPointsCast();
 	loadPointsRange();
+	loadPointsRangeCast();
 	loadPointsIf();
 }
 
@@ -108,6 +109,7 @@ void Points::loadPointsCast(void)
 		}
 		dst_type = types_map[type_name->getName()];
 
+		args_it++;
 		data_loc = (*args_it)->getExpr();
 		if (data_loc == NULL) {
 			cerr << "points_cast: Unexpected argtype" << endl;
@@ -116,7 +118,6 @@ void Points::loadPointsCast(void)
 
 		loadPointsInstance(dst_type, data_loc, (*it)->getAddressableName());
 	}
-
 }
 
 void Points::loadPoints(void)
@@ -145,6 +146,40 @@ void Points::loadPoints(void)
 		}
 
 		loadPointsInstance(data_loc, (*it)->getAddressableName());
+	}
+}
+
+void Points::loadPointsRangeCast(void)
+{
+	point_list	points_range_list;
+
+	points_range_list = src_type->getPreambles("points_range_cast");
+	for (	point_list::iterator it = points_range_list.begin();
+		it != points_range_list.end();
+		it++)
+	{
+		const preamble_args		*args;
+		preamble_args::const_iterator	args_it;
+		InstanceIter			*inst_iter;
+
+		/* takes the form
+		 * points_range(bound_var, first_val, last_val, data_loc, cast_type) */
+
+		args = (*it)->getArgsList();
+		if (args == NULL || args->size() != 5) {
+			cerr << "points_range_cast: expects 5 args" << endl;
+			continue;
+		}
+
+		args_it = args->begin();
+		inst_iter = new InstanceIter();
+		if (inst_iter->loadCast(src_type, args_it) == false) {
+			cerr << "points_range_cast: Could not init inst iter"<<endl;
+			delete inst_iter;
+			continue;
+		}
+
+		loadPointsRangeInstance(inst_iter, (*it)->getAddressableName());
 	}
 }
 
@@ -250,8 +285,7 @@ void Points::loadPointsInstance(
 }
 
 void Points::loadPointsRangeInstance(
-	InstanceIter*	inst_iter,
-	const Id*	as_name)
+	InstanceIter* inst_iter, const Id* as_name)
 {
 	PointsRange	*new_pr;
 

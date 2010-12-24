@@ -35,7 +35,6 @@ static Expr* replaceClosure(Expr* in_expr, const struct TypeBase& tb)
 	return ret;
 }
 
-
 Expr* EvalCtx::setNewOffsetsArray(
 	Expr* new_base,
 	Expr** new_params,
@@ -334,7 +333,6 @@ done:
 	return found_expr;
 }
 
-
 bool EvalCtx::resolveTB(
 	const IdStruct* ids, struct TypeBase& tb,
 	Expr* &parent_closure) const
@@ -513,7 +511,8 @@ Expr* EvalCtx::resolveArrayInType(const IdArray* ida) const
 	/* array is in current scope */
 	const SymbolTableEnt		*st_ent;
 	Expr				*evaled_idx;
-	const ThunkField		*thunk_field;
+	const ThunkField		*tf;
+	const Type			*t;
 
 	assert (cur_scope != NULL);
 
@@ -528,17 +527,52 @@ Expr* EvalCtx::resolveArrayInType(const IdArray* ida) const
 		return NULL;
 	}
 
-	thunk_field = st_ent->getFieldThunk();
+	tf = st_ent->getFieldThunk();
+	t = tf->getType();
+	if (t != NULL) {
+		/* best winter vacation ever */
+		Expr	*params;
+		Expr	*array_offset;
+		bool	is_union;
+
+		params = Expr::rewriteReplace(
+			tf->getParams()->copyFCall(),
+			new Id("@"),
+			evaled_idx->simplify());
+		params = Expr::rewriteReplace(
+			params, rt_glue.getThunkArgIdx(), evaled_idx->simplify());
+		array_offset = tf->getOffset()->copyFCall();
+
+		is_union = t->isUnion();
+		if (is_union == true || tf->getElems()->isFixed()) {
+			Expr	*sz;
+
+			sz = new AOPMul(
+				tf->getSize()->copyFCall(),
+				evaled_idx->simplify());
+			array_offset = new AOPAdd(array_offset, sz);
+		} else {
+			Expr	*sz;
+			sz = rt_glue.computeArrayBits(tf, evaled_idx);
+			array_offset = new AOPAdd(sz, array_offset);
+		}
+
+		delete evaled_idx;
+		return FCall::mkClosure(
+			array_offset,
+			params,
+			rt_glue.getThunkArgVirt());
+	}
 
 	/* convert into __getLocalArray call */
 	return rt_glue.getLocalArray(
 		rt_glue.getThunkClosure(),
 		evaled_idx,
-		thunk_field->getSize()->copyFCall(),
-		thunk_field->getOffset()->copyFCall(),
+		tf->getSize()->copyFCall(),
+		tf->getOffset()->copyFCall(),
 		new AOPMul(
-			thunk_field->getSize()->copyFCall(),
-			thunk_field->getElems()->copyFCall()));
+			tf->getSize()->copyFCall(),
+			tf->getElems()->copyFCall()));
 }
 
 Expr* EvalCtx::resolveVal(const IdArray* ida) const

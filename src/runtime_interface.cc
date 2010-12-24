@@ -292,8 +292,17 @@ Expr* RTInterface::fail(void)
 	return new FCall(new Id("fsl_fail"), new ExprList(new Number(0)));
 }
 
-/* compute number of bits in a given array */
 Expr* RTInterface::computeArrayBits(const ThunkField* tf)
+{
+	Expr	*end_idx, *ret;
+	end_idx = tf->getElems()->copyFCall();
+	ret = computeArrayBits(tf, end_idx);
+	delete end_idx;
+	return ret;
+}
+
+/* compute number of bits in a given array */
+Expr* RTInterface::computeArrayBits(const ThunkField* tf, const Expr* idx)
 {
 	ExprList	*exprs;
 	const Type	*owner_type;
@@ -317,7 +326,7 @@ Expr* RTInterface::computeArrayBits(const ThunkField* tf)
 	/* field idx */
 	exprs->add(new Number(tf->getFieldNum()));
 	/* num elements */
-	exprs->add(tf->getElems()->copyFCall());
+	exprs->add(idx->copy());
 
 	return new FCall(new Id("__computeArrayBits"), exprs);
 }

@@ -48,6 +48,7 @@ private:
 	void loadPointsRange(void);
 	void loadPointsIf(void);
 	void loadPointsCast(void);
+	void loadPointsRangeCast(void);
 
 	void loadPointsInstance(
 		const Type* dst_type,

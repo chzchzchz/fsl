@@ -42,6 +42,7 @@ public:
 	Expr	*toPhys(const Expr* clo, const Expr* off);
 
 	Expr	*maxValue(ExprList* exprs);
+	Expr	*computeArrayBits(const class ThunkField* tf, const Expr* idx);
 	Expr	*computeArrayBits(const class ThunkField* tf);
 	Expr	*computeArrayBits(
 		/* type of the parent*/

@@ -58,6 +58,27 @@ bool InstanceIter::load(
 	return true;
 }
 
+bool InstanceIter::loadCast(
+	const Type			*in_src_type,
+	preamble_args::const_iterator	&arg_it)
+{
+	const Expr	*_cast_type;
+	const Id	*cast_type;
+
+	if (load(in_src_type, arg_it) == false) return false;
+
+	_cast_type = (*arg_it)->getExpr(); arg_it++;
+	assert (_cast_type != NULL && "BAD CAST TYPE");
+
+	cast_type = dynamic_cast<const Id*>(_cast_type);
+	assert (cast_type != NULL && "EXPECTED ID FOR CAST TYPE");
+
+	if (types_map.count(cast_type->getName()) == 0) return false;
+	dst_type = types_map[cast_type->getName()];
+
+	return true;
+}
+
 InstanceIter::InstanceIter(
 	const Type*	in_src_type,
 	const Type*	in_dst_type,

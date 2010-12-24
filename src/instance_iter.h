@@ -14,6 +14,9 @@ public:
 	bool load(
 		const Type* in_src_type,
 		preamble_args::const_iterator& arg_it);
+	bool loadCast(
+		const Type* in_src_type,
+		preamble_args::const_iterator& arg_it);
 
 	InstanceIter(
 		const Type*	in_src_type,
