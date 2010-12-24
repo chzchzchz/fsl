@@ -11,7 +11,7 @@
 #include "func.h"
 #include "symtab.h"
 #include "eval.h"
-#include "points_to.h"
+#include "points.h"
 #include "asserts.h"
 #include "virt.h"
 #include "reloc.h"

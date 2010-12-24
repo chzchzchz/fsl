@@ -6,7 +6,7 @@
 #include "struct_writer.h"
 #include "eval.h"
 
-#include "points_to.h"
+#include "points.h"
 
 using namespace std;
 
@@ -14,6 +14,7 @@ typedef list<const Preamble*>	point_list;
 
 extern CodeBuilder		*code_builder;
 extern symtab_map		symtabs;
+extern type_map			types_map;
 extern RTInterface		rt_glue;
 
 unsigned int			points_seq = 0;
@@ -23,6 +24,7 @@ Points::Points(const Type* t)
 {
 	assert (src_type != NULL);
 	loadPoints();
+	loadPointsCast();
 	loadPointsRange();
 	loadPointsIf();
 }
@@ -61,6 +63,60 @@ void Points::loadPointsIf(void)
 		loadPointsIfInstance(
 			cexpr, data_loc, (*it)->getAddressableName());
 	}
+}
+
+void Points::loadPointsCast(void)
+{
+	point_list	points_list;
+
+	points_list = src_type->getPreambles("points_cast");
+	for (	point_list::const_iterator it = points_list.begin();
+		it != points_list.end();
+		it++)
+	{
+		const preamble_args		*args;
+		preamble_args::const_iterator	args_it;
+		const Expr			*data_loc, *_type_name;
+		const Id			*type_name;
+		const Type			*dst_type;
+
+		args = (*it)->getArgsList();
+		if (args == NULL ||  args->size() != 2) {
+			cerr << "points_cast: expects two args" << endl;
+			continue;
+		}
+
+		args_it = args->begin();
+		_type_name = (*args_it)->getExpr();
+		if (_type_name == NULL) {
+			cerr << "points_cast: Unexpected argtype" << endl;
+			continue;
+		}
+		type_name = dynamic_cast<const Id*>(_type_name);
+		if (type_name == NULL) {
+			cerr << "points_cast : Wanted type name in first arg. ";
+			cerr << "Got: ";
+			_type_name->print(cerr);
+			cerr << endl;
+			continue;
+		}
+
+		if (types_map.count(type_name->getName()) == 0) {
+			cerr << "points_cast: invalid type " <<
+				type_name->getName()  << endl;
+			continue;
+		}
+		dst_type = types_map[type_name->getName()];
+
+		data_loc = (*args_it)->getExpr();
+		if (data_loc == NULL) {
+			cerr << "points_cast: Unexpected argtype" << endl;
+			continue;
+		}
+
+		loadPointsInstance(dst_type, data_loc, (*it)->getAddressableName());
+	}
+
 }
 
 void Points::loadPoints(void)
@@ -157,9 +213,6 @@ void Points::loadPointsInstance(const Expr* data_loc, const Id* as_name)
 {
 	EvalCtx		ectx(symtabs[src_type->getName()]);
 	const Type	*dst_type;
-	PointsRange	*new_pr;
-
-	assert (data_loc != NULL);
 
 	/* get the type of the expression so we know what we're pointing to */
 	dst_type = ectx.getType(data_loc);
@@ -169,6 +222,17 @@ void Points::loadPointsInstance(const Expr* data_loc, const Id* as_name)
 		cerr << "' in type " << src_type->getName() << endl;
 		return;
 	}
+
+	loadPointsInstance(dst_type, data_loc, as_name);
+}
+
+void Points::loadPointsInstance(
+	const Type* dst_type, const Expr* data_loc, const Id* as_name)
+{
+	PointsRange	*new_pr;
+
+	assert (dst_type != NULL);
+	assert (data_loc != NULL);
 
 	/* convert the expression into code for the run-time tool */
 	new_pr = new PointsRange(

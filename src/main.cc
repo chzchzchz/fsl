@@ -10,7 +10,7 @@
 #include "eval.h"
 #include "code_builder.h"
 #include "asserts.h"
-#include "points_to.h"
+#include "points.h"
 #include "virt.h"
 #include "table_gen.h"
 #include "detached_preamble.h"

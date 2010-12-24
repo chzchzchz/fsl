@@ -5,7 +5,7 @@
 #include <map>
 #include "collection.h"
 #include "type.h"
-#include "points_to.h"
+#include "points.h"
 
 typedef PtrList<class VirtualType>		virt_list;
 typedef std::list<class VirtualTypes*>		typevirt_list;

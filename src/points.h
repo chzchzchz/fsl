@@ -20,9 +20,9 @@ public:
 	Points(const Type* t);
 	virtual ~Points() {}
 
-	const pointsto_list* getPointsTo(void) const 
-	{ 
-		return &points_to_elems; 
+	const pointsto_list* getPointsTo(void) const
+	{
+		return &points_to_elems;
 	}
 
 	const pointsrange_list* getPointsRange(void) const
@@ -47,7 +47,12 @@ private:
 	void loadPoints(void);
 	void loadPointsRange(void);
 	void loadPointsIf(void);
+	void loadPointsCast(void);
 
+	void loadPointsInstance(
+		const Type* dst_type,
+		const Expr* data_loc,
+		const Id* as_name);
 	void loadPointsInstance(
 		const Expr* data_loc,
 		const Id* as_name);
@@ -55,7 +60,6 @@ private:
 		const CondExpr* cond_expr,
 		const Expr*	data_loc,
 		const Id*	as_name);
-
 	void loadPointsRangeInstance(
 		InstanceIter*	iter,
 		const Id*	as_name);
@@ -66,12 +70,12 @@ private:
 	pr_list			p_elems_all;
 };
 
-class PointsRange 
+class PointsRange
 {
 public:
 	PointsRange(InstanceIter* in_iter, Id* in_name, unsigned int in_seq);
 
-	virtual ~PointsRange() 
+	virtual ~PointsRange()
 	{
 		delete iter;
 		if (name != NULL) delete name;
@@ -93,7 +97,7 @@ private:
 	unsigned int	seq;
 };
 
-class PointsIf : public PointsRange 
+class PointsIf : public PointsRange
 {
 public:
 	PointsIf(
