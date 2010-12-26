@@ -24,9 +24,14 @@ struct scan_ctx {
 static int scan_pointsto_all(struct scan_ctx* ctx);
 static int scan_virt_all(struct scan_ctx* ctx);
 static int scan_strongtype_all(struct scan_ctx* ctx);
+static int scan_cond_all(struct scan_ctx* ctx);
 static int scan_pointsto(struct scan_ctx* ctx, const struct fsl_rtt_pointsto*);
 static int scan_virt(struct scan_ctx*, const struct fsl_rtt_virt*);
 static int scan_strongtype(struct scan_ctx*, const struct fsl_rtt_field*);
+static int scan_cond(struct scan_ctx*, const struct fsl_rtt_field*);
+static int scan_field_array(
+	struct scan_ctx* ctx, const struct fsl_rtt_field* field);
+
 
 static int scan_virt_all(struct scan_ctx* ctx)
 {
@@ -56,6 +61,27 @@ static int scan_strongtype_all(struct scan_ctx* ctx)
 	tt = tt_by_ti(ctx->sctx_ti);
 	for (i = 0; i < tt->tt_fieldstrong_c; i++) {
 		ret = scan_strongtype(ctx, &tt->tt_fieldstrong_table[i]);
+		if (is_ret_done(ret))
+			goto done;
+	}
+
+	ret = SCAN_RET_CONTINUE;
+done:
+	return ret;
+}
+
+static int scan_cond_all(struct scan_ctx* ctx)
+{
+	const struct fsl_rtt_type	*tt;
+	unsigned int			i;
+	int				ret;
+
+	tt = tt_by_ti(ctx->sctx_ti);
+	for (i = 0; i < tt->tt_fieldtypes_c; i++) {
+		const struct fsl_rtt_field	*tf;
+		tf = &tt->tt_fieldtypes_thunkoff[i];
+		if (tf->tf_cond == NULL) continue;
+		ret = scan_cond(ctx, tf);
 		if (is_ret_done(ret))
 			goto done;
 	}
@@ -210,24 +236,16 @@ done:
 	return ret;
 }
 
-static int scan_strongtype(
+static int scan_field_array(
 	struct scan_ctx* ctx, const struct fsl_rtt_field* field)
 {
 	struct type_info		*ti;
+	int				ret;
 	uint64_t			num_elems;
 	unsigned int			i;
 	size_t				off;
-	int				ret;
 
 	ti = ctx->sctx_ti;
-	if (ti_typenum(ti) == TYPENUM_INVALID) return SCAN_RET_CONTINUE;
-
-	if (ctx->sctx_ops->so_strong) {
-		ret =  ctx->sctx_ops->so_strong(ti, field, ctx->sctx_aux);
-		if (is_ret_done(ret))
-			goto done;
-	}
-
 	num_elems = field->tf_elemcount(&ti_clo(ti));
 	off = field->tf_fieldbitoff(&ti_clo(ti));
 	for (i = 0; i < num_elems; i++) {
@@ -258,6 +276,48 @@ done:
 	return ret;
 }
 
+static int scan_cond(struct scan_ctx* ctx, const struct fsl_rtt_field* field)
+{
+	struct type_info		*ti;
+	int				ret;
+
+	ti = ctx->sctx_ti;
+	if (ti_typenum(ti) == TYPENUM_INVALID) return SCAN_RET_CONTINUE;
+
+	if (ctx->sctx_ops->so_cond) {
+		ret =  ctx->sctx_ops->so_cond(ti, field, ctx->sctx_aux);
+		if (is_ret_done(ret))
+			goto done;
+	}
+
+	if (field->tf_cond(&ti_clo(ti)) == false) goto done_ok;
+	ret = scan_field_array(ctx, field);
+
+done_ok:
+	ret = SCAN_RET_CONTINUE;
+done:
+	return ret;
+}
+
+static int scan_strongtype(
+	struct scan_ctx* ctx, const struct fsl_rtt_field* field)
+{
+	struct type_info		*ti;
+	int				ret;
+
+	ti = ctx->sctx_ti;
+	if (ti_typenum(ti) == TYPENUM_INVALID) return SCAN_RET_CONTINUE;
+
+	if (ctx->sctx_ops->so_strong) {
+		ret =  ctx->sctx_ops->so_strong(ti, field, ctx->sctx_aux);
+		if (is_ret_done(ret)) goto done;
+	}
+
+	ret = scan_field_array(ctx, field);
+done:
+	return ret;
+}
+
 int scan_type(struct type_info* ti, const struct scan_ops* sops, void* aux)
 {
 	struct scan_ctx		ctx;
@@ -281,6 +341,10 @@ int scan_type(struct type_info* ti, const struct scan_ops* sops, void* aux)
 
 	DEBUG_SCAN_WRITE("do strongtypes_all.");
 	ret = scan_strongtype_all(&ctx);
+	if (is_ret_done(ret)) goto done;
+
+	DEBUG_SCAN_WRITE("do condscan");
+	ret = scan_cond_all(&ctx);
 	if (is_ret_done(ret)) goto done;
 
 	DEBUG_SCAN_WRITE("do pointsto_all.");

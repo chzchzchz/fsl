@@ -39,6 +39,7 @@ static uint64_t __getLocalPhys(uint64_t bit_off, uint64_t num_bits)
 				io, 8*(1+(bit_off/8)), 8*bytes_full);
 			ret |= v << bits_left;
 		}
+		ret &= (1 << num_bits) - 1;
 	} else {
 		/* common path */
 		ret = fsl_io_cache_get(io, bit_off, num_bits);
@@ -91,6 +92,8 @@ uint64_t __getLocal(
 			bit_off, num_bits, ret);
 
 	DEBUG_IO_LEAVE();
+
+	if (num_bits == 1) assert (ret < 2 && "BADMASK.");
 
 	return ret;
 }

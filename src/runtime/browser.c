@@ -26,6 +26,7 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 	int					pt_elem_idx;
 	unsigned int				min_idx, max_idx;
 
+	fsl_env->fctx_failed_assert = NULL;
 	pt = &(tt_by_ti(cur)->tt_pointsto[pt_idx]);
 
 	/* get the range element idx */
@@ -41,7 +42,12 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 	}
 
 	ti_next = typeinfo_follow_pointsto(cur, pt, pt_elem_idx);
-	if (ti_next == NULL) return;
+	if (ti_next == NULL) {
+		printf("Could not select points-to.\n");
+		if (fsl_env->fctx_failed_assert != NULL)
+			printf("Reason: %s\n", fsl_env->fctx_failed_assert);
+		return;
+	}
 
 	menu(ti_next);
 
@@ -143,9 +149,11 @@ static void select_field(struct type_info* cur, int field_idx)
 		goto done;
 	}
 
+	fsl_err_reset();
 	ti_next = typeinfo_follow_field_off_idx(cur, field, next_off, sel_idx);
 	if (ti_next == NULL) {
 		printf("No dice. Couldn't follow field.\n");
+		if (fsl_err_get()) printf("Reason: %s\n", fsl_err_get());
 		goto done;
 	}
 

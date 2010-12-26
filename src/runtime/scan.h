@@ -15,6 +15,8 @@ typedef int(*scan_pt_f)(
 	const struct fsl_rtt_pointsto*, int idx, void* aux);
 typedef int(*scan_strong_f)(
 	struct type_info* ti, const struct fsl_rtt_field*, void* aux);
+typedef int(*scan_cond_f)(
+	struct type_info* ti, const struct fsl_rtt_field*, void* aux);
 typedef int(*scan_field_f)(
 	struct type_info* ti, const struct fsl_rtt_field*, void* aux);
 
@@ -23,6 +25,7 @@ struct scan_ops {
 	scan_strong_f		so_strong;
 	scan_virt_f		so_virt;
 	scan_pt_f		so_pt;
+	scan_cond_f		so_cond;
 //	scan_ti_field_f		so_field;
 };
 

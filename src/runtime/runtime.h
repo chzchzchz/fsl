@@ -27,6 +27,8 @@ typedef unsigned int	typenum_t;
 typedef uint64_t*	parambuf_t;
 
 extern struct fsl_rt_ctx* 	fsl_env;
+#define fsl_err_reset()		do { fsl_env->fctx_failed_assert = 0; } while (0)
+#define fsl_err_get()		fsl_env->fctx_failed_assert
 
 #define FSL_STAT_ACCESS			0
 #define FSL_STAT_PHYSACCESS		1

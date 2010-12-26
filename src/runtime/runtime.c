@@ -65,6 +65,10 @@ typesize_t __computeArrayBits(
 	assert (field_idx < parent_tt->tt_field_c && "Fieldnum overflow");
 
 	tf = &parent_tt->tt_field_table[field_idx];
+	if (field_idx != tf->tf_fieldnum)
+		printf("field_idx = %d, tf->tf_fieldnum=%d, tf->tf_fieldname=%s\n",
+			field_idx,
+			tf->tf_fieldnum, tf->tf_fieldname);
 	assert (field_idx == tf->tf_fieldnum && "Fieldnum mismatch");
 
 	elem_type = tf->tf_typenum;
