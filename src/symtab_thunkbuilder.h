@@ -18,7 +18,9 @@ public:
 	SymbolTable* getSymTab(
 		const Type* t, 
 		std::list<SymbolTable*>& union_symtabs);
-	SymbolTable* getSymTab(const TypeUnion* tu);
+	SymbolTable* getSymTab(
+		const ThunkType* parent_tt,
+		const TypeUnion* tu);
 	virtual void visit(const TypeDecl* td);
 	virtual void visit(const TypeUnion* tu);
 	virtual void visit(const TypeParamDecl*);

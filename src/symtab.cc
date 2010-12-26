@@ -141,7 +141,6 @@ const ThunkType* SymbolTable::getThunkType(void) const
 	return owner->copy();
 }
 
-
 bool SymbolTableEnt::isUserType(void) const
 {
 	return (getType() != NULL);

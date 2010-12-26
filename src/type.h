@@ -184,7 +184,7 @@ public:
 		delete is_true;
 	}
 
-	void print(std::ostream& out) const { out << "TYPECOND"; }
+	void print(std::ostream& out) const;
 
 	const TypeStmt* getTrueStmt() const { return is_true; }
 	const TypeStmt* getFalseStmt() const { return is_false; }

@@ -98,7 +98,6 @@ void TableGen::genThunksTableBySymtab(
 		it++)
 	{
 		const SymbolTableEnt	*st_ent;
-		
 		st_ent = *it;
 		sw.beginWrite();
 		genInstanceTypeField(st.getOwnerType(), st_ent);

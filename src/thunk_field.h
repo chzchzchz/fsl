@@ -54,9 +54,7 @@ public:
 	bool genCode(void) const;
 
 	const std::string& getFieldName(void) const { return fieldname; }
-
 	unsigned int getFieldNum(void) const { return field_num; }
-
 	const Type* getOwnerType(void) const { return owner_type; }
 
 private:

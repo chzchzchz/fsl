@@ -88,5 +88,19 @@ private:
 	sym_list		sl;
 };
 
+inline static void dump_symlist(const SymbolTable& st)
+{
+	unsigned int	i = 0;
+	std::cerr << "dumping symlist " << st.getOwnerType()->getName() << "(" <<
+		&st << ") (in order)\n";
+	for (	sym_list::const_iterator it = st.begin();
+		it != st.end();
+		it++, i++)
+	{
+		const SymbolTableEnt	*st_ent = *it;
+		std::cerr << i << ". " << st_ent->getFieldName() << '\n';
+	}
+	std::cerr << "done.\n";
+}
 
 #endif

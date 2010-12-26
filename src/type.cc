@@ -67,6 +67,17 @@ void TypeBlock::print(ostream& out) const
 	out << "ENDBLOCK";
 }
 
+void TypeCond::print(std::ostream& out) const
+{
+	out << "(TYPECOND ";
+	is_true->print(out);
+	if (is_false != NULL) {
+		out << ' ';
+		is_false->print(out);
+	}
+	out << ")";
+}
+
 void TypeParamDecl::print(std::ostream& out) const 
 {
 	out << "PDECL: "; 

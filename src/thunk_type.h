@@ -70,7 +70,7 @@ public:
 
 	unsigned int getNumFields(void) const { return num_fields; }
 	unsigned int incNumFields(void) { return num_fields++; }
-
+	void setNumFields(unsigned int in_nf) { num_fields = in_nf; }
 private:
 	const Type	*t_type;
 	ThunkSize	*t_size;

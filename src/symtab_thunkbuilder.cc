@@ -83,7 +83,9 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 	return ret;
 }
 
-SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
+SymbolTable* SymTabThunkBuilder::getSymTab(
+	const ThunkType* parent_tt,
+	const TypeUnion* tu)
 {
 	SymbolTable	*ret;
 	Type		*fake_type;
@@ -109,6 +111,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 
 	thunk_type = new ThunkType(fake_type);
 	cur_thunk_type = thunk_type;
+//	cur_thunk_type->setNumFields(parent_tt->getNumFields());
 
 	cur_symtab = new SymbolTable(thunk_type);
 	cur_type = fake_type;
@@ -119,7 +122,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 
 	/* create base thunk field.. */
 	/* XXX: this needs to take into account any conditions that may have
-	 * pilled up */
+	 * piled up */
 	setLastThunk(
 		new ThunkField(
 			*cur_thunk_type,
@@ -161,7 +164,7 @@ SymbolTable* SymTabThunkBuilder::getSymTab(const TypeUnion* tu)
 
 	ret = cur_symtab;
 
-	cur_thunk_type = NULL;
+	//cur_thunk_type = NULL;
 	cur_symtab = NULL;
 	cur_type = NULL;
 	setLastThunk(NULL);
@@ -249,18 +252,20 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 	const std::string& field_name,
 	ThunkField* field_thunk)
 {
+	bool	was_added;
+
 	setLastThunk(field_thunk->copy(*cur_thunk_type));
-	cur_symtab->add(
+	was_added = cur_symtab->add(
 		field_name,
 		type_name,
 		field_thunk, 
 		(weak_c > 0),
 		(cond_stack.size() > 0));
+
 	field_count++;
 	if (union_c > 0)
 		union_tf_list.add(field_thunk->copy(*cur_thunk_type));
 }
-
 
 const Type* SymTabThunkBuilder::getTypeFromUnionSyms(
 	const std::string& field_name) const
@@ -316,7 +321,6 @@ void SymTabThunkBuilder::addUnionToSymTab(
 			array->getIdx()->simplify(),
 			from_base_fc.copy(),
 			last_tf_union_off->copy());
-
 
 		field_elems = new ThunkElements(num_elems);
 	}
@@ -436,10 +440,15 @@ void SymTabThunkBuilder::rebaseByCond(
 		next_off_false);
 
 	/* create a field which will do a 'rebase', use it as the last tf */
-	rebase_tf = new ThunkField(
+//	rebase_tf = new ThunkField(
+//		*cur_thunk_type, fieldname,
+//		field_offset, field_size, field_elements,
+//		ThunkParams::createNoParams(),
+//		TF_FIELDNUM_NONE);
+
+	rebase_tf = ThunkField::createInvisible(
 		*cur_thunk_type, fieldname,
-		field_offset, field_size, field_elements,
-		ThunkParams::createNoParams());
+		field_offset, field_size);
 
 	setLastThunk(rebase_tf);
 }
@@ -464,9 +473,8 @@ void SymTabThunkBuilder::visit(const TypeUnion* tu)
 
 	/* make 'union' type available for symtab reference */
 	sttb = new SymTabThunkBuilder();
-	union_symtabs.push_back(sttb->getSymTab(tu));
+	union_symtabs.push_back(sttb->getSymTab(cur_thunk_type, tu));
 	delete sttb;
-
 
 	addUnionToSymTab(tu->getName(), tu->getArray());
 
@@ -650,7 +658,6 @@ done:
 
 	return thunkf;
 }
-
 
 ThunkField* SymTabThunkBuilder::alignBytes(const TypeFunc* tf)
 {
