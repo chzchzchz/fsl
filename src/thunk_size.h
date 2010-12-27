@@ -25,7 +25,7 @@ public:
 	Expr* copyConstValue(void) const;
 
 	ThunkSize* copy(void) const;
-
+	const Expr* getExpr(void) const { return raw_expr; }
 protected:
 	const class Type	*t;
 

@@ -7,33 +7,29 @@ using namespace std;
 
 extern RTInterface	rt_glue;
 
+Expr* ThunkField::copyNumBits(void) const
+{
+	if (t_elems->isSingleton() == true) {
+		return t_size->copyFCall();
+	} else if (t_size->isConstant() || getType()->isUnion()) {
+		return new AOPMul(t_size->copyFCall(), t_elems->copyFCall());
+	} else if (t_elems->isFixed() == true) {
+		return new AOPMul(t_size->copyFCall(), t_elems->copyFCall());
+	} else {
+		return rt_glue.computeArrayBits(this);
+	}
+
+	assert (0 == 1 && "Don't know how to compute num bits");
+	return NULL;
+}
+
 Expr* ThunkField::copyNextOffset(void) const
 {
 	Expr	*ret;
 
 	assert (t_elems != NULL);
-
-	if (t_elems->isSingleton() == true) {
-		ret = new AOPAdd(
-			t_fieldoff->copyFCall(),
-			t_size->copyFCall());
-	} else if (t_size->isConstant()) {
-		ret = new AOPAdd(
-			t_fieldoff->copyFCall(),
-			new AOPMul(
-				t_size->copyFCall(),
-				t_elems->copyFCall()));
-	} else if (t_elems->isFixed() == true) {
-		ret = new AOPAdd(
-			t_fieldoff->copyFCall(),
-			new AOPMul(
-				t_size->copyFCall(),
-				t_elems->copyFCall()));
-	} else {
-		ret = new AOPAdd(
-			t_fieldoff->copyFCall(),
-			rt_glue.computeArrayBits(this));
-	}
+	ret = copyNumBits();
+	ret = new AOPAdd(t_fieldoff->copyFCall(), ret);
 
 	/* XXX */
 	return Expr::rewriteReplace(

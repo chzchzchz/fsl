@@ -59,17 +59,10 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 
 	thunk_size = new ThunkSize(
 		new AOPSub(
-			/* offset of last bit */
-			new AOPAdd(
-				new AOPMul(
-					(last_tf->getSize())->copyFCall(),
-					(last_tf->getElems())->copyFCall()),
-				(last_tf->getOffset())->copyFCall()),
-			/* offset of base */
-			rt_glue.getThunkArgOffset())
+			last_tf->copyNextOffset(),	/* end of last elem */
+			rt_glue.getThunkArgOffset()	/* offset of base */)
 	);
 	thunk_size->setOwner(thunk_type);
-
 	thunk_type->setSize(thunk_size);
 
 	ret = cur_symtab;

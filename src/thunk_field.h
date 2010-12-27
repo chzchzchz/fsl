@@ -46,6 +46,7 @@ public:
 	ThunkField* copy(ThunkType& owner) const;
 
 	Expr* copyNextOffset(void) const;
+	Expr* copyNumBits(void) const;
 
 	/* get the type of the field */
 	const Type* getType(void) const { return t_size->getType(); }
