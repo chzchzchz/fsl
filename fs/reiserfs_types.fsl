@@ -1,0 +1,350 @@
+type journal_params
+{
+	u32 jp_journal_1st_block;	/* where journal starts from on device */
+	u32 jp_journal_dev;		/* journal device st_rdev */
+	u32 jp_journal_size;		/* size of the journal (in blcocks) */
+	u32 jp_journal_trans_max;	/* max number of blocks in a transaction. */
+	u32 jp_journal_magic;		/* random value made on fs creation (this
+					 * was sb_journal_block_count) */
+	u32 jp_journal_max_batch;	/* max number of blocks to batch into trans */
+	u32 jp_journal_max_commit_age;	/* in seconds, max async commit age */
+	u32 jp_journal_max_trans_age;	/* in seconds, max transaction age */
+}
+
+type reiserfs_sb_v1
+{
+	u32	s_block_count;	/* blocks count         */
+	u32	s_free_blocks;	/* free blocks count    */
+	u32	s_root_block;	/* root block number    */
+	journal_params s_journal;
+	u16 s_blocksize;	/* block size */
+	u16 s_oid_maxsize;	/* max size of object id array  */
+	u16 s_oid_cursize;	/* current size of object id array */
+	u16 s_umount_state;	/* 1 when filesystem was mounted, 2 - when not */
+	u8 s_magic[10];	/* reiserfs magic string indicates that
+				 * file system is reiserfs:
+				 * "ReIsErFs" or "ReIsEr2Fs" or "ReIsEr3Fs" */
+	u16 s_fs_state;	/* set fsck to mark which phase of rebuilding is done */
+	hash_code s_hash_function_code;	/* indicate, what hash function is being use
+					 * to sort names in a directory*/
+	u16 s_tree_height;	/* height of disk tree */
+	u16 s_bmap_nr;	/* amount of bitmap blocks needed to address
+				 * each block of file system */
+	u16 s_version;	/* this field is only reliable on filesystem
+				 * with non-standard journal */
+	u16 s_reserved_for_journal;	/* size in blocks of journal area on main
+					 * device, we need to keep after
+					 * making fs with non-standard journal */
+}
+
+type reiserfs_sb
+{
+	reiserfs_sb_v1 s_v1;
+	u32	s_inode_generation;
+	u32	s_flags;		/* Right now used only by inode-attributes, if enabled */
+	u8	s_uuid[16];		/* filesystem unique identifier */
+	u8	s_label[16];		/* filesystem volume label */
+	u16	s_mnt_count;		/* Count of mounts since last fsck */
+	u16	s_max_mnt_count;	/* Maximum mounts before check */
+	u32	s_lastcheck;		/* Timestamp of last fsck */
+	u32	s_check_interval;	/* Interval between checks */
+	u8	s_unused[76];	/* zero filled by mkreiserfs and
+				 * reiserfs_convert_objectid_map_v1()
+				 * so any additions must be updated
+				 * there as well. */
+}
+
+// old stat data is 32 bytes long. We are going to distinguish new one by
+// different size
+type stat_data_v1 {
+	u16 sd_mode;	/* file type, permissions */
+	u16 sd_nlink;	/* number of hard links */
+	u16 sd_uid;	/* owner */
+	u16 sd_gid;	/* group */
+	u32 sd_size;	/* file size */
+	u32 sd_atime;	/* time of last access */
+	u32 sd_mtime;	/* time file was last modified  */
+	u32 sd_ctime;	/* time inode (stat data) last changed (except sd_atime, sd_mtime) */
+	union {
+		u32 sd_rdev;
+		u32 sd_blocks;	/* number of blocks file uses */
+	} u;
+	u32	sd_first_direct_byte;	/* first byte of file which is stored
+					   in a direct item: except that if it
+					   equals 1 it is a symlink and if it
+					   equals ~(__u32)0 there is no
+					   direct item. */
+}
+
+/* Stat Data on disk (reiserfs version of UFS disk inode minus the
+   address blocks) */
+type stat_data
+assert ( ? sizeof_bytes(this) == 44) as sz_chk
+{
+	u16 sd_mode;	/* file type, permissions */
+	u16 sd_attrs;	/* persistent inode flags */
+	u32 sd_nlink;	/* number of hard links */
+	u64 sd_size;	/* file size */
+	u32 sd_uid;	/* owner */
+	u32 sd_gid;	/* group */
+	u32 sd_atime;	/* time of last access */
+	u32 sd_mtime;	/* time file was last modified  */
+	u32 sd_ctime;	/* time inode (stat data) last changed (except sd_atime, sd_mtime) */
+	u32 sd_blocks;
+	union {
+		u32 sd_rdev;
+		u32 sd_generation;
+		//u32 sd_first_direct_byte;
+		/* first byte of file which is stored in a
+		   direct item: except that if it equals 1
+		   it is a symlink and if it equals
+		   ~(__u32)0 there is no direct item.  The
+		   existence of this field really grates
+		   on me. Let's replace it with a macro
+		   based on sd_size and our tail
+		   suppression policy? */
+	} u;
+}
+
+type offset_v1
+{
+	u32	k_offset;
+	u32	k_uniqueness;
+}
+
+type offset_v2 { u64	v; }
+
+type disk_child
+relocate(
+	j, 1, 1, get_rawblk(dc2_block_number),
+	i, 1, get_block_count(), get_rawblk(i), ? is_blk_avail(i) == true,
+	block_alloc(i),
+	diskchild_relink(this, i),
+	block_replace(dc2_block_number)) as reloc
+
+{
+	blknum_t	dc2_block_number;	/* Disk child's block number. */
+	u16		dc2_size;		/* Disk child's used space.   */
+	u16		dc2_reserved;
+}
+
+/* Key of an item determines its location in the S+tree, and
+   is composed of 4 components */
+type reiserfs_key {
+	u32 k_dir_id;	/* packing locality: by default parent dir objid */
+	u32 k_objectid;	/* object identifier */
+	union {
+		offset_v1 k_offset_v1;
+		offset_v2 k_offset_v2;
+	} u;
+	set_bytes(8);
+	if (is_key_format_1(this) == true) {
+		offset_v1	k_key1;
+	} else {
+		offset_v2	k_key2;
+	}
+	set_bytes(16);
+}
+
+type block_head {
+	u16 blk2_level;		/* Level of a block in the tree. */
+	u16 blk2_nr_item;	/* Number of keys/items in a block. */
+	u16 blk2_free_space;	/* Block free space in bytes. */
+	u16 blk_reserved;
+	u32 reserved[4];
+}
+
+type internal_node
+assert (? sizeof_bytes(this) == get_bsz()) as sz_chk
+assert (? is_blockhead_internal(hdr)) as is_internal_chk
+points_range_cast(
+	i, 1, internal_int_children_count(this),
+	disk.raw_blocks[dc[i-1].dc2_block_number],
+	internal_node) as int_children
+points_range_cast(
+	i, 1, internal_leaf_children_count(this),
+	disk.raw_blocks[dc[i-1].dc2_block_number],
+	leaf_node_blk) as leaf_children
+{
+	block_head	hdr;
+	reiserfs_key	keys[hdr.blk2_nr_item] fixed;
+	disk_child	dc[hdr.blk2_nr_item+1] fixed;
+	u8		free[hdr.blk2_free_space];
+}
+
+/*  Everything in the filesystem is stored as a set of items.  The
+    item head contains the key of the item, its free space (for
+    indirect items) and specifies the location of the item itself
+    within the block.  */
+type item_head {
+	/* Everything in the tree is found by searching for it based on
+	 * its key.*/
+	reiserfs_key ih_key;
+	union {
+		/* The free space in the last unformatted node of an
+		   indirect item if this is an indirect item.  This
+		   equals 0xFFFF iff this is a direct item or stat data
+		   item. Note that the key, not this field, is used to
+		   determine the item type, and thus which field this
+		   union contains. */
+		u16	ih_free_space_reserved;
+		/* If this is a directory item, this field equals the
+		   number of directory entries in the directory item. */
+		u16	ih_entry_count;
+	} u;
+	u16 ih_item_len;	/* total size of the item body */
+	u16 ih_item_location;	/* an offset to the item body
+				 * within the block */
+	u16 ih_version;		/* 0 for all old items, 2 for new
+				   ones. Highest bit is set by fsck
+				   temporary, cleaned after all
+				   done */
+				/* XXX: key format is stored in bits 0-11 of this item
+				   flags are stored in bits 12-15 */
+
+}
+
+type indir_blk { u8 dat[get_bsz()]; }
+
+type reiserfs_indir(int byte_len)
+assert ( ? ((byte_len % 4) == 0)) as sz_chk
+points_range_cast(
+	i, 1, byte_len/4,
+	disk.raw_blocks[blkptr[i]], indir_blk) as indir_blks
+relocate(
+	j, 1, byte_len/4, get_rawblk(blkptr[j-1]),
+	i, 1, get_block_count(), get_rawblk(i), ? is_blk_avail(i) == true,
+	block_alloc(i),
+	indir_relink(this, (j-1), i),
+	block_replace(blkptr[j-1])) as reloc
+{
+	blknum_t	blkptr[byte_len/4];
+}
+
+type reiserfs_direct(int bytes) { u8 dat[bytes]; }
+
+/* items are stored backwards */
+type item_data(item_head ih)
+assert (? sizeof_bytes(this) == ih.ih_item_len) as len_chk
+{
+	if (get_key_type(ih.ih_key) == TYPE_STAT_DATA) {
+		if (get_item_format(ih) == KEY_FORMAT_1) {
+			stat_data_v1	sd1;
+		} else {
+			stat_data	sd2;
+		}
+	} else if (get_key_type(ih.ih_key) == TYPE_DIRECT) {
+		reiserfs_direct(ih.ih_item_len)	direct;
+	} else if (get_key_type(ih.ih_key) == TYPE_DIRENTRY) {
+		reiserfs_de_head	dirent[ih.u.ih_entry_count] fixed;
+		/* XXX: sloppy! fix later */
+		u8			names[ih.ih_item_len-(16*ih.u.ih_entry_count)];
+	} else if (get_key_type(ih.ih_key) == TYPE_INDIRECT) {
+		reiserfs_indir(ih.ih_item_len)	indir;
+	} else if (get_key_type(ih.ih_key) == TYPE_SYMLINK) {
+		u8	symlink[ih.ih_item_len];
+	} else {
+		u8	unk[ih.ih_item_len];
+	}
+}
+
+type leaf_node_blk
+{
+	leaf_node	leaf;
+	set_bytes(get_bsz());
+}
+
+type leaf_node
+assert (? sizeof_bytes(this) <= get_bsz()) as sz_chk
+assert (? is_blockhead_leaf(hdr) == true) as is_leaf_chk
+{
+	block_head			hdr;
+	item_head			item_hdrs[hdr.blk2_nr_item] fixed;
+	skip_bytes(hdr.blk2_free_space);
+	item_data(item_hdrs[(hdr.blk2_nr_item-1)-@])	item_dat[hdr.blk2_nr_item];
+}
+
+/* first block written in a commit */
+type reiserfs_journal_desc(u32 j_off)
+assert ( ? j2_len > 0 && j2_len < get_sb().s_v1.s_journal.jp_journal_trans_max) as chk_len
+assert ( ? is_journal_magic(this) == true) as chk_magic
+points_cast(reiserfs_journal_commit, disk.j_blocks[(j_off + j2_len)]) as commit_blk
+{
+	u32 j2_trans_id;		/* id of commit */
+	u32 j2_len;			/* length of commit. len +1 is the commit block */
+	u32 j2_mount_id;		/* mount id of this trans*/
+	u32 j2_realblock[j2_len];	/* real locations for each block */
+	set_bytes(get_bsz()-12);
+	u8  j2_magic[8];
+	set_bytes(get_bsz());	/* pad */
+}
+
+/* last block written in a commit */
+type reiserfs_journal_commit
+{
+	u32 j3_trans_id; 	/* must match j_trans_id from the desc block */
+	u32 j3_len;		/* ditto */
+	u32 j3_realblock[1];	/* real locations for each block */
+	set_bytes(get_bsz());
+}
+
+/* Q: How to get key of object pointed to by entry from entry?
+   A: Each directory entry has its header.
+      This header has deh_dir_id and deh_objectid fields, those are key of object,
+      entry points to */
+type reiserfs_de_head
+{
+	u32 deh_offset;		/* third component of the directory entry key */
+	u32 deh_dir_id;		/* objid of the parent dir of the obj referenced by dirent */
+	u32 deh_objectid;	/* objid of the obj referenced by directory entry */
+	u16 deh_location;	/* offset of name in the whole item */
+	u16 deh_state;		/* whether
+				 * 1) entry contains stat data (for future), and
+				 * 2) whether entry is hidden (unlinked) */
+}
+
+type reiser_bmpblk { u1	dat[get_bsz()*8]; }
+type reiser_bmpblk_spread(int k)
+{
+	reiser_bmpblk	bmp_blk;
+	/* XXX FIX LATER */
+	/* can't handle set_bytes + cond */
+	//if (is_bmap_spread()) {
+	//	if (k == 0) set_bytes(get_bsz()*((8*get_bsz()-get_blkbmp_base())));
+	//	else set_bytes(8*get_blksz()*get_blksz());
+	//}
+}
+
+type reiser_blkbmp
+{
+	reiser_bmpblk_spread(@)	bmp[get_sb().s_v1.s_bmap_nr];
+}
+
+type reiser_rawblk { u8	dat[get_bsz()]; }
+
+type disk
+assert (? is_valid_sb(sb_old) == true || is_valid_sb(sb_new) == true) as sb_chk
+assert (? __FROM_OS_BDEV_BYTES <= get_bsz()*get_block_count()) as fs_sz_chk
+points_cast(internal_node, raw_blocks[get_sb().s_v1.s_root_block]) as tree_root
+{
+	skip_bytes(REISERFS_OLD_DISK_OFFSET_IN_BYTES);
+	reiserfs_sb	sb_old;
+	set_bytes(REISERFS_DISK_OFFSET_IN_BYTES);
+//	if (is_valid_sb(sb_old) == false) {
+	reiserfs_sb sb_new;
+//	}
+
+	/* bitmap */
+	set_bytes(get_blkbmp_base());
+	reiser_blkbmp	bmap;
+
+	/* journal */
+	set_bytes(get_sb().s_v1.s_journal.jp_journal_1st_block*get_bsz());
+	//reiser_rawblk	journal_header;
+	reiserfs_journal_desc(0) j_header;
+	reiser_rawblk	j_blocks[get_sb().s_v1.s_journal.jp_journal_size] fixed;
+
+	/* ugly raw blocks */
+	set_bytes(0);
+	reiser_rawblk	raw_blocks[get_block_count()] fixed;
+}

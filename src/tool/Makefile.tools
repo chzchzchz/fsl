@@ -71,4 +71,4 @@ fsl.$(FSNAME).types.bc: fsl.$(FSNAME).types.ll
 	opt $(OPT_FLAGS) $^ -o $@
 
 fsl.$(FSNAME).table.c fsl.$(FSNAME).types.ll: $(SRC_FSL_ALL)
-	../lang $(FSNAME) <$(SRC_FSL)
+	../lang $(FSNAME) <$(SRC_FSL) 2>$(FSNAME).err

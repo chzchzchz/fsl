@@ -1,5 +1,6 @@
 all: 	fill ext2.img vfat.img nilfs2.img testfs.img reiserfs.img \
 	ext2-small.img ext2-many.img vfat-many.img  reiserfs-many.img \
+	reiserfs-many-blockfile.img			\
 	iso9660-depth.img ext2-depth.img vfat-depth.img reiserfs-depth.img \
 	vfat-postmark.img ext2-postmark.img reiserfs-postmark.img
 
@@ -41,7 +42,9 @@ ext2-small.img:
 ext2-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.ext2 $@
-	./loopback_fs_setup.sh ext2-many.img ext2  && ./gen_files.sh 100 && ./loopback_fs_teardown.sh
+	./loopback_fs_setup.sh ext2-many.img ext2
+	./gen_files.sh 100
+	./loopback_fs_teardown.sh
 
 ext2-postmark.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
@@ -94,7 +97,7 @@ nilfs2.img:
 
 reiserfs.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
-	yes | /sbin/mkfs.reiserfs -f $@
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
 	./gen_files.sh
 	./loopback_fs_teardown.sh
@@ -102,21 +105,29 @@ reiserfs.img:
 
 reiserfs-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
-	yes | /sbin/mkfs.reiserfs -f $@
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
 	./gen_files.sh 100
 	./loopback_fs_teardown.sh
 
 reiserfs-postmark.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
-	yes | /sbin/mkfs.reiserfs -f $@
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
 	./gen_postmark.sh
 	./loopback_fs_teardown.sh
 
 reiserfs-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
-	yes | /sbin/mkfs.reiserfs -f $@
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
 	./gen_depth.sh
+	./loopback_fs_teardown.sh
+
+
+reiserfs-many-blockfile.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
+	./loopback_fs_setup.sh $@ reiserfs
+	GEN_FILE_LENGTH=8192 ./gen_files.sh 100
 	./loopback_fs_teardown.sh

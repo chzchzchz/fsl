@@ -19,6 +19,10 @@ done
 for b in `seq ${BRANCH_FACTOR}`; do
 	mkdir -p "${GEN_FILE_PATH}"/"$b"d
 	for a in `seq ${BRANCH_FACTOR}`; do
-		echo "${b}d/$a.qqq " >"${GEN_FILE_PATH}"/"$b"d/$a.qqq
+		if [ -z "$GEN_FILE_LENGTH" ]; then
+			echo "${b}d/$a.qqq " >"${GEN_FILE_PATH}"/"$b"d/$a.qqq
+		else
+			yes "${b}d/$a.qqq" | head -c"$GEN_FILE_LENGTH" >"${GEN_FILE_PATH}"/"$b"d/$a.qqq
+		fi
 	done
 done

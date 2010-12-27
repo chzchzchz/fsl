@@ -1,0 +1,57 @@
+/* THIS IS WHY HANS REISER HAD TO MURDER HIS WIFE */
+const __FSL_FSNAME = reiserfs;
+enum hash_code = { HASH_UNSET=0, HASH_TEA=1, HASH_YURA=2, HASH_R5=3} u32;
+
+const DEFAULT_HASH = HASH_R5;
+
+const REISERFS_VERSION_1 = 0;
+const REISERFS_VERSION_2 = 1;
+const REISERFS_OLD_DISK_OFFSET_IN_BYTES =  (8 * 1024);
+const REISERFS_DISK_OFFSET_IN_BYTES = (64 * 1024);
+// values for k_type field of the struct key
+const TYPE_STAT_DATA =	0;
+const TYPE_INDIRECT =	1;
+const TYPE_DIRECT =	2;
+const TYPE_DIRENTRY =	3;
+const TYPE_SYMLINK =	4;
+const TYPE_UNKNOWN =	15;
+
+const V1_SD_UNIQUENESS =	0;
+const V1_DIRENTRY_UNIQUENESS =	500;
+const DIRENTRY_UNIQUENESS =	500;
+const V1_DIRECT_UNIQUENESS =	0xffffffff;
+const V1_INDIRECT_UNIQUENESS =	0xfffffffe;
+const V1_UNKNOWN_UNIQUENESS =	555;
+const KEY_FORMAT_1 =		0;
+const KEY_FORMAT_2 =		1;
+const KEY_FORMAT_UNDEFINED =	15;
+
+typedef blknum_t = u32;
+typedef keytype_t = u32;
+typedef itemtype_t = u32;
+
+const DISK_LEAF_NODE_LEVEL =	1;
+const MAX_HEIGHT =		6;
+
+include "reiserfs_types.fsl"
+include "reiserfs_funcs.fsl"
+
+/* put blknum 'bn' in slot 'idir_off' in given indir item */
+write indir_relink(reiserfs_indir indir, int idir_off, blknum_t bn)
+{
+	indir.blkptr[idir_off] <- bn !
+}
+
+write diskchild_relink(disk_child dc, blknum_t bn) { dc.dc2_block_number <- bn ! }
+
+write block_alloc(blknum_t blknum)
+{
+	get_bmpblk(blknum).dat[blknum % (8*get_bsz())] <- 1 !
+	get_sb().s_v1.s_free_blocks <- 	get_sb().s_v1.s_free_blocks-1 !
+}
+
+write block_replace(blknum_t blknum)
+{
+	get_bmpblk(blknum).dat[blknum % (8*get_bsz())] <- 0 !
+	get_sb().s_v1.s_free_blocks <- get_sb().s_v1.s_free_blocks+1 !
+}

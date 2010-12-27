@@ -440,12 +440,6 @@ void SymTabThunkBuilder::rebaseByCond(
 		next_off_false);
 
 	/* create a field which will do a 'rebase', use it as the last tf */
-//	rebase_tf = new ThunkField(
-//		*cur_thunk_type, fieldname,
-//		field_offset, field_size, field_elements,
-//		ThunkParams::createNoParams(),
-//		TF_FIELDNUM_NONE);
-
 	rebase_tf = ThunkField::createInvisible(
 		*cur_thunk_type, fieldname,
 		field_offset, field_size);

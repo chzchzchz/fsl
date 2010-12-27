@@ -245,13 +245,15 @@ static int scan_field_array(
 	unsigned int			i;
 	size_t				off;
 
+	DEBUG_SCAN_ENTER();
+
 	ti = ctx->sctx_ti;
 	num_elems = field->tf_elemcount(&ti_clo(ti));
 	off = field->tf_fieldbitoff(&ti_clo(ti));
 	for (i = 0; i < num_elems; i++) {
 		struct type_info*		new_ti;
 
-		new_ti = typeinfo_follow_field_off(ti, field, off);
+		new_ti = typeinfo_follow_field_off_idx(ti, field, off, i);
 		if (new_ti == NULL) continue;
 
 		/* recurse */
@@ -263,7 +265,8 @@ static int scan_field_array(
 				off += tt_by_ti(new_ti)->tt_size(&ti_clo(new_ti));
 		}
 
-		DEBUG_SCAN_WRITE("following field %s", field->tf_fieldname);
+		DEBUG_SCAN_WRITE("SFA: Following field %s[%d]",
+			field->tf_fieldname, i);
 
 		ret = scan_type(new_ti, ctx->sctx_ops, ctx->sctx_aux);
 		typeinfo_free(new_ti);
@@ -273,29 +276,38 @@ static int scan_field_array(
 
 	ret = SCAN_RET_CONTINUE;
 done:
+	DEBUG_SCAN_LEAVE();
 	return ret;
 }
 
 static int scan_cond(struct scan_ctx* ctx, const struct fsl_rtt_field* field)
 {
 	struct type_info		*ti;
+	bool				is_present;
 	int				ret;
 
-	ti = ctx->sctx_ti;
-	if (ti_typenum(ti) == TYPENUM_INVALID) return SCAN_RET_CONTINUE;
+	DEBUG_SCAN_ENTER();
 
-	if (ctx->sctx_ops->so_cond) {
+	ti = ctx->sctx_ti;
+	if (ti_typenum(ti) == TYPENUM_INVALID) goto done_ok;
+
+	if (ctx->sctx_ops->so_cond != NULL) {
 		ret =  ctx->sctx_ops->so_cond(ti, field, ctx->sctx_aux);
 		if (is_ret_done(ret))
 			goto done;
 	}
 
-	if (field->tf_cond(&ti_clo(ti)) == false) goto done_ok;
+	is_present =field->tf_cond(&ti_clo(ti));
+	if (is_present == false) goto done_ok;
+
+	DEBUG_SCAN_WRITE("COND OK FOR FIELD %s.", field->tf_fieldname);
+
 	ret = scan_field_array(ctx, field);
 
 done_ok:
 	ret = SCAN_RET_CONTINUE;
 done:
+	DEBUG_SCAN_LEAVE();
 	return ret;
 }
 

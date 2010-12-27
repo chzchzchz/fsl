@@ -8,8 +8,8 @@ import ImageColor
 # ./draw_scan.py scan_data disk_size img.png [dimx dimy]
 
 color_cache = dict()
-colors = [	"chartreuse", 'lime', "red", "green", "blue",
-		"gray", "yellow", "purple", 'maroon',
+colors = [	"orange", 'white', "red", "green", "blue",
+		"gray", "yellow", "purple", 'magenta', 'lime',
 		'teal', 'aqua', 'navy', 'olive']
 color_idx = 0
 ARG_IDX_DISKMAP = 1
@@ -59,9 +59,9 @@ for e in ents:
 	pixel_c = (num_bytes + bytes_per_pixel-1) / bytes_per_pixel
 
 	color = getColor(type_name)
-
+	px_base = poff_bytes/bytes_per_pixel
 	for i in range(pixel_c):
-		pixel_off=(poff_bytes/bytes_per_pixel)+i
+		pixel_off=px_base+i
 		x = pixel_off % pixels_w
 		y = pixel_off / pixels_w
 		im.putpixel((x,y), ImageColor.getrgb(color))

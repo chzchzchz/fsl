@@ -109,6 +109,7 @@ function fs_reloc_startup_img
 	imgname="$2"
 	echo "Testing relocate-$fs startup (${imgname})."
 	cmd="${src_root}/src/tool/relocate-$fs ${src_root}/img/$imgname ${src_root}/tests/reloc.spock.pic"
+#	cmd="${src_root}/src/tool/relocate-$fs ${src_root}/img/$imgname ${src_root}/tests/reloc.problem.pic"
 	outdir="${src_root}/tests/relocate-$fs"
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
 }
@@ -179,8 +180,7 @@ function fs_scan_startup
 function fs_specific_tests
 {
 	fs="$1"
-	cmd_script="${src_root}/tests/do_tests_$fs.sh"
-
+	cmd_script="${src_root}/tests/do_tests_${fs}.sh"
 	if [ ! -f "$cmd_script" ]; then
 		echo "***No SPECIFIC tests for $fs"
 		return

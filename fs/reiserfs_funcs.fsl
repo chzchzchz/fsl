@@ -1,0 +1,125 @@
+bool is_any_reiserfs_magic(reiserfs_sb sb)
+{
+	/* file system is reiserfs:
+	 * "ReIsErFs" or "ReIsEr2Fs" or "ReIsEr3Fs" */
+	/* TODO: need string ops */
+	if (	sb.s_v1.s_magic[0] == 'R' && sb.s_v1.s_magic[1] == 'e' &&
+		sb.s_v1.s_magic[2] == 'I')
+		return true;
+	return false;
+}
+
+bool is_valid_sb(reiserfs_sb sb) { return is_any_reiserfs_magic(sb); }
+
+int get_bsz() { return get_sb().s_v1.s_blocksize; }
+u32 get_block_count() { return get_sb().s_v1.s_block_count; }
+
+reiserfs_sb get_sb()
+{
+	if (is_any_reiserfs_magic(disk.sb_new)) return disk.sb_new;
+	return disk.sb_old;
+}
+
+u32 get_blkbmp_base()
+{
+	if (is_any_reiserfs_magic(disk.sb_new) == true)
+		return REISERFS_DISK_OFFSET_IN_BYTES + get_bsz();
+	return REISERFS_OLD_DISK_OFFSET_IN_BYTES + get_bsz();
+}
+
+bool is_old() { if (is_new() == true) return false; return true; }
+
+bool is_new()
+{
+	if (is_any_reiserfs_magic(disk.sb_new)) return true;
+	return false;
+}
+
+bool is_bmap_spread() { return is_new(); }
+
+bool is_journal_magic(reiserfs_journal_desc jd)
+{
+	if (	jd.j2_magic[0] == 'R' && jd.j2_magic[1] == 'e' &&
+		jd.j2_magic[2] == 'I' && jd.j2_magic[3] == 's' &&
+		jd.j2_magic[4] == 'E' && jd.j2_magic[5] == 'r' &&
+		jd.j2_magic[6] == 'L' && jd.j2_magic[7] == 'B')
+		return true;
+	return false;
+}
+
+u32 get_key_type(reiserfs_key k)
+{
+	if (is_key_format_1(k)) return key1_to_type(k.u.k_offset_v1);
+	return get_key_type_v2(k.u.k_offset_v2);
+}
+
+keytype_t get_key_type_v2(offset_v2 v) { return (v.v & 0xf000000000000000) >> 60; }
+keytype_t key1_to_type(offset_v1 v)
+{
+	u32	u;
+	u = v.k_uniqueness;
+	if (u == V1_SD_UNIQUENESS) return TYPE_STAT_DATA;
+	if (u == V1_INDIRECT_UNIQUENESS) return TYPE_INDIRECT;
+	if (u == V1_DIRECT_UNIQUENESS) return TYPE_DIRECT;
+	if (u == V1_DIRENTRY_UNIQUENESS) return TYPE_DIRENTRY;
+	return TYPE_UNKNOWN;
+}
+
+bool is_key_format_1(reiserfs_key k)
+{
+	keytype_t key_type;
+	key_type = get_key_type_v2(k.u.k_offset_v2);
+	if (key_type == 0 || key_type == 15)  return true;
+	return false;
+}
+
+bool is_blockhead_leaf(block_head bh)
+{
+	if (bh.blk2_level == DISK_LEAF_NODE_LEVEL) return true;
+	return false;
+}
+
+bool is_blockhead_internal(block_head bh)
+{
+	u16	lvl;
+	lvl = bh.blk2_level;
+	if (lvl > DISK_LEAF_NODE_LEVEL && lvl <= MAX_HEIGHT) return true;
+	return false;
+}
+
+int internal_leaf_children_count(internal_node n)
+{
+	block_head	hdr;
+	hdr = n.hdr;
+	if ((hdr.blk2_level-1) != DISK_LEAF_NODE_LEVEL) return 0;
+	return hdr.blk2_nr_item+1;
+}
+
+int internal_int_children_count(internal_node n)
+{
+	block_head	hdr;
+	hdr = n.hdr;
+	if ((hdr.blk2_level-1) == DISK_LEAF_NODE_LEVEL) return 0;
+	return hdr.blk2_nr_item+1;
+}
+
+itemtype_t get_item_type(item_head ih) { return ih.ih_version & 0xf000; }
+u32 get_item_format(item_head ih) { return ih.ih_version & 0xfff; }
+
+reiser_rawblk get_rawblk(blknum_t bn) { return disk.raw_blocks[bn]; }
+
+reiser_bmpblk get_bmpblk(blknum_t bn)
+{
+	return disk.bmap.bmp[bn/(8*get_bsz())].bmp_blk;
+}
+
+bool is_blk_avail(blknum_t bn)
+{
+	u32		val;
+	reiser_bmpblk	bblk;
+
+	bblk = get_bmpblk(bn);
+	val = bblk.dat[bn % (8*get_bsz())];
+	if (val == 0) return true;
+	return false;
+}
