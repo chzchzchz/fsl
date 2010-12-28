@@ -151,32 +151,43 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 	const uint8_t		*cache_line;
 	uint64_t		ret;
 	uint64_t		line_begin, line_end;
-	int			i;
 
 	DEBUG_IO_ENTER();
 
 	line_begin = bit_to_line(bit_off);
 	line_end = bit_to_line(bit_off + num_bits - 1);
 
-	DEBUG_IO_WRITE("LINE: %"PRIu64"--%"PRIu64" byteoff=(%"PRIu64"--%"PRIu64")",
+	DEBUG_IO_WRITE(
+		"LINE: %"PRIu64"--%"PRIu64" byteoff=(%"PRIu64"--%"PRIu64")",
 		line_begin, line_end, bit_off/8, (bit_off+num_bits)/8);
 	if (line_begin != line_end)
 		return fsl_io_cache_get_unaligned(io, bit_off, num_bits);
 
 	cache_line = fsl_io_cache_hitmiss(io, bit_off);
-
 	cache_line += (bit_off/8) % FSL_IO_CACHE_BYTES;
+
 	assert ((bit_off % 8) == 0 && "NOT BYTE ALIGNED??");
 
-	// copy bits, byte by byte
+	// copy bits
 	// XXX need to change to support arbitrary endians (this is little)
-	ret = 0;
-	for (i = (num_bits / 8) - 1; i >= 0; i--) {
-		ret <<= 8;
-		ret += cache_line[i];
+	switch(num_bits/8) {
+	case 0:
+	case 1:
+		ret = cache_line[0];
+		break;
+	case 2:
+		ret = ((const uint16_t*)cache_line)[0];
+		break;
+	case 4:
+		ret = ((const uint32_t*)cache_line)[0];
+	case 8:
+		ret = ((const uint64_t*)cache_line)[0];
+		break;
+	default:
+		assert (0 == 1);
 	}
-//	ret >>= bit_off % 8;
-//	if (num_bits < 64) ret &= (1LL << num_bits)-1;
+	ret >>= bit_off % 8;
+	if (num_bits < 64) ret &= (1LL << num_bits)-1;
 	DEBUG_IO_WRITE("cached_val = %"PRIu64, ret);
 
 	DEBUG_IO_LEAVE();

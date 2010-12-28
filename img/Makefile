@@ -129,5 +129,5 @@ reiserfs-many-blockfile.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
-	GEN_FILE_LENGTH=8192 ./gen_files.sh 100
+	GEN_FILE_LENGTH=4096 ./gen_files.sh 75
 	./loopback_fs_teardown.sh

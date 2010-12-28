@@ -12,6 +12,7 @@ function draw_scan_reiserfs
 	draw_scan_fs_img reiserfs "reiserfs-many-blockfile.img" "$REISER_REGEX"
 	draw_scan_fs_img reiserfs "reiserfs-postmark.img" "$REISER_REGEX"
 	draw_scan_fs_img reiserfs "reiserfs-relocate.img" "$REISER_REGEX"
+	draw_scan_fs_img reiserfs "reiserfs-relocate-problem.img" "$REISER_REGEX"
 	draw_scan_fs_img reiserfs "reiserfs-defrag.img" "$REISER_REGEX"
 	draw_scan_fs_img reiserfs "reiserfs-depth.img" "$REISER_REGEX"
 }

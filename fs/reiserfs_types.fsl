@@ -210,7 +210,7 @@ type reiserfs_indir(int byte_len)
 assert ( ? ((byte_len % 4) == 0)) as sz_chk
 points_range_cast(
 	i, 1, byte_len/4,
-	disk.raw_blocks[blkptr[i]], indir_blk) as indir_blks
+	disk.raw_blocks[blkptr[i-1]], indir_blk) as indir_blks
 relocate(
 	j, 1, byte_len/4, get_rawblk(blkptr[j-1]),
 	i, 1, get_block_count(), get_rawblk(i), ? is_blk_avail(i) == true,

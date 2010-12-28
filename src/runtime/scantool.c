@@ -78,7 +78,7 @@ done:
 struct scan_ops ops =
 {
 	.so_ti = handle_ti,
-	.so_strong = handle_strong
+//	.so_strong = handle_strong
 };
 
 int tool_entry(int argc, char* argv[])

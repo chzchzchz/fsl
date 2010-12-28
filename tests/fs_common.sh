@@ -22,8 +22,9 @@ function stop_oprof
 {
 	if [ ! -z $USE_OPROF ]; then
 		oproffile="$1".oprof
+		cmdname="$2"
 		sudo opcontrol --dump
-		sudo opreport -a --symbols >${oproffile}
+		sudo opreport -g -a --symbols "$cmdname" >${oproffile}
 		sudo opcontrol --stop
 		sudo opcontrol --reset
 	fi
@@ -103,15 +104,21 @@ function fs_browser_startup
 	fi
 }
 
-function fs_reloc_startup_img
+function fs_reloc_img
 {
 	fs="$1"
 	imgname="$2"
-	echo "Testing relocate-$fs startup (${imgname})."
-	cmd="${src_root}/src/tool/relocate-$fs ${src_root}/img/$imgname ${src_root}/tests/reloc.spock.pic"
-#	cmd="${src_root}/src/tool/relocate-$fs ${src_root}/img/$imgname ${src_root}/tests/reloc.problem.pic"
+	picname="$3"
+
+	echo "Testing relocate-$fs (${imgname} => ${picname})."
+	cmd="${src_root}/src/tool/relocate-$fs ${src_root}/img/$imgname ${picname}"
 	outdir="${src_root}/tests/relocate-$fs"
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
+}
+
+function fs_reloc_startup_img
+{
+	fs_reloc_img "$1" "$2" "${src_root}/tests/reloc.spock.pic"
 }
 
 function fs_defrag_startup_img
@@ -154,7 +161,7 @@ function fs_cmd_startup_img
 	{ time eval "${CMD_XFM_VAL}" >cur_test.${SHANAME}.out 2>cur_test.${SHANAME}.err; } 2>${timefname}
 	retval=$?
 	unset_statfiles
-	stop_oprof "$fprefix"
+	stop_oprof "$fprefix" `echo $cmd | cut -f1 -d' ' `
 
 	if [ $retval -ne 0 ]; then
 		echo "Test failed: $fs."
