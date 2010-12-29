@@ -43,26 +43,32 @@ tests-extra-vfat:
 	TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS="vfat" tests/do_all_tests.sh
 
 
-tests-extra-stack: tests-extra-stack-vfat tests-extra-stack-ext2 tests-extra-stack-iso9660
+tests-extra-stack: tests-extra-stack-vfat tests-extra-stack-ext2 tests-extra-stack-reiserfs
 tests-extra-stack-vfat:
 	TEST_CONFIG="STACK" TEST_FS="vfat" tests/do_all_tests.sh
 tests-extra-stack-ext2:
 	TEST_CONFIG="STACK" TEST_FS="ext2" tests/do_all_tests.sh
 tests-extra-stack-iso9660:
 	TEST_CONFIG="STACK" TEST_FS="iso9660" tests/do_all_tests.sh
+tests-extra-stack-reiserfs:
+	TEST_CONFIG="STACK" TEST_FS="reiserfs" tests/do_all_tests.sh
 
-
-tests-extra-mem: tests-extra-mem-vfat tests-extra-mem-ext
+tests-extra-mem: tests-extra-mem-vfat tests-extra-mem-ext2 tests-extra-mem-reiserfs
 tests-extra-mem-vfat:
 	TEST_CONFIG="MEM" TEST_FS="vfat" tests/do_all_tests.sh
 tests-extra-mem-ext2:
 	TEST_CONFIG="MEM" TEST_FS="ext2" tests/do_all_tests.sh
+tests-extra-mem-reiserfs:
+	TEST_CONFIG="MEM" TEST_FS="reiserfs" tests/do_all_tests.sh
 
-tests-extra-oprof: tests-extra-ext2-oprof tests-extra-vfat-oprof
+tests-extra-oprof: tests-extra-ext2-oprof tests-extra-vfat-oprof tests-extra-reiserfs-oprof
 tests-extra-ext2-oprof:
 	TEST_CONFIG="EXTRA" USE_OPROF="YES" TEST_FS="ext2"  tests/do_all_tests.sh
 tests-extra-vfat-oprof:
 	TEST_CONFIG="EXTRA" USE_OPROF="YES" TEST_FS="vfat"  tests/do_all_tests.sh
+tests-extra-reiserfs-oprof:
+	TEST_CONFIG="EXTRA" USE_OPROF="YES" TEST_FS="reiserfs"  tests/do_all_tests.sh
+
 
 tests-clean:
 	rm -f tests/scantool-*/*

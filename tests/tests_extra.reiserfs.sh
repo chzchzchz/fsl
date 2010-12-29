@@ -6,7 +6,7 @@ source ${src_root}/tests/fs_common.sh
 
 imgname=$fs-depth.img
 fs_scan_startup_img $fs $imgname
-statcount=`grep stat ${src_root}/tests/scantool-$fs/$imgname.out | sort | uniq | wc -l`
+statcount=`grep "stat_" ${src_root}/tests/scantool-$fs/$imgname.out | sort | uniq | wc -l`
 if [ $statcount -ne 302 ]; then
 	echo "Expected stat items = 302. Got stat items = $statcount"
 	exit -1
@@ -14,7 +14,7 @@ fi
 
 imgname=$fs-many.img
 fs_scan_startup_img $fs $imgname
-statcount=`grep stat ${src_root}/tests/scantool-$fs/$imgname.out | sort | uniq | wc -l`
+statcount=`grep "stat_" ${src_root}/tests/scantool-$fs/$imgname.out | sort | uniq | wc -l`
 # NOTE HERE: WE ONLY COUNT NON-DELETED NODES
 if [ $statcount -ne 10202 ]; then
 	echo "Expected stat items = 10202. Got stat items = $statcount"
@@ -23,7 +23,7 @@ fi
 
 imgname=$fs-postmark.img
 fs_scan_startup_img $fs $imgname
-statcount=`grep stat ${src_root}/tests/scantool-$fs/$imgname.out | sort | uniq | wc -l`
+statcount=`grep "stat_" ${src_root}/tests/scantool-$fs/$imgname.out | sort | uniq | wc -l`
 # NOTE HERE: WE ONLY COUNT NON-DELETED NODES
 if [ $statcount -ne 5007 ]; then
 	echo "Expected stat items = 5007. Got stat items = $statcount"
