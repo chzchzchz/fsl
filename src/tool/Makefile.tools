@@ -1,6 +1,6 @@
 #INPUT: FSNAME
 TOOL_OBJS= fsl.$(FSNAME).table.o fsl.$(FSNAME).types.o
-TOOL_NAMES= browser modify scantool fragtool relocate defragtool scattertool
+TOOL_NAMES= browser modify scantool fragtool relocate defragtool scattertool smushtool
 
 TOOL_BINS := $(TOOL_NAMES:%=%-$(FSNAME))
 RT_OBJS=../runtime/runtime.o 	\
@@ -30,6 +30,13 @@ RELOCATE_OBJS=	../runtime/relocate.o 	\
 		../runtime/choice.o	\
 		../runtime/writepkt.o	\
 		../runtime/bitmap.o $(RT_OBJS)
+
+SMUSHTOOL_OBJS=	../runtime/smushtool.o 	\
+		../runtime/scan.o		\
+		../runtime/choice.o		\
+		../runtime/writepkt.o		\
+		../runtime/bitmap.o $(RT_OBJS)
+
 
 SCATTERTOOL_OBJS=	../runtime/scattertool.o 	\
 			../runtime/scan.o		\
@@ -66,6 +73,9 @@ defragtool-$(FSNAME): $(TOOL_OBJS) $(DEFRAGTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 scattertool-$(FSNAME): $(TOOL_OBJS) $(SCATTERTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
+smushtool-$(FSNAME): $(TOOL_OBJS) $(SMUSHTOOL_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+
 
 fsl.$(FSNAME).table.o: fsl.$(FSNAME).table.c
 	gcc $(CFLAGS) -I.. -c $^ -o $@
