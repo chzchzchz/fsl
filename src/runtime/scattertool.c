@@ -37,7 +37,7 @@ uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 		int		k;
 
 		rand_choice = rand() % (choice_max(ccache) - choice_min(ccache));
-		k = choice_find_avail(ccache, rand_choice, 1);
+		k = choice_find_avail(ccache, rand_choice+choice_min(ccache), 1);
 		if (k == -1) continue;
 		/* check cache first. not set => not available */
 		if (!choice_is_set(ccache, k-choice_min(ccache))) continue;
