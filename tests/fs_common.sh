@@ -121,6 +121,17 @@ function fs_reloc_startup_img
 	fs_reloc_img "$1" "$2" "${src_root}/tests/reloc.spock.pic"
 }
 
+function fs_scatter_startup_img
+{
+	fs="$1"
+	imgname="$2"
+	echo "Testing scattertool-$fs startup (${imgname})."
+	cmd="${src_root}/src/tool/scattertool-$fs ${src_root}/img/$imgname"
+	outdir="${src_root}/tests/scattertool-$fs"
+	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
+}
+
+
 function fs_defrag_startup_img
 {
 	fs="$1"

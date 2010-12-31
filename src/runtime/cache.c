@@ -15,6 +15,8 @@ static struct fsl_io_cache_ent* fsl_io_cache_evict(
 static const uint8_t* fsl_io_cache_put(
 	struct fsl_rt_io* io, uint64_t cache_line);
 const uint8_t *fsl_io_cache_hitmiss(struct fsl_rt_io* io, uint64_t line_begin);
+static const uint8_t* fsl_io_cache_find(
+	struct fsl_io_cache* ioc, uint64_t cache_line);
 
 void fsl_io_cache_init(struct fsl_io_cache* ioc)
 {
@@ -27,7 +29,8 @@ void fsl_io_cache_init(struct fsl_io_cache* ioc)
 		ioc->ioc_ents[i].ce_addr = ~0;
 }
 
-const uint8_t* fsl_io_cache_find(struct fsl_io_cache* ioc, uint64_t cache_line)
+static const uint8_t* fsl_io_cache_find(
+	struct fsl_io_cache* ioc, uint64_t cache_line)
 {
 	struct fsl_io_cache_ent	*ce;
 
@@ -82,7 +85,8 @@ static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line
 	return ce->ce_data;
 }
 
-uint64_t fsl_io_cache_get_unaligned(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
+uint64_t fsl_io_cache_get_unaligned(
+	struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 {
 	const uint8_t		*cache_line[2];
 	uint8_t			join_buf[8];
@@ -135,9 +139,11 @@ const uint8_t *fsl_io_cache_hitmiss(struct fsl_rt_io* io, uint64_t bit_off)
 	cache_line = fsl_io_cache_find(&io->io_cache, line_begin);
 	if (cache_line == NULL) {
 		DEBUG_IO_WRITE("Missed line: %"PRIu64, line_begin);
+		FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_IOCACHE_MISS);
 		cache_line = fsl_io_cache_put(io, line_begin);
 		if (io->io_cb_miss != NULL) io->io_cb_miss(io, bit_off);
 	} else {
+		FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_IOCACHE_HIT);
 		if (io->io_cb_hit != NULL) io->io_cb_hit(io, bit_off);
 	}
 

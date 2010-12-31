@@ -19,6 +19,9 @@ static uint64_t __getLocalPhys(uint64_t bit_off, uint64_t num_bits)
 	struct fsl_rt_io	*io;
 	uint64_t 		ret;
 
+
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_PHYSACCESS);
+
 	io = fsl_get_io();
 	if ((bit_off % 8) != 0) {
 		int	bits_left, bits_right;
@@ -60,7 +63,6 @@ uint64_t __getLocal(
 	assert (num_bits > 0);
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_ACCESS);
-	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_PHYSACCESS);
 	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_READ, num_bits);
 
 	DEBUG_IO_ENTER();

@@ -15,6 +15,7 @@ function draw_scan_reiserfs
 	draw_scan_fs_img reiserfs "reiserfs-relocate-problem.img" "$REISER_REGEX"
 	draw_scan_fs_img reiserfs "reiserfs-defrag.img" "$REISER_REGEX"
 	draw_scan_fs_img reiserfs "reiserfs-depth.img" "$REISER_REGEX"
+	draw_scan_fs_img reiserfs "reiserfs-scatter.img" "$REISER_REGEX"
 }
 
 function draw_reiserfs_img

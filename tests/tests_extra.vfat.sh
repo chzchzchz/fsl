@@ -44,3 +44,13 @@ if [ "$fcount" -ne 23040 ]; then
 	echo "BADCOUNT $fcount != 23040 for ${src_root}/tests/scantool-$fs/$imgname.out"
 	exit -2
 fi
+
+imgname=$fs-scatter.img
+cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
+fs_scatter_startup_img $fs $imgname
+fs_scan_startup_img $fs $imgname
+fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
+if [ "$fcount" -ne 23040 ]; then
+	echo "BADCOUNT $fcount != 23040"
+	exit -2
+fi

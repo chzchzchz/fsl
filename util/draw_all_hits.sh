@@ -18,6 +18,12 @@ function draw_hits
 		util/draw_hits.py tests/relocate-${fs}/${imgname}.misses $imgsz tests/relocate-${fs}/${imgname}.misses.png
 		util/draw_hits.py tests/relocate-${fs}/${imgname}.writes $imgsz tests/relocate-${fs}/${imgname}.writes.png
 	fi
+	if [ -e tests/scattertool-${fs}/${imgname}.hits ]; then
+		util/draw_hits.py tests/scattertool-${fs}/${imgname}.hits $imgsz tests/scattertool-${fs}/${imgname}.hits.png
+		util/draw_hits.py tests/scattertool-${fs}/${imgname}.misses $imgsz tests/scattertool-${fs}/${imgname}.misses.png
+		util/draw_hits.py tests/scattertool-${fs}/${imgname}.writes $imgsz tests/scattertool-${fs}/${imgname}.writes.png
+	fi
+
 }
 
 start_time=`date +%s`

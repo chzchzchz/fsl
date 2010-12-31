@@ -149,7 +149,9 @@ static const char* fsl_stat_fields[FSL_NUM_STATS] =
 	"comparray_elems",	/* FSL_STAT_COMPUTEARRAYBITS_LOOPS */
 	"writes",		/* FSL_STAT_WRITES */
 	"bw",			/* FSL_STAT_BITS_WRITTEN */
-	"xlate_hit"		/* FSL_STAT_XLATE_HIT */
+	"xlate_hit",		/* FSL_STAT_XLATE_HIT */
+	"iocache_hit",		/* FSL_STAT_IOCACHE_MISS */
+	"iocache_miss"		/* FSL_STAT_IOCACHE_HIT */
 };
 
 static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
@@ -173,7 +175,7 @@ static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 	fprintf(out_file, "# dumping stats.\n");
 	for (i = 0; i < FSL_NUM_STATS; i++) {
 		fprintf(out_file,
-			"{ '%s' : %"PRIu64"}\n",
+			"{ '%s' : %"PRIu64" }\n",
 			fsl_stat_fields[i],
 			FSL_STATS_GET(&fctx->fctx_stat, i));
 	}
