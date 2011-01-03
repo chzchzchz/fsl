@@ -8,14 +8,10 @@ REISER_REGEX="(reiserfs_sb'|reiser_bmpblk'|internal_node|leaf_node_blk|reiserfs_
 function draw_scan_reiserfs
 {
 	draw_scan_fs reiserfs "${REISER_REGEX}"
-	draw_scan_fs_img reiserfs "reiserfs-many.img" "$REISER_REGEX"
-	draw_scan_fs_img reiserfs "reiserfs-many-blockfile.img" "$REISER_REGEX"
-	draw_scan_fs_img reiserfs "reiserfs-postmark.img" "$REISER_REGEX"
-	draw_scan_fs_img reiserfs "reiserfs-relocate.img" "$REISER_REGEX"
-	draw_scan_fs_img reiserfs "reiserfs-relocate-problem.img" "$REISER_REGEX"
-	draw_scan_fs_img reiserfs "reiserfs-defrag.img" "$REISER_REGEX"
-	draw_scan_fs_img reiserfs "reiserfs-depth.img" "$REISER_REGEX"
-	draw_scan_fs_img reiserfs "reiserfs-scatter.img" "$REISER_REGEX"
+	for ipath in img/reiserfs-*.img; do
+		fname=`echo $ipath | cut -f2 -d'/'`
+		draw_scan_fs_img reiserfs "$fname" "${REISER_REGEX}"
+	done
 }
 
 function draw_reiserfs_img

@@ -7,12 +7,10 @@ VFAT_REGEX="(fat'|fat_de|fat_ent|bpb|file_cluster|'voff' : 0.*cluster)"
 function draw_scan_vfat
 {
 	draw_scan_fs_img vfat "vfat.img" "$VFAT_REGEX"
-	draw_scan_fs_img vfat "vfat-many.img" "$VFAT_REGEX"
-	draw_scan_fs_img vfat "vfat-postmark.img" "$VFAT_REGEX"
-	draw_scan_fs_img vfat "vfat-relocate.img" "$VFAT_REGEX"
-	draw_scan_fs_img vfat "vfat-defrag.img" "$VFAT_REGEX"
-	draw_scan_fs_img vfat "vfat-depth.img" "$VFAT_REGEX"
-	draw_scan_fs_img vfat "vfat-scatter.img" "$VFAT_REGEX"
+	for ipath in img/vfat-*.img; do
+		fname=`echo $ipath | cut -f2 -d'/'`
+		draw_scan_fs_img vfat "$fname" "${VFAT_REGEX}"
+	done
 }
 
 function draw_vfat_img

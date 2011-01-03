@@ -7,13 +7,10 @@ EXT2_REGEX="(dir|sb|group_desc|bmp|ext2_inode'|ext2_data_block)"
 function draw_scan_ext2
 {
 	draw_scan_fs ext2 "${EXT2_REGEX}"
-	draw_scan_fs_img ext2 "ext2-small.img" "$EXT2_REGEX"
-	draw_scan_fs_img ext2 "ext2-many.img" "$EXT2_REGEX"
-	draw_scan_fs_img ext2 "ext2-postmark.img" "$EXT2_REGEX"
-	draw_scan_fs_img ext2 "ext2-relocate.img" "$EXT2_REGEX"
-	draw_scan_fs_img ext2 "ext2-defrag.img" "$EXT2_REGEX"
-	draw_scan_fs_img ext2 "ext2-depth.img" "$EXT2_REGEX"
-	draw_scan_fs_img ext2 "ext2-scatter.img" "$EXT2_REGEX"
+	for ipath in img/ext2-*.img; do
+		fname=`echo $ipath | cut -f2 -d'/'`
+		draw_scan_fs_img ext2 "$fname" "$EXT2_REGEX"
+	done
 }
 
 function draw_ext2_img

@@ -22,7 +22,16 @@ struct scatterscan_info { unsigned int	rel_c; };
 static struct choice_cache	*ccache = NULL;
 static int			refresh_count = 0;
 static uint64_t			ccache_cursor = 0;
+static uint64_t			ccache_cursor_threshold = 0;
 #define MAX_REFRESH		10
+
+static void cache_refresh(struct type_info* ti, const struct fsl_rtt_reloc* rel)
+{
+	choice_free(ccache);
+	ccache = choice_alloc(ti, rel);
+	ccache_cursor = choice_min(ccache);
+	refresh_count++;
+}
 
 /*
  * get a free block to replace
@@ -38,16 +47,20 @@ uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 		k = choice_find_avail(ccache, ccache_cursor, 1);
 		if (k == -1) continue;
 		/* check cache first. not set => not available */
+		if (k > ccache_cursor_threshold) {
+			cache_refresh(ti, rel);
+			ccache_cursor_threshold += ccache_cursor_threshold/2;
+			ccache_cursor -= (ccache_cursor-choice_min(ccache))/2;
+			continue;
+		}
 		if (!choice_is_set(ccache, k-choice_min(ccache))) continue;
+		ccache_cursor = k+1;
+
 		return k;
 	}
 
 	if (refresh_count == MAX_REFRESH) return ~0;
-
-	choice_free(ccache);
-	ccache = choice_alloc(ti, rel);
-	ccache_cursor = choice_min(ccache);
-	refresh_count++;
+	cache_refresh(ti, rel);
 
 	return ~0;
 }
@@ -108,6 +121,7 @@ void do_rel_type(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 	if (ccache == NULL) {
 		ccache = choice_alloc(ti, rel);
 		ccache_cursor = choice_min(ccache);
+		ccache_cursor_threshold = (choice_max(ccache)+choice_min(ccache))/2;
 	}
 
 	dst_type = tt_by_num(rel->rel_sel.it_type_dst);

@@ -3,6 +3,7 @@
 fs="ext2"
 source ${src_root}/tests/test_common.sh
 source ${src_root}/tests/fs_common.sh
+imgname=$fs-smush.img
 
 imgname=$fs-depth.img
 fs_scan_startup_img $fs $imgname
@@ -25,4 +26,8 @@ fs_scan_startup_img $fs $imgname
 imgname=$fs-scatter.img
 cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
 fs_scatter_startup_img $fs $imgname
+fs_scan_startup_img $fs $imgname
+
+cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
+fs_smush_startup_img $fs $imgname
 fs_scan_startup_img $fs $imgname
