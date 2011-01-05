@@ -203,8 +203,8 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	assert (fctx->fctx_io != NULL && "Is the file open?");
 
 	__FROM_OS_BDEV_BYTES = fsl_io_size(fctx->fctx_io);
-	__FROM_OS_BDEV_BLOCK_BYTES = 512;
-	__FROM_OS_SB_BLOCKSIZE_BYTES = 512;
+	__FROM_OS_BDEV_BLOCK_BYTES = fctx->fctx_io->io_blksize;
+	__FROM_OS_SB_BLOCKSIZE_BYTES = fctx->fctx_io->io_blksize;
 }
 
 struct fsl_rt_closure* fsl_rt_dyn_swap(struct fsl_rt_closure* dyns)

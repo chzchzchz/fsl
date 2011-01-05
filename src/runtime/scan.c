@@ -1,6 +1,7 @@
 //#define DEBUG_SCAN
 #include <inttypes.h>
 #include <assert.h>
+#include <string.h>
 #include "runtime.h"
 #include "debug.h"
 #include "type_info.h"
@@ -31,7 +32,6 @@ static int scan_strongtype(struct scan_ctx*, const struct fsl_rtt_field*);
 static int scan_cond(struct scan_ctx*, const struct fsl_rtt_field*);
 static int scan_field_array(
 	struct scan_ctx* ctx, const struct fsl_rtt_field* field);
-
 
 static int scan_virt_all(struct scan_ctx* ctx)
 {
@@ -250,6 +250,9 @@ static int scan_field_array(
 	ti = ctx->sctx_ti;
 	num_elems = field->tf_elemcount(&ti_clo(ti));
 	off = field->tf_fieldbitoff(&ti_clo(ti));
+	if (field->tf_typenum == TYPENUM_INVALID) goto done_ok;
+//	if (strcmp(tt_by_num(field->tf_typenum)->tt_name, "reiser_rawblk") == 0) goto done_ok;
+
 	for (i = 0; i < num_elems; i++) {
 		struct type_info*		new_ti;
 
@@ -274,6 +277,7 @@ static int scan_field_array(
 			goto done;
 	}
 
+done_ok:
 	ret = SCAN_RET_CONTINUE;
 done:
 	DEBUG_SCAN_LEAVE();

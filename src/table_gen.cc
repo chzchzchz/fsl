@@ -77,7 +77,9 @@ void TableGen::genInstanceTypeField(
 		sw.write("tf_cond", "NULL");
 	}
 
-	sw.writeB("tf_constsize", tf->getSize()->isConstant());
+	sw.writeB("tf_flags",
+		((tf->getElems()->isFixed() == true) ? 2 : 0) |
+		((tf->getSize()->isConstant() == true) ? 1 : 0));
 
 	sw.write("tf_fieldnum", tf->getFieldNum());
 

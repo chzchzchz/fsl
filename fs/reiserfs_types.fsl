@@ -324,7 +324,7 @@ type reiser_rawblk { u8	dat[get_bsz()]; }
 
 type disk
 assert (? is_valid_sb(sb_old) == true || is_valid_sb(sb_new) == true) as sb_chk
-assert (? __FROM_OS_BDEV_BYTES <= get_bsz()*get_block_count()) as fs_sz_chk
+assert (? __FROM_OS_BDEV_BYTES >= get_bsz()*get_block_count()) as fs_sz_chk
 points_cast(internal_node, raw_blocks[get_sb().s_v1.s_root_block]) as tree_root
 {
 	skip_bytes(REISERFS_OLD_DISK_OFFSET_IN_BYTES);

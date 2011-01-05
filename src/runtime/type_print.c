@@ -54,7 +54,8 @@ void typeinfo_print_field_value(
 	field_typenum = field->tf_typenum;
 	if (num_elems > 1 &&
 	    field_typenum != TYPENUM_INVALID &&
-	    !field->tf_constsize)
+	    ((field->tf_flags & FIELD_FL_CONSTSIZE) == 0 &&
+	     (field->tf_flags & FIELD_FL_FIXED) == 0))
 	{
 		/* non-constant width.. */
 		field_sz = __computeArrayBits(

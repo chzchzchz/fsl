@@ -58,6 +58,7 @@ struct fsl_io_cache
 struct fsl_rt_io
 {
 	int			io_fd;
+
 	union {
 		fsl_io_callback	io_cb[IO_CB_NUM];
 		struct {
@@ -70,6 +71,9 @@ struct fsl_rt_io
 	struct fsl_rt_rlog	io_rlog;
 	struct fsl_rt_wlog	io_wlog;
 	struct fsl_io_cache	io_cache;
+
+	uint32_t		io_blksize;
+	ssize_t			io_blk_c;
 };
 
 /* exposed to fsl llvm */

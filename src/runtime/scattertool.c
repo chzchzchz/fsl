@@ -24,6 +24,7 @@ struct scatterscan_info { unsigned int	rel_c; };
 
 static struct choice_cache	*ccache = NULL;
 static int			refresh_count = 0;
+static int			frag_percent = 100;
 #define MAX_REFRESH		10
 
 /*
@@ -40,7 +41,7 @@ uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 		k = choice_find_avail(ccache, rand_choice+choice_min(ccache), 1);
 		if (k == -1) continue;
 		/* check cache first. not set => not available */
-		if (!choice_is_set(ccache, k-choice_min(ccache))) continue;
+		if (choice_is_alloc(ccache, k)) continue;
 		return k;
 	}
 
@@ -62,6 +63,9 @@ void swap_rel_sel(
 {
 	uint64_t		replace_choice_idx;
 
+	/* limit fragmentation to user defined percentage */
+	if ((rand() % 100) > frag_percent) return;
+
 	/* already in an OK place, don't do anything
 	 * (in future, may want to steal if we have overlaps) */
 	DEBUG_TOOL_ENTER();
@@ -77,7 +81,7 @@ void swap_rel_sel(
 		sel_v, replace_choice_idx);
 
 	wpkt_relocate(ti, rel, rel_sel_ti, sel_v, replace_choice_idx);
-	choice_unset(ccache, replace_choice_idx - choice_min(ccache));
+	choice_mark_alloc(ccache, replace_choice_idx);
 
 	DEBUG_TOOL_LEAVE();
 }
@@ -142,7 +146,9 @@ int tool_entry(int argc, char* argv[])
 	struct scatterscan_info	info;
 
 	printf("Welcome to fsl scatter. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
-	assert (argc == 0 && "./relocate hd.img");
+	srand(0);
+	assert (argc >= 0 && "./scattertool hd.img [fragpercent]");
+	if (argc > 0) frag_percent = atoi(argv[0]);
 
 	DEBUG_TOOL_WRITE("Origin Type Allocating...\n");
 	origin_ti = typeinfo_alloc_origin();
@@ -153,6 +159,8 @@ int tool_entry(int argc, char* argv[])
 	}
 
 	DEBUG_TOOL_WRITE("Origin Type Now Allocated");
+
+	printf("Scattering with fragmentation percentage %d%%\n", frag_percent);
 
 	info.rel_c = 0;
 	scan_type(origin_ti, &ops, &info);

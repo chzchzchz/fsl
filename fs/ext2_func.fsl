@@ -28,8 +28,8 @@ bool is_blk_avail(blknum_t blknum)
 	return false;
 }
 
-int blknum_to_grp(blknum_t blknum) { return blknum / ext2_sb.s_blks_per_grp; }
-int blknum_to_bmpidx(blknum_t blknum) { return blknum % ext2_sb.s_blks_per_grp; }
+int blknum_to_grp(blknum_t blknum) { return (blknum-1) / ext2_sb.s_blks_per_grp; }
+int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % ext2_sb.s_blks_per_grp; }
 
 int get_total_blks()
 {
@@ -48,8 +48,8 @@ int get_group_count(ext2_sb sb)
 
 ext2_bmp_blk get_group_bmp(int grpnum)
 {
-	blknum_t bmp_blknum;
-	bmp_blknum = disk.grp_desc_table[grpnum].block_bmp-blocks_off(ext2_sb);
+	blknum_t 	bmp_blknum;
+	bmp_blknum = disk.grp_desc_table[grpnum].block_bmp-blocks_off(disk.sb);
 	return disk.blocks[bmp_blknum].blk_bmp;
 }
 
@@ -225,7 +225,7 @@ uint size_to_metablocks(uint sz)
 	u32	per_indir;
 
 	num_blocks = size_to_blocks(sz);
-	if (num_blocks < EXT2_NDIR_BLOCKS) return 0;
+	if (num_blocks <= EXT2_NDIR_BLOCKS) return 0;
 
 	ret = 1;	/* indir block */
 	num_blocks -= EXT2_NDIR_BLOCKS;
@@ -373,4 +373,38 @@ bool S_ISREG(u32 mode)
 {
 	if ((mode & S_IFREG) == S_IFREG) return true;
 	return false;
+}
+
+u32 bi_count(ext2_biindir_block id)
+{
+	u32	max_blks;
+	u32	ret;
+	u32	i;
+
+	ret = 0;
+	i = 0;
+	max_blks = get_block_size()/4;
+	while (i < max_blks) {
+		if (id.blk_ptr[i] != 0)
+			ret++;
+		i++;
+	}
+	return ret;
+}
+
+u32 tri_count(ext2_triindir_block id)
+{
+	u32	max_blks;
+	u32	ret;
+	u32	i;
+
+	ret = 0;
+	i = 0;
+	max_blks = get_block_size()/4;
+	while (i < max_blks) {
+		if (id.blk_ptr[i] != 0)
+			ret++;
+		i++;
+	}
+	return ret;
 }

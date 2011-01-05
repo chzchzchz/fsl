@@ -17,8 +17,7 @@ typedef blknum_t = u32;
 /* put block 'blknum' into ino for file offset 'file_off' */
 write block_relink(ext2_inode ino, int file_blk, blknum_t blknum)
 {
-	ino.i_block_direct[file_blk] <- blknum ?
-		(file_blk < num_direct_blocks(ino)) !
+	ino.i_block_direct[file_blk] <- blknum ? file_blk < EXT2_NDIR_BLOCKS !
 	ext2_indir_lookup(ino.i_block_indir).blk_ptr[file_blk-EXT2_NDIR_BLOCKS] <- blknum ?
 		(file_blk >= EXT2_NDIR_BLOCKS &&
 		 file_blk < blocks_per_indir() + EXT2_NDIR_BLOCKS) !

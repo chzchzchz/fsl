@@ -8,6 +8,9 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+
 
 #include "debug.h"
 #include "runtime.h"
@@ -132,16 +135,31 @@ struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 {
 	struct fsl_rt_io	*ret;
 	int			fd;
+	struct stat		s;
 
 	assert (backing_fname != NULL);
 
-	fd = open(backing_fname, O_LARGEFILE | O_RDWR);
+	if (stat(backing_fname, &s) == -1) return NULL;
+
+	fd = open(backing_fname, O_LARGEFILE | O_RDWR /* O_RDONLY */);
 	if (fd == -1) return NULL;
 
 	ret = malloc(sizeof(*ret));
 	memset(ret, 0, sizeof(*ret));
 
 	ret->io_fd = fd;
+	ret->io_blksize = s.st_blksize;
+	if (S_ISBLK(s.st_mode)) {
+		if (ioctl(fd, BLKGETSIZE, &ret->io_blk_c) != 0) {
+			free(ret);
+			return NULL;
+		}
+		ret->io_blk_c *= 512;
+	} else {
+		ret->io_blk_c = lseek64(ret->io_fd, 0, SEEK_END);
+	}
+	ret->io_blk_c /= ret->io_blksize;
+
 	fsl_rlog_init(ret);
 	fsl_wlog_init(&ret->io_wlog);
 	fsl_io_cache_init(&ret->io_cache);
@@ -158,8 +176,7 @@ void fsl_io_free(struct fsl_rt_io* io)
 
 ssize_t fsl_io_size(struct fsl_rt_io* io)
 {
-	__FROM_OS_BDEV_BYTES = lseek64(io->io_fd, 0, SEEK_END);
-	return __FROM_OS_BDEV_BYTES;
+	return io->io_blksize*io->io_blk_c;
 }
 
 fsl_io_callback fsl_io_hook(

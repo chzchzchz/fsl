@@ -15,7 +15,7 @@ function fail_exit
 
 function fail_exit_file
 {
-	retval=?
+	retval=$?
 	if [ $retval -ne 0 ]; then
 		cat "$1"
 		echo "!!!FAILED: $2"

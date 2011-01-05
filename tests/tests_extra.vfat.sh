@@ -34,6 +34,11 @@ if [ "$fcount" -ne 10100 ]; then
 	exit -2
 fi
 
+imgname=$fs-reloc-greenspan.img
+cp ${src_root}/img/$fs-manymore.img ${src_root}/img/$imgname
+fs_reloc_img $fs $imgname ${src_root}/tests/greenspan.png.reloc
+fs_scan_startup_img $fs $imgname
+
 
 imgname=$fs-defrag.img
 cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname

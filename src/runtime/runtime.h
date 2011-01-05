@@ -175,12 +175,15 @@ struct fsl_rtt_type
 	const struct fsl_rtt_field	*tt_field_table;
 };
 
+
+#define FIELD_FL_CONSTSIZE	0x1 /* size does not change in field (useful for arrays.) */
+#define FIELD_FL_FIXED		0x2
+
 struct fsl_rtt_field
 {
 	const char	*tf_fieldname;
 	typenum_t	tf_typenum;
-	/* size does not change in field (useful for arrays.) */
-	bool		tf_constsize;
+	uint32_t	tf_flags;
 
 	thunkf_t	tf_fieldbitoff;
 	elemsf_t	tf_elemcount;

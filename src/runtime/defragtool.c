@@ -73,6 +73,7 @@ static void do_defrag(
 	if (sel_count == 1) return;
 
 	/* enough free space to relocate? */
+	DEBUG_TOOL_WRITE("Verify free space: %d blocks", sel_count);
 	cc_begin = choice_find_avail(ccache, ccache_cursor, sel_count);
 	if (cc_begin == -1) {
 		ccache_cursor = choice_min(ccache);
@@ -99,10 +100,11 @@ static void do_defrag(
 #endif
 		ti_sel = typeinfo_follow_iter(ti, &rel->rel_sel, sel_min+i);
 		assert (ti_sel != NULL);
-		assert(choice_is_set(ccache, (cc_begin+i)-choice_min(ccache)));
-		DEBUG_TOOL_WRITE("DOING: sel_idx=%d", sel_min+i);
+		assert(choice_is_free(ccache, (cc_begin+i)));
+		DEBUG_TOOL_WRITE("WPKT_RELOC: sel_idx=%d", sel_min+i);
 		wpkt_relocate(ti, rel, ti_sel, sel_min+i, cc_begin+i);
-		choice_unset(ccache, (cc_begin+i)-choice_min(ccache));
+		DEBUG_TOOL_WRITE("WPKT_RELOC DONE.");
+		choice_mark_alloc(ccache, cc_begin+i);
 		typeinfo_free(ti_sel);
 	}
 

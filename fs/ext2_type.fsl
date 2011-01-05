@@ -24,7 +24,6 @@ assert (? sb.s_inos_per_grp <= get_block_size()*8)
 	}blocks[sb.s_blocks_c - (from_base_bits()/8)/get_block_size()];
 }
 
-
 type ext2_indir_block
 points_range(
 	i, 1, indir_count(this),
@@ -33,46 +32,12 @@ points_range(
 	blknum_t blk_ptr[get_block_size()/4];
 }
 
-u32 bi_count(ext2_biindir_block id)
-{
-	u32	max_blks;
-	u32	ret;
-	u32	i;
-
-	ret = 0;
-	i = 0;
-	max_blks = get_block_size()/4;
-	while (i < max_blks) {
-		if (id.blk_ptr[i] != 0)
-			ret++;
-		i++;
-	}
-	return ret;
-}
-
 type ext2_biindir_block
 points_range(
 	i, 1, bi_count(this),
 	disk.blocks[blk_ptr[i-1] - blocks_off(disk.sb)].indir_blk)
 {
 	u32	blk_ptr[get_block_size()/4];
-}
-
-u32 tri_count(ext2_triindir_block id)
-{
-	u32	max_blks;
-	u32	ret;
-	u32	i;
-
-	ret = 0;
-	i = 0;
-	max_blks = get_block_size()/4;
-	while (i < max_blks) {
-		if (id.blk_ptr[i] != 0)
-			ret++;
-		i++;
-	}
-	return ret;
 }
 
 type ext2_triindir_block
@@ -151,8 +116,6 @@ sum(s_free_inodes_c)
 	/* finally, padding */
 	set_bytes(1024);
 }
-
-//type ext2_file(u32 flen) { u8	file_dat[flen]; }
 
 type ext2_inode
 assert (? is_fast_symlink(this) || i_block_direct[0] != 0)

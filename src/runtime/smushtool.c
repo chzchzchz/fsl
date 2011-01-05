@@ -53,7 +53,7 @@ uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 			ccache_cursor -= (ccache_cursor-choice_min(ccache))/2;
 			continue;
 		}
-		if (!choice_is_set(ccache, k-choice_min(ccache))) continue;
+		if (choice_is_alloc(ccache, k)) continue;
 		ccache_cursor = k+1;
 
 		return k;
@@ -108,7 +108,7 @@ void swap_rel_sel(
 	}
 
 	wpkt_relocate(ti, rel, rel_sel_ti, sel_v, replace_choice_idx);
-	choice_unset(ccache, replace_choice_idx - choice_min(ccache));
+	choice_mark_alloc(ccache, replace_choice_idx);
 done:
 	DEBUG_TOOL_LEAVE();
 }

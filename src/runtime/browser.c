@@ -101,7 +101,7 @@ static uint64_t select_field_array(
 		return ~0;
 	*sel_idx = sel_elem;
 
-	if (field->tf_constsize == false) {
+	if ((field->tf_flags & (FIELD_FL_CONSTSIZE | FIELD_FL_FIXED)) == 0) {
 		typesize_t	array_off;
 
 		array_off = __computeArrayBits(

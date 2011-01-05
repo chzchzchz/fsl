@@ -24,13 +24,13 @@ choice_alloc(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 	ret->cc_max = choice_max;
 
 	bmp_init(&ret->cc_bmp, (ret->cc_max - ret->cc_min)+1);
-	bmp_clear(&ret->cc_bmp);
+	bmp_clear(&ret->cc_bmp);	/* mark all as allocated */
 
 	/* test all choices, set bitmap accordingly. */
-	for (cur_choice = choice_min; cur_choice < choice_max; cur_choice++) {
+	for (cur_choice = choice_min; cur_choice <= choice_max; cur_choice++) {
 		bool	c_ok;
 		c_ok = rel->rel_ccond(&ti_clo(ti), cur_choice);
-		if (c_ok) choice_set(ret, cur_choice - ret->cc_min);
+		if (c_ok) choice_mark_free(ret, cur_choice);
 	}
 
 	DEBUG_TOOL_WRITE(

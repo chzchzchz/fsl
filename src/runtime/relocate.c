@@ -93,18 +93,15 @@ uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 		diskoff_t	off_bits;
 		uint64_t	imgidx;
 
-		/* check cache first */
-		if (!choice_is_set(ccache, cur_choice-choice_min(ccache))) {
-			/* not OK to use */
-			continue;
-		}
+		/* check cache first-- don't use allocated type */
+		if (choice_is_alloc(ccache, cur_choice)) continue;
 
 		/* get offset on disk of choice type */
 		off_bits = rel->rel_choice.it_range(&ti_clo(ti), cur_choice, buf);
 		imgidx = byte_to_imgidx(reloc_img, off_bits / 8);
 		if (imgidx == reloc_cursor) {
 			/* success! */
-			choice_unset(ccache, cur_choice-choice_min(ccache));
+			choice_mark_alloc(ccache, cur_choice);
 			reloc_img_advance();
 			if (reloc_cursor == ~0) {
 				/* nothing left to do */
@@ -172,13 +169,17 @@ void swap_rel_sel(
 static void update_status(void)
 {
 	static int last_reloc_cursor = 0;
+	static int last_percent = 999;
 	int	percent;
 
 	if (reloc_cursor == last_reloc_cursor) return;
 	if (reloc_cursor == ~0) percent = 100;
 	else percent = (100*reloc_cursor)/(reloc_img->x*reloc_img->y);
+	if (percent == last_percent) return;
+
 	printf("Status: %3d%%\r", percent);
 	last_reloc_cursor = reloc_cursor;
+	last_percent = percent;
 }
 
 void do_rel_type(struct type_info* ti, const struct fsl_rtt_reloc* rel)

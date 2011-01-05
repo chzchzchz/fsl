@@ -1,3 +1,5 @@
+//#define DEBUG_TOOL
+#include <inttypes.h>
 #include <assert.h>
 #include "runtime.h"
 #include "debug.h"

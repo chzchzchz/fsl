@@ -51,6 +51,7 @@ ext2-postmark.img:
 	yes | /sbin/mkfs.ext2 $@
 	./loopback_fs_setup.sh ext2-postmark.img ext2
 	./gen_postmark.sh
+	mkdir /mnt/FSTEST/lost+found/
 	./loopback_fs_teardown.sh
 
 ext2-depth.img:
@@ -78,8 +79,12 @@ vfat.img:
 vfat-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /usr/sbin/mkfs.vfat $@
-	./loopback_fs_setup.sh vfat-many.img vfat  && ./gen_files.sh 100 && ./loopback_fs_teardown.sh
+	./loopback_fs_setup.sh $@ vfat  && ./gen_files.sh 100 && ./loopback_fs_teardown.sh
 
+vfat-manymore.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@ vfat  && ./gen_files.sh 120 && ./loopback_fs_teardown.sh
 
 # many files
 vfat-postmark.img:
