@@ -137,9 +137,7 @@ VirtualIf::VirtualIf(
 	assert (cond != NULL);
 
 	true_min_expr = iter->getMinExpr()->copy();
-	false_min_expr = new AOPAdd(
-		iter->getMaxExpr()->copy(),
-		new Number(1));	/* false_min_expr > max_expr */
+	false_min_expr = new Number(~0);	/* false_min_expr > max_expr */
 
 	iter->setMinExpr(new FCall(
 		new Id(getWrapperFCallName()),

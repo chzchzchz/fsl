@@ -13,24 +13,26 @@
 class ThunkElements : public ThunkFieldFunc
 {
 public:
-	ThunkElements(unsigned int i)
-	: ThunkFieldFunc(i), fixed(false) { setPrefix("thunkelems"); }
+	ThunkElements(unsigned int i, bool in_nofollow = false)
+	: ThunkFieldFunc(i), fixed(false), nofollow(in_nofollow)
+	{ setPrefix("thunkelems"); }
 
 	ThunkElements(Expr* e, bool in_fixed = false)
 	: ThunkFieldFunc(e), fixed(in_fixed) { setPrefix("thunkelems"); }
 
-	virtual ~ThunkElements() {}
+	ThunkElements(Expr* e, bool in_fixed, bool in_nofollow)
+	: ThunkFieldFunc(e), fixed(in_fixed), nofollow(in_nofollow)
+	{ setPrefix("thunkelems"); }
 
+	virtual ~ThunkElements() {}
 	virtual ThunkElements* copy(void) const;
 
 	bool isSingleton(void) const;
-	/* array, all elems same size */
 	bool isFixed() const { return fixed; }
-
-protected:
+	bool isNoFollow(void) const { return nofollow; }
 private:
-	bool fixed;
+	bool fixed; /* array, all elems same size */
+	bool nofollow;
 };
-
 
 #endif

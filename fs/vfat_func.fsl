@@ -1,17 +1,20 @@
 uint bytes_per_cluster() { return bpb.sectors_per_cluster*bpb.bytes_per_sector; }
-clusternum_t fat_next(uint cluster_num)
+
+clusternum_t fat_next_ft(clusternum_t cn, fat_type ft, fat f)
+{
+	if (ft == FAT_TYPE_FAT32) return f._ent32[cn].cluster_num;
+	else if (ft == FAT_TYPE_FAT16) return f._ent16[cn].cluster_num;
+	else if (ft == FAT_TYPE_FAT12) return f._ent12[cn].cluster_num;
+	return fsl_fail(1);
+}
+
+clusternum_t fat_next(clusternum_t cn)
 {
 	fat_type	ft;
 	fat		f;
-
-	ft = get_fat_type(bpb);
 	f = disk.fats[0];
-
-	if (ft == FAT_TYPE_FAT12) return f.ent12[cluster_num].cluster_num;
-	else if (ft == FAT_TYPE_FAT16) return f.ent16[cluster_num].cluster_num;
-	else if (ft == FAT_TYPE_FAT32) return f.ent32[cluster_num].cluster_num;
-
-	return fsl_fail(1);
+	ft = get_fat_type(bpb);
+	return fat_next_ft(cn, ft, f);
 }
 
 bool is_cluster_avail(clusternum_t cn)
@@ -22,18 +25,35 @@ bool is_cluster_avail(clusternum_t cn)
 	return false;
 }
 
-clusternum_t get_nth_cnum(fat_de de, uint i)
+clusternum_t fat_chain_nth_cnum(clusternum_t start_clus, uint i)
 {
-	clusternum_t cur_cluster;
+	clusternum_t	cur_cluster;
+	fat_type	ft;
+	fat		f;
 
-	cur_cluster = (de.first_cluster_hi << 16) + de.first_cluster_lo;
-	/* follow clusters. Need while loops, better error handling */
+	f = disk.fats[0];
+	ft = get_fat_type(bpb);
+	cur_cluster = start_clus;
 	while (i > 1) {
-		cur_cluster = fat_next(cur_cluster);
+		cur_cluster = fat_next_ft(cur_cluster, ft, f);
 		i = i - 1;
 	}
 
 	return cur_cluster;
+}
+
+cluster fat_chain_nth(clusternum_t cn, uint i)
+{
+	clusternum_t	sel_cn;
+	sel_cn = fat_chain_nth_cnum(cn, i);
+	return get_cluster(sel_cn);
+}
+
+clusternum_t get_nth_cnum(fat_de de, uint i)
+{
+	clusternum_t	clus_start;
+	clus_start = (de.first_cluster_hi << 16) + de.first_cluster_lo;
+	return fat_chain_nth_cnum(clus_start, i);
 }
 
 cluster get_nth(fat_de de, uint i)
@@ -44,6 +64,22 @@ cluster get_nth(fat_de de, uint i)
 }
 
 cluster get_cluster(clusternum_t cn) { return disk.clusters[cn-2]; }
+
+bool is_back_ref(fat_de de)
+{
+	if (de.name[0] == '.') {
+		if (de.name[1] == ' ') return true;
+		if (de.name[1] == '.' && de.name[2] == ' ')
+			return true;
+	}
+	return false;
+}
+
+bool is_lfn(fat_de de)
+{
+	if (de.attr == 0xf) return true;
+	return false;
+}
 
 bool is_good_dir(fat_de de)
 {
@@ -59,9 +95,23 @@ bool is_good_dir(fat_de de)
 
 bool is_deleted(fat_de de)
 {
-	if (de.name[0] == DEL_FLAG || de.name[0] == 0)
-		return true;
+	if (de.name[0] == DEL_FLAG || de.name[0] == 0) return true;
 	return false;
+}
+
+uint fat_chain_count(clusternum_t start_clus)
+{
+	clusternum_t 	cur_clus;
+	u32		count;
+
+	count = 0;
+	cur_clus = start_clus;
+	while (is_valid_cnum(cur_clus) == true) {
+		count++;
+		cur_clus = fat_next(cur_clus);
+	}
+
+	return count;
 }
 
 uint de_cluster_count(fat_de de)
@@ -71,18 +121,9 @@ uint de_cluster_count(fat_de de)
 	if (de.file_size == 0xffffffff) return 0;
 
 	if ( (ATTR_DIRECTORY & de.attr) != 0)  {
-		clusternum_t 	cur_clus;
-		u32		count;
-
-		count = 0;
-		cur_clus = de.first_cluster_lo + (de.first_cluster_hi << 16);
-
-		while (is_valid_cnum(cur_clus) == true) {
-			count++;
-			cur_clus = fat_next(cur_clus);
-		}
-
-		return count;
+		clusternum_t	first_clus;
+		first_clus = de.first_cluster_lo + (de.first_cluster_hi << 16);
+		return fat_chain_count(first_clus);
 	}
 
 	bpc = bytes_per_cluster();
@@ -97,40 +138,31 @@ bool is_valid_cnum(clusternum_t cnum)
 
 	ft = get_fat_type(bpb);
 	if (ft == FAT_TYPE_FAT12) {
-		if (cnum > FAT12_MAX)
-			return false;
+		if (cnum > FAT12_MAX) return false;
 		return true;
 	} else if (ft == FAT_TYPE_FAT16) {
-		if (cnum > FAT16_MAX)
-			return false;
+		if (cnum > FAT16_MAX) return false;
 		return true;
 	} else if (ft == FAT_TYPE_FAT32) {
-		if (cnum > FAT32_MAX)
-			return false;
+		if (cnum > FAT32_MAX) return false;
 		return true;
 	}
 
 	return false;
 }
 
-uint get_fat_sectors(bpb b)
-{
-	if (b.sectors_in_fat16 != 0)
-		return b.sectors_in_fat16;
-	return b.priv32.sectors_in_fat32;
-}
-
-uint get_fat_bytes(bpb b)
-{
-	return get_fat_sectors(b)*b.bytes_per_sector;
-}
-
+uint get_fat_bytes(bpb b) { return get_fat_sectors(b)*b.bytes_per_sector; }
 
 uint get_total_sectors(bpb b)
 {
-	if (b.total_sect16 != 0)
-		return b.total_sect16;
+	if (b.total_sect16 != 0) return b.total_sect16;
 	return b.total_sect32;
+}
+
+uint get_fat_sectors(bpb b)
+{
+	if (b.sectors_in_fat16 != 0) return b.sectors_in_fat16;
+	return b.priv32.sectors_in_fat32;
 }
 
 uint get_cluster_count(bpb b)
@@ -165,11 +197,11 @@ fat_type get_fat_type(bpb b)
 {
 	uint cluster_count;
 
+	if (b.sectors_in_fat16 == 0) return FAT_TYPE_FAT32;
+
 	cluster_count = get_cluster_count(b);
-	if (cluster_count < 4085)
-		return FAT_TYPE_FAT12;
-	else if (cluster_count < 65525)
-		return FAT_TYPE_FAT16;
+	if (cluster_count < 4085) return FAT_TYPE_FAT12;
+	else if (cluster_count < 65525) return FAT_TYPE_FAT16;
 	return FAT_TYPE_FAT32;
 }
 
@@ -182,19 +214,16 @@ uint get_fatent_bits(bpb b)
 }
 
 bool is_fat12(bpb b) {
-	if (get_fat_type(b) == FAT_TYPE_FAT12)
-		return true;
+	if (get_fat_type(b) == FAT_TYPE_FAT12) return true;
 	return false;
 }
 
 bool is_fat16(bpb b){
-	if (get_fat_type(b) == FAT_TYPE_FAT16)
-		return true;
+	if (get_fat_type(b) == FAT_TYPE_FAT16) return true;
 	return false;
 }
 
 bool is_fat32(bpb b){
-	if (get_fat_type(b) == FAT_TYPE_FAT32)
-		return true;
+	if (get_fat_type(b) == FAT_TYPE_FAT32) return true;
 	return false;
 }

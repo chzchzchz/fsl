@@ -117,11 +117,16 @@ type offset_v2 { u64	v; }
 type disk_child
 relocate(
 	j, 1, 1, get_rawblk(dc2_block_number),
-	i, 1, get_block_count(), get_rawblk(i), ? is_blk_avail(i) == true,
+	i, 1, get_block_count()-1, get_rawblk(i), ? is_blk_avail(i) == true,
 	block_alloc(i),
 	diskchild_relink(this, i),
 	block_replace(dc2_block_number)) as reloc
-
+relocate(
+	j, 1, 1, get_rawblk(dc2_block_number),
+	i, 1, get_block_count()-1, get_rawblk(i), ? is_blk_avail(i) == true,
+	block_alloc(i),
+	diskchild_relink(this, i),
+	block_replace(dc2_block_number)) as defrag
 {
 	blknum_t	dc2_block_number;	/* Disk child's block number. */
 	u16		dc2_size;		/* Disk child's used space.   */
@@ -213,10 +218,16 @@ points_range_cast(
 	disk.raw_blocks[blkptr[i-1]], indir_blk) as indir_blks
 relocate(
 	j, 1, byte_len/4, get_rawblk(blkptr[j-1]),
-	i, 1, get_block_count(), get_rawblk(i), ? is_blk_avail(i) == true,
+	i, 1, get_block_count()-1, get_rawblk(i), ? is_blk_avail(i) == true,
 	block_alloc(i),
 	indir_relink(this, (j-1), i),
 	block_replace(blkptr[j-1])) as reloc
+relocate(
+	j, 1, byte_len/4, get_rawblk(blkptr[j-1]),
+	i, 1, get_block_count()-1, get_rawblk(i), ? is_blk_avail(i) == true,
+	block_alloc(i),
+	indir_relink(this, (j-1), i),
+	block_replace(blkptr[j-1])) as defrag
 {
 	blknum_t	blkptr[byte_len/4];
 }
@@ -303,21 +314,26 @@ type reiserfs_de_head
 				 * 2) whether entry is hidden (unlinked) */
 }
 
+int get_bmp_skip(int k)
+{
+	u32	bsz;
+	bsz = get_bsz();
+	if (is_bmap_spread() == false) return bsz;
+	if (k == 0) return bsz*((8*bsz)-(get_blkbmp_base()/bsz));
+	return 8*bsz*bsz;
+}
+
 type reiser_bmpblk { u1	dat[get_bsz()*8]; }
 type reiser_bmpblk_spread(int k)
 {
 	reiser_bmpblk	bmp_blk;
-	/* XXX FIX LATER */
-	/* can't handle set_bytes + cond */
-	//if (is_bmap_spread()) {
-	//	if (k == 0) set_bytes(get_bsz()*((8*get_bsz()-get_blkbmp_base())));
-	//	else set_bytes(8*get_blksz()*get_blksz());
-	//}
+	set_bytes(get_bmp_skip(k));
 }
 
 type reiser_blkbmp
 {
-	reiser_bmpblk_spread(@)	bmp[get_sb().s_v1.s_bmap_nr];
+	reiser_bmpblk_spread(0)		bmp1;
+	reiser_bmpblk_spread(@+1)	bmp_rest[get_sb().s_v1.s_bmap_nr-1] fixed;
 }
 
 type reiser_rawblk { u8	dat[get_bsz()]; }
@@ -342,9 +358,9 @@ points_cast(internal_node, raw_blocks[get_sb().s_v1.s_root_block]) as tree_root
 	set_bytes(get_sb().s_v1.s_journal.jp_journal_1st_block*get_bsz());
 	//reiser_rawblk	journal_header;
 	reiserfs_journal_desc(0) j_header;
-	reiser_rawblk	j_blocks[get_sb().s_v1.s_journal.jp_journal_size] fixed;
+	reiser_rawblk	j_blocks[get_sb().s_v1.s_journal.jp_journal_size] fixed nofollow;
 
 	/* ugly raw blocks */
 	set_bytes(0);
-	reiser_rawblk	raw_blocks[get_block_count()] fixed;
+	reiser_rawblk	raw_blocks[get_block_count()] fixed nofollow;
 }

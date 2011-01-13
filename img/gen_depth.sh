@@ -1,9 +1,11 @@
 #!/bin/bash
 
-if [ -z $1 ]; then
-	DEPTH=50
-else
-	DEPTH=$1
+if [ -z $DEPTH ]; then
+	if [ -z $1 ]; then
+		DEPTH=50
+	else
+		DEPTH=$1
+	fi
 fi
 
 if [ -z "$FILES_IN_DIR" ]; then

@@ -10,9 +10,10 @@ assert (? sb.s_inos_per_grp <= get_block_size()*8)
 
 	align_bytes(get_block_size());
 
-	ext2_group_desc(@)	grp_desc_table[get_group_count(sb)];
+	ext2_group_desc(@)	grp_desc_table[get_group_count(sb)] fixed;
 	align_bytes(get_block_size());
 
+	set_bytes(0);
 	union {
 		ext2_inode_block	ino_blk;
 		ext2_bmp_blk		blk_bmp; /* 1 = used, 0 = free */
@@ -21,13 +22,13 @@ assert (? sb.s_inos_per_grp <= get_block_size()*8)
 		ext2_indir_block	indir_blk;
 		ext2_biindir_block	biindir_blk;
 		ext2_triindir_block	triindir_blk;
-	}blocks[sb.s_blocks_c - (from_base_bits()/8)/get_block_size()];
+	} blocks [sb.s_blocks_c];
 }
 
 type ext2_indir_block
 points_range(
 	i, 1, indir_count(this),
-	disk.blocks[blk_ptr[i-1] - blocks_off(disk.sb)].data_blk)
+	disk.blocks[blk_ptr[i-1]].data_blk)
 {
 	blknum_t blk_ptr[get_block_size()/4];
 }
@@ -35,23 +36,23 @@ points_range(
 type ext2_biindir_block
 points_range(
 	i, 1, bi_count(this),
-	disk.blocks[blk_ptr[i-1] - blocks_off(disk.sb)].indir_blk)
+	disk.blocks[blk_ptr[i-1]].indir_blk)
 {
-	u32	blk_ptr[get_block_size()/4];
+	blknum_t blk_ptr[get_block_size()/4];
 }
 
 type ext2_triindir_block
 points_range(
 	i, 1, tri_count(ext2_triindir_block),
-	disk.blocks[blk_ptr[i-1] - blocks_off(disk.sb)].biindir_blk)
+	disk.blocks[blk_ptr[i-1]].biindir_blk)
 {
-	u32	blk_ptr[get_block_size()/4];
+	blknum_t blk_ptr[get_block_size()/4];
 }
 
 type ext2_inode_block
-assert (? sizeof_bytes(this) == get_block_size())
 {
-	ext2_inode	ino[get_block_size()/sizeof_bytes(ext2_inode)];
+	ext2_inode	ino[get_block_size()/sizeof_bytes(ext2_inode)] fixed;
+	set_bytes(get_block_size());
 }
 
 type ext2_data_block
@@ -60,14 +61,11 @@ type ext2_data_block
 }
 
 type ext2_group_desc(int group_num)
-points(disk.blocks[block_bmp - blocks_off(disk.sb) ].blk_bmp) as grp_blk_bmp
-points(disk.blocks[inode_bmp - blocks_off(disk.sb)].ino_bmp) as grp_ino_bmp
+points(disk.blocks[block_bmp].blk_bmp) as grp_blk_bmp
+points(disk.blocks[inode_bmp].ino_bmp) as grp_ino_bmp
 points_range(
 	i, 1, inode_table_block_count(disk.sb),
-	disk.blocks[(inode_table+i-1)-blocks_off(disk.sb)].ino_blk) as grp_ino_blk
-sum(free_block_c)
-sum(free_inode_c)
-sum(used_dir_c)
+	disk.blocks[(inode_table+i-1)].ino_blk) as grp_ino_blk
 assert(? sizeof_bytes(this) == 32)
 {
 	u32	block_bmp;
@@ -81,8 +79,6 @@ assert(? sizeof_bytes(this) == 32)
 }
 
 type ext2_sb
-sum(s_free_blocks_c)
-sum(s_free_inodes_c)
 {
 	u32	s_inodes_c;
 	u32	s_blocks_c;
@@ -118,7 +114,8 @@ sum(s_free_inodes_c)
 }
 
 type ext2_inode
-assert (? is_fast_symlink(this) || i_block_direct[0] != 0)
+assert (? is_fast_symlink(this) == false) as chk_isdata
+assert (? i_block_direct[0] != 0) as chk_hasdata
 assert (? i_dtime == 0)
 virtual_if(
 	? S_ISREG(i_mode) == true,
@@ -132,21 +129,21 @@ virtual_if(
 	get_nth(this, i-1)) as vdir
 points_range(
 	i, 1, num_direct_blocks(this),
-	disk.blocks[i_block_direct[i-1] - blocks_off(disk.sb)].data_blk) as direct
+	disk.blocks[i_block_direct[i-1]].data_blk) as direct
 points_if(
 	? is_fast_symlink(this) == false &&
 	   size_to_blocks(i_size) > EXT2_NDIR_BLOCKS,
-	disk.blocks[i_block_indir - blocks_off(disk.sb)].indir_blk) as indir
+	disk.blocks[i_block_indir].indir_blk) as indir
 points_if(
 	? is_fast_symlink(this) == false &&
 	  size_to_blocks(i_size) > (EXT2_NDIR_BLOCKS + blocks_per_indir()),
-	disk.blocks[i_block_biindir - blocks_off(disk.sb)].biindir_blk) as biindir
+	disk.blocks[i_block_biindir].biindir_blk) as biindir
 points_if(
 	? is_fast_symlink(this) == false &&
 	  size_to_blocks(i_size) >
 		(EXT2_NDIR_BLOCKS + blocks_per_indir()*
 			(1 + blocks_per_indir())),
-	disk.blocks[i_block_triindir - blocks_off(disk.sb)].triindir_blk) as triindir
+	disk.blocks[i_block_triindir].triindir_blk) as triindir
 relocate(
 	j, 1, size_to_blocks(i_size)+size_to_metablocks(i_size), get_nth_meta(this, j-1),
 	i, 1, get_total_blks(), ext2_data_block_lookup(i), ? is_blk_avail(i),
@@ -155,7 +152,7 @@ relocate(
 	block_replace(get_nth_meta_blknum(this, j-1))) as defrag
 relocate(
 	j, 1, size_to_blocks(i_size), get_nth(this, j-1),
-	i, 1, get_total_blks(), ext2_data_block_lookup(i), ? is_blk_avail(i),
+	i, 1, get_total_blks(), disk.blocks[i].data_blk, ? is_blk_avail(i),
 	block_alloc(i),
 	block_relink(this, (j-1), i),
 	block_replace(get_nth_blknum(this, j-1))) as reloc

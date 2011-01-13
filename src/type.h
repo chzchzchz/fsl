@@ -79,25 +79,27 @@ protected:
 class TypeDecl : public TypeStmt
 {
 public:
-	TypeDecl(Id* in_type, Id* in_name)
+	TypeDecl(Id* in_type, Id* in_name, bool in_nofollow = false)
 	:	type(in_type),
 		name(in_name),
 		array(NULL),
-		fixed_array(false)
+		fixed_array(false),
+		nofollow(in_nofollow)
 	{
-		assert (type != NULL);
-		assert (name != NULL);
+		assert (type != NULL && name != NULL);
 	}
 
-	TypeDecl(Id* in_type, IdArray* in_array, bool fixed)
+	TypeDecl(Id* in_type, IdArray* in_array, bool fixed, bool nofollow)
 	:	type(in_type),
 		name(NULL),
 		array(in_array),
-		fixed_array(fixed)
+		fixed_array(fixed),
+		nofollow(nofollow)
 	{
 		assert (type != NULL);
 		assert (array != NULL);
 		array->setFixed(fixed_array);
+		array->setNoFollow(nofollow);
 	}
 
 	virtual ~TypeDecl();
@@ -115,28 +117,31 @@ public:
 	const Id* getScalar(void) const { return name; }
 	const IdArray* getArray(void) const { return array; }
 	const bool isFixed(void) const { return fixed_array; }
+	const bool isNoFollow(void) const { return nofollow; }
 private:
 	Id*		type;
 	Id*		name;
 	IdArray*	array;
 	bool		fixed_array;
+	bool		nofollow;
 };
 
 class TypeParamDecl : public TypeStmt
 {
 public:
 	TypeParamDecl(FCall* in_type, Id* in_name)
-	: name(in_name), array(NULL), type(in_type) 
+	: name(in_name), array(NULL), type(in_type) , fixed_array(false)
 	{
 		assert (name != NULL);
 		assert (type != NULL);
 	}
 
-	TypeParamDecl(FCall* in_type, IdArray* in_array) 
-	: name(NULL), array(in_array), type(in_type)
+	TypeParamDecl(FCall* in_type, IdArray* in_array, bool fixed)
+	: name(NULL), array(in_array), type(in_type), fixed_array(fixed)
 	{
 		assert (array != NULL);
 		assert (type != NULL);
+		array->setFixed(fixed_array);
 	}
 
 	virtual ~TypeParamDecl() 
@@ -164,6 +169,7 @@ private:
 	Id*		name;
 	IdArray*	array;
 	FCall*		type;
+	bool		fixed_array;
 };
 
 

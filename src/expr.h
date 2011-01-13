@@ -270,7 +270,7 @@ class IdArray  : public Expr
 {
 public: 
 	IdArray(Id *in_id, Expr* expr) : 
-		id(in_id), idx(expr), fixed(false)
+		id(in_id), idx(expr), fixed(false), nofollow(false)
 	{
 		assert (id != NULL);
 		assert (idx != NULL);
@@ -311,6 +311,7 @@ public:
 	{
 		IdArray	*ret = new IdArray(id->copy(), idx->copy());
 		ret->fixed = fixed;
+		ret->nofollow = nofollow;
 		return ret;
 	}
 
@@ -343,11 +344,14 @@ public:
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 
 	bool isFixed(void) const { return fixed; }
+	bool isNoFollow(void) const { return nofollow; }
 	void setFixed(bool f) { fixed = f; }
+	void setNoFollow(bool f) { nofollow = f; }
 private:
 	Id		*id;
 	Expr		*idx;
 	bool		fixed;
+	bool		nofollow;
 };
 
 

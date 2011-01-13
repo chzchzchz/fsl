@@ -18,11 +18,8 @@ ThunkElements* ThunkElements::copy(void) const
 
 	assert (raw_expr != NULL);
 
-	ret = new ThunkElements(raw_expr->copy());
+	ret = new ThunkElements(raw_expr->copy(), fixed, nofollow);
 	ret->setOwner(getOwner());
 	ret->setFieldName(getFieldName());
-	ret->fixed = fixed;
-
 	return ret;
 }
-

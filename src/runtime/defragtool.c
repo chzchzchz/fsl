@@ -40,10 +40,10 @@ static bool is_fragmented(
 		assert (rel_sel_ti != NULL);
 		cur_off = ti_phys_offset(rel_sel_ti);
 		cur_sz = ti_size(rel_sel_ti);
+		typeinfo_free(rel_sel_ti);
 		if (cur_off != (last_off + last_sz)) return true;
 		last_off = cur_off;
 		last_sz = cur_sz;
-		typeinfo_free(rel_sel_ti);
 	}
 
 	return false;

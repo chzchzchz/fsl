@@ -176,8 +176,9 @@ struct fsl_rtt_type
 };
 
 
-#define FIELD_FL_CONSTSIZE	0x1 /* size does not change in field (useful for arrays.) */
+#define FIELD_FL_CONSTSIZE	0x1 /* size same for all elems in arrays */
 #define FIELD_FL_FIXED		0x2
+#define FIELD_FL_NOFOLLOW	0x4
 
 struct fsl_rtt_field
 {

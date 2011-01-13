@@ -61,7 +61,7 @@ void yyerror(const char* s)
 // arith
 %token <token> TOKEN_BITOR TOKEN_BITAND TOKEN_ADD TOKEN_SUB TOKEN_MUL TOKEN_DIV
 %token <token> TOKEN_LSHIFT TOKEN_RSHIFT TOKEN_MOD
-%token <token> TOKEN_SEMI TOKEN_QUESTION TOKEN_FIXED TOKEN_WRITE TOKEN_EXCLAIM
+%token <token> TOKEN_SEMI TOKEN_QUESTION TOKEN_FIXED TOKEN_NOFOLLOW TOKEN_WRITE TOKEN_EXCLAIM
 
 // comparison
 %token <token> TOKEN_CMPEQ TOKEN_CMPLE TOKEN_CMPGE TOKEN_CMPNE TOKEN_CMPGT TOKEN_CMPLT
@@ -331,7 +331,6 @@ enum_ent	: ident { $$ = new EnumEnt($1); }
 		} 
 		;
 
-	
 type_args	: TOKEN_LPAREN type_args_list TOKEN_RPAREN { $$ = $2; }
 		| TOKEN_LPAREN TOKEN_RPAREN { $$ = new ArgsList(); }
 		;
@@ -403,11 +402,19 @@ type_stmt	: ident ident TOKEN_SEMI
 		}
 		| ident array TOKEN_SEMI
 		{
-			$$ = new TypeDecl((Id*)$1, (IdArray*)$2, false);
+			$$ = new TypeDecl((Id*)$1, (IdArray*)$2, false, false);
+		}
+		| ident ident TOKEN_NOFOLLOW TOKEN_SEMI
+		{
+			$$ = new TypeDecl((Id*)$1, (Id*)$2, true);
 		}
 		| ident array TOKEN_FIXED TOKEN_SEMI
 		{
-			$$ = new TypeDecl((Id*)$1, (IdArray*)$2, true);
+			$$ = new TypeDecl((Id*)$1, (IdArray*)$2, true, false);
+		}
+		| ident array TOKEN_FIXED TOKEN_NOFOLLOW TOKEN_SEMI
+		{
+			$$ = new TypeDecl((Id*)$1, (IdArray*)$2, true, true);
 		}
 		| fcall TOKEN_SEMI
 		{
@@ -419,7 +426,11 @@ type_stmt	: ident ident TOKEN_SEMI
 		}
 		| fcall_args array TOKEN_SEMI
 		{
-			$$ = new TypeParamDecl((FCall*)$1, (IdArray*)$2);
+			$$ = new TypeParamDecl((FCall*)$1, (IdArray*)$2, false);
+		}
+		| fcall_args array TOKEN_FIXED TOKEN_SEMI
+		{
+			$$ = new TypeParamDecl((FCall*)$1, (IdArray*)$2, true);
 		}
 		| TOKEN_UNION type_block ident TOKEN_SEMI
 		{

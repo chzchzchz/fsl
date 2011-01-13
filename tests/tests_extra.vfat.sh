@@ -4,12 +4,14 @@ fs="vfat"
 source ${src_root}/tests/test_common.sh
 source ${src_root}/tests/fs_common.sh
 
+imgname=${fs}-32-many.img
+fs_scan_startup_img $fs ${fs}-32-many.img
+
 imgname=$fs-depth.img
 fs_scan_startup_img $fs $imgname
 
 imgname=$fs-many.img
 fs_scan_startup_img $fs $fs-many.img
-
 fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
 if [ "$fcount" -ne 10100 ]; then
 	echo "BADCOUNT $fcount != 10100"

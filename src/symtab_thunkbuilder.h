@@ -36,6 +36,7 @@ private:
 		const std::string& 	type_str,
 		const std::string&	field_name,
 		const IdArray*		array,
+		bool			no_follow,
 		const ExprList*		exprs = NULL);
 
 	void addToCurrentSymTab(

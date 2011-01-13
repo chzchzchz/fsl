@@ -176,6 +176,7 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 	const std::string&	type_str,
 	const std::string&	field_name,
 	const IdArray*		array,
+	bool			no_follow,
 	const ExprList*		exprs)
 {
 	ThunkField		*field_thunk;
@@ -210,7 +211,7 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 
 	/* get number of elements object */
 	if (array == NULL) {
-		field_elems = new ThunkElements(1u);
+		field_elems = new ThunkElements(1u, no_follow);
 	} else {
 		Expr	*num_elems;
 
@@ -219,7 +220,7 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 			from_base_fc.copy(),
 			copyCurrentOffset());
 
-		field_elems = new ThunkElements(num_elems, array->isFixed());
+		field_elems = new ThunkElements(num_elems, array->isFixed(), no_follow);
 	}
 
 	if (t != NULL && t->getNumArgs() != 0) {
@@ -276,9 +277,7 @@ const Type* SymTabThunkBuilder::getTypeFromUnionSyms(
 		assert (union_t != NULL);
 
 		name = "__union_"+cur_type->getName() +"_"+field_name;
-		if (union_t->getName() == name) {
-			break;
-		}
+		if (union_t->getName() == name) break;
 		union_t = NULL;
 	}
 
@@ -315,7 +314,7 @@ void SymTabThunkBuilder::addUnionToSymTab(
 			from_base_fc.copy(),
 			last_tf_union_off->copy());
 
-		field_elems = new ThunkElements(num_elems);
+		field_elems = new ThunkElements(num_elems, true);
 	}
 
 	assert (
@@ -340,7 +339,8 @@ void SymTabThunkBuilder::visit(const TypeDecl* td)
 	addToCurrentSymTab(
 		td->getType()->getName(),
 		td->getName(), 
-		td->getArray());
+		td->getArray(),
+		td->isNoFollow());
 }
 
 void SymTabThunkBuilder::visit(const TypeCond* tc)
@@ -478,6 +478,7 @@ void SymTabThunkBuilder::visit(const TypeParamDecl* tp)
 		tp->getType()->getName(), 
 		tp->getName(), 
 		tp->getArray(),
+		false,
 		tp->getType()->getExprs());
 }
 

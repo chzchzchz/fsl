@@ -1,0 +1,133 @@
+DEPTH_IMGS=	\
+ext2-depth-1.img ext2-depth-4.img ext2-depth-16.img ext2-depth-64.img ext2-depth-128.img ext2-depth-192.img ext2-depth-256.img \
+vfat-depth-1.img vfat-depth-4.img vfat-depth-16.img vfat-depth-64.img vfat-depth-128.img vfat-depth-192.img vfat-depth-256.img \
+reiserfs-depth-1.img reiserfs-depth-4.img reiserfs-depth-16.img reiserfs-depth-64.img reiserfs-depth-128.img reiserfs-depth-192.img reiserfs-depth-256.img
+
+ext2-depth-1.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.ext2 $@
+	./loopback_fs_setup.sh $@ ext2
+	DEPTH=1 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+ext2-depth-4.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.ext2 $@
+	./loopback_fs_setup.sh $@ ext2
+	DEPTH=4 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+ext2-depth-16.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.ext2 $@
+	./loopback_fs_setup.sh $@ ext2
+	DEPTH=16 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+ext2-depth-64.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.ext2 $@
+	./loopback_fs_setup.sh $@ ext2
+	DEPTH=64 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+ext2-depth-128.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.ext2 $@
+	./loopback_fs_setup.sh $@ ext2
+	DEPTH=128 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+ext2-depth-192.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.ext2 $@
+	./loopback_fs_setup.sh $@ ext2
+	DEPTH=192 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+ext2-depth-256.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.ext2 $@
+	./loopback_fs_setup.sh $@ ext2
+	DEPTH=256 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+
+reiserfs-depth-1.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
+	./loopback_fs_setup.sh $@ reiserfs
+	DEPTH=1 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+reiserfs-depth-4.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
+	./loopback_fs_setup.sh $@ reiserfs
+	DEPTH=4 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+reiserfs-depth-16.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
+	./loopback_fs_setup.sh $@ reiserfs
+	DEPTH=16 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+reiserfs-depth-64.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
+	./loopback_fs_setup.sh $@ reiserfs
+	DEPTH=64 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+reiserfs-depth-128.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
+	./loopback_fs_setup.sh $@ reiserfs
+	DEPTH=128 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+reiserfs-depth-192.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
+	./loopback_fs_setup.sh $@ reiserfs
+	DEPTH=192 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+reiserfs-depth-256.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
+	./loopback_fs_setup.sh $@ reiserfs
+	DEPTH=256 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+
+vfat-depth-1.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@ vfat
+	DEPTH=1 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+vfat-depth-4.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@ vfat
+	DEPTH=4 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+vfat-depth-16.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@ vfat
+	DEPTH=16 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+vfat-depth-64.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@ vfat
+	DEPTH=64 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+vfat-depth-128.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@  vfat
+	DEPTH=128 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+vfat-depth-192.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@  vfat
+	DEPTH=192 ./gen_depth.sh
+	./loopback_fs_teardown.sh
+vfat-depth-256.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@ vfat
+	DEPTH=256 ./gen_depth.sh
+	./loopback_fs_teardown.sh

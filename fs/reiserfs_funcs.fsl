@@ -35,7 +35,7 @@ bool is_new()
 	return false;
 }
 
-bool is_bmap_spread() { return is_new(); }
+bool is_bmap_spread() { if (is_new() == true) return true; DEBUG_WRITE=12345; return false; }
 
 bool is_journal_magic(reiserfs_journal_desc jd)
 {
@@ -110,7 +110,10 @@ reiser_rawblk get_rawblk(blknum_t bn) { return disk.raw_blocks[bn]; }
 
 reiser_bmpblk get_bmpblk(blknum_t bn)
 {
-	return disk.bmap.bmp[bn/(8*get_bsz())].bmp_blk;
+	u32	idx;
+	idx = bn/(8*get_bsz());
+	if (idx == 0) return disk.bmap.bmp1;
+	return disk.bmap.bmp_rest[idx-1];
 }
 
 bool is_blk_avail(blknum_t bn)

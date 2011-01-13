@@ -30,7 +30,7 @@ struct fsl_rt_wlog
 	int			wl_idx;
 };
 
-#define FSL_IO_CACHE_ENTS	64
+#define FSL_IO_CACHE_ENTS	512	/* 16KB */
 #define FSL_IO_CACHE_BYTES	32
 #define FSL_IO_CACHE_BITS	(FSL_IO_CACHE_BYTES*8)
 #define byte_to_line(x)		((x)/FSL_IO_CACHE_BYTES)

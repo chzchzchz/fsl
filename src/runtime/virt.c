@@ -60,22 +60,13 @@ static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx)
 	return base;
 }
 
-uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
+
+static uint64_t fsl_virt_xlate_rtm(struct fsl_rt_mapping* rtm, uint64_t bit_off)
 {
-	struct fsl_rt_mapping	*rtm;
-	uint64_t		idx, off;
-	uint64_t		total_bits;
-	diskoff_t		base;
+	uint64_t	total_bits, idx, base, off;
 
 	DEBUG_VIRT_ENTER();
 
-	DEBUG_VIRT_WRITE("xlating!!!");
-
-	assert (clo != NULL);
-
-	rtm = clo->clo_xlate;
-	DEBUG_VIRT_WRITE("closure offset=%"PRIu64, clo->clo_offset);
-	DEBUG_VIRT_WRITE("&rtm = %p", rtm);
 	assert (rtm != NULL && "No xlate.");
 	assert (rtm->rtm_clo != NULL && "xlate not fully initialized?");
 	DEBUG_VIRT_WRITE("virt bit_off=%"PRIu64, bit_off);
@@ -116,6 +107,26 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 	DEBUG_VIRT_LEAVE();
 
 	return base + off;
+}
+
+uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
+{
+	struct fsl_rt_mapping	*rtm;
+	uint64_t		ret;
+
+	DEBUG_VIRT_ENTER();
+
+	DEBUG_VIRT_WRITE("xlating!!!");
+
+	assert (clo != NULL);
+
+	rtm = clo->clo_xlate;
+	DEBUG_VIRT_WRITE("closure offset=%"PRIu64, clo->clo_offset);
+	DEBUG_VIRT_WRITE("&rtm = %p", rtm);
+	ret = fsl_virt_xlate_rtm(rtm, bit_off);
+
+	DEBUG_VIRT_LEAVE();
+	return ret;
 }
 
 static void fsl_virt_ref_all(struct fsl_rt_closure* clo)
@@ -203,6 +214,15 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 
 	fsl_virt_init_cache(rtm);
 
+	/* make sure we don't allocate a loop */
+	if (parent->clo_xlate != NULL) {
+		if (fsl_virt_xlate(parent, 0) == fsl_virt_xlate_rtm(rtm, 0)) {
+			DEBUG_VIRT_WRITE("Loop. Do not allocate");
+			fsl_virt_free(rtm);
+			rtm = NULL;
+			goto done;
+		}
+	}
 done:
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_ALLOC);
 
@@ -228,6 +248,10 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 	/* XXX these should be invalidated when underlying changes.. need
 	 * to use logging facility */
 	rtm->rtm_cached_minidx = rtm->rtm_virt->vt_min(rtm->rtm_clo);
+	if (rtm->rtm_cached_minidx == ~0) {
+		DEBUG_VIRT_LEAVE();
+		return false;
+	}
 	rtm->rtm_cached_maxidx = rtm->rtm_virt->vt_max(rtm->rtm_clo);
 
 	DEBUG_VIRT_WRITE("MINIDX=%"PRIu64" / MAXIDX=%"PRIu64,
@@ -368,6 +392,11 @@ diskoff_t fsl_virt_get_nth(
 				fsl_virt_total_bits(rtm));
 
 			total_bits = OFFSET_INVALID;
+			goto done;
+		}
+
+		if (cur_size == 0) {
+			total_bits = OFFSET_EOF;
 			goto done;
 		}
 	}

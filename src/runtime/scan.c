@@ -128,6 +128,11 @@ static int scan_pointsto(
 	tt = tt_by_num(pt->pt_type_dst);
 
 	min_idx = pt->pt_min(&ti_clo(ti));
+	if (min_idx == ~0) {
+		FSL_DYN_RESTORE(dyn_saved);
+		DEBUG_SCAN_LEAVE();
+		return SCAN_RET_CONTINUE;
+	}
 	max_idx = pt->pt_max(&ti_clo(ti));
 	if (min_idx > max_idx) {
 		FSL_DYN_RESTORE(dyn_saved);
@@ -247,17 +252,24 @@ static int scan_field_array(
 
 	DEBUG_SCAN_ENTER();
 
+	DEBUG_SCAN_WRITE("sfa: %s", field->tf_fieldname);
+
 	ti = ctx->sctx_ti;
 	num_elems = field->tf_elemcount(&ti_clo(ti));
 	off = field->tf_fieldbitoff(&ti_clo(ti));
 	if (field->tf_typenum == TYPENUM_INVALID) goto done_ok;
-//	if (strcmp(tt_by_num(field->tf_typenum)->tt_name, "reiser_rawblk") == 0) goto done_ok;
+	if ((field->tf_flags & FIELD_FL_NOFOLLOW) != 0) goto done_ok;
 
 	for (i = 0; i < num_elems; i++) {
 		struct type_info*		new_ti;
 
+		DEBUG_SCAN_WRITE("sfa: trying to follow %s[%d]",
+			field->tf_fieldname, i);
 		new_ti = typeinfo_follow_field_off_idx(ti, field, off, i);
-		if (new_ti == NULL) continue;
+		if (new_ti == NULL) {
+			off += field->tf_typesize(&ti_clo(ti));
+			continue;
+		}
 
 		/* recurse */
 		if (i < num_elems - 1) {
@@ -268,8 +280,8 @@ static int scan_field_array(
 				off += tt_by_ti(new_ti)->tt_size(&ti_clo(new_ti));
 		}
 
-		DEBUG_SCAN_WRITE("SFA: Following field %s[%d]",
-			field->tf_fieldname, i);
+		DEBUG_SCAN_WRITE("SFA: Following field %s[%d] %x",
+			field->tf_fieldname, i, field->tf_flags);
 
 		ret = scan_type(new_ti, ctx->sctx_ops, ctx->sctx_aux);
 		typeinfo_free(new_ti);

@@ -8,22 +8,20 @@ const ATTR_DIRECTORY = 0x10;
 const ATTR_ARCHIVE = 0x20;
 const ATTR_LONG_NAME_MASK = 0x3f; 
 const ATTR_LONG_NAME = 	ATTR_READ_ONLY|ATTR_HIDDEN|ATTR_SYSTEM|ATTR_VOLUME_ID;
-
+/* fat values */
 const BAD_FAT12 = 0xff7;
 const BAD_FAT16 = 0xfff7;
 const BAD_FAT32 = 0xfffffff7;
-
 const EOF_FAT12 = 0xfff;
 const EOF_FAT16 = 0xffff;
 const EOF_FAT32 = 0xffffffff;
-
-const DEL_FLAG = 0xe5;
 const FAT12_MAX = 0xff4;
 const FAT16_MAX = 0xfff4;
 const FAT32_MAX = 0x0ffffff6;
 const FAT_ENT_FREE = 0;
 const FAT_START_ENT = 2;
 
+const DEL_FLAG = 0xe5;
 const DIR_MASK = ATTR_DIRECTORY|ATTR_VOLUME_ID|LAST_LONG_ENTRY_MASK;
 
 enum fat_type = {FAT_TYPE_FAT12, FAT_TYPE_FAT16, FAT_TYPE_FAT32} u8;
@@ -34,58 +32,52 @@ include "vfat_func.fsl"
 include "vfat_type.fsl"
 
 /* mark this as something we don't want people to take */
-write block_alloc(clusternum_t cn)
+write block_alloc(clusternum_t cn, fat_type ft)
 {
-	disk.fats[0].ent12[cn].cluster_num <- BAD_FAT12 ? is_fat12(disk.d_bpb) == true !
-	disk.fats[0].ent16[cn].cluster_num <- BAD_FAT16 ? is_fat16(disk.d_bpb) == true !
-	disk.fats[0].ent32[cn].cluster_num <- BAD_FAT32 ? is_fat32(disk.d_bpb) == true !
+	disk.fats[0].ent12[cn].cluster_num <- BAD_FAT12 ? ft == FAT_TYPE_FAT12 !
+	disk.fats[0].ent16[cn].cluster_num <- BAD_FAT16 ? ft == FAT_TYPE_FAT16 !
+	disk.fats[0].ent32[cn].cluster_num <- BAD_FAT32 ? ft == FAT_TYPE_FAT32 !
 }
 
 /* restore to free pool */
-write block_replace(clusternum_t cn)
+write block_replace(clusternum_t cn, fat_type ft)
 {
-	disk.fats[0].ent12[cn].cluster_num <- FAT_ENT_FREE ? is_fat12(disk.d_bpb) !
-	disk.fats[0].ent16[cn].cluster_num <- FAT_ENT_FREE ? is_fat16(disk.d_bpb) !
-	disk.fats[0].ent32[cn].cluster_num <- FAT_ENT_FREE ? is_fat32(disk.d_bpb) !
+	disk.fats[0].ent12[cn].cluster_num <- FAT_ENT_FREE ? ft == FAT_TYPE_FAT12 !
+	disk.fats[0].ent16[cn].cluster_num <- FAT_ENT_FREE ? ft == FAT_TYPE_FAT16 !
+	disk.fats[0].ent32[cn].cluster_num <- FAT_ENT_FREE ? ft == FAT_TYPE_FAT32 !
 }
 
 /* link cluster into given file offset,
    assumes file offset...
-
-    XXX REFACTOR THIS WHEN WE HAVE NESTED WRITEPACKETS */
-write block_relink(fat_de de, uint file_clus_off, clusternum_t new_cn)
+   XXX REFACTOR THIS WHEN WE HAVE NESTED WRITEPACKETS */
+write block_relink(
+	fat_de de, uint file_clus_off, clusternum_t new_cn, fat_type ft)
 {
 // update de
 	de.first_cluster_lo <- new_cn & 0xffff
-		? is_fat12(disk.d_bpb) && file_clus_off == 1 !
-
+		? file_clus_off == 1 && ft == FAT_TYPE_FAT12 !
 	de.first_cluster_lo <- new_cn & 0xffff
-		? is_fat16(disk.d_bpb) && file_clus_off == 1 !
-
+		? file_clus_off == 1 && ft == FAT_TYPE_FAT16 !
 	de.first_cluster_lo <- new_cn & 0xffff
-		? is_fat32(disk.d_bpb) && file_clus_off == 1 !
+		? file_clus_off == 1 && ft == FAT_TYPE_FAT32 !
 
-	de.first_cluster_hi <- 0 ? is_fat12(disk.d_bpb) && file_clus_off == 1 !
-	de.first_cluster_hi <- 0 ? is_fat16(disk.d_bpb) && file_clus_off == 1 !
-	de.first_cluster_hi <- new_cn >> 16 ? is_fat32(disk.d_bpb) && file_clus_off == 1 !
+	de.first_cluster_hi <- 0 ? file_clus_off == 1 && ft == FAT_TYPE_FAT12 !
+	de.first_cluster_hi <- 0 ? file_clus_off == 1 && ft == FAT_TYPE_FAT16 !
+	de.first_cluster_hi <- new_cn >> 16 ? file_clus_off == 1 && ft == FAT_TYPE_FAT32 !
 
 // update fat entry that points to this
 	disk.fats[0].ent12[get_nth_cnum(de, file_clus_off-1)].cluster_num <- new_cn
-		? is_fat12(disk.d_bpb) && file_clus_off > 1 !
-
+		? file_clus_off > 1 && ft == FAT_TYPE_FAT12 !
 	disk.fats[0].ent16[get_nth_cnum(de, file_clus_off-1)].cluster_num <- new_cn
-		? is_fat16(disk.d_bpb) && file_clus_off > 1 !
-
+		? file_clus_off > 1 && ft == FAT_TYPE_FAT16 !
 	disk.fats[0].ent32[get_nth_cnum(de, file_clus_off-1)].cluster_num <- new_cn
-		? is_fat32(disk.d_bpb) && file_clus_off > 1 !
+		? file_clus_off > 1 && ft == FAT_TYPE_FAT32 !
 
 // point this to next fat entry
 	disk.fats[0].ent12[new_cn].cluster_num <- get_nth_cnum(de, file_clus_off+1)
-		? is_fat12(disk.d_bpb) !
-
+		? ft == FAT_TYPE_FAT12 !
 	disk.fats[0].ent16[new_cn].cluster_num <- get_nth_cnum(de, file_clus_off+1)
-		? is_fat16(disk.d_bpb) !
-
+		? ft == FAT_TYPE_FAT16 !
 	disk.fats[0].ent32[new_cn].cluster_num <- get_nth_cnum(de, file_clus_off+1)
-		? is_fat32(disk.d_bpb) !
+		? ft == FAT_TYPE_FAT32 !
 }

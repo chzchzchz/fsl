@@ -308,7 +308,7 @@ void typeinfo_print_virts(const struct type_info* ti)
 
 		vt_min = vt->vt_min(clo);
 		DEBUG_TYPEINFO_WRITE("Min computed: %"PRIu64, vt_min);
-		DEBUG_TYPEINFO_WRITE("WHAT: %p", clo->clo_xlate);
+		if (vt_min == ~0) continue;
 		vt_max = vt->vt_max(clo);
 		DEBUG_TYPEINFO_WRITE("Max computed: %"PRIu64, vt_max);
 		if (vt_min > vt_max)

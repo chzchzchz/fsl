@@ -1,4 +1,5 @@
 //#define DEBUG_TOOL
+//#define NO_WRITES
 #include <inttypes.h>
 #include <assert.h>
 #include "runtime.h"
@@ -33,7 +34,7 @@ void wpkt_relocate(
 	struct type_info	*replace_choice_ti;
 	struct fsl_rt_wlog	wlog_replace;
 	uint64_t		wpi_params[2];
-	uint64_t		wpkt_params[16]; /* XXX: this should be max of wpkts */
+	uint64_t		wpkt_params[16]; /* XXX: should be max of wpkts */
 
 	replace_choice_ti = typeinfo_follow_iter(
 		ti_parent, &rel->rel_choice, choice_idx);
@@ -48,9 +49,16 @@ void wpkt_relocate(
 	printf("ALLOC PENDING: \n");
 	fsl_io_dump_pending();
 #endif
+#ifdef NO_WRITES
+	FSL_WRITE_DROP();
+#else
 	FSL_WRITE_COMPLETE();
+#endif
 
+#ifndef NO_WRITES
 	typeinfo_phys_copy(replace_choice_ti, rel_sel_ti);
+#endif
+
 #ifdef DEBUG_TOOL
 	printf("COPIED: %"PRIu64" -> %"PRIu64"\n",
 		ti_phys_offset(rel_sel_ti) / 8,
@@ -87,9 +95,12 @@ void wpkt_relocate(
 #ifdef DEBUG_TOOL
 	fsl_io_dump_pending();
 #endif
+#ifdef NO_WRITES
+	FSL_WRITE_DROP();
+#else
 	FSL_WRITE_COMPLETE();
-
 	fsl_wlog_commit(&wlog_replace);
+#endif
 
 	typeinfo_free(replace_choice_ti);
 }

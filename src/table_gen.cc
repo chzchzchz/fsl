@@ -77,7 +77,8 @@ void TableGen::genInstanceTypeField(
 		sw.write("tf_cond", "NULL");
 	}
 
-	sw.writeB("tf_flags",
+	sw.write("tf_flags",
+		((tf->getElems()->isNoFollow() == true) ? 4 : 0) |
 		((tf->getElems()->isFixed() == true) ? 2 : 0) |
 		((tf->getSize()->isConstant() == true) ? 1 : 0));
 

@@ -29,5 +29,6 @@ void fsl_wlog_copy(struct fsl_rt_wlog* dst, const struct fsl_rt_wlog* src);
 		fsl_wlog_commit(&fsl_get_io()->io_wlog);	\
 		fsl_wlog_stop(&fsl_get_io()->io_wlog);		\
 	} while (0)
+#define FSL_WRITE_DROP()	fsl_wlog_init(&fsl_get_io()->io_wlog)
 
 #endif

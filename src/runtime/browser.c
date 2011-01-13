@@ -152,7 +152,7 @@ static void select_field(struct type_info* cur, int field_idx)
 	fsl_err_reset();
 	ti_next = typeinfo_follow_field_off_idx(cur, field, next_off, sel_idx);
 	if (ti_next == NULL) {
-		printf("No dice. Couldn't follow field.\n");
+		printf("No dice. Couldn't follow field idx=%"PRIu64".\n", sel_idx);
 		if (fsl_err_get()) printf("Reason: %s\n", fsl_err_get());
 		goto done;
 	}
@@ -189,6 +189,7 @@ static void select_virt(struct type_info* cur, int vt_idx)
 		vt->vt_name, sel_elem, ti_next, err);
 	if (ti_next == NULL) {
 		printf("No dice. Couldn't follow virt type.\n");
+		if (fsl_err_get()) printf("Reason: %s\n", fsl_err_get());
 		goto done;
 	}
 

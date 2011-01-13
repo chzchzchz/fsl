@@ -30,5 +30,6 @@ int choice_find_avail(
 	struct choice_cache* choice,
 	unsigned int offset,
 	unsigned int min_count);
+void choice_dump(struct choice_cache* choice);
 
 #endif

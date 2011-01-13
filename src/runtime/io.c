@@ -237,6 +237,7 @@ void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
 	struct fsl_rt_io	*io = fsl_get_io();
 	size_t			br;
 
+	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_READ, byte_c*8);
 	br = pread64(io->io_fd, buf, byte_c, off);
 	if (br < byte_c) {
 		fprintf(stderr, "BAD READ! bit_off=%"PRIu64"\n", off);

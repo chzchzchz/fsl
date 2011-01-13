@@ -56,17 +56,16 @@ void bmp_set(bitmap* b, unsigned int offset, unsigned int n)
 	int	off;
 	int	count;
 
-	assert((offset + n) < b->bmp_size);
+	assert((offset + (n-1)) < b->bmp_size);
 
 	count = n;
 	off = offset;
 	i = 0;
 
 	/* fill bits on left */
-	if(off & 7){
+	if (off & 7) {
 		i = 8 - (off & 7);
-		if(count < i)
-			i = count;
+		if(count < i) i = count;
 
 		b->bmp_data[offset / 8] |= ((1 << i) - 1) << (off & 7);
 
@@ -75,14 +74,10 @@ void bmp_set(bitmap* b, unsigned int offset, unsigned int n)
 	}
 
 	/*fill full bytes */
-	for(i = 0; i < (count / 8); i++){
-		b->bmp_data[i + (off / 8)] = 0xff;
-	}
+	for (i = 0; i < (count / 8); i++) b->bmp_data[i + (off / 8)] = 0xff;
 
 	/* bits on right */
-	if(count & 7){
-		b->bmp_data[i + (off / 8)] |= (1 << (count & 7)) - 1;
-	}
+	if (count & 7) b->bmp_data[i + (off / 8)] |= (1 << (count & 7)) - 1;
 }
 
 void bmp_unset(bitmap* b, unsigned int offset, unsigned int n)
@@ -91,7 +86,7 @@ void bmp_unset(bitmap* b, unsigned int offset, unsigned int n)
 	int	off;
 	int	count;
 
-	assert((offset + n) < b->bmp_size);
+	assert((offset + (n-1)) < b->bmp_size);
 
 	count = n;
 	off = offset;

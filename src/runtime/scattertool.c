@@ -25,6 +25,7 @@ struct scatterscan_info { unsigned int	rel_c; };
 static struct choice_cache	*ccache = NULL;
 static int			refresh_count = 0;
 static int			frag_percent = 100;
+static int			num_relocs = 0;
 #define MAX_REFRESH		10
 
 /*
@@ -81,6 +82,11 @@ void swap_rel_sel(
 		sel_v, replace_choice_idx);
 
 	wpkt_relocate(ti, rel, rel_sel_ti, sel_v, replace_choice_idx);
+	num_relocs++;
+	if ((num_relocs % 100) == 0) {
+		printf("NUM RELOCS: %d\r", num_relocs);
+		fflush(stdout);
+	}
 	choice_mark_alloc(ccache, replace_choice_idx);
 
 	DEBUG_TOOL_LEAVE();
@@ -123,8 +129,7 @@ int ti_handle(struct type_info* ti, struct scatterscan_info* rinfo)
 	unsigned int			i;
 
 	tt = tt_by_ti(ti);
-	if (tt->tt_reloc_c == 0)
-		return SCAN_RET_CONTINUE;
+	if (tt->tt_reloc_c == 0) return SCAN_RET_CONTINUE;
 
 	for (i = 0; i < tt->tt_reloc_c; i++) {
 		const struct fsl_rtt_reloc	*rel = &tt->tt_reloc[i];
@@ -164,7 +169,7 @@ int tool_entry(int argc, char* argv[])
 
 	info.rel_c = 0;
 	scan_type(origin_ti, &ops, &info);
-
+	printf("\nDone relocating.\n");
 	if (ccache != NULL) choice_free(ccache);
 
 	typeinfo_free(origin_ti);

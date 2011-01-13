@@ -8,8 +8,7 @@ u32 indir_count(ext2_indir_block id)
 	i = 0;
 	max_blks = get_block_size()/4;
 	while (i < max_blks) {
-		if (id.blk_ptr[i] != 0)
-			ret++;
+		if (id.blk_ptr[i] != 0) ret++;
 		i++;
 	}
 	return ret;
@@ -31,15 +30,9 @@ bool is_blk_avail(blknum_t blknum)
 int blknum_to_grp(blknum_t blknum) { return (blknum-1) / ext2_sb.s_blks_per_grp; }
 int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % ext2_sb.s_blks_per_grp; }
 
-int get_total_blks()
-{
-	return disk.sb.s_blocks_c;
-}
+int get_total_blks() { return disk.sb.s_blocks_c; }
 
-int get_block_size()
-{
-	return (1024 << ext2_sb.s_log_block_sz);
-}
+int get_block_size() { return (1024 << ext2_sb.s_log_block_sz); }
 
 int get_group_count(ext2_sb sb)
 {
@@ -49,24 +42,11 @@ int get_group_count(ext2_sb sb)
 ext2_bmp_blk get_group_bmp(int grpnum)
 {
 	blknum_t 	bmp_blknum;
-	bmp_blknum = disk.grp_desc_table[grpnum].block_bmp-blocks_off(disk.sb);
+	bmp_blknum = disk.grp_desc_table[grpnum].block_bmp;
 	return disk.blocks[bmp_blknum].blk_bmp;
 }
 
 ext2_group_desc get_group(int grpnum) { return disk.grp_desc_table[grpnum]; }
-
-int blocks_off(ext2_sb sb)
-{
-	int	group_bytes;
-	int	group_blocks;
-	int	blk_sz;
-
-	blk_sz = get_block_size();
-	group_bytes = get_group_count(sb)*sizeof_bytes(ext2_group_desc);
-	group_blocks = (group_bytes+blk_sz)/blk_sz;
-
-	return 1 + sb.s_first_data_block + group_blocks;
-}
 
 int inode_table_block_count(ext2_sb sb)
 {
@@ -91,9 +71,8 @@ ext2_inode ino_by_num(u32 ino_num)
 	ino_grp_blk_idx = (ino_grp_idx*(sizeof_bytes(ext2_inode))) % blk_sz;
 
 	table_base = disk.grp_desc_table[ino_grp].inode_table;
-	return disk.blocks[
-		table_base + ino_grp_blk - blocks_off(ext2_sb)].ino_blk.ino[
-			ino_grp_blk_idx];
+	return disk.blocks[table_base + ino_grp_blk].ino_blk.ino[
+		ino_grp_blk_idx];
 }
 
 uint size_to_blocks(u64 i_size)
@@ -115,36 +94,32 @@ uint num_direct_blocks(ext2_inode ino)
 	return num_blks;
 }
 
-uint blocks_per_indir()
-{
-	return get_block_size()/4;
-}
+uint blocks_per_indir() { return get_block_size()/4; }
 
 bool is_fast_symlink(ext2_inode ino)
 {
-	if ((ino.i_mode & 0xa000) == 0xa000)
-		return true;
+	if ((ino.i_mode & 0xa000) == 0xa000) return true;
 	return false;
 }
 
 ext2_indir_block ext2_indir_lookup(blknum_t block_num)
 {
-	return disk.blocks[block_num - blocks_off(disk.sb)].indir_blk;
+	return disk.blocks[block_num].indir_blk;
 }
 
 ext2_biindir_block ext2_biindir_lookup(blknum_t block_num)
 {
-	return disk.blocks[block_num - blocks_off(disk.sb)].biindir_blk;
+	return disk.blocks[block_num].biindir_blk;
 }
 
 ext2_triindir_block ext2_triindir_lookup(blknum_t block_num)
 {
-	return disk.blocks[block_num - blocks_off(disk.sb)].triindir_blk;
+	return disk.blocks[block_num].triindir_blk;
 }
 
 ext2_data_block ext2_data_block_lookup(blknum_t block_num)
 {
-	return disk.blocks[block_num - blocks_off(disk.sb)].data_blk;
+	return disk.blocks[block_num].data_blk;
 }
 
 blknum_t ext2_indir_in_bi_lookupblk(ext2_inode ino, uint n)
@@ -359,7 +334,7 @@ ext2_inode get_inode(uint ino_num_logical)
 	ino_idx = ino_tab_idx % (get_block_size()/EXT2_GOOD_OLD_INODE_SIZE);
 	table_blk = disk.grp_desc_table[grp_idx].inode_table;
 
-	blk_num = (table_blk + ino_tab_off) - blocks_off(disk.sb);
+	blk_num = (table_blk + ino_tab_off);
 	return disk.blocks[blk_num].ino_blk.ino[ino_idx];
 }
 
@@ -385,8 +360,7 @@ u32 bi_count(ext2_biindir_block id)
 	i = 0;
 	max_blks = get_block_size()/4;
 	while (i < max_blks) {
-		if (id.blk_ptr[i] != 0)
-			ret++;
+		if (id.blk_ptr[i] != 0) ret++;
 		i++;
 	}
 	return ret;
@@ -402,8 +376,7 @@ u32 tri_count(ext2_triindir_block id)
 	i = 0;
 	max_blks = get_block_size()/4;
 	while (i < max_blks) {
-		if (id.blk_ptr[i] != 0)
-			ret++;
+		if (id.blk_ptr[i] != 0) ret++;
 		i++;
 	}
 	return ret;
