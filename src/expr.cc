@@ -42,6 +42,8 @@ Value* Id::codeGen() const
 
 	if (getName() == "__NULLPTR")
 		return code_builder->getNullPtrI64();
+	if (getName() == "__NULLPTR8")
+		return code_builder->getNullPtrI8();
 
 	if (gen_vscope != NULL) {
 		if ((ai = gen_vscope->getVar(getName())) != NULL)

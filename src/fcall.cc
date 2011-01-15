@@ -26,6 +26,15 @@ extern func_map		funcs_map;
 extern RTInterface	rt_glue;
 
 
+Expr* FCall::mkBaseClosure(const ::Type* t)
+{
+	assert (t->getNumArgs() == 0 && "STUB >0 args");
+	return mkClosure(
+		new Number(0),
+		new Id("__NULLPTR"),
+		new Id("__NULLPTR8"));
+}
+
 Expr* FCall::mkClosure(Expr* diskoff, Expr* params, Expr* virt)
 {
 	ExprList	*el;

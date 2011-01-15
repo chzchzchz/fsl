@@ -14,6 +14,7 @@
 
 using namespace std;
 
+extern type_map		types_map;
 extern symtab_map	symtabs;
 extern func_map		funcs_map;
 extern const_map	constants;
@@ -143,12 +144,17 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 		return NULL;
 	}
 
-	resolved_closure = ectx.resolveVal(front_id);
-	t = ectx.getType(front_id);
-	if (t == NULL) {
-		cerr << "sizeof can't find type for " << front_id->getName();
-		cerr << endl;
-		return NULL;
+	if (types_map.count(front_id->getName()) == 0) {
+		resolved_closure = ectx.resolveVal(front_id);
+		t = ectx.getType(front_id);
+		if (t == NULL) {
+			cerr << "sizeof can't find type for "<<front_id->getName();
+			cerr << endl;
+			return NULL;
+		}
+	} else {
+		t = types_map[front_id->getName()];
+		resolved_closure = FCall::mkBaseClosure(t);
 	}
 
 	/* st = symbol table for type to get size of */

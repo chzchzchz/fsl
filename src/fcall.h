@@ -67,6 +67,7 @@ public:
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 
 	static Expr* mkClosure(Expr* diskoff, Expr* params, Expr* virt);
+	static Expr* mkBaseClosure(const class Type* t);
 private:
 	bool handleSpecialForms(llvm::Value* &ret) const;
 
