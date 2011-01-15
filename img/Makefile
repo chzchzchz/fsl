@@ -5,7 +5,8 @@ all: 	fill ext2.img vfat.img nilfs2.img testfs.img reiserfs.img \
 	reiserfs-many-blockfile.img			\
 	iso9660-depth.img ext2-depth.img vfat-depth.img reiserfs-depth.img \
 	vfat-postmark.img ext2-postmark.img reiserfs-postmark.img \
-	ext2-linux-4gb.img reiserfs-linux-4gb.img vfat-linux-4gb.img iso9660-linux-4gb.img
+	ext2-linux-4gb.img reiserfs-linux-4gb.img vfat-linux-4gb.img iso9660-linux-4gb.img	\
+	ext2-linux-1gb.img
 
 depth: $(DEPTH_IMGS)
 
@@ -49,6 +50,15 @@ iso9660-linux-4gb.img:
 #unformated, 5MB:
 testfs.img: fill
 	./fill 1 `expr 5 \* 1024 \* 1024` $@
+
+ext2-linux-1gb.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=1024
+	yes | /sbin/mkfs.ext2 $@
+	./loopback_fs_setup.sh $@ ext2
+	mkdir /mnt/FSTEST/1
+	tar jxvf /usr/src/linux-2.6.36.2.tar.bz2 -C /mnt/FSTEST/1
+	./loopback_fs_teardown.sh
+
 
 ext2-linux-4gb.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096

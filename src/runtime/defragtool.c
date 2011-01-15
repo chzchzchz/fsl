@@ -34,13 +34,16 @@ static bool is_fragmented(
 	last_off = ti_phys_offset(rel_sel_ti);
 	last_sz = ti_size(rel_sel_ti);
 
+	typeinfo_free(rel_sel_ti);
 	for (sel_cur = sel_cur+1; sel_cur <= sel_max; sel_cur++) {
 		diskoff_t	cur_off, cur_sz;
+
 		rel_sel_ti = typeinfo_follow_iter(ti, &rel->rel_sel, sel_cur);
 		assert (rel_sel_ti != NULL);
 		cur_off = ti_phys_offset(rel_sel_ti);
 		cur_sz = ti_size(rel_sel_ti);
 		typeinfo_free(rel_sel_ti);
+
 		if (cur_off != (last_off + last_sz)) return true;
 		last_off = cur_off;
 		last_sz = cur_sz;
@@ -49,8 +52,7 @@ static bool is_fragmented(
 	return false;
 }
 
-static void do_defrag(
-	struct type_info* ti, const struct fsl_rtt_reloc* rel)
+static void do_defrag(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 {
 	unsigned int			sel_min, sel_max;
 	int				i, sel_count;
@@ -64,6 +66,8 @@ static void do_defrag(
 	}
 
 	sel_min = rel->rel_sel.it_min(&ti_clo(ti));
+	if (sel_min == ~0) return;
+
 	sel_max = rel->rel_sel.it_max(&ti_clo(ti));
 	if (sel_min > sel_max) return;
 

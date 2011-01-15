@@ -25,10 +25,7 @@ struct img
 	uint8_t		*bmp_disk;
 };
 
-struct relocscan_info
-{
-	unsigned int	rel_c;
-};
+struct relocscan_info { unsigned int	rel_c; };
 
 #define bytes_per_px(a)	((a)->disk_bytes/((a)->x*(a)->y))
 
@@ -158,6 +155,7 @@ void swap_rel_sel(
 		DEBUG_TOOL_WRITE("No more moves left. Oh well.\n");
 		return;
 	}
+
 	DEBUG_TOOL_WRITE("exchanging: sel_v=%d with choice_v=%"PRIu64,
 		sel_v, replace_choice_idx);
 

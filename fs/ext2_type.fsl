@@ -113,6 +113,16 @@ type ext2_sb
 	set_bytes(1024);
 }
 
+int bit_add_offset()
+{
+	if (get_block_size() > 1024) return 1;
+	return 0;
+}
+int bn2bmpidx(blknum_t bn)
+{
+	return bn + bit_add_offset();
+}
+
 type ext2_inode
 assert (? is_fast_symlink(this) == false) as chk_isdata
 assert (? i_block_direct[0] != 0) as chk_hasdata
@@ -146,16 +156,16 @@ points_if(
 	disk.blocks[i_block_triindir].triindir_blk) as triindir
 relocate(
 	j, 1, size_to_blocks(i_size)+size_to_metablocks(i_size), get_nth_meta(this, j-1),
-	i, 1, get_total_blks(), ext2_data_block_lookup(i), ? is_blk_avail(i),
-	block_alloc(i),
+	i, 1, get_total_blks()-1, disk.blocks[i].data_blk, ? is_blk_avail(bn2bmpidx(i)),
+	block_alloc(bn2bmpidx(i)),
 	block_relink_meta(this, (j-1), i),
-	block_replace(get_nth_meta_blknum(this, j-1))) as defrag
+	block_replace(bn2bmpidx(get_nth_meta_blknum(this, j-1)))) as defrag
 relocate(
 	j, 1, size_to_blocks(i_size), get_nth(this, j-1),
-	i, 1, get_total_blks(), disk.blocks[i].data_blk, ? is_blk_avail(i),
-	block_alloc(i),
+	i, 1, get_total_blks()-1, disk.blocks[i].data_blk, ? is_blk_avail(bn2bmpidx(i)),
+	block_alloc(bn2bmpidx(i)),
 	block_relink(this, (j-1), i),
-	block_replace(get_nth_blknum(this, j-1))) as reloc
+	block_replace(bn2bmpidx(get_nth_blknum(this, j-1)))) as reloc
 {
 	u16	i_mode;	/* file mode */
 	u16	i_uid;	/* low 16 bits of owner uid */

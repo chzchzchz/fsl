@@ -106,5 +106,5 @@ void choice_dump(struct choice_cache* cc)
 	else printf("Used: ");
 	printf("[%"PRIu64"--%"PRIu64"]\n", ext_start, cur-1);
 
-	exit(0);
+	exit(1);
 }

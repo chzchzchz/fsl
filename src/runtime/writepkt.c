@@ -38,6 +38,10 @@ void wpkt_relocate(
 
 	replace_choice_ti = typeinfo_follow_iter(
 		ti_parent, &rel->rel_choice, choice_idx);
+	if (replace_choice_ti == NULL) {
+		printf("WANTED REPLACE CHOICE %"PRIu64"\n", choice_idx);
+		printf("BUT COULDN'T GET IT??\n");
+	}
 	assert (replace_choice_ti != NULL);
 
 	/* wpkt_alloc => (choice_idx) */
