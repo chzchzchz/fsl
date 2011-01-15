@@ -22,7 +22,6 @@ void __debugOutcall(uint64_t v)
 	cur_debug_write_val = v;
 }
 
-
 void __debugClosureOutcall(uint64_t typenum, struct fsl_rt_closure* clo)
 {
 	assert (clo != NULL);
@@ -129,12 +128,6 @@ static const char* fsl_stat_fields[FSL_NUM_STATS] =
 	"xlate_call",		/* FSL_STAT_XLATE_CALL */
 	"xlate_alloc",		/* FSL_STAT_XLATE_ALLOC */
 	"computeArrayBits",	/* FSL_STAT_COMPUTEARRAYBITS */
-	"dyn_set",		/* FSL_STAT_DYNSET */
-	"get_param",		/* FSL_STAT_GETPARAM */
-	"get_closure",		/* FSL_STAT_GETCLOSURE */
-	"get_offset",		/* FSL_STAT_GETOFFSET */
-	"dyn_copy",		/* FSL_STAT_DYNCOPY */
-	"dyn_alloc",		/* FSL_STAT_DYNALLOC */
 	"typeinfo_alloc",	/* FSL_STAT_TYPEINFO_ALLOC */
 	"comparray_elems",	/* FSL_STAT_COMPUTEARRAYBITS_LOOPS */
 	"writes",		/* FSL_STAT_WRITES */
