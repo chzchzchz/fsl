@@ -18,10 +18,6 @@ public:
 		Expr* idx, Expr* bits_in_type, Expr* base_offset, Expr* bits_in_array);
 
 	Expr*	writeVal(const Expr* loc, const Expr* sz, const Expr* val);
-	Expr*	getDynOffset(const class Type* user_type);
-	Expr*	getDynParams(const class Type* user_type);
-	Expr*	getDynClosure(const class Type* user_type);
-	Expr*	getDynVirt(const class Type* user_type);
 
 	Expr*	getThunkClosure(void);
 	Expr*	getThunkArgOffset(void);

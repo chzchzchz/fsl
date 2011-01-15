@@ -41,7 +41,6 @@ OBJS=	lex.yy.o		\
 RTOBJS= runtime/runtime.o	\
 	runtime/type_info.o 	\
 	runtime/virt.o		\
-	runtime/dyn.o 		\
 	runtime/io.o		\
 	runtime/max.o		\
 	runtime/debug.o		\

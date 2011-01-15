@@ -189,7 +189,6 @@ struct type_info* typeinfo_alloc_pointsto(
 	ret->ti_print_idxval = ti_pointsto_elem;
 
 
-	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
 	if (typeinfo_verify(ret) == false) {
 		typeinfo_free(ret);
 		return NULL;
@@ -218,7 +217,6 @@ struct type_info* typeinfo_alloc_iter(
 	ret->ti_print_idxval = ti_iter_elem;
 	ret->ti_iter = ti_iter;
 
-	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
 	if (typeinfo_verify(ret) == false) {
 		typeinfo_free(ret);
 		ret = NULL;
@@ -251,10 +249,6 @@ struct type_info* typeinfo_alloc_by_field(
 	ret->ti_field = ti_field;
 	ret->ti_print_name = (ti_field) ? ti_field->tf_fieldname : "disk";
 	ret->ti_print_idxval = TI_INVALID_IDXVAL;
-
-	DEBUG_TYPEINFO_WRITE("Setting Dyn");
-
-	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
 
 	DEBUG_TYPEINFO_WRITE("Verifying");
 
@@ -347,8 +341,6 @@ struct type_info* typeinfo_alloc_virt_idx(
 	ret->ti_print_name = (virt->vt_name) ? virt->vt_name : "virt";
 	ret->ti_print_idxval = idx;
 
-	DEBUG_TYPEINFO_WRITE("now set_dyns");
-	if (ti_typenum(ret) != TYPENUM_INVALID) typeinfo_set_dyn(ret);
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify");
 	if (typeinfo_verify(ret) == false) {
 		DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify BAD!\n");
@@ -406,60 +398,6 @@ done:
 
 	return ti;
 }
-
-void typeinfo_set_dyn(const struct type_info* ti)
-{
-	TI_INTO_CLO			(ti);
-	const struct fsl_rtt_type	*tt;
-	unsigned int			i;
-
-	DEBUG_TYPEINFO_ENTER();
-
-	DEBUG_TYPEINFO_WRITE("Setting parent type for set_dyn");
-	__setDyn(td_explode(&ti->ti_td));
-	DEBUG_TYPEINFO_WRITE("Dyn set.. xlate_refs: %d",
-		(ti_xlate(ti) != NULL) ?
-			ti_xlate(ti)->rtm_ref_c :
-			-1);
-
-	tt = tt_by_ti(ti);
-	for (i = 0; i < tt->tt_fieldstrong_c; i++) {
-		const struct fsl_rtt_field	*field;
-		unsigned int			param_c;
-		diskoff_t			diskoff;
-
-		field = &tt->tt_fieldstrong_table[i];
-		if (field->tf_typenum == TYPENUM_INVALID)
-			continue;
-
-		DEBUG_TYPEINFO_WRITE("Processing field: %s (type=%s)",
-			field->tf_fieldname,
-			tt_by_num(field->tf_typenum)->tt_name);
-
-		param_c = tt_by_num(field->tf_typenum)->tt_param_c;
-		uint64_t	params[param_c];
-
-		DEBUG_TYPEINFO_WRITE("Reading diskoff");
-		diskoff = field->tf_fieldbitoff(clo);
-		DEBUG_TYPEINFO_WRITE("Got diskoff: %"PRIu64" bytes", diskoff/8);
-
-		DEBUG_TYPEINFO_WRITE("Getting params");
-		field->tf_params(clo, 0, params);
-		DEBUG_TYPEINFO_WRITE("NEW_VCLO");
-		NEW_VCLO		(new_clo,
-					 diskoff, params, ti_xlate(ti));
-
-		__setDyn(field->tf_typenum, &new_clo);
-	}
-
-	DEBUG_TYPEINFO_WRITE("Leaving set dyn. xlate_refs: %d",
-		(ti_xlate(ti) != NULL) ?
-			ti_xlate(ti)->rtm_ref_c :
-			-1);
-
-	DEBUG_TYPEINFO_LEAVE();
-}
-
 
 diskoff_t ti_phys_offset(const struct type_info* ti)
 {

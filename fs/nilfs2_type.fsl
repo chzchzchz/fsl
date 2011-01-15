@@ -5,13 +5,13 @@ type disk
 
 	/* no idea what would be here */
 
-	set_bytes(nsb.s_first_data_block * get_block_size(nsb));
+	set_bytes(nsb.s_first_data_block * get_bsz(nsb));
 
 	/* first segment does not take up entire segment */
-	nilfs_segment		segs[nsb.s_nsegments];
+	nilfs_segment	segs[nsb.s_nsegments];
 
 	set_bytes(nilfs_sb2_offset_bytes(__FROM_OS_BDEV_BYTES));
-	nilfs_sb		nsb2;
+	nilfs_sb	nsb2;
 }
 
 type nilfs_segment
@@ -45,12 +45,12 @@ type nilfs_segment_summary(nilfs_segment seg)
 {
 	nilfs_segment_summary_header	ss_header;
 	nilfs_finfo(seg, @)		ss_finfo[ss_header.ss_nfinfo];
-	align_bytes(get_block_size(disk.nsb));		/* takes up a block */
+	align_bytes(get_bsz(disk.nsb));		/* takes up a block */
 }
 
 type nilfs_block
 {
-	u8	dat[get_block_size(nilfs_sb)];
+	u8	dat[get_bsz(get_valid_sb())];
 }
 
 type nilfs_inode(inonum_t inum)
@@ -75,7 +75,7 @@ virtual_if(
 	u64  i_xattr;
 	u32  i_generation;
 	u32  i_pad;
-	set_bytes(nilfs_sb.s_inode_size);
+	set_bytes(get_valid_sb().s_inode_size);
 }
 
 /* superroot */

@@ -6,7 +6,6 @@ TOOL_BINS := $(TOOL_NAMES:%=%-$(FSNAME))
 RT_OBJS=../runtime/runtime.o 	\
 	../runtime/type_info.o	\
 	../runtime/virt.o	\
-	../runtime/dyn.o	\
 	../runtime/io.o		\
 	../runtime/max.o	\
 	../runtime/debug.o	\

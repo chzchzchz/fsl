@@ -390,18 +390,20 @@ bool EvalCtx::resolveTB(
 	}
 
 	if (!found_expr && (t = typeByName(name)) != NULL) {
+		cerr << name << endl;
+		assert (name == string("disk"));
 		/* Global scoped. We need to tell the run-time that we're
 		 * entering a global expression. */
 		tb.tb_lastsym = NULL;
 		tb.tb_type = t;
 		tb.tb_symtab = symtabByName(t->getName());
-		tb.tb_diskoff = rt_glue.getDynOffset(t);
-		tb.tb_parambuf = rt_glue.getDynParams(t);
-		tb.tb_virt = rt_glue.getDynVirt(t);
+		tb.tb_diskoff = new Number(0);
+		tb.tb_parambuf = new Id("__NULLPTR");
+		tb.tb_virt = new Id("__NULLPTR8");
 
 		found_expr = resolveTail(tb, ids, ++(ids->begin()));
 		if (found_expr) {
-			parent_closure = rt_glue.getDynClosure(t);
+			parent_closure = FCall::mkBaseClosure(t);
 		}
 	}
 
@@ -499,8 +501,11 @@ Expr* EvalCtx::resolveVal(const Id* id) const
 	}
 
 	/* support for access of dynamic types.. gets base bits for type */
-	if ((t = typeByName(id->getName())) != NULL)
-		return rt_glue.getDynClosure(t);
+	if ((t = typeByName(id->getName())) != NULL) {
+		cerr << id->getName() << endl;
+		assert (id->getName() == "disk");
+		return FCall::mkBaseClosure(t);
+	}
 
 	/* could not resolve */
 	return NULL;
@@ -516,8 +521,7 @@ Expr* EvalCtx::resolveArrayInType(const IdArray* ida) const
 
 	assert (cur_scope != NULL);
 
-	if ((st_ent = cur_scope->lookup(ida->getName())) == NULL)
-		return NULL;
+	if ((st_ent = cur_scope->lookup(ida->getName())) == NULL) return NULL;
 
 	evaled_idx = eval(*this, ida->getIdx());
 	if (evaled_idx == NULL) {

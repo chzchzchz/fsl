@@ -1,7 +1,7 @@
 type disk
 assert ( ? (d_bpb.bytes_per_sector & (512 - 1)) == 0)
 assert ( ? d_bpb.reserved_sector_c > 0)
-assert ( ? get_cluster_count(d_bpb) <=
+assert ( ? get_cluster_count() <=
 	((get_fat_bytes(d_bpb)*8)/get_fatent_bits(d_bpb)-2) )
 virtual_if(
 	? is_fat32(d_bpb) == true,
@@ -15,7 +15,7 @@ virtual_if(
 	align_bytes(d_bpb.bytes_per_sector);
 	fat_de		root_dir[d_bpb.root_de_c] fixed;
 	align_bytes(d_bpb.bytes_per_sector);
-	cluster		clusters[get_cluster_count(d_bpb)] fixed nofollow;
+	cluster		clusters[get_cluster_count()] fixed nofollow;
 }
 
 type cluster { u8 data[bytes_per_cluster()]; }
@@ -36,14 +36,14 @@ virtual_if(
 	i, 1, de_cluster_count(this), get_nth(this, i)) as vdir
 relocate(
 	j, 1, de_cluster_count(this), get_nth(this, j),
-	i, FAT_START_ENT, get_cluster_count(bpb),
+	i, FAT_START_ENT, get_cluster_count(),
 		get_cluster(i), ? is_cluster_avail(i),
 	block_alloc(i, get_fat_type(disk.d_bpb)),
 	block_relink(this, j, i, get_fat_type(disk.d_bpb)),
 	block_replace(get_nth_cnum(this, j), get_fat_type(disk.d_bpb))) as reloc
 relocate(
 	j, 1, de_cluster_count(this), get_nth(this, j),
-	i, FAT_START_ENT, get_cluster_count(bpb),
+	i, FAT_START_ENT, get_cluster_count(),
 		get_cluster(i), ? is_cluster_avail(i),
 	block_alloc(i, get_fat_type(disk.d_bpb)),
 	block_relink(this, j, i, get_fat_type(disk.d_bpb)),
@@ -120,7 +120,7 @@ assert (? is_fat12(this) || is_fat16(this) || is_fat32(this))
 	u32		hidden_sec;
 	u32		total_sect32;
 //	assert_eq (from_base_bits(), 36*8);
-	if (get_fat_type(bpb) != FAT_TYPE_FAT32) {
+	if (get_fat_type(disk.d_bpb) != FAT_TYPE_FAT32) {
 		bpb_16	priv16;
 	} else {
 		bpb_32	priv32;
@@ -133,21 +133,21 @@ type fat_ent32 { u32	cluster_num; }
 
 type fat
 {
-	if (is_fat32(bpb)) {
-		fat_ent32	ent32[FAT_START_ENT+get_cluster_count(bpb)] fixed nofollow;
-	} else if (is_fat16(bpb)) {
-		fat_ent16	ent16[FAT_START_ENT+get_cluster_count(bpb)] fixed nofollow;
-	} else if (is_fat12(bpb)) {
-		fat_ent12	ent12[FAT_START_ENT+get_cluster_count(bpb)] fixed nofollow;
+	if (is_fat32(disk.d_bpb)) {
+		fat_ent32	ent32[FAT_START_ENT+get_cluster_count()] fixed nofollow;
+	} else if (is_fat16(disk.d_bpb)) {
+		fat_ent16	ent16[FAT_START_ENT+get_cluster_count()] fixed nofollow;
+	} else if (is_fat12(disk.d_bpb)) {
+		fat_ent12	ent12[FAT_START_ENT+get_cluster_count()] fixed nofollow;
 	} else {
 		fsl_fail(2);
 	}
 	set_bytes(0);
-	fat_ent32 _ent32[FAT_START_ENT+get_cluster_count(bpb)] fixed nofollow;
+	fat_ent32 _ent32[FAT_START_ENT+get_cluster_count()] fixed nofollow;
 	set_bytes(0);
-	fat_ent16 _ent16[FAT_START_ENT+get_cluster_count(bpb)] fixed nofollow;
+	fat_ent16 _ent16[FAT_START_ENT+get_cluster_count()] fixed nofollow;
 	set_bytes(0);
-	fat_ent12 _ent12[FAT_START_ENT+get_cluster_count(bpb)] fixed nofollow;
+	fat_ent12 _ent12[FAT_START_ENT+get_cluster_count()] fixed nofollow;
 
-	set_bytes(get_fat_sectors(bpb)*bpb.bytes_per_sector);
+	set_bytes(get_fat_sectors(disk.d_bpb)*disk.d_bpb.bytes_per_sector);
 }

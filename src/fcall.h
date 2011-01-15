@@ -76,8 +76,6 @@ private:
 	llvm::Value*	codeGenNormalFunc() const;
 	llvm::Value*	codeGenTypeFunc() const;
 	llvm::Value*	codeGenLet(void) const;
-	llvm::Value*	codeGenDynParams(void) const;
-	llvm::Value*	codeGenDynClosure(void) const;
 	llvm::Value*	codeGenMkClosure(void) const;
 	llvm::Value* 	codeGenParamsAllocaByCount(void) const;
 	llvm::Value*	codeGenClosureRetCall(

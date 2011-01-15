@@ -49,16 +49,6 @@ extern unsigned int fsl_debug_depth;
 #define DEBUG_IO_WRITE(x,...)
 #endif
 
-#ifdef DEBUG_DYN
-#define DEBUG_DYN_ENTER()	fsl_debug_enter(__FUNCTION__)
-#define DEBUG_DYN_LEAVE()	fsl_debug_leave(__FUNCTION__)
-#define DEBUG_DYN_WRITE		fsl_debug_write
-#else
-#define DEBUG_DYN_ENTER()	do {} while (0)
-#define DEBUG_DYN_LEAVE()	do {} while (0)
-#define DEBUG_DYN_WRITE(x, ...)
-#endif
-
 #ifdef DEBUG_RT
 #define DEBUG_RT_ENTER()	fsl_debug_enter(__FUNCTION__)
 #define DEBUG_RT_LEAVE()	fsl_debug_leave(__FUNCTION__)

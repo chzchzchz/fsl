@@ -27,12 +27,12 @@ bool is_blk_avail(blknum_t blknum)
 	return false;
 }
 
-int blknum_to_grp(blknum_t blknum) { return (blknum-1) / ext2_sb.s_blks_per_grp; }
-int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % ext2_sb.s_blks_per_grp; }
+int blknum_to_grp(blknum_t blknum) { return (blknum-1) / disk.sb.s_blks_per_grp; }
+int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % disk.sb.s_blks_per_grp; }
 
 int get_total_blks() { return disk.sb.s_blocks_c; }
 
-int get_block_size() { return (1024 << ext2_sb.s_log_block_sz); }
+int get_block_size() { return (1024 << disk.sb.s_log_block_sz); }
 
 int get_group_count(ext2_sb sb)
 {
@@ -65,7 +65,7 @@ ext2_inode ino_by_num(u32 ino_num)
 	int	blk_sz;
 
 	blk_sz = get_block_size();
-	ino_grp = ino_num / ext2_sb.s_inos_per_grp;
+	ino_grp = ino_num / disk.sb.s_inos_per_grp;
 	ino_grp_idx = ino_num % disk.sb.s_inos_per_grp;
 	ino_grp_blk = (ino_grp_idx * sizeof_bytes(ext2_inode)) / blk_sz;
 	ino_grp_blk_idx = (ino_grp_idx*(sizeof_bytes(ext2_inode))) % blk_sz;
@@ -328,8 +328,8 @@ ext2_inode get_inode(uint ino_num_logical)
 	int	blk_num;
 
 	ino_num = ino_num_logical - 1;
-	grp_idx = ino_num / ext2_sb.s_inos_per_grp;
-	ino_tab_idx = ino_num % ext2_sb.s_inos_per_grp;
+	grp_idx = ino_num / disk.sb.s_inos_per_grp;
+	ino_tab_idx = ino_num % disk.sb.s_inos_per_grp;
 	ino_tab_off = ino_tab_idx / (get_block_size()/EXT2_GOOD_OLD_INODE_SIZE);
 	ino_idx = ino_tab_idx % (get_block_size()/EXT2_GOOD_OLD_INODE_SIZE);
 	table_blk = disk.grp_desc_table[grp_idx].inode_table;

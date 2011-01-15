@@ -1,4 +1,4 @@
-uint get_block_size(nilfs_sb nsb)
+uint get_bsz(nilfs_sb nsb)
 {
 	return (1 << (nsb.s_log_block_size + 10));
 }
@@ -23,7 +23,7 @@ nilfs_block nilfs_get_block(blocknum_t bn)
 {
 	nilfs_segment	seg;
 	seg = get_segment(block_to_segnum(bn));
-	return seg.seg_blocks[bn % nilfs_sb.s_blocks_per_segment];
+	return seg.seg_blocks[bn % get_valid_sb().s_blocks_per_segment];
 }
 
 /* get actual block from vblock value */
@@ -75,7 +75,7 @@ nilfs_finfo nilfs_get_inode_block_finfo(inonum_t inum, blkoff_t boff)
 	int			i;
 
 	i = 0;
-	num_segs = nilfs_sb.s_nsegments;
+	num_segs = get_valid_sb().s_nsegments;
 	// iterate over every segment
 	while (i < num_segs)  {
 		nilfs_segment		cur_seg;
@@ -121,15 +121,16 @@ nilfs_finfo nilfs_get_inode_block_finfo(inonum_t inum, blkoff_t boff)
 
 blocknum_t nilfs_segblock_first(segnum_t segnum)
 {
-	if (segnum == 0)
-		return nilfs_sb.s_first_data_block;
-	return nilfs_sb.s_blocks_per_segment * segnum;
+	nilfs_sb	nsb;
+	nsb = get_valid_sb();
+	if (segnum == 0) return nsb.s_first_data_block;
+	return nsb.s_blocks_per_segment * segnum;
 }
 
 blocknum_t nilfs_segblock_last(segnum_t segnum)
 {
 	u64	fake_start;
-	fake_start = nilfs_sb.s_blocks_per_segment * segnum;
+	fake_start = get_valid_sb().s_blocks_per_segment * segnum;
 	return fake_start + (nilfs_segblock_first(segnum+1) - 1);
 }
 
@@ -140,15 +141,15 @@ blockcount_t nilfs_seg_blocks(segnum_t segnum)
 
 /* XXX we need a mechanism in FSL to get a type if and only if some preamble
  * properties are satisfied */
-nilfs_sb get_valid_sb(disk d)
+nilfs_sb get_valid_sb()
 {
 	/* XXX-- use nilfs_valid_sb algorithm */
-	return d.nsb;
+	return disk.nsb;
 }
 
 segnum_t block_to_segnum(blocknum_t blocknr)
 {
-	return blocknr / nilfs_sb.s_blocks_per_segment;
+	return blocknr / get_valid_sb().s_blocks_per_segment;
 }
 
 int is_ino_dat(nilfs_finfo fi)

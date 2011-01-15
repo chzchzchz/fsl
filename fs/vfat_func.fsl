@@ -1,4 +1,8 @@
-uint bytes_per_cluster() { return bpb.sectors_per_cluster*bpb.bytes_per_sector; }
+uint bytes_per_cluster() {
+	bpb	b;
+	b = disk.d_bpb;
+	return b.sectors_per_cluster*b.bytes_per_sector;
+}
 
 clusternum_t fat_next_ft(clusternum_t cn, fat_type ft, fat f)
 {
@@ -13,7 +17,7 @@ clusternum_t fat_next(clusternum_t cn)
 	fat_type	ft;
 	fat		f;
 	f = disk.fats[0];
-	ft = get_fat_type(bpb);
+	ft = get_fat_type(disk.d_bpb);
 	return fat_next_ft(cn, ft, f);
 }
 
@@ -32,7 +36,7 @@ clusternum_t fat_chain_nth_cnum(clusternum_t start_clus, uint i)
 	fat		f;
 
 	f = disk.fats[0];
-	ft = get_fat_type(bpb);
+	ft = get_fat_type(disk.d_bpb);
 	cur_cluster = start_clus;
 	while (i > 1) {
 		cur_cluster = fat_next_ft(cur_cluster, ft, f);
@@ -136,7 +140,7 @@ bool is_valid_cnum(clusternum_t cnum)
 
 	if (cnum < FAT_START_ENT) return false;
 
-	ft = get_fat_type(bpb);
+	ft = get_fat_type(disk.d_bpb);
 	if (ft == FAT_TYPE_FAT12) {
 		if (cnum > FAT12_MAX) return false;
 		return true;
@@ -165,7 +169,7 @@ uint get_fat_sectors(bpb b)
 	return b.priv32.sectors_in_fat32;
 }
 
-uint get_cluster_count(bpb b)
+uint get_cluster_count()
 {
 	uint	fat_sectors;
 	uint	total_sectors;
@@ -174,7 +178,9 @@ uint get_cluster_count(bpb b)
 	uint	resv_sectors;
 	uint	cluster_c;
 	uint	bps;
+	bpb	b;
 
+	b = disk.d_bpb;
 	fat_sectors = get_fat_sectors(b);
 	total_sectors  = get_total_sectors(b);
 	bps = b.bytes_per_sector;
@@ -199,7 +205,7 @@ fat_type get_fat_type(bpb b)
 
 	if (b.sectors_in_fat16 == 0) return FAT_TYPE_FAT32;
 
-	cluster_count = get_cluster_count(b);
+	cluster_count = get_cluster_count();
 	if (cluster_count < 4085) return FAT_TYPE_FAT12;
 	else if (cluster_count < 65525) return FAT_TYPE_FAT16;
 	return FAT_TYPE_FAT32;

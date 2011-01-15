@@ -17,7 +17,6 @@ struct fsl_rt_mapping
 {
 	struct fsl_rt_closure* 		rtm_clo; 	/* for eval rtm_virt */
 	const struct fsl_rtt_virt*	rtm_virt;	/* off_v -> off_phys */
-	struct fsl_rt_closure*		rtm_dyn; /* saved dyns for rtm_virt */
 	uint64_t			rtm_ref_c;
 
 	uint64_t			rtm_cached_minidx;

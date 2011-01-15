@@ -162,90 +162,6 @@ llvm::Value* FCall::codeGenExtractParam(void) const
 	return tc.getParamBuf();
 }
 
-llvm::Value* FCall::codeGenDynClosure(void) const
-{
-	/* allocates a temporary closure structure that we can copy
-	 * data into! */
-	llvm::AllocaInst	*closure;
-	Number			*n;
-	FCall			*new_call;
-	llvm::IRBuilder<>	*builder;
-	unsigned long		type_num;
-
-	assert (exprs->size() == 1 && "DYN CLOSURE ONLY TAKES A TYPE NUMBER");
-
-	n = dynamic_cast<Number*>(exprs->front());
-	assert (n != NULL && "TYPE NUMBER EXPECTED");
-	type_num = n->getValue();
-
-	builder = code_builder->getBuilder();
-	closure = code_builder->createTmpClosure(typenums_map[type_num]);
-
-	new_call = new FCall(
-		new Id("__getDynClosure"),
-		new ExprList(
-			n->copy(),
-			new Id(closure->getName())));
-
-	new_call->codeGen();
-	delete new_call;
-
-	if (new_call == NULL)
-		return NULL;
-
-	return builder->CreateLoad(closure);
-}
-
-/**
- * returns a pointer to array of params as the value
- */
-llvm::Value* FCall::codeGenDynParams(void) const
-{
-	/* __getDynParams needs a parambuf to spill everything into 
-	 * for return.
-	 *
-	 * generate an alloca beforehand based on the type we're calling
-	 * into.. */
-	llvm::AllocaInst	*parambuf;
-	llvm::AllocaInst	*parambuf_ptr;
-	Number			*n;
-	FCall			*new_call;
-	llvm::IRBuilder<>	*builder;
-	unsigned long		type_num;
-
-	assert (exprs->size() == 1);
-
-	n = dynamic_cast<Number*>(exprs->front());
-	assert (n != NULL);
-	type_num = n->getValue();
-
-	builder = code_builder->getBuilder();
-
-	parambuf = code_builder->createPrivateTmpI64Array(
-		typenums_map[type_num]->getParamBufEntryCount(),
-		"dynparam");
-
-	parambuf_ptr = code_builder->createTmpI64Ptr();
-	builder->CreateStore(
-		builder->CreateGEP(
-			parambuf,
-			llvm::ConstantInt::get(
-				llvm::getGlobalContext(),
-				llvm::APInt(32, 0))),
-		parambuf_ptr);
-
-	new_call = new FCall(
-		new Id("__getDynParams"), 
-		new ExprList(n->copy(), new Id(parambuf_ptr->getName())));
-	new_call->codeGen();
-	delete new_call;
-
-	if (new_call == NULL)
-		return NULL;
-
-	return builder->CreateLoad(parambuf_ptr);
-}
-
 llvm::Value* FCall::codeGenMkClosure(void) const
 {
 	llvm::Value			*diskoff, *params, *virt;
@@ -356,10 +272,6 @@ bool FCall::handleSpecialForms(llvm::Value* &ret) const
 		ret = codeGenExtractParam();
 	else if (call_name == "__extractVirt")
 		ret = codeGenExtractVirt();
-	else if (call_name == "__getDynParams_preAlloca")
-		ret = codeGenDynParams();
-	else if (call_name =="__getDynClosure_preAlloca")
-		ret = codeGenDynClosure();
 	else if (call_name == "__mkClosure")
 		ret = codeGenMkClosure();
 	else if (call_name == "paramsAllocaByCount")

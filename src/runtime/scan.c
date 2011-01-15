@@ -121,7 +121,6 @@ static int scan_pointsto(
 	ti = ctx->sctx_ti;
 
 	DEBUG_SCAN_ENTER();
-	FSL_DYN_SAVE(dyn_saved);
 
 	assert (pt->pt_range != NULL);
 
@@ -129,13 +128,11 @@ static int scan_pointsto(
 
 	min_idx = pt->pt_min(&ti_clo(ti));
 	if (min_idx == ~0) {
-		FSL_DYN_RESTORE(dyn_saved);
 		DEBUG_SCAN_LEAVE();
 		return SCAN_RET_CONTINUE;
 	}
 	max_idx = pt->pt_max(&ti_clo(ti));
 	if (min_idx > max_idx) {
-		FSL_DYN_RESTORE(dyn_saved);
 		DEBUG_SCAN_LEAVE();
 		return SCAN_RET_CONTINUE;
 	}
@@ -150,8 +147,6 @@ static int scan_pointsto(
 		struct type_info	*new_ti;
 
 		DEBUG_SCAN_WRITE("allocating pt[%d]", k);
-
-		FSL_DYN_LOAD(dyn_saved);
 
 		ctx->sctx_ti = ti;
 		if (ctx->sctx_ops->so_pt != NULL) {
@@ -180,7 +175,6 @@ static int scan_pointsto(
 done:
 	ctx->sctx_ti = ti;
 
-	FSL_DYN_RESTORE(dyn_saved);
 	DEBUG_SCAN_LEAVE();
 
 	return ret;
@@ -194,14 +188,12 @@ static int scan_virt(struct scan_ctx* ctx, const struct fsl_rtt_virt* vt)
 
 	DEBUG_SCAN_ENTER();
 
-	FSL_DYN_SAVE(dyn_saved);
 	err_code = TI_ERR_OK;
 	i = 0;
 	while (err_code == TI_ERR_OK || err_code == TI_ERR_BADVERIFY) {
 		struct type_info		*ti_cur;
 
 		DEBUG_SCAN_WRITE("alloc virt %s[%d]", vt->vt_name, i);
-		FSL_DYN_LOAD(dyn_saved);
 
 		if (ctx->sctx_ops->so_virt) {
 			ret = ctx->sctx_ops->so_virt(
@@ -235,7 +227,6 @@ static int scan_virt(struct scan_ctx* ctx, const struct fsl_rtt_virt* vt)
 
 	ret = SCAN_RET_CONTINUE;
 done:
-	FSL_DYN_RESTORE(dyn_saved);
 	DEBUG_SCAN_LEAVE();
 
 	return ret;

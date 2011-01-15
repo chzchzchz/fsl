@@ -41,11 +41,8 @@ uint64_t fsl_virt_xlate_safe(
 static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx)
 {
 	diskoff_t		base;
-	struct fsl_rt_closure	*old_clo;
 	uint64_t params[tt_by_num(rtm->rtm_virt->vt_type_src)->tt_param_c];
 
-	/* use dyn vars set on allocation of xlate */
-	old_clo = fsl_rt_dyn_swap(rtm->rtm_dyn);
 	DEBUG_VIRT_WRITE("&rtm->rtm_clo = %p", rtm->rtm_clo);
 	DEBUG_VIRT_WRITE("rtm_clo->clo_offset: %"PRIu64" bits (%"PRIu64" bytes)",
 		rtm->rtm_clo->clo_offset,
@@ -53,9 +50,6 @@ static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx)
 	base = rtm->rtm_virt->vt_range(rtm->rtm_clo, idx, params);
 	DEBUG_VIRT_WRITE("BASE FOUND: %"PRIu64, base);
 	DEBUG_VIRT_WRITE("WANTED BITOFF: %"PRIu64, bit_off);
-
-	/* swap back to old dyn vars */
-	fsl_rt_dyn_swap(old_clo);
 
 	return base;
 }
@@ -151,7 +145,6 @@ void fsl_virt_free(struct fsl_rt_mapping* rtm)
 	assert (rtm != NULL);
 	assert (rtm->rtm_ref_c == 1);
 	DEBUG_VIRT_WRITE("Freeing: rtm=%p", rtm);
-	fsl_dyn_free(rtm->rtm_dyn);
 	fsl_virt_unref_all(rtm->rtm_clo);
 	free(rtm);
 	DEBUG_VIRT_LEAVE();
@@ -196,13 +189,10 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 	rtm->rtm_virt = vt;
 	rtm->rtm_clo = parent;
 	fsl_virt_ref_all(parent);
-	rtm->rtm_dyn = fsl_dyn_copy(fsl_env->fctx_dyn_closures);
 	rtm->rtm_ref_c = 1;
 
 	DEBUG_VIRT_WRITE("DYNALLOC: rtm=%p. rtm->rtm_clo=%p",
 		rtm, rtm->rtm_clo);
-
-	DEBUG_VIRT_WRITE("DYN COPY DONE");
 
 	/* XXX for the time being, assume all source types are same size */
 	if (fsl_virt_load_cache(rtm, true) == false) {
@@ -368,16 +358,9 @@ diskoff_t fsl_virt_get_nth(
 	tt = tt_by_num(virt_typenum);
 	DEBUG_VIRT_WRITE("nth of type: %s", tt->tt_name);
 
-	/* save old dyn closure value */
-	NEW_EMPTY_CLO			(old_dyn, virt_typenum);
-	__getDynClosure(virt_typenum, &old_dyn);
-	fsl_virt_ref(&old_dyn);
-
 	for (i = 0; i < target_idx; i++) {
 		typesize_t		cur_size;
 		NEW_VCLO		(new_clo, cur_off, NULL, rtm);
-
-		__setDyn(virt_typenum, &new_clo);
 
 		cur_size = tt->tt_size(&new_clo);
 		DEBUG_VIRT_WRITE("nth: new_clo->voffset = %"PRIu64, new_clo.clo_offset);
@@ -410,9 +393,6 @@ diskoff_t fsl_virt_get_nth(
 
 	/* reset to original */
 done:
-	__setDyn(virt_typenum, &old_dyn);
-	fsl_virt_unref(&old_dyn);
-
 	DEBUG_VIRT_LEAVE();
 
 	return total_bits;

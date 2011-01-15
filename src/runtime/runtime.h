@@ -71,7 +71,6 @@ struct fsl_rt_except
 struct fsl_rt_ctx
 {
 	unsigned int		fctx_num_types;
-	struct fsl_rt_closure	*fctx_dyn_closures;
 	struct fsl_rt_io	*fctx_io;
 	struct fsl_rt_stat	fctx_stat;
 	struct fsl_rt_except	fctx_except;
@@ -106,7 +105,6 @@ struct fsl_rt_closure
 		(x_tf)->tf_params(y, 0, (x)->clo_params);	\
 	} while (0)
 
-#include "dyn.h"
 #include "virt.h"
 
 #define TYPENUM_INVALID	(~0)
@@ -281,11 +279,6 @@ typesize_t __computeArrayBits(
 
 void __debugOutcall(uint64_t v);
 void __debugClosureOutcall(uint64_t tpenum, struct fsl_rt_closure* clo);
-uint64_t __getDynOffset(uint64_t type_num);
-void __getDynClosure(uint64_t typenum, struct fsl_rt_closure* clo);
-void __getDynParams(uint64_t typenum, parambuf_t params_out);
-void *__getDynVirt(uint64_t typenum);
-void __setDyn(uint64_t type_num, const struct fsl_rt_closure* clo);
 uint64_t __toPhys(const struct fsl_rt_closure* clo, uint64_t off);
 
 uint64_t __max2(uint64_t a0, uint64_t a1);

@@ -75,13 +75,10 @@ typesize_t __computeArrayBits(
 	assert (elem_type < fsl_rtt_entries && "Bad array type");
 	elem_tt = tt_by_num(elem_type);
 
-	NEW_EMPTY_CLO			(old_dyn, tf->tf_typenum);
 	NEW_EMPTY_CLO			(cur_clo, elem_type);
 
 	/* save old dyn closure value */
 	DEBUG_RT_WRITE("Get initial closure for type '%s'", elem_tt->tt_name);
-	__getDynClosure(elem_type, &old_dyn);
-	fsl_virt_ref(&old_dyn);
 
 	/* get base closure */
 	LOAD_CLO(&cur_clo, tf, clo_parent);
@@ -91,7 +88,6 @@ typesize_t __computeArrayBits(
 	for (i = 0; i < num_elems; i++) {
 		typesize_t		cur_size;
 
-		__setDyn(elem_type, &cur_clo);
 		cur_size = elem_tt->tt_size(&cur_clo);
 
 		total_bits += cur_size;
@@ -103,10 +99,6 @@ typesize_t __computeArrayBits(
 	}
 	DEBUG_RT_WRITE("Looping finished. sz=%"PRIu64, total_bits);
 
-
-	/* reset to original */
-	__setDyn(elem_type, &old_dyn);
-	fsl_virt_unref(&old_dyn);
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_COMPUTEARRAYBITS);
 	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_COMPUTEARRAYBITS_LOOPS, num_elems);
@@ -124,8 +116,6 @@ struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
 	fsl_ctx = malloc(sizeof(struct fsl_rt_ctx));
 	fsl_ctx->fctx_io = fsl_io_alloc(fsl_rt_backing_fname);
 	fsl_ctx->fctx_num_types = fsl_num_types;
-	fsl_ctx->fctx_dyn_closures = fsl_dyn_alloc();
-
 	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
 
 	return fsl_ctx;
@@ -190,10 +180,7 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 	assert (fctx != NULL);
 
 	fsl_rt_dump_stats(fctx);
-
 	fsl_io_free(fctx->fctx_io);
-	fsl_dyn_free(fctx->fctx_dyn_closures);
-
 	free(fctx);
 }
 
@@ -205,16 +192,6 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	__FROM_OS_BDEV_BYTES = fsl_io_size(fctx->fctx_io);
 	__FROM_OS_BDEV_BLOCK_BYTES = fctx->fctx_io->io_blksize;
 	__FROM_OS_SB_BLOCKSIZE_BYTES = fctx->fctx_io->io_blksize;
-}
-
-struct fsl_rt_closure* fsl_rt_dyn_swap(struct fsl_rt_closure* dyns)
-{
-	struct fsl_rt_closure	*ret;
-
-	ret = fsl_env->fctx_dyn_closures;
-	fsl_env->fctx_dyn_closures = dyns;
-
-	return ret;
 }
 
 /* main entry point for tool executable --

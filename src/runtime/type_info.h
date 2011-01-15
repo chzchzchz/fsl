@@ -119,8 +119,6 @@ struct type_info* typeinfo_alloc_virt_idx(
 struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code);
 
 
-void typeinfo_set_dyn(const struct type_info* ti);
-
 struct type_info* typeinfo_follow_field_off_idx(
 	struct type_info*		ti_parent,
 	const struct fsl_rtt_field* ti_field,

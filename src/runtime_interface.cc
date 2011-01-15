@@ -44,11 +44,6 @@ struct rt_func rt_funcs[] =
 		{RTF_TYPE_CLOSURE, RTF_TYPE_INT64, RTF_TYPE_INT64,
 		 RTF_TYPE_INT64, RTF_TYPE_INT64},
 	},
-	{"__getDynParams",
-		RTF_TYPE_VOID, 2, {RTF_TYPE_INT64, RTF_TYPE_INT64PTR}},
-	{"__getDynOffset",  RTF_TYPE_INT64,  1, {RTF_TYPE_INT64} },
-	{"__getDynVirt",  RTF_TYPE_INT8PTR,  1, {RTF_TYPE_INT64} },
-	{"__getDynClosure",  RTF_TYPE_VOID,  2, {RTF_TYPE_INT64, RTF_TYPE_CLOSURE} },
 	{"fsl_fail" , RTF_TYPE_INT64 /* fake it */, 1, {RTF_TYPE_INT64} },
 	{ "__max2", RTF_TYPE_INT64,  2, {RTF_TYPE_INT64, RTF_TYPE_INT64} },
 	{"__max3",
@@ -195,39 +190,6 @@ Expr* RTInterface::getLocalArray(
 	return new FCall(new Id("__getLocalArray"), exprs);
 }
 
-
-Expr* RTInterface::getDynClosure(const Type* user_type)
-{
-	return new FCall(
-		new Id("__getDynClosure_preAlloca"),
-		new ExprList(new Number(user_type->getTypeNum())));
-}
-
-Expr* RTInterface::getDynOffset(const Type* user_type)
-{
-	assert (user_type != NULL);
-
-	return new FCall(
-		new Id("__getDynOffset"), 
-		new ExprList(new Number(user_type->getTypeNum())));
-}
-
-Expr* RTInterface::getDynParams(const Type* user_type)
-{
-	return new FCall(
-		new Id("__getDynParams_preAlloca"), 
-		new ExprList(new Number(user_type->getTypeNum())));
-}
-
-
-Expr* RTInterface::getDynVirt(const class Type* user_type)
-{
-	assert (user_type != NULL);
-
-	return new FCall(
-		new Id("__getDynVirt"),
-		new ExprList(new Number(user_type->getTypeNum())));
-}
 
 Expr* RTInterface::getThunkClosure(void)
 {
