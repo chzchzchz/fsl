@@ -4,29 +4,7 @@
 src_root=`pwd`
 FILESYSTEMS="ext2 vfat nilfs2 testfs iso9660 reiserfs"
 
-echo "Pre-commit Tests..."
-echo "Building language."
-
-cd "${src_root}/"
-make tools  1>/dev/null
-makeret=$?
-if [ $makeret -ne 0 ]; then
-	echo "Tests failed. Could not build lang."
-	echo "Error: $makeret"
-	exit $makeret
-fi
-
-echo "Building tools."
-
-cd "${src_root}/src/tool"
-make -j6  1>/dev/null
-makeret=$?
-if [ $makeret -ne 0 ]; then
-	echo "Tests failed. Could not build tools."
-	exit $makeret
-fi
-
-cd "${src_root}"
+echo "Tests.."
 
 export src_root
 source ${src_root}/tests/fs_common.sh

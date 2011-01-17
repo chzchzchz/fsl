@@ -1,9 +1,19 @@
 NUM_JOBS=6
 MAKECMD=make -j$(NUM_JOBS)
+#CFLAGS=-O3 -DFSL_RELEASE
+OPT_FLAGS=-O3
+LLC_FLAGS=-O3
 CFLAGS=-g -O3
 #CFLAGS=-g
 export CFLAGS
-
+OBJDIR=$(shell pwd)/obj/
+BINDIR=$(shell pwd)/bin/
+FSSRCDIR=$(shell pwd)/fs/
+export OBJDIR
+export BINDIR
+export FSSRCDIR
+export OPT_FLAGS
+export LLC_FLAGS
 all: code tools tests draw
 
 clean: code-clean tests-clean

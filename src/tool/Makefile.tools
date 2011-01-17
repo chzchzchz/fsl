@@ -1,53 +1,51 @@
 #INPUT: FSNAME
-TOOL_OBJS= fsl.$(FSNAME).table.o fsl.$(FSNAME).types.o
+
+ifndef OBJDIR
+	$(error No OBJDIR. Run from top level.)
+endif
+ifndef BINDIR
+	$(error No OBJDIR. Run from top level.)
+endif
+ifndef OPT_FLAGS
+	$(error No Opflags. Run from top leve.)
+endif
+
+FS_OBJNAMES= fsl.$(FSNAME).table.o fsl.$(FSNAME).types.o
+FS_OBJS := $(FS_OBJNAMES:%=$(OBJDIR)/fs/%)
 TOOL_NAMES= browser modify scantool fragtool relocate defragtool scattertool smushtool
 
-TOOL_BINS := $(TOOL_NAMES:%=%-$(FSNAME))
-RT_OBJS=../runtime/runtime.o 	\
-	../runtime/type_info.o	\
-	../runtime/virt.o	\
-	../runtime/io.o		\
-	../runtime/max.o	\
-	../runtime/debug.o	\
-	../runtime/log.o	\
-	../runtime/hits.o	\
-	../runtime/cache.o	\
-	../runtime/type_print.o
+TOOL_BINS := $(TOOL_NAMES:%=$(BINDIR)/%-$(FSNAME))
+RT_OBJNAMES =	runtime.o 	\
+		type_info.o	\
+		virt.o		\
+		io.o		\
+		max.o		\
+		debug.o		\
+		log.o		\
+		hits.o		\
+		cache.o		\
+		type_print.o
+RT_OBJS := $(RT_OBJNAMES:%=$(OBJDIR)/runtime/%)
 
-SCANTOOL_OBJS=../runtime/scantool.o ../runtime/scan.o $(RT_OBJS)
-FRAGTOOL_OBJS=../runtime/fragtool.o ../runtime/scan.o $(RT_OBJS)
-BROWSER_OBJS=../runtime/browser.o $(RT_OBJS)
-MODIFY_OBJS=../runtime/modify.o $(RT_OBJS)
-DEFRAGTOOL_OBJS= ../runtime/defragtool.o 	\
-		../runtime/scan.o 		\
-		../runtime/choice.o 		\
-		../runtime/writepkt.o		\
-		../runtime/bitmap.o $(RT_OBJS)
+SCANTOOL_OBJNAMES=scantool.o scan.o
+FRAGTOOL_OBJNAMES=fragtool.o scan.o
+BROWSER_OBJNAMES=browser.o
+MODIFY_OBJNAMES=modify.o
+DEFRAGTOOL_OBJNAMES= 	defragtool.o scan.o choice.o writepkt.o bitmap.o
+RELOCATE_OBJNAMES= relocate.o scan.o choice.o writepkt.o bitmap.o
+SMUSHTOOL_OBJNAMES= smushtool.o scan.o choice.o writepkt.o bitmap.o
+SCATTERTOOL_OBJNAMES= 	scattertool.o scan.o choice.o writepkt.o bitmap.o
 
-RELOCATE_OBJS=	../runtime/relocate.o 	\
-		../runtime/scan.o	\
-		../runtime/choice.o	\
-		../runtime/writepkt.o	\
-		../runtime/bitmap.o $(RT_OBJS)
+SCANTOOL_OBJS:=$(SCANTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
+FRAGTOOL_OBJS:=$(FRAGTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
+BROWSER_OBJS:=$(BROWSER_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
+MODIFY_OBJS:=$(MODIFY_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
+DEFRAGTOOL_OBJS:=$(DEFRAGTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
+RELOCATE_OBJS:=$(RELOCATE_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
+SMUSHTOOL_OBJS:=$(SMUSHTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
+SCATTERTOOL_OBJS:=$(SCATTERTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
 
-SMUSHTOOL_OBJS=	../runtime/smushtool.o 	\
-		../runtime/scan.o		\
-		../runtime/choice.o		\
-		../runtime/writepkt.o		\
-		../runtime/bitmap.o $(RT_OBJS)
-
-
-SCATTERTOOL_OBJS=	../runtime/scattertool.o 	\
-			../runtime/scan.o		\
-			../runtime/choice.o		\
-			../runtime/writepkt.o		\
-			../runtime/bitmap.o $(RT_OBJS)
-
-OPT_FLAGS=-O3
-LLC_FLAGS=-O3
-#OPT_FLAGS=
-#LLC_FLAGS=-O3
-SRC_FSL=../../fs/$(FSNAME).fsl
+SRC_FSL=$(FSSRCDIR)/$(FSNAME).fsl
 SRC_FSL_ALL=$(wildcard ../../fs/$(FSNAME)*.fsl)
 FS_CAPITAL=$(shell echo $(FSNAME) | sed "s/[a-z]/\U&/g")
 FS_DEFINE=-DFS_$(FS_CAPITAL)
@@ -56,37 +54,37 @@ CFLAGS+= $(FS_DEFINE)
 all: $(TOOL_BINS)
 
 clean:
-	rm -f $(TOOL_BINS) $(TOOL_OBJS)
+	rm -f $(TOOL_BINS) $(FS_OBJS)
 
-browser-$(FSNAME): $(TOOL_OBJS) $(BROWSER_OBJS)
+$(BINDIR)/browser-$(FSNAME): $(FS_OBJS) $(BROWSER_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-scantool-$(FSNAME): $(TOOL_OBJS) $(SCANTOOL_OBJS)
+$(BINDIR)/scantool-$(FSNAME): $(FS_OBJS) $(SCANTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-modify-$(FSNAME): $(TOOL_OBJS) $(MODIFY_OBJS)
+$(BINDIR)/modify-$(FSNAME): $(FS_OBJS) $(MODIFY_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-fragtool-$(FSNAME): $(TOOL_OBJS) $(FRAGTOOL_OBJS)
+$(BINDIR)/fragtool-$(FSNAME): $(FS_OBJS) $(FRAGTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-relocate-$(FSNAME): $(TOOL_OBJS) $(RELOCATE_OBJS)
+$(BINDIR)/relocate-$(FSNAME): $(FS_OBJS) $(RELOCATE_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-defragtool-$(FSNAME): $(TOOL_OBJS) $(DEFRAGTOOL_OBJS)
+$(BINDIR)/defragtool-$(FSNAME): $(FS_OBJS) $(DEFRAGTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-scattertool-$(FSNAME): $(TOOL_OBJS) $(SCATTERTOOL_OBJS)
+$(BINDIR)/scattertool-$(FSNAME): $(FS_OBJS) $(SCATTERTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-smushtool-$(FSNAME): $(TOOL_OBJS) $(SMUSHTOOL_OBJS)
+$(BINDIR)/smushtool-$(FSNAME): $(FS_OBJS) $(SMUSHTOOL_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 
 
-fsl.$(FSNAME).table.o: fsl.$(FSNAME).table.c
+$(OBJDIR)/fs/fsl.$(FSNAME).table.o: $(OBJDIR)/fs/fsl.$(FSNAME).table.c
 	gcc $(CFLAGS) -I.. -c $^ -o $@
 
-fsl.$(FSNAME).types.o: fsl.$(FSNAME).types.s
+$(OBJDIR)/fs/fsl.$(FSNAME).types.o: $(OBJDIR)/fs/fsl.$(FSNAME).types.s
 	as -g $< -o $@
 
-fsl.$(FSNAME).types.s: fsl.$(FSNAME).types.bc
+$(OBJDIR)/fs/fsl.$(FSNAME).types.s: $(OBJDIR)/fs/fsl.$(FSNAME).types.bc
 	llc $(LLC_FLAGS)  $< -o $@
 
-fsl.$(FSNAME).types.bc: fsl.$(FSNAME).types.ll
+$(OBJDIR)/fs/fsl.$(FSNAME).types.bc: $(OBJDIR)/fs/fsl.$(FSNAME).types.ll
 	opt $(OPT_FLAGS) $^ -o $@
 
-fsl.$(FSNAME).table.c fsl.$(FSNAME).types.ll: $(SRC_FSL_ALL)
-	../lang $(FSNAME) <$(SRC_FSL) 2>$(FSNAME).err
+$(OBJDIR)/fs/fsl.$(FSNAME).table.c $(OBJDIR)/fs/fsl.$(FSNAME).types.ll: $(SRC_FSL_ALL)
+	cd $(OBJDIR)/fs/ && $(BINDIR)/lang $(FSNAME) <$(SRC_FSL) 2>$(FSNAME).err

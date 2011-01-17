@@ -92,7 +92,7 @@ function fs_browser_startup
 {
 	fs="$1"
 	echo "Testing browser-$fs startup."
-	cmd="${src_root}/src/tool/browser-$fs ${src_root}/img/$fs.img <<<EOF"
+	cmd="${src_root}/bin/browser-$fs ${src_root}/img/$fs.img <<<EOF"
 	echo "$cmd" >>tests.log
 	echo "$cmd" >failed_test_cmd
 	outstr=`eval $cmd`
@@ -111,7 +111,7 @@ function fs_reloc_img
 	picname="$3"
 
 	echo "Testing relocate-$fs (${imgname} => ${picname})."
-	cmd="${src_root}/src/tool/relocate-$fs ${src_root}/img/$imgname ${picname}"
+	cmd="${src_root}/bin/relocate-$fs ${src_root}/img/$imgname ${picname}"
 	outdir="${src_root}/tests/relocate-$fs"
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
 }
@@ -126,7 +126,7 @@ function fs_smush_startup_img
 	fs="$1"
 	imgname="$2"
 	echo "Testing smushtool-$fs startup (${imgname})."
-	cmd="${src_root}/src/tool/smushtool-$fs ${src_root}/img/$imgname"
+	cmd="${src_root}/bin/smushtool-$fs ${src_root}/img/$imgname"
 	outdir="${src_root}/tests/smushtool-$fs"
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
 }
@@ -136,7 +136,7 @@ function fs_scatter_startup_img
 	fs="$1"
 	imgname="$2"
 	echo "Testing scattertool-$fs startup (${imgname})."
-	cmd="${src_root}/src/tool/scattertool-$fs ${src_root}/img/$imgname"
+	cmd="${src_root}/bin/scattertool-$fs ${src_root}/img/$imgname"
 	outdir="${src_root}/tests/scattertool-$fs"
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
 }
@@ -147,7 +147,7 @@ function fs_defrag_startup_img
 	fs="$1"
 	imgname="$2"
 	echo "Testing defragtool-$fs startup (${imgname})."
-	cmd="${src_root}/src/tool/defragtool-$fs ${src_root}/img/$imgname"
+	cmd="${src_root}/bin/defragtool-$fs ${src_root}/img/$imgname"
 	outdir="${src_root}/tests/defragtool-$fs"
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
 }
@@ -157,7 +157,7 @@ function fs_scan_startup_img
 	fs="$1"
 	imgname="$2"
 	echo "Testing scantool-$fs startup (${imgname})."
-	cmd="${src_root}/src/tool/scantool-$fs ${src_root}/img/$imgname"
+	cmd="${src_root}/bin/scantool-$fs ${src_root}/img/$imgname"
 	outdir="${src_root}/tests/scantool-$fs"
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname"
 }
