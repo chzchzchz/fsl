@@ -34,8 +34,10 @@ int get_total_blks() { return disk.sb.s_blocks_c; }
 
 int get_block_size() { return (1024 << disk.sb.s_log_block_sz); }
 
-int get_group_count(ext2_sb sb)
+int get_group_count()
 {
+	ext2_sb	sb;
+	sb = disk.sb;
 	return 1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/sb.s_blks_per_grp);
 }
 
@@ -48,10 +50,10 @@ ext2_bmp_blk get_group_bmp(int grpnum)
 
 ext2_group_desc get_group(int grpnum) { return disk.grp_desc_table[grpnum]; }
 
-int inode_table_block_count(ext2_sb sb)
+int inode_table_block_count()
 {
 	u32	needed_bytes;
-	needed_bytes = sizeof_bytes(ext2_inode)*sb.s_inos_per_grp;
+	needed_bytes = sizeof_bytes(ext2_inode)*disk.sb.s_inos_per_grp;
 	return (needed_bytes+get_block_size()-1)/get_block_size();
 }
 
@@ -63,10 +65,12 @@ ext2_inode ino_by_num(u32 ino_num)
 	int	ino_grp_blk_idx;
 	int	table_base;
 	int	blk_sz;
+	u32	inos_per_grp;
 
+	inos_per_grp = disk.sb.s_inos_per_grp;
 	blk_sz = get_block_size();
-	ino_grp = ino_num / disk.sb.s_inos_per_grp;
-	ino_grp_idx = ino_num % disk.sb.s_inos_per_grp;
+	ino_grp = ino_num / inos_per_grp;
+	ino_grp_idx = ino_num % inos_per_grp;
 	ino_grp_blk = (ino_grp_idx * sizeof_bytes(ext2_inode)) / blk_sz;
 	ino_grp_blk_idx = (ino_grp_idx*(sizeof_bytes(ext2_inode))) % blk_sz;
 

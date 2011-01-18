@@ -47,13 +47,6 @@ llvm::Value* MemoTab::memoFuncCall(const Func* f) const
 		ret = builder->CreateTrunc(
 			ret,
 			llvm::Type::getInt1Ty(llvm::getGlobalContext()));
-	} else {
-		cerr << "RETURNING NON-BOOL." << endl;
-		ret->dump();
-		cerr << "TYPE: " << endl;
-		ret->getType()->dump();
-		cerr << "GLOBAL: " << endl;
-		memo_table->dump();
 	}
 
 	return ret;

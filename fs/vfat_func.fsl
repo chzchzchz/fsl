@@ -4,6 +4,93 @@ uint bytes_per_cluster() {
 	return b.sectors_per_cluster*b.bytes_per_sector;
 }
 
+uint bytes_per_sector() { return disk.d_bpb.bytes_per_sector; }
+
+uint get_total_sectors()
+{
+	bpb	b;
+	b = disk.d_bpb;
+	if (b.total_sect16 != 0) return b.total_sect16;
+	return b.total_sect32;
+}
+
+uint get_fat_sectors()
+{
+	bpb	b;
+	b = disk.d_bpb;
+	if (b.sectors_in_fat16 != 0) return b.sectors_in_fat16;
+	return b.priv32.sectors_in_fat32;
+}
+
+uint get_fat_bytes() { return get_fat_sectors()*disk.d_bpb.bytes_per_sector; }
+
+uint get_cluster_count()
+{
+	uint	fat_sectors;
+	uint	total_sectors;
+	uint	root_dir_sectors;
+	uint	data_sectors;
+	uint	resv_sectors;
+	uint	cluster_c;
+	uint	bps;
+	bpb	b;
+
+	b = disk.d_bpb;
+	fat_sectors = get_fat_sectors();
+	total_sectors  = get_total_sectors();
+	bps = b.bytes_per_sector;
+
+	root_dir_sectors = b.root_de_c * sizeof_bytes(fat_de);
+	root_dir_sectors += bps - 1;
+	root_dir_sectors /= bps;
+
+	resv_sectors = b.reserved_sector_c;
+	resv_sectors += b.fat_count*fat_sectors;
+	resv_sectors += root_dir_sectors;
+
+	data_sectors = total_sectors - resv_sectors;
+	cluster_c = data_sectors / b.sectors_per_cluster;
+
+	return cluster_c;
+}
+
+fat_type get_fat_type()
+{
+	uint	cluster_count;
+	bpb	b;
+
+	b = disk.d_bpb;
+	if (b.sectors_in_fat16 == 0) return FAT_TYPE_FAT32;
+
+	cluster_count = get_cluster_count();
+	if (cluster_count < 4085) return FAT_TYPE_FAT12;
+	else if (cluster_count < 65525) return FAT_TYPE_FAT16;
+	return FAT_TYPE_FAT32;
+}
+
+bool is_fat12() {
+	if (get_fat_type() == FAT_TYPE_FAT12) return true;
+	return false;
+}
+
+bool is_fat16(){
+	if (get_fat_type() == FAT_TYPE_FAT16) return true;
+	return false;
+}
+
+bool is_fat32(){
+	if (get_fat_type() == FAT_TYPE_FAT32) return true;
+	return false;
+}
+
+uint get_fatent_bits()
+{
+	if (is_fat12()) return 12;
+	if (is_fat16()) return 16;
+	if (is_fat32()) return 32;
+	return 0;
+}
+
 clusternum_t fat_next_ft(clusternum_t cn, fat_type ft, fat f)
 {
 	if (ft == FAT_TYPE_FAT32) return f._ent32[cn].cluster_num;
@@ -17,7 +104,7 @@ clusternum_t fat_next(clusternum_t cn)
 	fat_type	ft;
 	fat		f;
 	f = disk.fats[0];
-	ft = get_fat_type(disk.d_bpb);
+	ft = get_fat_type();
 	return fat_next_ft(cn, ft, f);
 }
 
@@ -36,7 +123,7 @@ clusternum_t fat_chain_nth_cnum(clusternum_t start_clus, uint i)
 	fat		f;
 
 	f = disk.fats[0];
-	ft = get_fat_type(disk.d_bpb);
+	ft = get_fat_type();
 	cur_cluster = start_clus;
 	while (i > 1) {
 		cur_cluster = fat_next_ft(cur_cluster, ft, f);
@@ -140,7 +227,7 @@ bool is_valid_cnum(clusternum_t cnum)
 
 	if (cnum < FAT_START_ENT) return false;
 
-	ft = get_fat_type(disk.d_bpb);
+	ft = get_fat_type();
 	if (ft == FAT_TYPE_FAT12) {
 		if (cnum > FAT12_MAX) return false;
 		return true;
@@ -152,84 +239,5 @@ bool is_valid_cnum(clusternum_t cnum)
 		return true;
 	}
 
-	return false;
-}
-
-uint get_fat_bytes(bpb b) { return get_fat_sectors(b)*b.bytes_per_sector; }
-
-uint get_total_sectors(bpb b)
-{
-	if (b.total_sect16 != 0) return b.total_sect16;
-	return b.total_sect32;
-}
-
-uint get_fat_sectors(bpb b)
-{
-	if (b.sectors_in_fat16 != 0) return b.sectors_in_fat16;
-	return b.priv32.sectors_in_fat32;
-}
-
-uint get_cluster_count()
-{
-	uint	fat_sectors;
-	uint	total_sectors;
-	uint	root_dir_sectors;
-	uint	data_sectors;
-	uint	resv_sectors;
-	uint	cluster_c;
-	uint	bps;
-	bpb	b;
-
-	b = disk.d_bpb;
-	fat_sectors = get_fat_sectors(b);
-	total_sectors  = get_total_sectors(b);
-	bps = b.bytes_per_sector;
-
-	root_dir_sectors = b.root_de_c * sizeof_bytes(fat_de);
-	root_dir_sectors += bps - 1;
-	root_dir_sectors /= bps;
-
-	resv_sectors = b.reserved_sector_c;
-	resv_sectors += b.fat_count*fat_sectors;
-	resv_sectors += root_dir_sectors;
-
-	data_sectors = total_sectors - resv_sectors;
-	cluster_c = data_sectors / b.sectors_per_cluster;
-
-	return cluster_c;
-}
-
-fat_type get_fat_type(bpb b)
-{
-	uint cluster_count;
-
-	if (b.sectors_in_fat16 == 0) return FAT_TYPE_FAT32;
-
-	cluster_count = get_cluster_count();
-	if (cluster_count < 4085) return FAT_TYPE_FAT12;
-	else if (cluster_count < 65525) return FAT_TYPE_FAT16;
-	return FAT_TYPE_FAT32;
-}
-
-uint get_fatent_bits(bpb b)
-{
-	if (is_fat12(b)) return 12;
-	if (is_fat16(b)) return 16;
-	if (is_fat32(b)) return 32;
-	return 0;
-}
-
-bool is_fat12(bpb b) {
-	if (get_fat_type(b) == FAT_TYPE_FAT12) return true;
-	return false;
-}
-
-bool is_fat16(bpb b){
-	if (get_fat_type(b) == FAT_TYPE_FAT16) return true;
-	return false;
-}
-
-bool is_fat32(bpb b){
-	if (get_fat_type(b) == FAT_TYPE_FAT32) return true;
 	return false;
 }

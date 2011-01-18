@@ -10,7 +10,7 @@ assert (? sb.s_inos_per_grp <= get_block_size()*8)
 
 	align_bytes(get_block_size());
 
-	ext2_group_desc(@)	grp_desc_table[get_group_count(sb)] fixed;
+	ext2_group_desc(@)	grp_desc_table[get_group_count()] fixed;
 	align_bytes(get_block_size());
 
 	set_bytes(0);
@@ -64,7 +64,7 @@ type ext2_group_desc(int group_num)
 points(disk.blocks[block_bmp].blk_bmp) as grp_blk_bmp
 points(disk.blocks[inode_bmp].ino_bmp) as grp_ino_bmp
 points_range(
-	i, 1, inode_table_block_count(disk.sb),
+	i, 1, inode_table_block_count(),
 	disk.blocks[(inode_table+i-1)].ino_blk) as grp_ino_blk
 assert(? sizeof_bytes(this) == 32)
 {
