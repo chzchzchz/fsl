@@ -1,6 +1,5 @@
 uint bytes_per_cluster() {
-	bpb	b;
-	b = disk.d_bpb;
+	bpb	b = disk.d_bpb;
 	return b.sectors_per_cluster*b.bytes_per_sector;
 }
 
@@ -8,16 +7,14 @@ uint bytes_per_sector() { return disk.d_bpb.bytes_per_sector; }
 
 uint get_total_sectors()
 {
-	bpb	b;
-	b = disk.d_bpb;
+	bpb	b = disk.d_bpb;
 	if (b.total_sect16 != 0) return b.total_sect16;
 	return b.total_sect32;
 }
 
 uint get_fat_sectors()
 {
-	bpb	b;
-	b = disk.d_bpb;
+	bpb	b = disk.d_bpb;
 	if (b.sectors_in_fat16 != 0) return b.sectors_in_fat16;
 	return b.priv32.sectors_in_fat32;
 }
@@ -57,9 +54,8 @@ uint get_cluster_count()
 fat_type get_fat_type()
 {
 	uint	cluster_count;
-	bpb	b;
+	bpb	b = disk.d_bpb;
 
-	b = disk.d_bpb;
 	if (b.sectors_in_fat16 == 0) return FAT_TYPE_FAT32;
 
 	cluster_count = get_cluster_count();
@@ -101,17 +97,14 @@ clusternum_t fat_next_ft(clusternum_t cn, fat_type ft, fat f)
 
 clusternum_t fat_next(clusternum_t cn)
 {
-	fat_type	ft;
-	fat		f;
-	f = disk.fats[0];
-	ft = get_fat_type();
+	fat_type	ft = get_fat_type();
+	fat		f = disk.fats[0];
 	return fat_next_ft(cn, ft, f);
 }
 
 bool is_cluster_avail(clusternum_t cn)
 {
-	clusternum_t	v;
-	v = fat_next(cn);
+	clusternum_t	v = fat_next(cn);
 	if (v == FAT_ENT_FREE) return true;
 	return false;
 }
@@ -119,15 +112,13 @@ bool is_cluster_avail(clusternum_t cn)
 clusternum_t fat_chain_nth_cnum(clusternum_t start_clus, uint i)
 {
 	clusternum_t	cur_cluster;
-	fat_type	ft;
-	fat		f;
+	fat_type	ft = get_fat_type();
+	fat		f = disk.fats[0];
 
-	f = disk.fats[0];
-	ft = get_fat_type();
 	cur_cluster = start_clus;
 	while (i > 1) {
 		cur_cluster = fat_next_ft(cur_cluster, ft, f);
-		i = i - 1;
+		i--;
 	}
 
 	return cur_cluster;
@@ -192,11 +183,9 @@ bool is_deleted(fat_de de)
 
 uint fat_chain_count(clusternum_t start_clus)
 {
-	clusternum_t 	cur_clus;
-	u32		count;
+	clusternum_t 	cur_clus = start_clus;
+	u32		count = 0;
 
-	count = 0;
-	cur_clus = start_clus;
 	while (is_valid_cnum(cur_clus) == true) {
 		count++;
 		cur_clus = fat_next(cur_clus);

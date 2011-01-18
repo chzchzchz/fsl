@@ -233,6 +233,17 @@ func_block	: TOKEN_LBRACE func_stmts TOKEN_RBRACE { $$ = $2; }
 		;
 
 func_stmts	: func_stmts func_stmt { $1->add($2); }
+		| func_stmts ident ident TOKEN_ASSIGN expr TOKEN_SEMI
+		{
+			$1->add(new FuncDecl($2, (Id*)$3));
+			$1->add(new FuncAssign(((Id*)$3)->copy(), $5));
+		}
+		| ident ident TOKEN_ASSIGN expr TOKEN_SEMI
+		{
+			$$ = new FuncBlock();
+			$$->add(new FuncDecl($1, (Id*)$2));
+			$$->add(new FuncAssign(((Id*)$2)->copy(), $4));
+		}
 		| func_stmt
 		{
 			$$ = new FuncBlock();

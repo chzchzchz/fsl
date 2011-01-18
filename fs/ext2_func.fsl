@@ -1,12 +1,9 @@
 u32 indir_count(ext2_indir_block id)
 {
-	u32	max_blks;
-	u32	ret;
-	u32	i;
+	u32	max_blks = get_block_size()/4;
+	u32	ret = 0;
+	u32	i = 0;
 
-	ret = 0;
-	i = 0;
-	max_blks = get_block_size()/4;
 	while (i < max_blks) {
 		if (id.blk_ptr[i] != 0) ret++;
 		i++;
@@ -36,15 +33,13 @@ int get_block_size() { return (1024 << disk.sb.s_log_block_sz); }
 
 int get_group_count()
 {
-	ext2_sb	sb;
-	sb = disk.sb;
+	ext2_sb	sb = disk.sb;
 	return 1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/sb.s_blks_per_grp);
 }
 
 ext2_bmp_blk get_group_bmp(int grpnum)
 {
-	blknum_t 	bmp_blknum;
-	bmp_blknum = disk.grp_desc_table[grpnum].block_bmp;
+	blknum_t 	bmp_blknum = disk.grp_desc_table[grpnum].block_bmp;
 	return disk.blocks[bmp_blknum].blk_bmp;
 }
 
@@ -52,8 +47,7 @@ ext2_group_desc get_group(int grpnum) { return disk.grp_desc_table[grpnum]; }
 
 int inode_table_block_count()
 {
-	u32	needed_bytes;
-	needed_bytes = sizeof_bytes(ext2_inode)*disk.sb.s_inos_per_grp;
+	u32	needed_bytes = sizeof_bytes(ext2_inode)*disk.sb.s_inos_per_grp;
 	return (needed_bytes+get_block_size()-1)/get_block_size();
 }
 
@@ -81,8 +75,7 @@ ext2_inode ino_by_num(u32 ino_num)
 
 uint size_to_blocks(u64 i_size)
 {
-	int	bsz;
-	bsz = get_block_size();
+	int	bsz = get_block_size();
 	return (i_size + bsz - 1) / bsz;
 }
 
@@ -356,13 +349,10 @@ bool S_ISREG(u32 mode)
 
 u32 bi_count(ext2_biindir_block id)
 {
-	u32	max_blks;
-	u32	ret;
-	u32	i;
+	u32	max_blks = get_block_size()/4;
+	u32	ret = 0;
+	u32	i = 0;
 
-	ret = 0;
-	i = 0;
-	max_blks = get_block_size()/4;
 	while (i < max_blks) {
 		if (id.blk_ptr[i] != 0) ret++;
 		i++;
@@ -372,13 +362,10 @@ u32 bi_count(ext2_biindir_block id)
 
 u32 tri_count(ext2_triindir_block id)
 {
-	u32	max_blks;
-	u32	ret;
-	u32	i;
+	u32	max_blks = get_block_size()/4;
+	u32	ret = 0;
+	u32	i = 0;
 
-	ret = 0;
-	i = 0;
-	max_blks = get_block_size()/4;
 	while (i < max_blks) {
 		if (id.blk_ptr[i] != 0) ret++;
 		i++;
