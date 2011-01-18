@@ -50,6 +50,7 @@ private:
 	void genTable_fsl_rt_table(void);
 	void genExternsFieldsByType(const Type *t);
 	void genExternsFields(void);
+	void genExternsUserFuncs(void);
 	void genThunksTableBySymtab(
 		const std::string&	table_name,
 		const SymbolTable&	st);

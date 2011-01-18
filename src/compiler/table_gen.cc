@@ -18,11 +18,13 @@
 #include "writepkt.h"
 #include "table_gen.h"
 #include "thunk_fieldoffset_cond.h"
+#include "memotab.h"
 
 #include <stdint.h>
 
 extern type_list		types_list;
 extern type_map			types_map;
+extern func_list		funcs_list;
 extern const_map		constants;
 extern pointing_list		points_list;
 extern pointing_map		points_map;
@@ -33,6 +35,7 @@ extern typevirt_list		typevirts_list;
 extern writepkt_list		writepkts_list;
 extern typereloc_map		typerelocs_map;
 extern typereloc_list		typerelocs_list;
+extern MemoTab			memotab;
 
 using namespace std;
 
@@ -306,6 +309,19 @@ void TableGen::genExternsFields(void)
 		genExternsFieldsByType(*it);
 }
 
+void TableGen::genExternsUserFuncs(void)
+{
+	for (	func_list::const_iterator it = funcs_list.begin();
+		it != funcs_list.end();
+		it++)
+	{
+		const Func	*f = *it;
+		if (!memotab.canMemoize(f)) continue;
+		out <<	"extern uint64_t " << (*it)->getName() <<
+			"(void);" << endl;
+	}
+}
+
 void TableGen::genTable_fsl_rt_table(void)
 {
 	StructWriter	sw(out, "fsl_rtt_type", "fsl_rt_table[]");
@@ -459,12 +475,15 @@ void TableGen::gen(const string& fname)
 	genScalarConstants();
 
 	genExternsFields();
+	genExternsUserFuncs();
 	genUserFieldTables();
 	genTableWriters<Points>(points_list);
 	genTableWriters<Asserts>(asserts_list);
 	genTableWriters<VirtualTypes>(typevirts_list);
 	genWritePktTables();
 	genTableWriters<RelocTypes>(typerelocs_list);
+
+	memotab.genTables(this);
 
 	genTable_fsl_rt_table();
 

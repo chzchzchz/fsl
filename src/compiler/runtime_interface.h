@@ -34,6 +34,7 @@ public:
 	const std::string getThunkArgParamPtrName(void);
 	const std::string getThunkArgVirtName(void);
 	const std::string getThunkArgIdxName(void);
+	const std::string getMemoTabName(void) const;
 
 	Expr	*toPhys(const Expr* clo, const Expr* off);
 

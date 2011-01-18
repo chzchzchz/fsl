@@ -187,6 +187,14 @@ static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	__FROM_OS_SB_BLOCKSIZE_BYTES = fctx->fctx_io->io_blksize;
 }
 
+static void fsl_load_memo(void)
+{
+	int	i;
+	for (i = 0; i < __fsl_memotab_sz; i++) {
+		__fsl_memotab[i] = __fsl_memotab_funcs[i]();
+	}
+}
+
 /* main entry point for tool executable --
  * set some stuff up and then run tool */
 int main(int argc, char* argv[])
@@ -207,6 +215,8 @@ int main(int argc, char* argv[])
 	fsl_vars_from_env(fsl_env);
 	/* track hits, if applicable */
 	fsl_hits_init();
+
+	fsl_load_memo();
 
 	tool_ret = tool_entry(argc-2, argv+2);
 

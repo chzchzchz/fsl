@@ -17,6 +17,7 @@
 #include "runtime_interface.h"
 #include "writepkt.h"
 #include "reloc.h"
+#include "memotab.h"
 
 #include <stdint.h>
 #include <fstream>
@@ -52,6 +53,7 @@ RTInterface		rt_glue;
 typevirt_map		typevirts_map;
 typevirt_list		typevirts_list;
 const char		*fsl_src_fname;
+MemoTab			memotab;
 
 static void	load_detached_preambles(const GlobalBlock* gb);
 static void	load_user_types_list(const GlobalBlock* gb);
@@ -183,7 +185,11 @@ static void load_user_funcs(const GlobalBlock* gb)
 		funcs_list.push_back(f);
 		funcs_map[f->getName()] = f;
 		f->genProto();
+
+		if (memotab.canMemoize(f)) memotab.registerFunction(f);
 	}
+
+	memotab.allocTable();
 
 	for (	func_list::const_iterator it = funcs_list.begin();
 		it != funcs_list.end();

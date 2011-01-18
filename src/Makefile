@@ -44,7 +44,8 @@ LANGOBJS=	lex.yy.o		\
 		instance_iter.o		\
 		typeclosure.o		\
 		reloc.o			\
-		varscope.o
+		varscope.o		\
+		memotab.o
 
 RTOBJS= runtime.o	\
 	type_info.o 	\

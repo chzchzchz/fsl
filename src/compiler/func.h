@@ -223,9 +223,9 @@ public:
 	llvm::Function* getFunction(void) const;
 
 	const ArgsList* getArgs() const { return args; }
+	unsigned int getNumArgs() const { return args->size(); }
 	void genProto(void) const;
 	void genCode(void) const;
-
 private:
 	void genLoadArgs(void) const;
 

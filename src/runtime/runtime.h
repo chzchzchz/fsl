@@ -26,6 +26,12 @@ typedef uint64_t	typesize_t;
 typedef unsigned int	typenum_t;
 typedef uint64_t*	parambuf_t;
 
+
+typedef uint64_t(*memof_t)(void);
+extern uint64_t			__fsl_memotab[];
+extern int			__fsl_memotab_sz;
+extern memof_t			__fsl_memotab_funcs[];
+
 extern struct fsl_rt_ctx* 	fsl_env;
 #define fsl_err_reset()		do { fsl_env->fctx_failed_assert = 0; } while (0)
 #define fsl_err_get()		fsl_env->fctx_failed_assert

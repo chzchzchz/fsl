@@ -249,6 +249,11 @@ const std::string RTInterface::getThunkArgParamPtrName(void)
 	return "__thunk_arg_params";
 }
 
+const std::string RTInterface::getMemoTabName(void) const
+{
+	return "__fsl_memotab";
+}
+
 Expr* RTInterface::maxValue(ExprList* exprs)
 {
 	assert (exprs != NULL);

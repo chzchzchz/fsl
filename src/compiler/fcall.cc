@@ -13,10 +13,12 @@
 #include "util.h"
 #include "runtime_interface.h"
 #include "typeclosure.h"
+#include "memotab.h"
 
 using namespace std;
 using namespace llvm;
 
+extern MemoTab		memotab;
 extern CodeBuilder	*code_builder;
 extern const Func	*gen_func;
 extern const FuncBlock	*gen_func_block;
@@ -319,6 +321,29 @@ Value* FCall::codeGenClosureRetCall(std::vector<llvm::Value*>& args) const
 	return tmp_tp;
 }
 
+
+llvm::Value* FCall::codeGenPrimitiveRetCall(vector<llvm::Value*>& args) const
+{
+	string		call_name(id->getName());
+	Function	*callee;
+	Func		*callee_func;
+	IRBuilder<>	*builder;
+
+	builder = code_builder->getBuilder();
+
+	callee = code_builder->getModule()->getFunction(call_name);
+	callee_func = NULL;
+	if (funcs_map.count(call_name) != 0)
+		callee_func = funcs_map[call_name];
+
+	if (memotab.canMemoize(callee_func)) {
+		/* idempotent function */
+		return memotab.memoFuncCall(callee_func);
+	}
+
+	return builder->CreateCall(callee, args.begin(), args.end());
+}
+
 Value* FCall::codeGen() const
 {
 	Function			*callee;
@@ -329,9 +354,7 @@ Value* FCall::codeGen() const
 	Value				*ret;
 	bool				is_ret_closure;
 	unsigned int			expected_arg_c;
-	IRBuilder<>			*builder;
 
-	builder = code_builder->getBuilder();
 	if (handleSpecialForms(ret) == true)
 		return ret;
 
@@ -345,8 +368,10 @@ Value* FCall::codeGen() const
 	if (funcs_map.count(call_name) != 0) {
 		callee_func = funcs_map[call_name];
 		is_ret_closure = (types_map.count(callee_func->getRet()) > 0);
-	} else
+	} else {
+		callee_func = NULL;
 		is_ret_closure = false;
+	}
 
 	expected_arg_c = callee->arg_size() - ((is_ret_closure) ? 1 : 0);
 	if (expected_arg_c != exprs->size()) {
@@ -364,7 +389,7 @@ Value* FCall::codeGen() const
 		ret = codeGenClosureRetCall(args);
 		assert (params_ret == NULL);
 	} else {
-		ret = builder->CreateCall(callee, args.begin(), args.end());
+		ret = codeGenPrimitiveRetCall(args);
 	}
 
 	if (params_ret != NULL)

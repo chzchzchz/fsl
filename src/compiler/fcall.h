@@ -62,7 +62,7 @@ public:
 		return Expr::rewrite(to_rewrite, new_expr);
 	}
 
-	llvm::Value*  codeGen() const;
+	llvm::Value* codeGen(void) const;
 
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 
@@ -80,11 +80,12 @@ private:
 	llvm::Value* 	codeGenParamsAllocaByCount(void) const;
 	llvm::Value*	codeGenClosureRetCall(
 		std::vector<llvm::Value*>& args) const;
+	llvm::Value*	codeGenPrimitiveRetCall(
+		std::vector<llvm::Value*>& args) const;
 
 	llvm::Value* 	codeGenExtractOff(void) const;
 	llvm::Value* 	codeGenExtractParam(void) const;
 	llvm::Value*	codeGenExtractVirt(void) const;
-
 	Id*		id;
 	ExprList*	exprs;
 };
