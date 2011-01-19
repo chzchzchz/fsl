@@ -256,11 +256,9 @@ void typeinfo_print_pointstos(const struct type_info* ti)
 
 		pt = &tt->tt_pointsto[i];
 		pt_min = pt->pt_iter.it_min(clo);
+		if (pt_min == ~0) continue;
 		pt_max = pt->pt_iter.it_max(clo);
-		if (pt_min > pt_max) {
-			/* failed some condition, don't display. */
-			continue;
-		}
+		if (pt_min > pt_max) continue;
 
 		if (none_seen) {
 			printf("Points-To:\n");
@@ -306,13 +304,10 @@ void typeinfo_print_virts(const struct type_info* ti)
 			ti_offset(ti),
 			vt->vt_name, i);
 
-		vt_min = vt->vt_min(clo);
-		DEBUG_TYPEINFO_WRITE("Min computed: %"PRIu64, vt_min);
+		vt_min = vt->vt_iter.it_min(clo);
 		if (vt_min == ~0) continue;
-		vt_max = vt->vt_max(clo);
-		DEBUG_TYPEINFO_WRITE("Max computed: %"PRIu64, vt_max);
-		if (vt_min > vt_max)
-			continue;
+		vt_max = vt->vt_iter.it_max(clo);
+		if (vt_min > vt_max) continue;
 
 		if (none_seen) {
 			printf("Virtuals: \n");
@@ -322,13 +317,13 @@ void typeinfo_print_virts(const struct type_info* ti)
 		if (vt->vt_name == NULL) {
 			printf("%02d. (%s->%s)\n",
 				tt->tt_fieldall_c + tt->tt_pointsto_c + i,
-				tt_by_num(vt->vt_type_src)->tt_name,
+				tt_by_num(vt->vt_iter.it_type_dst)->tt_name,
 				tt_by_num(vt->vt_type_virttype)->tt_name);
 		} else {
 			printf("%02d. %s (%s->%s)\n",
 				tt->tt_fieldall_c + tt->tt_pointsto_c + i,
 				vt->vt_name,
-				tt_by_num(vt->vt_type_src)->tt_name,
+				tt_by_num(vt->vt_iter.it_type_dst)->tt_name,
 				tt_by_num(vt->vt_type_virttype)->tt_name);
 		}
 

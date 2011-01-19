@@ -37,8 +37,7 @@ void VirtualTypes::loadVirtuals(bool is_cond)
 	{
 		VirtualType			*virt;
 		virt = loadVirtual(*it, is_cond);
-		if (virt == NULL)
-			continue;
+		if (virt == NULL) continue;
 		virts.add(virt);
 	}
 }
@@ -107,22 +106,12 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p, bool is_conditional)
 
 void VirtualTypes::genCode(void)
 {
-	for (	virt_list::const_iterator it = virts.begin();
-		it != virts.end();
-		it++)
-	{
-		(*it)->genCode();
-	}
+	iter_do(virt_list, virts, genCode);
 }
 
 void VirtualTypes::genProtos(void)
 {
-	for (	virt_list::const_iterator it = virts.begin();
-		it != virts.end();
-		it++)
-	{
-		(*it)->genProto();
-	}
+	iter_do(virt_list, virts, genProto);
 }
 
 VirtualIf::VirtualIf(
@@ -180,11 +169,10 @@ void VirtualType::genInstance(TableGen* tg) const
 	Id			*name;
 
 	ii = getInstanceIter();
-	sw.write("vt_type_src", ii->getDstType()->getTypeNum());
+
+	sw.write(".vt_iter = ");
+	ii->genTableInstance(tg);
 	sw.write("vt_type_virttype", getTargetType()->getTypeNum());
-	sw.write("vt_range", ii->getLookupFCallName());
-	sw.write("vt_min", ii->getMinFCallName());
-	sw.write("vt_max", ii->getMaxFCallName());
 
 	name = getName();
 	if (name != NULL)	sw.writeStr("vt_name", name->getName());

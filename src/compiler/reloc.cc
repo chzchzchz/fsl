@@ -235,22 +235,12 @@ void Reloc::genCondProto(void) const
 
 void RelocTypes::genProtos(void)
 {
-	for (	reloc_list::const_iterator it = relocs.begin();
-		it != relocs.end();
-		it++)
-	{
-		(*it)->genProtos();
-	}
+	iter_do(reloc_list, relocs, genProtos);
 }
 
 void RelocTypes::genCode(void)
 {
-	for (	reloc_list::const_iterator it = relocs.begin();
-		it != relocs.end();
-		it++)
-	{
-		(*it)->genCode();
-	}
+	iter_do(reloc_list, relocs, genCode);
 }
 
 void RelocTypes::genExterns(TableGen* tg)

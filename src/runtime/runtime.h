@@ -210,12 +210,9 @@ struct fsl_rtt_pointsto
 
 struct fsl_rtt_virt
 {
-	typenum_t	vt_type_src;		/* ret type for range */
-	typenum_t	vt_type_virttype;	/* type we convert to */
-	points_rangef_t	vt_range;
-	points_minf_t	vt_min;
-	points_maxf_t	vt_max;
-	const char*	vt_name;
+	typenum_t		vt_type_virttype;	/* type we convert to */
+	struct fsl_rt_iter	vt_iter;
+	const char*		vt_name;
 };
 
 struct fsl_rtt_assert

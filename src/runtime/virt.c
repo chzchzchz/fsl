@@ -41,13 +41,13 @@ uint64_t fsl_virt_xlate_safe(
 static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx)
 {
 	diskoff_t		base;
-	uint64_t params[tt_by_num(rtm->rtm_virt->vt_type_src)->tt_param_c];
+	uint64_t params[tt_by_num(rtm->rtm_virt->vt_iter.it_type_dst)->tt_param_c];
 
 	DEBUG_VIRT_WRITE("&rtm->rtm_clo = %p", rtm->rtm_clo);
 	DEBUG_VIRT_WRITE("rtm_clo->clo_offset: %"PRIu64" bits (%"PRIu64" bytes)",
 		rtm->rtm_clo->clo_offset,
 		rtm->rtm_clo->clo_offset / 8);
-	base = rtm->rtm_virt->vt_range(rtm->rtm_clo, idx, params);
+	base = rtm->rtm_virt->vt_iter.it_range(rtm->rtm_clo, idx, params);
 	DEBUG_VIRT_WRITE("BASE FOUND: %"PRIu64, base);
 	DEBUG_VIRT_WRITE("WANTED BITOFF: %"PRIu64, bit_off);
 
@@ -237,12 +237,12 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 
 	/* XXX these should be invalidated when underlying changes.. need
 	 * to use logging facility */
-	rtm->rtm_cached_minidx = rtm->rtm_virt->vt_min(rtm->rtm_clo);
+	rtm->rtm_cached_minidx = rtm->rtm_virt->vt_iter.it_min(rtm->rtm_clo);
 	if (rtm->rtm_cached_minidx == ~0) {
 		DEBUG_VIRT_LEAVE();
 		return false;
 	}
-	rtm->rtm_cached_maxidx = rtm->rtm_virt->vt_max(rtm->rtm_clo);
+	rtm->rtm_cached_maxidx = rtm->rtm_virt->vt_iter.it_max(rtm->rtm_clo);
 
 	DEBUG_VIRT_WRITE("MINIDX=%"PRIu64" / MAXIDX=%"PRIu64,
 			rtm->rtm_cached_minidx,
@@ -254,14 +254,14 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 		return false;
 	}
 
-	tt_vsrc = tt_by_num(vt->vt_type_src);
+	tt_vsrc = tt_by_num(vt->vt_iter.it_type_dst);
 
 	uint64_t        params[tt_vsrc->tt_param_c];
 
 	DEBUG_VIRT_WRITE("1st RANGE. %s. param_c=%d",
 		tt_vsrc->tt_name,
 		tt_vsrc->tt_param_c);
-	first_type_off = vt->vt_range(
+	first_type_off = vt->vt_iter.it_range(
 		rtm->rtm_clo,
 		rtm->rtm_cached_minidx,
 		params);
@@ -291,7 +291,7 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 		diskoff_t	cur_off;
 		size_t		cur_sz;
 		DEBUG_VIRT_WRITE("calling vt_range on idx=%d", idx);
-		cur_off = vt->vt_range(rtm->rtm_clo, idx, params);
+		cur_off = vt->vt_iter.it_range(rtm->rtm_clo, idx, params);
 		NEW_VCLO(cur_clo, cur_off, params, rtm->rtm_clo->clo_xlate);
 		DEBUG_VIRT_WRITE("calling tt_size on idx=%d", idx);
 		cur_sz = tt_vsrc->tt_size(&cur_clo);
