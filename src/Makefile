@@ -64,10 +64,10 @@ RTOBJS= runtime.o	\
 	choice.o	\
 	writepkt.o
 
-RTOBJSOUT := $(RTOBJS:%=$(OBJDIR)/runtime/%)
 TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o \
 		scattertool.o smushtool.o
-TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/runtime/%)
+RTOBJSOUT := $(RTOBJS:%=$(OBJDIR)/runtime/%)
+TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/tool/%)
 LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/compiler/%)
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
@@ -95,6 +95,9 @@ compiler/parser.cc: compiler/parser.y
 
 compiler/lex.yy.cc: compiler/lang.lex
 	flex -o $@ $^
+
+$(OBJDIR)/tool/%.o: tool/%.c
+	gcc $(RTCFLAGS) -Iruntime/ -c $< -o $@
 
 $(OBJDIR)/runtime/%.o: runtime/%.c
 	gcc $(RTCFLAGS) -c $< -o $@

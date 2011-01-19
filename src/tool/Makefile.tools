@@ -26,24 +26,27 @@ RT_OBJNAMES =	runtime.o 	\
 		cache.o		\
 		type_print.o
 RT_OBJS := $(RT_OBJNAMES:%=$(OBJDIR)/runtime/%)
+SCAN_OBJS := $(OBJDIR)/runtime/scan.o
+WRITE_OBJNAMES = scan.o choice.o writepkt.o bitmap.o
+WRITE_OBJS := $(WRITE_OBJNAMES:%=$(OBJDIR)/runtime/%)
 
-SCANTOOL_OBJNAMES=scantool.o scan.o
-FRAGTOOL_OBJNAMES=fragtool.o scan.o
+SCANTOOL_OBJNAMES=scantool.o
+FRAGTOOL_OBJNAMES=fragtool.o
 BROWSER_OBJNAMES=browser.o
 MODIFY_OBJNAMES=modify.o
-DEFRAGTOOL_OBJNAMES= 	defragtool.o scan.o choice.o writepkt.o bitmap.o
-RELOCATE_OBJNAMES= relocate.o scan.o choice.o writepkt.o bitmap.o
-SMUSHTOOL_OBJNAMES= smushtool.o scan.o choice.o writepkt.o bitmap.o
-SCATTERTOOL_OBJNAMES= 	scattertool.o scan.o choice.o writepkt.o bitmap.o
+DEFRAGTOOL_OBJNAMES= defragtool.o
+RELOCATE_OBJNAMES= relocate.o
+SMUSHTOOL_OBJNAMES= smushtool.o
+SCATTERTOOL_OBJNAMES= scattertool.o
 
-SCANTOOL_OBJS:=$(SCANTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
-FRAGTOOL_OBJS:=$(FRAGTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
-BROWSER_OBJS:=$(BROWSER_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
-MODIFY_OBJS:=$(MODIFY_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
-DEFRAGTOOL_OBJS:=$(DEFRAGTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
-RELOCATE_OBJS:=$(RELOCATE_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
-SMUSHTOOL_OBJS:=$(SMUSHTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
-SCATTERTOOL_OBJS:=$(SCATTERTOOL_OBJNAMES:%=$(OBJDIR)/runtime/%) $(RT_OBJS)
+SCANTOOL_OBJS:=$(SCANTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(SCAN_OBJS)
+FRAGTOOL_OBJS:=$(FRAGTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(SCAN_OBJS)
+BROWSER_OBJS:=$(BROWSER_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
+MODIFY_OBJS:=$(MODIFY_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
+DEFRAGTOOL_OBJS:=$(DEFRAGTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
+RELOCATE_OBJS:=$(RELOCATE_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
+SMUSHTOOL_OBJS:=$(SMUSHTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
+SCATTERTOOL_OBJS:=$(SCATTERTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
 
 SRC_FSL=$(FSSRCDIR)/$(FSNAME).fsl
 SRC_FSL_ALL=$(wildcard ../../fs/$(FSNAME)*.fsl)
