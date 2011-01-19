@@ -466,8 +466,8 @@ struct type_info* typeinfo_follow_pointsto(
 	uint64_t		parambuf[tt_by_ti(ti_parent)->tt_param_c];
 
 	td_init(&pt_td,
-		ti_pt->pt_type_dst,
-		ti_pt->pt_range(&ti_clo(ti_parent), idx, parambuf),
+		ti_pt->pt_iter.it_type_dst,
+		ti_pt->pt_iter.it_range(&ti_clo(ti_parent), idx, parambuf),
 		parambuf);
 
 	assert (offset_is_bad(td_offset(&pt_td)) == false &&

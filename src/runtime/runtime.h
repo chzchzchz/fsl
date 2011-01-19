@@ -204,11 +204,8 @@ struct fsl_rt_iter
 
 struct fsl_rtt_pointsto
 {
-	typenum_t	pt_type_dst;
-	points_rangef_t	pt_range;
-	points_minf_t	pt_min;
-	points_maxf_t	pt_max;
-	const char*	pt_name;
+	struct fsl_rt_iter	pt_iter;
+	const char*		pt_name;
 };
 
 struct fsl_rtt_virt

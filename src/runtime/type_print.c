@@ -255,8 +255,8 @@ void typeinfo_print_pointstos(const struct type_info* ti)
 		TI_INTO_CLO			(ti);
 
 		pt = &tt->tt_pointsto[i];
-		pt_min = pt->pt_min(clo);
-		pt_max = pt->pt_max(clo);
+		pt_min = pt->pt_iter.it_min(clo);
+		pt_max = pt->pt_iter.it_max(clo);
 		if (pt_min > pt_max) {
 			/* failed some condition, don't display. */
 			continue;
@@ -270,12 +270,12 @@ void typeinfo_print_pointstos(const struct type_info* ti)
 		if (pt->pt_name == NULL) {
 			printf("%02d. (%s)\n",
 				tt->tt_fieldall_c + i,
-				tt_by_num(pt->pt_type_dst)->tt_name);
+				tt_by_num(pt->pt_iter.it_type_dst)->tt_name);
 		} else {
 			printf("%02d. %s (%s)\n",
 				tt->tt_fieldall_c + i,
 				pt->pt_name,
-				tt_by_num(pt->pt_type_dst)->tt_name);
+				tt_by_num(pt->pt_iter.it_type_dst)->tt_name);
 		}
 
 	}

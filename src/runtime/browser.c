@@ -30,8 +30,8 @@ static void select_pointsto(struct type_info* cur, int pt_idx)
 	pt = &(tt_by_ti(cur)->tt_pointsto[pt_idx]);
 
 	/* get the range element idx */
-	min_idx = pt->pt_min(&ti_clo(cur));
-	max_idx = pt->pt_max(&ti_clo(cur));
+	min_idx = pt->pt_iter.it_min(&ti_clo(cur));
+	max_idx = pt->pt_iter.it_max(&ti_clo(cur));
 	if (min_idx != max_idx) {
 		pt_elem_idx = get_sel_elem(min_idx, max_idx);
 		if (pt_elem_idx == INT_MIN)

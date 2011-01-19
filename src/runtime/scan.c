@@ -122,16 +122,16 @@ static int scan_pointsto(
 
 	DEBUG_SCAN_ENTER();
 
-	assert (pt->pt_range != NULL);
+	assert (pt->pt_iter.it_range != NULL);
 
-	tt = tt_by_num(pt->pt_type_dst);
+	tt = tt_by_num(pt->pt_iter.it_type_dst);
 
-	min_idx = pt->pt_min(&ti_clo(ti));
+	min_idx = pt->pt_iter.it_min(&ti_clo(ti));
 	if (min_idx == ~0) {
 		DEBUG_SCAN_LEAVE();
 		return SCAN_RET_CONTINUE;
 	}
-	max_idx = pt->pt_max(&ti_clo(ti));
+	max_idx = pt->pt_iter.it_max(&ti_clo(ti));
 	if (min_idx > max_idx) {
 		DEBUG_SCAN_LEAVE();
 		return SCAN_RET_CONTINUE;

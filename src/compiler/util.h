@@ -4,6 +4,15 @@
 #include <string>
 #include <sstream>
 
+#define iter_do(x,y,z)	\
+	do {	\
+		for (	x::const_iterator it = (y).begin(); 	\
+			it != (y).end();			\
+			it++) {					\
+				(*it)->z();			\
+			}					\
+	} while (0)
+
 static inline std::string int_to_string(int i)
 {
 	std::string s;

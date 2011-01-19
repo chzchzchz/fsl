@@ -301,24 +301,12 @@ void Points::loadPointsRangeInstance(
 
 void Points::genCode(void)
 {
-
-	for (	pr_list::const_iterator it = p_elems_all.begin();
-		it != p_elems_all.end();
-		it++)
-	{
-		(*it)->genCode();
-	}
+	iter_do(pr_list, p_elems_all, genCode);
 }
 
 void Points::genProtos(void)
 {
-
-	for (	pr_list::const_iterator it = p_elems_all.begin();
-		it != p_elems_all.end();
-		it++)
-	{
-		(*it)->genProto();
-	}
+	iter_do(pr_list, p_elems_all, genProto);
 }
 
 PointsRange::PointsRange(
@@ -426,10 +414,8 @@ void PointsRange::genTableInstance(TableGen* tg) const
 {
 	StructWriter		sw(tg->getOS());
 
-	sw.write("pt_type_dst", iter->getDstType()->getTypeNum());
-	sw.write("pt_range", iter->getLookupFCallName());
-	sw.write("pt_min", iter->getMinFCallName());
-	sw.write("pt_max", iter->getMaxFCallName());
+	sw.write(".pt_iter = ");
+	iter->genTableInstance(tg);
 
 	if (name != NULL)	sw.writeStr("pt_name", name->getName());
 	else			sw.write("pt_name", "NULL");
