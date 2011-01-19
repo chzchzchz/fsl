@@ -12,7 +12,9 @@ endif
 
 FS_OBJNAMES= fsl.$(FSNAME).table.o fsl.$(FSNAME).types.o
 FS_OBJS := $(FS_OBJNAMES:%=$(OBJDIR)/fs/%)
-TOOL_NAMES= browser modify scantool fragtool relocate defragtool scattertool smushtool
+TOOL_NAMES= 	browser modify scantool fragtool 		\
+		relocate defragtool scattertool smushtool	\
+		fusebrowse
 
 TOOL_BINS := $(TOOL_NAMES:%=$(BINDIR)/%-$(FSNAME))
 RT_OBJNAMES =	runtime.o 	\
@@ -38,6 +40,7 @@ DEFRAGTOOL_OBJNAMES= defragtool.o
 RELOCATE_OBJNAMES= relocate.o
 SMUSHTOOL_OBJNAMES= smushtool.o
 SCATTERTOOL_OBJNAMES= scattertool.o
+FUSEBROWSE_OBJNAMES = fuse-browser.o
 
 SCANTOOL_OBJS:=$(SCANTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(SCAN_OBJS)
 FRAGTOOL_OBJS:=$(FRAGTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(SCAN_OBJS)
@@ -47,6 +50,7 @@ DEFRAGTOOL_OBJS:=$(DEFRAGTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OB
 RELOCATE_OBJS:=$(RELOCATE_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
 SMUSHTOOL_OBJS:=$(SMUSHTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
 SCATTERTOOL_OBJS:=$(SCATTERTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
+FUSEBROWSE_OBJS:=$(FUSEBROWSE_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
 
 SRC_FSL=$(FSSRCDIR)/$(FSNAME).fsl
 SRC_FSL_ALL=$(wildcard ../../fs/$(FSNAME)*.fsl)
@@ -59,6 +63,8 @@ all: $(TOOL_BINS)
 clean:
 	rm -f $(TOOL_BINS) $(FS_OBJS)
 
+$(BINDIR)/fusebrowse-$(FSNAME): $(FS_OBJS) $(FUSEBROWSE_OBJS)
+	gcc $(CFLAGS) -lfuse -o $@ $^
 $(BINDIR)/browser-$(FSNAME): $(FS_OBJS) $(BROWSER_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 $(BINDIR)/scantool-$(FSNAME): $(FS_OBJS) $(SCANTOOL_OBJS)

@@ -65,7 +65,7 @@ RTOBJS= runtime.o	\
 	writepkt.o
 
 TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o \
-		scattertool.o smushtool.o
+		scattertool.o smushtool.o fuse-browser.o
 RTOBJSOUT := $(RTOBJS:%=$(OBJDIR)/runtime/%)
 TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/tool/%)
 LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/compiler/%)
