@@ -64,7 +64,6 @@ private:
 		const Type*			parent_type,
 		const class SymbolTableEnt*	st_ent);
 
-	void genExternsWriteStmts(const WritePkt* wp);
 	void genScalarConstants(void);
 
 	std::ofstream	out;

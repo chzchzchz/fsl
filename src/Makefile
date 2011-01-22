@@ -33,18 +33,21 @@ LANGOBJS=	lex.yy.o		\
 		thunk_func.o		\
 		thunk_params.o			\
 		thunk_fieldoffset_cond.o	\
-		thunk_fieldfunc.o		\
-		preamble.o			\
-		points.o			\
-		asserts.o			\
-		runtime_interface.o		\
-		args.o				\
-		virt.o				\
-		writepkt.o			\
+		thunk_fieldfunc.o	\
+		preamble.o		\
+		points.o		\
+		asserts.o		\
+		runtime_interface.o	\
+		args.o			\
+		virt.o			\
+		writepkt.o		\
 		instance_iter.o		\
 		typeclosure.o		\
 		reloc.o			\
 		varscope.o		\
+		wpkt_inst.o		\
+		wpkt_struct.o		\
+		wpkt_call.o		\
 		memotab.o
 
 RTOBJS= runtime.o	\
@@ -60,7 +63,6 @@ RTOBJS= runtime.o	\
 	usemap.o	\
 	bitmap.o	\
 	scan.o		\
-	relocate.o	\
 	choice.o	\
 	writepkt.o
 
