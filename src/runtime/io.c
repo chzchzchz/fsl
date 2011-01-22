@@ -226,8 +226,15 @@ void fsl_io_do_wpkt(const struct fsl_rtt_wpkt* wpkt, const uint64_t* params)
 	}
 #endif
 
-	for (i = 0; i < wpkt->wpkt_func_c; i++)
-		wpkt->wpkt_funcs[i](params);
+	for (i = 0; i < wpkt->wpkt_func_c; i++) wpkt->wpkt_funcs[i](params);
+
+	for (i = 0; i < wpkt->wpkt_call_c; i++) {
+		const struct fsl_rtt_wpkt2wpkt	*w2w = &wpkt->wpkt_calls[i];
+		uint64_t	new_params[w2w->w2w_wpkt->wpkt_param_c];
+		if (w2w->w2w_cond_f(params) == false) continue;
+		w2w->w2w_params_f(params, new_params);
+		fsl_io_do_wpkt(w2w->w2w_wpkt, new_params);
+	}
 
 	DEBUG_IO_LEAVE();
 }

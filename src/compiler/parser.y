@@ -4,6 +4,8 @@
 #include "type.h"
 #include "func.h"
 #include "writepkt.h"
+#include "wpkt_call.h"
+#include "wpkt_struct.h"
 #include "deftype.h"
 #include "detached_preamble.h"
 
@@ -83,8 +85,8 @@ void yyerror(const char* s)
 %token <token> TOKEN_LOGOR TOKEN_LOGAND
 
 %type <c_or_e> cond_or_expr
-%type <expr_l> expr_list_ent expr_list
-%type <e> expr expr_ident num array expr_id_struct fcall struct_type arith fcall_no_args fcall_args
+%type <expr_l> expr_list_ent expr_list fcall_param_list
+%type <e> expr expr_ident num array expr_id_struct fcall struct_type arith  fcall_args
 %type <id> ident
 %type <g_scope> program program_stmts
 %type <g_stmt> program_stmt
@@ -150,6 +152,13 @@ program_stmts	: program_stmts program_stmt
 				free(cur_fname);
 				cur_fname = strdup(
 					(std::string("../fs/")+
+					s.substr(1,s.size()-2)).c_str());
+				yyin = fopen(cur_fname, "r");
+			}
+			if (yyin == NULL) {
+				free(cur_fname);
+				cur_fname = strdup(
+					(std::string("fs/")+
 					s.substr(1,s.size()-2)).c_str());
 				yyin = fopen(cur_fname, "r");
 			}
@@ -491,18 +500,12 @@ expr_list_ent	: expr_list_ent TOKEN_COMMA expr { $1->add($3); }
 		}
 		;
 
-fcall_no_args	: ident TOKEN_LPAREN TOKEN_RPAREN
-		{
-			$$ = new FCall($1, new ExprList());
-		}
-fcall_args	: ident TOKEN_LPAREN expr_list_ent TOKEN_RPAREN
-		{
-			$$ = new FCall($1, $3);
-		}
+fcall_param_list : TOKEN_LPAREN TOKEN_RPAREN { $$ = new ExprList(); }
+		| TOKEN_LPAREN expr_list_ent TOKEN_RPAREN { $$ = $2; }
+		;
 
-fcall	: fcall_no_args { $$ = $1; }
-	| fcall_args { $$ = $1; }
-	;
+fcall_args	: ident fcall_param_list { $$ = new FCall($1, $2); }
+fcall	: fcall_args { $$ = $1; } ;
 
 expr	:	TOKEN_LPAREN expr TOKEN_RPAREN	{ $$ = new ExprParens($2); }
 	|	num				{ $$ = $1; }
@@ -570,12 +573,12 @@ write_stmt	: ident_struct TOKEN_WRITEARROW expr TOKEN_EXCLAIM
 		{ $$ = new WritePktArray((IdArray*)$1, $3);}
 		| ident TOKEN_WRITEARROW expr TOKEN_EXCLAIM
 		{ $$ = new WritePktId((Id*)$1, $3);}
-		| ident expr_list TOKEN_EXCLAIM
-		{ $$ = new WritePktCall((Id*)$1, $2); }
-		| ident expr_list TOKEN_QUESTION cond_expr TOKEN_EXCLAIM
+		| ident fcall_param_list TOKEN_QUESTION cond_expr TOKEN_EXCLAIM
 		{ $$ = new WritePktCall((Id*)$1, $2); $$->setCond($4); }
-
+		| ident fcall_param_list TOKEN_EXCLAIM
+		{ $$ = new WritePktCall((Id*)$1, $2); }
 		;
+
 write_block	: TOKEN_LBRACE write_stmts TOKEN_RBRACE { $$ = $2; }
 write_blocks	: write_blocks TOKEN_WRITEARROW write_block
 		{

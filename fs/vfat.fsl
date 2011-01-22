@@ -47,37 +47,47 @@ write block_replace(clusternum_t cn, fat_type ft)
 	disk.fats[0].ent32[cn].cluster_num <- FAT_ENT_FREE ? ft == FAT_TYPE_FAT32 !
 }
 
-/* link cluster into given file offset,
-   assumes file offset...
-   XXX REFACTOR THIS WHEN WE HAVE NESTED WRITEPACKETS */
-write block_relink(
-	fat_de de, uint file_clus_off, clusternum_t new_cn, fat_type ft)
-{
 // update de
-	de.first_cluster_lo <- new_cn & 0xffff
-		? file_clus_off == 1 && ft == FAT_TYPE_FAT12 !
-	de.first_cluster_lo <- new_cn & 0xffff
-		? file_clus_off == 1 && ft == FAT_TYPE_FAT16 !
-	de.first_cluster_lo <- new_cn & 0xffff
-		? file_clus_off == 1 && ft == FAT_TYPE_FAT32 !
-
-	de.first_cluster_hi <- 0 ? file_clus_off == 1 && ft == FAT_TYPE_FAT12 !
-	de.first_cluster_hi <- 0 ? file_clus_off == 1 && ft == FAT_TYPE_FAT16 !
-	de.first_cluster_hi <- new_cn >> 16 ? file_clus_off == 1 && ft == FAT_TYPE_FAT32 !
+write block_rel_update_de(fat_de de, clusternum_t new_cn, fat_type ft)
+{
+	de.first_cluster_lo <- new_cn & 0xffff ? ft == FAT_TYPE_FAT12 !
+	de.first_cluster_lo <- new_cn & 0xffff ? ft == FAT_TYPE_FAT16 !
+	de.first_cluster_lo <- new_cn & 0xffff ? ft == FAT_TYPE_FAT32 !
+	de.first_cluster_hi <- 0 ? ft == FAT_TYPE_FAT12 !
+	de.first_cluster_hi <- 0 ? ft == FAT_TYPE_FAT16 !
+	de.first_cluster_hi <- new_cn >> 16 ? ft == FAT_TYPE_FAT32 !
+}
 
 // update fat entry that points to this
-	disk.fats[0].ent12[get_nth_cnum(de, file_clus_off-1)].cluster_num <- new_cn
-		? file_clus_off > 1 && ft == FAT_TYPE_FAT12 !
-	disk.fats[0].ent16[get_nth_cnum(de, file_clus_off-1)].cluster_num <- new_cn
-		? file_clus_off > 1 && ft == FAT_TYPE_FAT16 !
-	disk.fats[0].ent32[get_nth_cnum(de, file_clus_off-1)].cluster_num <- new_cn
-		? file_clus_off > 1 && ft == FAT_TYPE_FAT32 !
+write block_rel_update_fatent(
+	fat_de de, uint file_clus_off, clusternum_t new_cn, fat_type ft)
+{
+	disk.fats[0].ent12[get_nth_cnum(de, file_clus_off-1)].cluster_num <-
+		new_cn ? ft == FAT_TYPE_FAT12 !
+	disk.fats[0].ent16[get_nth_cnum(de, file_clus_off-1)].cluster_num <-
+		new_cn ? ft == FAT_TYPE_FAT16 !
+	disk.fats[0].ent32[get_nth_cnum(de, file_clus_off-1)].cluster_num <-
+		new_cn ? ft == FAT_TYPE_FAT32 !
+}
 
 // point this to next fat entry
+write block_rel_update_fatnext(
+	fat_de de, uint file_clus_off, clusternum_t new_cn, fat_type ft)
+{
 	disk.fats[0].ent12[new_cn].cluster_num <- get_nth_cnum(de, file_clus_off+1)
 		? ft == FAT_TYPE_FAT12 !
 	disk.fats[0].ent16[new_cn].cluster_num <- get_nth_cnum(de, file_clus_off+1)
 		? ft == FAT_TYPE_FAT16 !
 	disk.fats[0].ent32[new_cn].cluster_num <- get_nth_cnum(de, file_clus_off+1)
 		? ft == FAT_TYPE_FAT32 !
+}
+
+
+/* link cluster into given file offset, assumes file offset... */
+write block_relink(
+	fat_de de, uint file_clus_off, clusternum_t new_cn, fat_type ft)
+{
+	block_rel_update_de(de, new_cn, ft) ? file_clus_off == 1 !
+	block_rel_update_fatent(de, file_clus_off, new_cn, ft) ? file_clus_off > 1 !
+	block_rel_update_fatnext(de, file_clus_off, new_cn, ft) !
 }

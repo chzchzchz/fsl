@@ -3,6 +3,7 @@
 #include "type.h"
 #include "reloc.h"
 #include "writepkt.h"
+#include "wpkt_inst.h"
 #include "instance_iter.h"
 #include "struct_writer.h"
 #include "code_builder.h"

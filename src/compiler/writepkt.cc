@@ -8,6 +8,9 @@
 #include "symtab.h"
 #include "struct_writer.h"
 #include "runtime_interface.h"
+#include "wpkt_inst.h"
+#include "wpkt_struct.h"
+#include "wpkt_call.h"
 
 extern CodeBuilder	*code_builder;
 extern symtab_map	symtabs;
@@ -18,41 +21,34 @@ const VarScope* gen_vscope;
 
 using namespace std;
 
-void WritePktId::print(std::ostream& out) const
+std::ostream& WritePktId::print(std::ostream& out) const
 {
 	out << "(writepkt-id ";
 	id->print(out);
 	out << ' ';
 	e->print(out);
 	out << ")";
+	return out;
 }
 
-void WritePktStruct::print(std::ostream& out) const
-{
-	out << "(writepkt-ids ";
-	ids->print(out);
-	out << ' ';
-	e->print(out);
-	out << ")";
-}
-
-void WritePktArray::print(std::ostream& out) const
+std::ostream& WritePktArray::print(std::ostream& out) const
 {
 	out << "(writepkt-array ";
 	a->print(out);
 	out << ' ';
 	e->print(out);
 	out << ")";
+	return out;
 }
 
-void WritePktBlk::print(std::ostream& out) const
+std::ostream& WritePktBlk::print(std::ostream& out) const
 {
 	out << "(writepkt-blk ";
 	for (const_iterator it = begin(); it != end(); it++) {
-		(*it)->print(out);
-		out << "\n";
+		(*it)->print(out) << "\n";
 	}
 	out << ")";
+	return out;
 }
 
 void WritePkt::genCode(void) const
@@ -79,28 +75,32 @@ void WritePkt::genProtos(void) const
 	genStmtFuncProtos();
 }
 
-void WritePktStruct::genCode(void) const
+bool WritePktStmt::genCodeHeader(
+	llvm::Function* f,
+	llvm::BasicBlock* entry_bb,
+	llvm::BasicBlock* bb_doit,
+	llvm::BasicBlock* bb_else) const
 {
 	/* 0. create function / first bb */
-	llvm::Function			*f;
-	llvm::BasicBlock		*entry_bb, *bb_doit;
 	llvm::IRBuilder<>		*builder;
-	Expr				*lhs_loc, *lhs_size;
-	Expr				*write_val;
-	Expr				*write_call;
 	const CondExpr			*ce;
 	EvalCtx				ectx(
 		getParent()->getParent()->getVarScope());
 
-	f = code_builder->getModule()->getFunction(getFuncName());
+	if (f == NULL)
+		f = code_builder->getModule()->getFunction(getFuncName());
 	if (f == NULL) {
 		cerr	<< "Could not find function prototype for "
 			<< getFuncName() << endl;
-		return;
+		return false;
 	}
 
-	entry_bb = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", f);
-	bb_doit = llvm::BasicBlock::Create(llvm::getGlobalContext(), "doit", f);
+	if (entry_bb == NULL)
+		entry_bb = llvm::BasicBlock::Create(
+			llvm::getGlobalContext(), "entry", f);
+	if (bb_doit == NULL)
+		bb_doit = llvm::BasicBlock::Create(
+			llvm::getGlobalContext(), "doit", f);
 
 	builder = code_builder->getBuilder();
 	builder->SetInsertPoint(entry_bb);
@@ -111,68 +111,33 @@ void WritePktStruct::genCode(void) const
 	/* 2. if cond exists, generate conditional code */
 	ce = getCond();
 	if (ce != NULL){
-		llvm::BasicBlock	*bb_else;
 		llvm::Value		*cond_v;
 
 		/* setup allocate BBs */
-		bb_else = llvm::BasicBlock::Create(
-			llvm::getGlobalContext(), "wpkt_else", f);
+		if (bb_else == NULL) {
+			bb_else = llvm::BasicBlock::Create(
+				llvm::getGlobalContext(),
+				"wpkt_else", f);
+			builder->SetInsertPoint(bb_else);
+			builder->CreateRetVoid();
+		}
 		builder->SetInsertPoint(entry_bb);
 
 		/* generate conditional jump */
 		cond_v = cond_codeGen(&ectx, ce);
 		if (cond_v == NULL) {
-			cerr <<  "WpktStruct: could not gen condition" << endl;
-			return;
+			cerr <<  "WpktStmt: could not gen condition" << endl;
+			return false;
 		}
 
 		builder->CreateCondBr(cond_v, bb_doit, bb_else);
 		builder->SetInsertPoint(bb_else);
-		builder->CreateRetVoid();
-	} else {
+	} else
 		builder->CreateBr(bb_doit);
-	}
 
 	/* either cond was true or no cond was present */
 	builder->SetInsertPoint(bb_doit);
-
-	/* 3. generate location for LHS */
-	if (ectx.getType(ids) != NULL)  {
-		cerr << "OOPS! WritePktStruct type ";
-		ids->print(cerr);
-		cerr << endl;
-		assert (0 == 1 && "EXPECTED PRIMITIVE TYPE IN WPKT");
-		return;
-	}
-
-	lhs_loc = ectx.resolveLoc(ids, lhs_size);
-	if (lhs_loc == NULL) {
-		cerr << "WritePkt: Could not resolve ";
-		ids->print(cerr);
-		cerr << endl;
-		gen_vscope->print();
-		assert (0 == 1 && "OOPS");
-		return;
-	}
-
-	write_val = eval(ectx, e);
-
-	/* 4. tell the runtime what we want to write */
-	write_call = rt_glue.writeVal(
-		lhs_loc,	/* location */
-		lhs_size,	/* size of location */
-		write_val	/* value */
-	);
-
-	delete write_val;
-	delete lhs_loc;
-	delete lhs_size;
-
-	/* 5. and do it */
-	write_call->codeGen();
-	delete write_call;
-
-	builder->CreateRetVoid();
+	return true;
 }
 
 void WritePktBlk::setParent(WritePkt* wp, unsigned int n)
@@ -183,7 +148,11 @@ void WritePktBlk::setParent(WritePkt* wp, unsigned int n)
 	k = 0;
 	for (iterator it = begin(); it != end(); it++, k++) {
 		WritePktStmt	*wps = *it;
+		cerr << "ADDING: " << endl;
+		wps->print(cerr);
+		cerr << endl;
 		wps->setParent(this, k);
+		cerr << "FUNC NAME: " << wps->getFuncName() << endl << endl;
 	}
 }
 
@@ -224,54 +193,10 @@ string WritePktStmt::getFuncName(void) const
 		"_s" + int_to_string(stmt_num);
 }
 
-void WritePktStmt::genProto(void) const
+std::ostream& WritePktAnon::print(std::ostream& out) const
 {
-	llvm::Function		*f;
-	llvm::FunctionType	*ft;
-	std::string		f_name;
-
-	f_name = getFuncName();
-
-	/* write pkt function calls take a single argument, a pointer */
-	vector<const llvm::Type*>	args(
-		1,
-		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-
-	ft = llvm::FunctionType::get(
-		llvm::Type::getVoidTy(llvm::getGlobalContext()),
-		args,
-		false);
-
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage,
-		f_name,
-		code_builder->getModule());
-
-	/* should not be redefinitions.. */
-	if (f->getName() != f_name) {
-		cerr << "Expected name " << f_name <<" got " <<
-		f->getNameStr() << endl;
-	}
-
-	assert (f->getName() == f_name);
-	assert (f->arg_size() == 1);
-}
-
-void WritePktAnon::print(std::ostream& out) const
-{
-	out << "(writepkt-anon ";
-	wpb->print(out);
-	out << ")";
-}
-
-void WritePktCall::print(std::ostream& out) const
-{
-	out << "(writepkt-call ";
-	name->print(out);
-	out << " ";
-	exprs->print(out);
-	out << ")";
+	out << "(writepkt-anon " << wpb->print(out) << ")";
+	return out;
 }
 
 WritePkt::WritePkt(Id* in_name, ArgsList* in_args, const wblk_list& wbs)
@@ -321,126 +246,6 @@ WritePktInstance* WritePkt::getInstance(
 	return new WritePktInstance(this, clo_type, protoname, exprs);
 }
 
-WritePktInstance::WritePktInstance(
-	const WritePkt* in_parent,
-	const class Type* in_t,
-	const std::string& in_fname,
-	const ExprList*	in_exprs)
-: parent(in_parent), t(in_t), funcname(in_fname)
-{
-	exprs = in_exprs->copy();
-}
-
-unsigned int WritePktInstance::getParamBufEntries(void) const
-{
-	return getParent()->getArgs()->getNumParamBufEntries();
-}
-
-void WritePktInstance::genCode(const ArgsList* args_in /* bindings */) const
-{
-	/* 0. create function / first bb */
-	llvm::Function			*f;
-	llvm::BasicBlock		*entry_bb;
-	llvm::IRBuilder<>		*builder;
-	llvm::Function::arg_iterator	arg_it;
-	llvm::AllocaInst		*pb_out_ptr;
-	const ArgsList			*args_out;
-	unsigned int			pb_idx, arg_idx;
-	EvalCtx				ectx(symtabs[t->getName()]);
-
-	args_out = getParent()->getArgs();
-	assert (args_out != NULL);
-	assert (exprs->size() == args_out->size());
-
-	cerr << "Generating code for wpktinstance " << funcname << endl;
-
-	f = code_builder->getModule()->getFunction(funcname);
-	assert (f->arg_size() == 3);
-	assert (f != NULL && "Missing wpktinst prototype");
-
-	entry_bb = llvm::BasicBlock::Create(llvm::getGlobalContext(), "entry", f);
-	builder = code_builder->getBuilder();
-	builder->SetInsertPoint(entry_bb);
-
-	/* 1. pull in type scope */
-	code_builder->genThunkHeaderArgs(f, t);
-
-	/* 1.5. pull in input parambuf */
-	arg_it = f->arg_begin();
-	arg_it++;
-	code_builder->loadArgsFromParamBuf(arg_it, args_in);
-
-	/* 2. load up output parambuf */
-	arg_it++;
-	pb_out_ptr = code_builder->createTmpI64Ptr();
-	builder->CreateStore(arg_it, pb_out_ptr);
-
-	/* 3. dump expressions into parambuf */
-	pb_idx = 0;
-	arg_idx = 0;
-	for (	ExprList::const_iterator it = exprs->begin();
-		it != exprs->end();
-		it++, arg_idx++)
-	{
-		const Expr	*cur_expr = *it;
-		Expr		*evaled_cexpr;
-		int		elems_stored;
-
-		evaled_cexpr = eval(ectx, cur_expr);
-		elems_stored = code_builder->storeExprIntoParamBuf(
-			args_out->get(arg_idx), evaled_cexpr,
-			pb_out_ptr, pb_idx);
-		delete evaled_cexpr;
-		if (elems_stored <= 0) {
-			assert (0 == 1 && "FAILED TO STORE");
-			return;
-		}
-		pb_idx += elems_stored;
-	}
-
-	/* 4. return */
-	builder->CreateRetVoid();
-}
-
-void WritePktInstance::genProto(void) const
-{
-	llvm::Function			*f;
-	llvm::FunctionType		*ft;
-	vector<const llvm::Type*>	args;
-
-
-	args.push_back(code_builder->getClosureTyPtr());
-	args.push_back(
-		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-	args.push_back(
-		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-
-	/* writepkt inst function calls take three arguments:
-	 * 	1. source type closure
-	 * 	2. parambuf for input
-	 * 	3. parambuf for output
-	 */
-	ft = llvm::FunctionType::get(
-		llvm::Type::getVoidTy(llvm::getGlobalContext()),
-		args,
-		false);
-
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage,
-		funcname,
-		code_builder->getModule());
-
-	/* should not be redefinitions.. */
-	if (f->getName() != funcname) {
-		cerr << "Expected name " << funcname <<" got " <<
-		f->getNameStr() << endl;
-	}
-
-	assert (f->getName() == funcname);
-	assert (f->arg_size() == 3);
-}
-
 WritePktInstance* WritePkt::getInstance(
 	const Expr* wpkt_call,
 	const std::string& protoname,
@@ -462,21 +267,156 @@ WritePktInstance* WritePkt::getInstance(
 	return wpkt->getInstance(protoname, clo_type, wpkt_fc->getExprs());
 }
 
-void WritePktInstance::genExterns(TableGen* tg) const
+void WritePkt::genFuncTables(TableGen* tg) const
 {
-	string	args_pr[] = {
-		"const struct fsl_rt_closure*", "uint64_t*", "uint64_t*"};
-	tg->printExternFunc(
-		funcname,
-		vector<string>(args_pr,args_pr+3),
-		"void");
+	const_iterator			it;
+	unsigned int			n;
+	ostream&			os(tg->getOS());
+
+	/* generate dump of write stmts in a few tables */
+	for (it = begin(), n = 0; it != end(); it++, n++) {
+		const WritePktBlk	*wblk = *it;
+
+		os << "static wpktf_t wpkt_funcs_" <<
+			getName() << n << "[] = \n";
+		{
+		StructWriter			sw(os);
+		for (	WritePktBlk::const_iterator it2 = wblk->begin();
+			it2 != wblk->end();
+			it2++)
+		{
+			const WritePktStruct	*wstmt;
+			wstmt = dynamic_cast<const WritePktStruct*>((*it2));
+			if (wstmt == NULL) continue;
+			sw.write(wstmt->getFuncName());
+		}
+		}
+		os << ";\n";
+	}
 }
 
-void WritePktInstance::genTableInstance(TableGen* tg) const
+void WritePkt::genCallsTables(TableGen* tg) const
 {
-	StructWriter	sw(tg->getOS());
+	const_iterator			it;
+	unsigned int			n;
+	ostream&			os(tg->getOS());
 
-	sw.write("wpi_params", funcname);
-	sw.write(	"wpi_wpkt",
-			string("&wpkt_")+parent->getName()+int_to_string(0));
+	/* generate dump of write stmts in a few tables */
+	for (it = begin(), n = 0; it != end(); it++, n++) {
+		const WritePktBlk	*wblk = *it;
+
+		os << "static struct fsl_rtt_wpkt2wpkt wpkt_calls_" <<
+			getName() << n << "[] = \n";
+		{
+		StructWriter			sw(os);
+		for (	WritePktBlk::const_iterator it2 = wblk->begin();
+			it2 != wblk->end();
+			it2++)
+		{
+			const WritePktCall	*wc;
+			wc = dynamic_cast<const WritePktCall*>((*it2));
+			if (wc == NULL) continue;
+			sw.beginWrite();
+			wc->genTableInstance(tg);
+		}
+		}
+		os << ";\n";
+	}
+}
+
+void WritePkt::genWpktStructs(TableGen* tg) const
+{
+	const_iterator			it;
+	unsigned int			n, num_blks;
+	ostream&			os(tg->getOS());
+	list<WritePktBlk*>		l(*this);
+
+	l.reverse();
+	/* now generate writepkt structs.. */
+	num_blks = size();
+	for (it = l.begin(), n = num_blks-1; it != l.end(); it++, n--) {
+		const WritePktBlk*	wblk = *it;
+		StructWriter	sw(
+			os,
+			"fsl_rtt_wpkt",
+			string("wpkt_") + getName() + int_to_string(n),
+			false);
+		sw.write("wpkt_param_c",
+			getArgs()->getNumParamBufEntries());
+		sw.write("wpkt_func_c", wblk->getNumFuncs());
+		sw.write("wpkt_funcs",
+			"wpkt_funcs_" + getName() + int_to_string(n));
+		/* XXX need to support embedded blocks.. */
+		sw.write("wpkt_blk_c", 0);
+		sw.write("wpkt_blks", "NULL");
+
+		sw.write("wpkt_call_c", wblk->getNumCalls());
+		sw.write("wpkt_calls",
+			"wpkt_calls_" + getName() + int_to_string(n));
+
+		if (n != 0)
+			sw.write(
+				"wpkt_next",
+				string("wpkt_")+getName()+int_to_string(n-1));
+		else
+			sw.write("wpkt_next", "NULL");
+	}
+}
+
+void WritePkt::genTables(TableGen* tg) const
+{
+	genFuncTables(tg);
+	genCallsTables(tg);
+	genWpktStructs(tg);
+}
+
+void WritePktStmt::printExterns(class TableGen* tg) const
+{
+	assert (0 == 1 && "BASE IMPL");
+}
+
+void WritePkt::genExterns(TableGen* tg) const
+{
+	unsigned int	n;
+	const_iterator	it;
+	ostream&	os(tg->getOS());
+
+	/* extern all stmt functions */
+	for (it = begin(); it != end(); it++) {
+		const WritePktBlk	*wblk = *it;
+
+		for (	WritePktBlk::const_iterator it2 = wblk->begin();
+			it2 != wblk->end();
+			it2++) {
+			(*it2)->printExterns(tg);
+		}
+	}
+
+	/* extern all writepkt structs for outcalls */
+	for (it = begin(), n = 0; it != end(); it++, n++) {
+		os	<< "extern const struct fsl_rtt_wpkt "
+			<< string("wpkt_")+getName()+int_to_string(n)<<";\n";
+	}
+}
+
+unsigned int WritePktBlk::getNumFuncs(void) const
+{
+	unsigned int	ret;
+	ret = 0;
+	for (const_iterator it = begin(); it != end(); it++) {
+		if (dynamic_cast<WritePktStruct*>((*it)) != NULL)
+			ret++;
+	}
+	return ret;
+}
+
+unsigned int WritePktBlk::getNumCalls(void) const
+{
+	unsigned int	ret;
+	ret = 0;
+	for (const_iterator it = begin(); it != end(); it++) {
+		if (dynamic_cast<WritePktCall*>((*it)) != NULL)
+			ret++;
+	}
+	return ret;
 }

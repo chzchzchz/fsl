@@ -130,6 +130,8 @@ typedef bool(*condf_t)(const struct fsl_rt_closure*);
 typedef bool(*condidxf_t)(const struct fsl_rt_closure*, uint64_t);
 typedef bool(*assertf_t)(const struct fsl_rt_closure*);
 typedef void(*wpktf_t)(const uint64_t* params);
+typedef void(*wpkt2wpktf_t)(const uint64_t* params_in, uint64_t* params_out);
+typedef bool(*wpkt2wpktcond_t)(const uint64_t* params_in);
 typedef void(*wpkt_paramf_t)(
 	const struct fsl_rt_closure*,
 	uint64_t* params_in, /* input (e.g. indices, etc) */
@@ -172,7 +174,6 @@ struct fsl_rtt_type
 	unsigned int			tt_field_c;
 	const struct fsl_rtt_field	*tt_field_table;
 };
-
 
 #define FIELD_FL_CONSTSIZE	0x1 /* size same for all elems in arrays */
 #define FIELD_FL_FIXED		0x2
@@ -224,11 +225,23 @@ struct fsl_rtt_assert
 struct fsl_rtt_wpkt
 {
 	unsigned int			wpkt_param_c;	/* number of arg elems */
+
 	unsigned int			wpkt_func_c;
 	wpktf_t				*wpkt_funcs;
+
+	unsigned int			wpkt_call_c;
+	struct fsl_rtt_wpkt2wpkt	*wpkt_calls;	/* calls to wpkts */
+
 	unsigned int			wpkt_blk_c;
-	struct fsl_rtt_wpkt	*wpkt_blks;
-	struct fsl_rtt_wpkt	*wpkt_next;
+	struct fsl_rtt_wpkt		*wpkt_blks;
+	struct fsl_rtt_wpkt		*wpkt_next;
+};
+
+struct fsl_rtt_wpkt2wpkt
+{
+	wpkt2wpktf_t			w2w_params_f;
+	wpkt2wpktcond_t			w2w_cond_f;
+	const struct fsl_rtt_wpkt	*w2w_wpkt;
 };
 
 struct fsl_rtt_wpkt_inst

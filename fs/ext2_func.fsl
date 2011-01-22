@@ -24,8 +24,8 @@ bool is_blk_avail(blknum_t blknum)
 	return false;
 }
 
-int blknum_to_grp(blknum_t blknum) { return (blknum-1) / disk.sb.s_blks_per_grp; }
-int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % disk.sb.s_blks_per_grp; }
+int blknum_to_grp(blknum_t blknum) { return (blknum-1) / blks_per_grp(); }
+int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % blks_per_grp(); }
 
 int get_total_blks() { return disk.sb.s_blocks_c; }
 
@@ -36,6 +36,8 @@ int get_group_count()
 	ext2_sb	sb = disk.sb;
 	return 1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/sb.s_blks_per_grp);
 }
+
+int blks_per_grp() { return disk.sb.s_blks_per_grp; }
 
 ext2_bmp_blk get_group_bmp(int grpnum)
 {
