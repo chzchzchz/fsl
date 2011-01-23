@@ -15,15 +15,15 @@ FS_OBJS := $(FS_OBJNAMES:%=$(OBJDIR)/fs/%)
 TOOL_NAMES= browser modify scantool fragtool relocate defragtool scattertool smushtool
 
 TOOL_BINS := $(TOOL_NAMES:%=$(BINDIR)/%-$(FSNAME))
-RT_OBJNAMES =	runtime.o 	\
-		type_info.o	\
-		virt.o		\
-		io.o		\
-		max.o		\
-		debug.o		\
-		log.o		\
-		hits.o		\
-		cache.o		\
+RT_OBJNAMES =	runtime.o 			\
+		type_info.o			\
+		virt.o				\
+		io.o				\
+		io_pread.o			\
+		max.o				\
+		debug.o				\
+		log.o				\
+		hits.o				\
 		type_print.o
 RT_OBJS := $(RT_OBJNAMES:%=$(OBJDIR)/runtime/%)
 SCAN_OBJS := $(OBJDIR)/runtime/scan.o

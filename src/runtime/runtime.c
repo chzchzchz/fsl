@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <string.h>
 #include "debug.h"
+#include "io.h"
 #include "runtime.h"
 #include "hits.h"
 

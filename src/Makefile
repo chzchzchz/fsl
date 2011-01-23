@@ -54,11 +54,13 @@ RTOBJS= runtime.o	\
 	type_info.o 	\
 	virt.o		\
 	io.o		\
+	rt-pread/io.o		\
+	rt-pread/cache.o	\
+	io_pread.o		\
 	max.o		\
 	debug.o		\
 	hits.o		\
 	log.o		\
-	cache.o		\
 	type_print.o	\
 	usemap.o	\
 	bitmap.o	\
@@ -102,11 +104,15 @@ $(OBJDIR)/tool/%.o: tool/%.c
 	gcc $(RTCFLAGS) -Iruntime/ -c $< -o $@
 
 $(OBJDIR)/runtime/%.o: runtime/%.c
-	gcc $(RTCFLAGS) -c $< -o $@
+	gcc $(RTCFLAGS) -Iruntime/ -c $< -o $@
 
 $(OBJDIR)/compiler/%.o: compiler/%.cc
 	g++ $(COMP_CFLAGS) -c $< $(LLVM_FLAGS) -o $@
 
+$(OBJDIR)/runtime/io_pread.o: 		\
+	$(OBJDIR)/runtime/rt-pread/io.o \
+	$(OBJDIR)/runtime/rt-pread/cache.o
+	ld -r -o $@ $^
 clean: 
 	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll $(OBJDIR)/*.o $(OBJDIR)/fs/* $(OBJDIR)/runtime/*.o $(BINDIR)/* $(OBJDIR)/compiler/*.o
 	cd tool && make clean
