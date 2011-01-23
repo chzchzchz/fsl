@@ -4,12 +4,6 @@
 #include "runtime.h"
 #include "log.h"
 
-#if IO_PREAD
-#error what
-#else
-#include "rt-pread/io_priv.h"
-#endif
-
 #define fsl_get_io()		(fsl_env->fctx_io)
 
 #define IO_CB_CACHE_HIT		0	/* handled by our cache */
@@ -17,6 +11,8 @@
 #define IO_CB_CACHE_ANY		2
 #define IO_CB_WRITE		3
 #define IO_CB_NUM		4
+
+struct fsl_rt_io_priv;
 
 struct fsl_rt_io
 {
@@ -33,7 +29,7 @@ struct fsl_rt_io
 	struct fsl_rt_wlog	io_wlog;
 	uint32_t		io_blksize;
 	ssize_t			io_blk_c;
-	struct fsl_rt_io_priv	io_priv;
+	struct fsl_rt_io_priv	*io_priv;
 };
 
 struct fsl_rt_closure;

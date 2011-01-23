@@ -56,6 +56,8 @@ RTOBJS= runtime.o	\
 	io.o		\
 	rt-pread/io.o		\
 	rt-pread/cache.o	\
+	rt-mmap/io.o		\
+	io_mmap.o		\
 	io_pread.o		\
 	max.o		\
 	debug.o		\
@@ -113,6 +115,10 @@ $(OBJDIR)/runtime/io_pread.o: 		\
 	$(OBJDIR)/runtime/rt-pread/io.o \
 	$(OBJDIR)/runtime/rt-pread/cache.o
 	ld -r -o $@ $^
+
+$(OBJDIR)/runtime/io_mmap.o: $(OBJDIR)/runtime/rt-mmap/io.o
+	cp $^ $@
+
 clean: 
 	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll $(OBJDIR)/*.o $(OBJDIR)/fs/* $(OBJDIR)/runtime/*.o $(BINDIR)/* $(OBJDIR)/compiler/*.o
 	cd tool && make clean

@@ -15,17 +15,22 @@ FS_OBJS := $(FS_OBJNAMES:%=$(OBJDIR)/fs/%)
 TOOL_NAMES= browser modify scantool fragtool relocate defragtool scattertool smushtool
 
 TOOL_BINS := $(TOOL_NAMES:%=$(BINDIR)/%-$(FSNAME))
+TOOL_MMAP_BINS := $(TOOL_NAMES:%=$(BINDIR)/mmap/%-$(FSNAME))
+
 RT_OBJNAMES =	runtime.o 			\
 		type_info.o			\
 		virt.o				\
 		io.o				\
-		io_pread.o			\
 		max.o				\
 		debug.o				\
 		log.o				\
 		hits.o				\
 		type_print.o
-RT_OBJS := $(RT_OBJNAMES:%=$(OBJDIR)/runtime/%)
+
+RT_PREAD_OBJNAMES = $(RT_OBJNAMES) io_pread.o
+RT_PREAD_OBJS := $(RT_PREAD_OBJNAMES:%=$(OBJDIR)/runtime/%)
+RT_MMAP_OBJNAMES = $(RT_OBJNAMES) io_mmap.o
+RT_MMAP_OBJS := $(RT_MMAP_OBJNAMES:%=$(OBJDIR)/runtime/%)
 SCAN_OBJS := $(OBJDIR)/runtime/scan.o
 WRITE_OBJNAMES = scan.o choice.o writepkt.o bitmap.o
 WRITE_OBJS := $(WRITE_OBJNAMES:%=$(OBJDIR)/runtime/%)
@@ -39,14 +44,14 @@ RELOCATE_OBJNAMES= relocate.o
 SMUSHTOOL_OBJNAMES= smushtool.o
 SCATTERTOOL_OBJNAMES= scattertool.o
 
-SCANTOOL_OBJS:=$(SCANTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(SCAN_OBJS)
-FRAGTOOL_OBJS:=$(FRAGTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(SCAN_OBJS)
-BROWSER_OBJS:=$(BROWSER_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
-MODIFY_OBJS:=$(MODIFY_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
-DEFRAGTOOL_OBJS:=$(DEFRAGTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
-RELOCATE_OBJS:=$(RELOCATE_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
-SMUSHTOOL_OBJS:=$(SMUSHTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
-SCATTERTOOL_OBJS:=$(SCATTERTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(RT_OBJS) $(WRITE_OBJS)
+SCANTOOL_OBJS:=$(SCANTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(SCAN_OBJS)
+FRAGTOOL_OBJS:=$(FRAGTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(SCAN_OBJS)
+BROWSER_OBJS:=$(BROWSER_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
+MODIFY_OBJS:=$(MODIFY_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
+DEFRAGTOOL_OBJS:=$(DEFRAGTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
+RELOCATE_OBJS:=$(RELOCATE_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
+SMUSHTOOL_OBJS:=$(SMUSHTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
+SCATTERTOOL_OBJS:=$(SCATTERTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
 
 SRC_FSL=$(FSSRCDIR)/$(FSNAME).fsl
 SRC_FSL_ALL=$(wildcard ../../fs/$(FSNAME)*.fsl)
@@ -54,28 +59,45 @@ FS_CAPITAL=$(shell echo $(FSNAME) | sed "s/[a-z]/\U&/g")
 FS_DEFINE=-DFS_$(FS_CAPITAL)
 CFLAGS+= $(FS_DEFINE)
 
-all: $(TOOL_BINS)
+all: $(TOOL_BINS) $(TOOL_MMAP_BINS)
 
 clean:
-	rm -f $(TOOL_BINS) $(FS_OBJS)
+	rm -f $(TOOL_BINS) $(TOOL_MMAP_BINS) $(FS_OBJS)
 
-$(BINDIR)/browser-$(FSNAME): $(FS_OBJS) $(BROWSER_OBJS)
+$(BINDIR)/browser-$(FSNAME): $(FS_OBJS) $(BROWSER_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-$(BINDIR)/scantool-$(FSNAME): $(FS_OBJS) $(SCANTOOL_OBJS)
+$(BINDIR)/scantool-$(FSNAME): $(FS_OBJS) $(SCANTOOL_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-$(BINDIR)/modify-$(FSNAME): $(FS_OBJS) $(MODIFY_OBJS)
+$(BINDIR)/modify-$(FSNAME): $(FS_OBJS) $(MODIFY_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-$(BINDIR)/fragtool-$(FSNAME): $(FS_OBJS) $(FRAGTOOL_OBJS)
+$(BINDIR)/fragtool-$(FSNAME): $(FS_OBJS) $(FRAGTOOL_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-$(BINDIR)/relocate-$(FSNAME): $(FS_OBJS) $(RELOCATE_OBJS)
+$(BINDIR)/relocate-$(FSNAME): $(FS_OBJS) $(RELOCATE_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-$(BINDIR)/defragtool-$(FSNAME): $(FS_OBJS) $(DEFRAGTOOL_OBJS)
+$(BINDIR)/defragtool-$(FSNAME): $(FS_OBJS) $(DEFRAGTOOL_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-$(BINDIR)/scattertool-$(FSNAME): $(FS_OBJS) $(SCATTERTOOL_OBJS)
+$(BINDIR)/scattertool-$(FSNAME): $(FS_OBJS) $(SCATTERTOOL_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
-$(BINDIR)/smushtool-$(FSNAME): $(FS_OBJS) $(SMUSHTOOL_OBJS)
+$(BINDIR)/smushtool-$(FSNAME): $(FS_OBJS) $(SMUSHTOOL_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 
+
+$(BINDIR)/mmap/browser-$(FSNAME): $(FS_OBJS) $(BROWSER_OBJS) $(RT_MMAP_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+$(BINDIR)/mmap/scantool-$(FSNAME): $(FS_OBJS) $(SCANTOOL_OBJS) $(RT_MMAP_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+$(BINDIR)/mmap/modify-$(FSNAME): $(FS_OBJS) $(MODIFY_OBJS) $(RT_MMAP_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+$(BINDIR)/mmap/fragtool-$(FSNAME): $(FS_OBJS) $(FRAGTOOL_OBJS) $(RT_MMAP_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+$(BINDIR)/mmap/relocate-$(FSNAME): $(FS_OBJS) $(RELOCATE_OBJS) $(RT_MMAP_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+$(BINDIR)/mmap/defragtool-$(FSNAME): $(FS_OBJS) $(DEFRAGTOOL_OBJS) $(RT_MMAP_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+$(BINDIR)/mmap/scattertool-$(FSNAME): $(FS_OBJS) $(SCATTERTOOL_OBJS) $(RT_MMAP_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+$(BINDIR)/mmap/smushtool-$(FSNAME): $(FS_OBJS) $(SMUSHTOOL_OBJS) $(RT_MMAP_OBJS)
+	gcc $(CFLAGS) -o $@ $^
 
 $(OBJDIR)/fs/fsl.$(FSNAME).table.o: $(OBJDIR)/fs/fsl.$(FSNAME).table.c
 	gcc $(CFLAGS) -I.. -c $^ -o $@

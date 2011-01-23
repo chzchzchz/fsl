@@ -44,6 +44,9 @@ code-clean:
 tests: code tools
 	tests/do_all_tests.sh
 
+tests-mmap:
+	TOOL_RT=mmap tests/do_all_tests.sh
+
 tests-linux-4gb: tests-linux-4gb-vfat tests-linux-4gb-ext2 tests-linux-4gb-reiserfs
 tests-linux-4gb-vfat:
 	FILESYSTEM=vfat USE_STATS="YES" tests/linux-4gb.sh
@@ -51,6 +54,18 @@ tests-linux-4gb-ext2:
 	FILESYSTEM=ext2 USE_STATS="YES" tests/linux-4gb.sh
 tests-linux-4gb-reiserfs:
 	FILESYSTEM=reiserfs USE_STATS="YES" tests/linux-4gb.sh
+
+tests-mmap-extra: 	tests-mmap-extra-ext2 tests-mmap-extra-vfat \
+			tests-mmap-extra-reiserfs tests-mmap-extra-iso9660
+
+tests-mmap-extra-reiserfs:
+	TOOL_RT=mmap TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS="reiserfs"  tests/do_all_tests.sh
+tests-mmap-extra-ext2:
+	TOOL_RT=mmap TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS="ext2"  tests/do_all_tests.sh
+tests-mmap-extra-vfat:
+	TOOL_RT=mmap TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS="vfat" tests/do_all_tests.sh
+tests-mmap-extra-iso9660:
+	TOOL_RT=mmap TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS="iso9660" tests/do_all_tests.sh
 
 tests-extra: tests-extra-ext2 tests-extra-vfat tests-extra-reiserfs tests-extra-iso9660
 tests-extra-reiserfs:
