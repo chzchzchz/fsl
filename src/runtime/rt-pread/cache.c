@@ -9,6 +9,8 @@
 #include "debug.h"
 #include "runtime.h"
 #include "cache.h"
+#include "io.h"
+#include "io_priv.h"
 
 static struct fsl_io_cache_ent* fsl_io_cache_evict(
 	struct fsl_io_cache* ioc, uint64_t cache_line);
@@ -61,14 +63,15 @@ static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line
 	struct fsl_io_cache_ent		*ce;
 	ssize_t				br;
 	off_t				file_offset;
+	struct fsl_rt_io_priv		*iop = io->io_priv;
 
 	/* get fresh line */
-	ce = fsl_io_cache_evict(&io->io_cache, cache_line);
+	ce = fsl_io_cache_evict(&iop->iop_cache, cache_line);
 	ce->ce_addr = cache_line;
 	assert (ce != NULL);
 
 	file_offset = cache_line * FSL_IO_CACHE_BYTES;
-	br = pread64(io->io_fd, ce->ce_data, FSL_IO_CACHE_BYTES, file_offset);
+	br = pread64(iop->iop_fd, ce->ce_data, FSL_IO_CACHE_BYTES, file_offset);
 	if (br != FSL_IO_CACHE_BYTES) {
 		if (fsl_env->fctx_except.ex_in_unsafe_op) {
 			fsl_env->fctx_except.ex_err_unsafe_op = 1;
@@ -136,7 +139,7 @@ const uint8_t *fsl_io_cache_hitmiss(struct fsl_rt_io* io, uint64_t bit_off)
 	uint64_t	line_begin;
 
 	line_begin = bit_off / FSL_IO_CACHE_BITS;
-	cache_line = fsl_io_cache_find(&io->io_cache, line_begin);
+	cache_line = fsl_io_cache_find(&io->io_priv->iop_cache, line_begin);
 	if (cache_line == NULL) {
 		DEBUG_IO_WRITE("Missed line: %"PRIu64, line_begin);
 		FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_IOCACHE_MISS);
@@ -209,7 +212,7 @@ void fsl_io_cache_drop_bytes(
 	uint64_t		first_line, last_line;
 	uint64_t		cur_line;
 
-	ioc = &io->io_cache;
+	ioc = &io->io_priv->iop_cache;
 	first_line = byte_to_line(byte_off);
 	last_line = byte_to_line(byte_off+num_bytes+FSL_IO_CACHE_BYTES-1);
 

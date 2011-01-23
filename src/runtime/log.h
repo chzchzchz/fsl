@@ -2,8 +2,29 @@
 #define FSL_LOG_H
 
 #define IO_IDX_STOPPED		(-2)
+#define IO_MAX_ACCESS		64
 
-#include "io.h"
+#include "runtime.h"
+
+struct fsl_rt_rlog
+{
+	byteoff_t		log_accessed[IO_MAX_ACCESS];
+	int			log_accessed_idx;
+	fsl_io_callback		log_next_cb;
+};
+
+struct fsl_rt_wlog_ent
+{
+	uint64_t	we_bit_addr;
+	uint64_t	we_val;
+	uint8_t		we_bits;
+};
+
+struct fsl_rt_wlog
+{
+	struct fsl_rt_wlog_ent	wl_write[IO_MAX_ACCESS];
+	int			wl_idx;
+};
 
 bool fsl_rlog_contains(struct fsl_rt_io* io, diskoff_t addr);
 void fsl_rlog_init(struct fsl_rt_io* io);

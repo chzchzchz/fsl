@@ -9,6 +9,9 @@
 
 /* XXX TODO Needs local context for multi-threading.. */
 
+struct fsl_rt_io;
+typedef void (*fsl_io_callback)(struct fsl_rt_io*, uint64_t /* bit off */);
+
 #define tt_by_num(x)	(&fsl_rt_table[x])
 
 #define FSL_ENV_VAR_STATFILE	"FSL_ENV_STATFILE"
@@ -59,7 +62,6 @@ struct fsl_rt_stat
 	uint64_t	s_counters[FSL_NUM_STATS];
 };
 
-#include "io.h"
 struct fsl_rt_except
 {
 	bool			ex_in_unsafe_op;

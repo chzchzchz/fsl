@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "runtime.h"
 #include "log.h"
+#include "io.h"
 
 typedef uint64_t logaddr_t;
 #define addr2log(x)	((x) >> 6)
