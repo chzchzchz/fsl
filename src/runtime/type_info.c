@@ -591,6 +591,7 @@ struct type_info* typeinfo_lookup_follow(
 
 	tt = tt_by_ti(ti_parent);
 	tf = fsl_lookup_field(tt, fieldname);
+	if (tf == NULL) return NULL;
 	if (tf->tf_typenum == TYPENUM_INVALID) return NULL;
 	return typeinfo_follow_field(ti_parent, tf);
 }
@@ -626,4 +627,34 @@ typesize_t ti_field_size(
 	DEBUG_TYPEINFO_WRITE("Field size = %"PRIu64, field_sz);
 
 	return field_sz;
+}
+
+typesize_t ti_field_off(
+	const struct type_info* ti, const struct fsl_rtt_field* tf,
+	unsigned int idx)
+{
+	typenum_t	field_typenum;
+	typesize_t	field_sz;
+	TI_INTO_CLO(ti);
+
+	/* compute field width */
+	DEBUG_TYPEINFO_WRITE("Computing width.");
+	field_typenum = tf->tf_typenum;
+	if (idx > 0 &&
+	    field_typenum != TYPENUM_INVALID &&
+	    ((tf->tf_flags & FIELD_FL_CONSTSIZE) == 0 &&
+	     (tf->tf_flags & FIELD_FL_FIXED) == 0))
+	{
+		/* non-constant width.. */
+		field_sz = __computeArrayBits(
+			ti_typenum(ti), clo, tf->tf_fieldnum, idx);
+	} else {
+		/* constant width */
+		field_sz = tf->tf_typesize(clo);
+		field_sz *= idx;
+	}
+
+	DEBUG_TYPEINFO_WRITE("Field size = %"PRIu64, field_sz);
+
+	return field_sz+tf->tf_fieldbitoff(clo);
 }

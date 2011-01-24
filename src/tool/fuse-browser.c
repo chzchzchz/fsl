@@ -7,13 +7,14 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #include "runtime.h"
 #include "type_info.h"
 #include "fuse_node.h"
+#include "io.h"
 
 FILE			*out_file;
-static const char	*fslfuse_str = "Hello World!\n";
 static uid_t		our_uid;
 static gid_t		our_gid;
 time_t			open_time;
@@ -62,6 +63,9 @@ static int fslfuse_getattr_ti(const char *path, struct stat *stbuf)
 	int			ret;
 	struct fsl_fuse_node	*fn;
 
+	fprintf(out_file, "GETATTR GUY %s\n", path);
+	fflush(out_file);
+
 	fn = fslnode_by_path(path);
 	if (fn == NULL) return -ENOENT;
 
@@ -72,9 +76,7 @@ static int fslfuse_getattr_ti(const char *path, struct stat *stbuf)
 	} else if (fn_is_prim(fn)) {
 		ret = fslfuse_getattr_prim(fn, stbuf);
 	} else if (fn_is_array(fn)) {
-		fprintf(out_file, "ARRAY! %s\n", path);
 		ret = fslfuse_getattr_array(fn, stbuf);
-		fprintf(out_file, "ARRAY DONE! %s\n", path);
 	} else {
 		assert (0 == 1);
 	}
@@ -101,17 +103,34 @@ static int fslfuse_getattr(const char *path, struct stat *stbuf)
 }
 
 static int fslfuse_fgetattr(
-	const char * path, struct stat * s, struct fuse_file_info * fi)
+	const char * path, struct stat * stbuf, struct fuse_file_info * fi)
 {
-	fprintf(out_file, "FFFFFGETATTR %s %d\n", path, our_uid);
-	fflush(out_file);
+	struct fsl_fuse_node	*fn;
+
+	fn = get_fnode(fi);
+	if (fn == NULL) return -ENOENT;
+
+	stbuf->st_uid = our_uid;
+	stbuf->st_gid = our_gid;
+	if (fn_is_type(fn)) {
+		fslfuse_getattr_type(fn->fn_ti, stbuf);
+	} else if (fn_is_prim(fn)) {
+		fslfuse_getattr_prim(fn, stbuf);
+	} else if (fn_is_array(fn)) {
+		fslfuse_getattr_array(fn, stbuf);
+	} else {
+		assert (0 == 1);
+	}
+
+	stbuf->st_atime = open_time;
+	stbuf->st_mtime = open_time;
+	stbuf->st_ctime = open_time;
 
 	return 0;
 }
 
 static int read_ti_dir(
-	void *buf, fuse_fill_dir_t filler, off_t offset,
-	struct type_info* ti)
+	void *buf, fuse_fill_dir_t filler, struct type_info* ti)
 {
 	const struct fsl_rtt_type*	tt;
 	unsigned int			i;
@@ -137,6 +156,29 @@ static int read_ti_dir(
 	return 0;
 }
 
+static int read_array_dir(
+	void *buf, fuse_fill_dir_t filler, struct fsl_fuse_node* fn)
+{
+	unsigned int			i;
+	uint64_t			elem_c;
+
+	filler(buf, ".", NULL, 0);
+	filler(buf, "..", NULL, 0);
+
+	elem_c = fn->fn_array_field->tf_elemcount(&ti_clo(fn->fn_array_parent));
+	for (i = 0; i < elem_c; i++) {
+		char				name[16];
+		sprintf(name, "%d", i);
+		if (filler(buf, name, NULL, 0) == 1) {
+			fprintf(out_file, "ARRRRRRGH FULL BUFF\n");
+			fflush(out_file);
+		}
+	}
+
+	return 0;
+}
+
+
 static int fslfuse_readdir(
 	const char *path, void *buf, fuse_fill_dir_t filler,
 	off_t offset, struct fuse_file_info *fi)
@@ -147,10 +189,12 @@ static int fslfuse_readdir(
 	fflush(out_file);
 
 	fn = get_fnode(fi);
-	if (fn_is_type(fn))
-		return read_ti_dir(buf, filler, offset, get_fnode(fi)->fn_ti);
-	else if (fn_is_array(fn)) {
+	if (fn_is_type(fn)) {
+		return read_ti_dir(buf, filler, get_fnode(fi)->fn_ti);
+	} else if (fn_is_array(fn)) {
+		return read_array_dir(buf, filler, get_fnode(fi));
 	} else if (fn_is_prim(fn)) {
+		return -ENOENT;
 	}
 
 	fprintf(out_file, "READDIR %s OK.\n", path);
@@ -183,6 +227,10 @@ static int fslfuse_opendir(const char *path, struct fuse_file_info *fi)
 
 	fn = fslnode_by_path(path);
 	if (fn == NULL) return -ENOENT;
+	if (fn_is_prim(fn)) {
+		fslnode_free(fn);
+		return -ENOENT;
+	}
 
 	set_fnode(fi, fn);
 
@@ -191,10 +239,18 @@ static int fslfuse_opendir(const char *path, struct fuse_file_info *fi)
 
 static int fslfuse_open(const char *path, struct fuse_file_info *fi)
 {
-	fprintf(out_file, "O %s\n", path);
-	fflush(out_file);
+	struct fsl_fuse_node	*fn;
 
 	if ((fi->flags & 3) != O_RDONLY) return -EACCES;
+	fn = fslnode_by_path(path);
+	if (fn == NULL) return -ENOENT;
+
+	if (!fn_is_prim(fn)) {
+		fslnode_free(fn);
+		return -ENOENT;
+	}
+
+	set_fnode(fi, fn);
 
 	return 0;
 }
@@ -202,18 +258,33 @@ static int fslfuse_open(const char *path, struct fuse_file_info *fi)
 static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi)
 {
-	size_t len;
-	(void) fi;
+	struct fsl_fuse_node	*fn;
+	uint64_t		num_elems;
+	size_t 			len;
+	int			i;
 
-	fprintf(out_file, "AAAAA %s\n", path);
-	fflush(out_file);
-	return -ENOENT;
+	fn = get_fnode(fi);
+	if (fn == NULL) return -ENOENT;
+	if (!fn_is_prim(fn)) return -ENOENT;
 
-	len = strlen(fslfuse_str);
+	len = ti_field_size(fn->fn_parent, fn->fn_field, &num_elems)/8;
+
 	if (offset < len) {
-		if (offset + size > len)
-			size = len - offset;
-		memcpy(buf, fslfuse_str + offset, size);
+		diskoff_t	clo_off;
+
+		if (offset + size > len) size = len - offset;
+
+		clo_off = ti_offset(fn->fn_prim_ti);
+
+		/* XXX SLOW */
+		for (i = 0; i < size; i++) {
+			char	c;
+			c = __getLocal(
+				&ti_clo(fn->fn_prim_ti),
+				clo_off+(offset+i)*8,
+				8);
+			buf[i] = c;
+		}
 	} else
 		size = 0;
 
@@ -222,8 +293,6 @@ static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
 
 static int fslfuse_access(const char* path, int i)
 {
-	fprintf(out_file, "CCCCCC %s\n", path);
-	fflush(out_file);
 	return F_OK|R_OK|W_OK|X_OK;
 }
 

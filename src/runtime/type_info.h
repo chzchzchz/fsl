@@ -24,10 +24,10 @@ struct type_info
 	uint64_t			ti_print_idxval;
 
 	/* how we descended from parent */
-	const struct fsl_rtt_field		*ti_field;
-	const struct fsl_rtt_virt		*ti_virt;
+	const struct fsl_rtt_field	*ti_field;
+	const struct fsl_rtt_virt	*ti_virt;
 	const struct fsl_rtt_pointsto	*ti_points;
-	const struct fsl_rt_iter		*ti_iter;
+	const struct fsl_rt_iter	*ti_iter;
 
 	unsigned int		ti_depth;
 };
@@ -73,6 +73,9 @@ typesize_t ti_size(const struct type_info* ti);
 typesize_t ti_field_size(
 	const struct type_info* ti_parent, const struct fsl_rtt_field* tf,
 	uint64_t* num_elems);
+typesize_t ti_field_off(
+	const struct type_info* ti, const struct fsl_rtt_field* tf,
+	unsigned int idx);
 poff_t ti_phys_offset(const struct type_info* ti);
 void typeinfo_ref(struct type_info* ti);
 #define ti_params(x)	td_params(ti_to_td(x))
