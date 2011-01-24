@@ -71,7 +71,7 @@ RTOBJS= runtime.o	\
 	writepkt.o
 
 TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o \
-		scattertool.o smushtool.o fuse-browser.o
+		scattertool.o smushtool.o fuse-browser.o fuse_node.o
 RTOBJSOUT := $(RTOBJS:%=$(OBJDIR)/runtime/%)
 TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/tool/%)
 LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/compiler/%)
@@ -120,5 +120,5 @@ $(OBJDIR)/runtime/io_mmap.o: $(OBJDIR)/runtime/rt-mmap/io.o
 	cp $^ $@
 
 clean: 
-	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll $(OBJDIR)/*.o $(OBJDIR)/fs/* $(OBJDIR)/runtime/*.o $(BINDIR)/* $(OBJDIR)/compiler/*.o
+	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll $(OBJDIR)/*.o $(OBJDIR)/fs/* $(OBJDIR)/runtime/*.o $(BINDIR)/*-* $(BINDIR)/lang $(BINDIR)/mmap/* $(OBJDIR)/compiler/*.o
 	cd tool && make clean

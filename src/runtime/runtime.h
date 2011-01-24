@@ -303,6 +303,8 @@ uint64_t fsl_fail(void);
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
+const struct fsl_rtt_field* fsl_lookup_field(
+	const struct fsl_rtt_type*, const char* fname);
 
 /* implemented by tool: */
 int tool_entry(int argc, char* argv[]);

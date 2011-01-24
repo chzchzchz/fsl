@@ -196,6 +196,19 @@ static void fsl_load_memo(void)
 	}
 }
 
+/* XXX: SLOW */
+const struct fsl_rtt_field* fsl_lookup_field(
+	const struct fsl_rtt_type* tt, const char* fname)
+{
+	unsigned int	i;
+	for (i = 0; i < tt->tt_field_c; i++) {
+		const struct fsl_rtt_field*	tf;
+		tf = &tt->tt_field_table[i];
+		if (strcmp(fname, tf->tf_fieldname) == 0) return tf;
+	}
+	return NULL;
+}
+
 /* main entry point for tool executable --
  * set some stuff up and then run tool */
 int main(int argc, char* argv[])

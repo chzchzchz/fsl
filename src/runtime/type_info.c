@@ -8,6 +8,7 @@
 
 #include "debug.h"
 #include "type_info.h"
+#include "io.h"
 
 static bool ti_has_loop(const struct type_info* chain);
 static struct type_info* typeinfo_alloc_generic(
@@ -15,7 +16,6 @@ static struct type_info* typeinfo_alloc_generic(
 	struct type_info	*ti_prev);
 static bool typeinfo_verify_asserts(const struct type_info *ti);
 static bool typeinfo_verify(const struct type_info* ti);
-static void typeinfo_ref(struct type_info* ti);
 static unsigned int typeinfo_unref(struct type_info* ti);
 
 void typeinfo_free(struct type_info* ti)
@@ -433,6 +433,21 @@ typesize_t ti_size(const struct type_info* ti)
 	return ret;
 }
 
+struct type_info* typeinfo_follow_field(
+	struct type_info* tip,
+	const struct fsl_rtt_field* tif)
+{
+	diskoff_t	off;
+
+	if (tif->tf_cond != NULL)
+		if (tif->tf_cond(&ti_clo(tip)) == false)
+			return NULL;
+
+	off = tif->tf_fieldbitoff(&ti_clo(tip));
+	return typeinfo_follow_field_off(tip, tif, off);
+}
+
+
 struct type_info* typeinfo_follow_field_off_idx(
 	struct type_info*		ti_parent,
 	const struct fsl_rtt_field*	ti_field,
@@ -507,7 +522,7 @@ struct type_info* typeinfo_follow_iter(
 	return ret;
 }
 
-static void typeinfo_ref(struct type_info* ti)
+void typeinfo_ref(struct type_info* ti)
 {
 	ti->ti_ref_c++;
 }
@@ -564,4 +579,51 @@ struct type_info* typeinfo_alloc_origin(void)
 {
 	struct type_desc	init_td = td_origin();
 	return typeinfo_alloc_by_field(&init_td, NULL, NULL);
+}
+
+/* XXX: This is *SLOW* need a faster lookup mechanism in the future */
+struct type_info* typeinfo_lookup_follow(
+	struct type_info*	ti_parent,
+	const char*		fieldname)
+{
+	const struct fsl_rtt_type	*tt;
+	const struct fsl_rtt_field*	tf;
+
+	tt = tt_by_ti(ti_parent);
+	tf = fsl_lookup_field(tt, fieldname);
+	if (tf->tf_typenum == TYPENUM_INVALID) return NULL;
+	return typeinfo_follow_field(ti_parent, tf);
+}
+
+typesize_t ti_field_size(
+	const struct type_info* ti, const struct fsl_rtt_field* tf,
+	uint64_t* num_elems)
+{
+	typenum_t	field_typenum;
+	typesize_t	field_sz;
+	TI_INTO_CLO(ti);
+
+	DEBUG_TYPEINFO_WRITE("Computing elems.");
+	*num_elems = tf->tf_elemcount(clo);
+
+	/* compute field width */
+	DEBUG_TYPEINFO_WRITE("Computing width.");
+	field_typenum = tf->tf_typenum;
+	if (*num_elems > 1 &&
+	    field_typenum != TYPENUM_INVALID &&
+	    ((tf->tf_flags & FIELD_FL_CONSTSIZE) == 0 &&
+	     (tf->tf_flags & FIELD_FL_FIXED) == 0))
+	{
+		/* non-constant width.. */
+		field_sz = __computeArrayBits(
+			ti_typenum(ti), clo, tf->tf_fieldnum, *num_elems);
+	} else {
+		/* constant width */
+		field_sz = tf->tf_typesize(clo);
+		field_sz *= *num_elems;
+	}
+
+	DEBUG_TYPEINFO_WRITE("Field size = %"PRIu64, field_sz);
+
+	return field_sz;
 }

@@ -6,6 +6,8 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "io.h"
+#include "runtime.h"
 #include "debug.h"
 #include "type_info.h"
 
@@ -44,27 +46,14 @@ void typeinfo_print_field_value(
 
 	/* print field name */
 	num_elems = field->tf_elemcount(clo);
+
+
+	field_sz = ti_field_size(ti, field, &num_elems);
 	printf("%s", field->tf_fieldname);
 	if (num_elems > 1) {
 		printf("[%"PRIu64"]", num_elems);
 	}
 
-	/* compute field width */
-	DEBUG_TYPEINFO_WRITE("Computing width.");
-	field_typenum = field->tf_typenum;
-	if (num_elems > 1 &&
-	    field_typenum != TYPENUM_INVALID &&
-	    ((field->tf_flags & FIELD_FL_CONSTSIZE) == 0 &&
-	     (field->tf_flags & FIELD_FL_FIXED) == 0))
-	{
-		/* non-constant width.. */
-		field_sz = __computeArrayBits(
-			ti_typenum(ti), clo, field->tf_fieldnum, num_elems);
-	} else {
-		/* constant width */
-		field_sz = field->tf_typesize(clo);
-		field_sz *= num_elems;
-	}
 	DEBUG_TYPEINFO_WRITE("Width = %d", field_sz);
 
 	field_off = field->tf_fieldbitoff(clo);
