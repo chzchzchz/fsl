@@ -110,8 +110,7 @@ static char* get_path_child(const char* path)
 	return strndup(path+last_sep, end_idx - last_sep);
 }
 
-bool fslnode_by_primpath(
-	const char* path, struct fsl_fuse_node* fn)
+bool fslnode_by_primpath(const char* path, struct fsl_fuse_node* fn)
 {
 
 	struct type_info	*ti_parent;
@@ -124,10 +123,44 @@ bool fslnode_by_primpath(
 	child_path = get_path_child(path);
 	fn->fn_field = fsl_lookup_field(tt_by_ti(ti_parent), child_path);
 	free(child_path);
+	if (fn->fn_field == NULL) {
+		fn->fn_parent = NULL;
+		typeinfo_free(ti_parent);
+		return false;
+	}
 	fn->fn_prim_ti = typeinfo_follow_field(ti_parent, fn->fn_field);
 
 	/* XXX: handle arrays */
 	fn->fn_idx = 0;
+
+	return true;
+}
+
+bool fslnode_by_arraypath(const char* path, struct fsl_fuse_node* fn)
+{
+	const struct fsl_rtt_field	*tf;
+	struct type_info		*ti_parent;
+	char				*child_path;
+
+	ti_parent = ti_from_parentpath(path);
+	if (ti_parent == NULL) return false;
+
+	child_path = get_path_child(path);
+	tf = fsl_lookup_field(tt_by_ti(ti_parent), child_path);
+	free(child_path);
+	if (tf == NULL || tf->tf_typenum == TYPENUM_INVALID) {
+		typeinfo_free(ti_parent);
+		return false;
+	}
+	if (tf->tf_cond != NULL) {
+		if (tf->tf_cond(&ti_clo(ti_parent)) == false) {
+			typeinfo_free(ti_parent);
+			return false;
+		}
+	}
+
+	fn->fn_array_field = tf;
+	fn->fn_array_parent = ti_parent;
 
 	return true;
 }
@@ -137,48 +170,6 @@ static bool is_int(const char* s)
 	for(;*s;s++) { if (*s < '0' || *s > '9') return false; }
 	return true;
 }
-
-static bool fslnode_by_arraypath(const char* path, struct fsl_fuse_node* fn)
-{
-
-	struct type_info	*ti_array_base;
-	char			*child_path;
-	int			idx, max_idx;
-	bool			succ;
-
-	succ = false;
-	ti_array_base = ti_from_parentpath(path);
-	if (ti_array_base == NULL) return false;
-	if (ti_array_base->ti_prev == NULL) goto done;
-
-	child_path = get_path_child(path);
-	if (!is_int(child_path)) {
-		free(child_path);
-		goto done;
-	}
-	idx = atoi(child_path);
-	max_idx = ti_array_base->ti_field->tf_elemcount(
-		&ti_clo(ti_array_base->ti_prev));
-	free(child_path);
-
-	/* exceeded number of elements */
-	if (max_idx <= idx) goto done;
-
-	fn->fn_ti = typeinfo_follow_field_off_idx(
-		ti_array_base->ti_prev,
-		ti_array_base->ti_field,
-		ti_field_off(
-			ti_array_base->ti_prev,
-			ti_array_base->ti_field,
-			idx),
-		idx);
-
-	succ = true;
-done:
-	if (ti_array_base != NULL) typeinfo_free(ti_array_base);
-	return succ;
-}
-
 
 struct fsl_fuse_node* fslnode_by_path(const char* path)
 {
@@ -197,6 +188,7 @@ struct fsl_fuse_node* fslnode_by_path(const char* path)
 
 		path_child = get_path_child(path);
 		if (path_child != NULL) {
+			/* forced array index */
 			bool	is_elem_num;
 			is_elem_num = is_int(path_child);
 			free(path_child);
@@ -219,12 +211,10 @@ struct fsl_fuse_node* fslnode_by_path(const char* path)
 
 		typeinfo_free(ret->fn_ti);
 		ret->fn_ti = NULL;
-
-		/* array type */
-		return ret;
+		return ret; /* array type */
 	}
 
-	if (fslnode_by_arraypath(path, ret)) goto done;
+	if (fslnode_by_arraypath(path, ret) == true) goto done;
 	if (fslnode_by_primpath(path, ret) == true) goto done;
 
 	free(ret);

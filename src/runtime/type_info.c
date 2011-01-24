@@ -588,12 +588,25 @@ struct type_info* typeinfo_lookup_follow(
 {
 	const struct fsl_rtt_type	*tt;
 	const struct fsl_rtt_field*	tf;
+	const struct fsl_rtt_pointsto*	pt;
+	const struct fsl_rtt_virt*	vt;
 
 	tt = tt_by_ti(ti_parent);
 	tf = fsl_lookup_field(tt, fieldname);
-	if (tf == NULL) return NULL;
-	if (tf->tf_typenum == TYPENUM_INVALID) return NULL;
-	return typeinfo_follow_field(ti_parent, tf);
+	if (tf != NULL) {
+		if (tf->tf_typenum == TYPENUM_INVALID) return NULL;
+		return typeinfo_follow_field(ti_parent, tf);
+	}
+	pt = fsl_lookup_points(tt, fieldname);
+	if (pt != NULL)
+		return typeinfo_follow_pointsto(ti_parent, pt, 0);
+	vt = fsl_lookup_virt(tt, fieldname);
+	if (vt != NULL) {
+		int	err;
+		return typeinfo_follow_virt(ti_parent, vt, 0, &err);
+	}
+
+	return NULL;
 }
 
 typesize_t ti_field_size(

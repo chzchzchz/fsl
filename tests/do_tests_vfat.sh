@@ -43,8 +43,13 @@ fats_str=`echo $p | grep "204800 fats"`
 if [ -z "$fats_str" ]; then
 	echo "BAD FAT LENGTH"
 	echo "$p"
-	exit 1
+	exit 2
 fi
 
-
-exit 0
+rootdir=`cat tests/fusebrowse-vfat/ls.out | awk '{ print $1 " " $5 " " $9; }'`
+rootde_str=`echo $rootdir | grep "dr-x------ 16384 root_dir"`
+if [ -z "$rootde_str" ]; then
+	echo "NO ROOT FAT DE"
+	echo "$p"
+	exit 3
+fi

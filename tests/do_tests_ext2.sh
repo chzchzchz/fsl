@@ -19,6 +19,8 @@ ls -la tmp/grp_desc_table/3 >tests/fusebrowse-ext2/ls_grp3.out
 ret_grp3=$?
 od -Ax -tx tmp/grp_desc_table/3/block_bmp >tests/fusebrowse-ext2/od_grp3_blkbmp.out
 ret_odgrp3=$?
+ls -la tmp/grp_desc_table/3/grp_blk_bmp/ >tests/fusebrowse-ext2/ls_grp3_blkbmp_ptr.out
+ret_lspt=$?
 
 p=`cat tests/fusebrowse-ext2/ls.out | awk '{ print $5 " " $9; }'`
 p_grp=`cat tests/fusebrowse-ext2/ls_grp.out | awk '{ print $5 " " $9; }'`
@@ -37,6 +39,10 @@ fi
 
 if [ $ret_odgrp3 -ne 0 ]; then
 	exit $ret_odgrp3
+fi
+
+if [ $ret_lspt -ne 0 ]; then
+	exit $ret_lspt
 fi
 
 sb_str=`echo "$p" | grep "1024 sb"`

@@ -133,6 +133,7 @@ static int read_ti_dir(
 	void *buf, fuse_fill_dir_t filler, struct type_info* ti)
 {
 	const struct fsl_rtt_type*	tt;
+	struct type_info		*cur_ti;
 	unsigned int			i;
 
 	filler(buf, ".", NULL, 0);
@@ -140,17 +141,42 @@ static int read_ti_dir(
 
 	tt = tt_by_ti(ti);
 	for (i = 0; i < tt->tt_fieldall_c; i++) {
-		struct type_info		*cur_ti;
 		const struct fsl_rtt_field	*tf;
 
 		tf = &tt->tt_fieldall_thunkoff[i];
-		cur_ti = typeinfo_follow_field(ti, tf);
-		if (cur_ti == NULL) continue;
+		if (tf->tf_cond != NULL) {
+			if (tf->tf_cond(&ti_clo(ti)) == false) continue;
+		}
 
 		if (filler(buf, tf->tf_fieldname, NULL, 0) == 1) {
 			fprintf(out_file, "ARRRRRRGH FULL BUFF\n");
 			fflush(out_file);
 		}
+	}
+
+	for (i = 0; i < tt->tt_pointsto_c; i++) {
+		if (tt->tt_pointsto[i].pt_name == NULL) continue;
+		cur_ti = typeinfo_follow_pointsto(ti, &tt->tt_pointsto[i], 0);
+		if (cur_ti == NULL) continue;
+
+		if (filler(buf, tt->tt_pointsto[i].pt_name, NULL, 0) == 1) {
+			fprintf(out_file, "ALGRG FULLBUFF\n");
+			fflush(out_file);
+		}
+		typeinfo_free(cur_ti);
+	}
+
+	for (i = 0; i < tt->tt_virt_c; i++) {
+		int	err;
+		if (tt->tt_virt[i].vt_name == NULL) continue;
+		cur_ti = typeinfo_follow_virt(ti, &tt->tt_virt[i], 0, &err);
+		if (cur_ti == NULL) continue;
+
+		if (filler(buf, tt->tt_virt[i].vt_name, NULL, 0) == 1) {
+			fprintf(out_file, "ALGRG FULLBUFF\n");
+			fflush(out_file);
+		}
+		typeinfo_free(cur_ti);
 	}
 
 	return 0;
@@ -168,6 +194,19 @@ static int read_array_dir(
 	elem_c = fn->fn_array_field->tf_elemcount(&ti_clo(fn->fn_array_parent));
 	for (i = 0; i < elem_c; i++) {
 		char				name[16];
+		struct type_info		*cur_ti;
+
+		cur_ti = typeinfo_follow_field_off_idx(
+			fn->fn_array_parent,
+			fn->fn_array_field,
+			ti_field_off(
+				fn->fn_array_parent,
+				fn->fn_array_field,
+				i),
+			i);
+		if (cur_ti == NULL) continue;
+		typeinfo_free(cur_ti);
+
 		sprintf(name, "%d", i);
 		if (filler(buf, name, NULL, 0) == 1) {
 			fprintf(out_file, "ARRRRRRGH FULL BUFF\n");
@@ -211,6 +250,7 @@ static int fslfuse_close(const char *path, struct fuse_file_info *fi)
 	}else {
 		fprintf(out_file, "RELEASING %s\n", path);
 		fslnode_free(get_fnode(fi));
+		fprintf(out_file, "DONE RELEASING %s\n", path);
 	}
 
 	fflush(out_file);
@@ -240,6 +280,9 @@ static int fslfuse_opendir(const char *path, struct fuse_file_info *fi)
 static int fslfuse_open(const char *path, struct fuse_file_info *fi)
 {
 	struct fsl_fuse_node	*fn;
+
+	fprintf(out_file, "OP %s\n", path);
+	fflush(out_file);
 
 	if ((fi->flags & 3) != O_RDONLY) return -EACCES;
 	fn = fslnode_by_path(path);
