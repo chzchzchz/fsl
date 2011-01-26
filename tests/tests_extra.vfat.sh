@@ -36,21 +36,13 @@ if [ "$fcount" -ne 10100 ]; then
 	exit -2
 fi
 
+imgname=$fs-manymore.img
+fs_scan_startup_img $fs $imgname
+
 imgname=$fs-reloc-greenspan.img
 cp ${src_root}/img/$fs-manymore.img ${src_root}/img/$imgname
 fs_reloc_img $fs $imgname ${src_root}/tests/greenspan.png.reloc
 fs_scan_startup_img $fs $imgname
-
-
-imgname=$fs-defrag.img
-cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
-fs_defrag_startup_img $fs $imgname
-fs_scan_startup_img $fs $imgname
-fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
-if [ "$fcount" -ne 23040 ]; then
-	echo "BADCOUNT $fcount != 23040 for ${src_root}/tests/scantool-$fs/$imgname.out"
-	exit -2
-fi
 
 imgname=$fs-scatter.img
 cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
@@ -62,9 +54,18 @@ if [ "$fcount" -ne 23040 ]; then
 	exit -2
 fi
 
+imgname=$fs-defrag.img
+cp ${src_root}/img/$fs-scatter.img ${src_root}/img/$imgname
+fs_defrag_startup_img $fs $imgname
+fs_scan_startup_img $fs $imgname
+fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
+if [ "$fcount" -ne 23040 ]; then
+	echo "BADCOUNT $fcount != 23040 for ${src_root}/tests/scantool-$fs/$imgname.out"
+	exit -2
+fi
 
 imgname=$fs-smush.img
-cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
+cp ${src_root}/img/$fs-defrag.img ${src_root}/img/$imgname
 fs_smush_startup_img $fs $imgname
 fs_scan_startup_img $fs $imgname
 fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`

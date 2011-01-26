@@ -23,20 +23,20 @@ fs_reloc_startup_img $fs $imgname
 fsck_img $imgname
 fs_scan_startup_img $fs $imgname
 
-imgname=$fs-defrag.img
-cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
-fs_defrag_startup_img $fs $imgname
-fsck_img $imgname
-fs_scan_startup_img $fs $imgname
-
 imgname=$fs-scatter.img
 cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
 fs_scatter_startup_img $fs $imgname
 fsck_img $imgname
 fs_scan_startup_img $fs $imgname
 
+imgname=$fs-defrag.img
+cp ${src_root}/img/$fs-scatter.img ${src_root}/img/$imgname
+fs_defrag_startup_img $fs $imgname
+fsck_img $imgname
+fs_scan_startup_img $fs $imgname
+
 imgname=$fs-smush.img
-cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
+cp ${src_root}/img/$fs-defrag.img ${src_root}/img/$imgname
 fs_smush_startup_img $fs $imgname
 fsck_img $imgname
 fs_scan_startup_img $fs $imgname
