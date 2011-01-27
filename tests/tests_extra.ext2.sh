@@ -29,6 +29,12 @@ fs_scatter_startup_img $fs $imgname
 fsck_img $imgname
 fs_scan_startup_img $fs $imgname
 
+imgname=$fs-thrashcopy.img
+cp ${src_root}/img/$fs-scatter.img ${src_root}/img/$imgname
+fs_thrashcopy_startup_img $fs $imgname
+fsck_img $imgname
+fs_scan_startup_img $fs $imgname
+
 imgname=$fs-defrag.img
 cp ${src_root}/img/$fs-scatter.img ${src_root}/img/$imgname
 fs_defrag_startup_img $fs $imgname

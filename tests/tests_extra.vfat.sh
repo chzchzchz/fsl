@@ -21,10 +21,24 @@ fi
 imgname=$fs-postmark.img
 fs_scan_startup_img $fs $imgname
 fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
-if [ "$fcount" -ne 23040 ]; then
-	echo "BADCOUNT $fcount != 23040"
+if [ "$fcount" -ne 27561 ]; then
+	echo "BADCOUNT $fcount != 27561"
 	exit -2
 fi
+
+imgname=$fs-many-4097.img
+fs_scan_startup_img $fs $imgname
+
+imgname=$fs-defrag-postmark.img
+cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
+fs_defrag_startup_img $fs $imgname
+fs_scan_startup_img $fs $imgname
+fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
+if [ "$fcount" -ne 27561 ]; then
+	echo "BADCOUNT $fcount != 27561 for ${src_root}/tests/scantool-$fs/$imgname.out"
+	exit -2
+fi
+
 
 imgname=$fs-relocate.img
 cp ${src_root}/img/$fs-many.img ${src_root}/img/$imgname
@@ -49,8 +63,18 @@ cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname
 fs_scatter_startup_img $fs $imgname
 fs_scan_startup_img $fs $imgname
 fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
-if [ "$fcount" -ne 23040 ]; then
-	echo "BADCOUNT $fcount != 23040"
+if [ "$fcount" -ne 27561 ]; then
+	echo "BADCOUNT $fcount != 27561"
+	exit -2
+fi
+
+imgname=$fs-thrashcopy.img
+cp ${src_root}/img/$fs-scatter.img ${src_root}/img/$imgname
+fs_thrashcopy_startup_img $fs $imgname
+fs_scan_startup_img $fs $imgname
+fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
+if [ "$fcount" -ne 27561 ]; then
+	echo "BADCOUNT $fcount != 27561"
 	exit -2
 fi
 
@@ -59,8 +83,8 @@ cp ${src_root}/img/$fs-scatter.img ${src_root}/img/$imgname
 fs_defrag_startup_img $fs $imgname
 fs_scan_startup_img $fs $imgname
 fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
-if [ "$fcount" -ne 23040 ]; then
-	echo "BADCOUNT $fcount != 23040 for ${src_root}/tests/scantool-$fs/$imgname.out"
+if [ "$fcount" -ne 27561 ]; then
+	echo "BADCOUNT $fcount != 27561 for ${src_root}/tests/scantool-$fs/$imgname.out"
 	exit -2
 fi
 
@@ -69,7 +93,7 @@ cp ${src_root}/img/$fs-defrag.img ${src_root}/img/$imgname
 fs_smush_startup_img $fs $imgname
 fs_scan_startup_img $fs $imgname
 fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
-if [ "$fcount" -ne 23040 ]; then
-	echo "BADCOUNT $fcount != 23040"
+if [ "$fcount" -ne 27561 ]; then
+	echo "BADCOUNT $fcount != 27561"
 	exit -2
 fi

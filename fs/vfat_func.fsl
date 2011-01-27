@@ -116,7 +116,7 @@ clusternum_t fat_chain_nth_cnum(clusternum_t start_clus, uint i)
 	fat		f = disk.fats[0];
 
 	cur_cluster = start_clus;
-	while (i > 1) {
+	while (i > 1 && is_eof(cur_cluster) == false) {
 		cur_cluster = fat_next_ft(cur_cluster, ft, f);
 		i--;
 	}
@@ -194,6 +194,13 @@ uint fat_chain_count(clusternum_t start_clus)
 	return count;
 }
 
+uint de_cluster_count_chain(fat_de de)
+{
+	clusternum_t	first_clus;
+	first_clus = de.first_cluster_lo + (de.first_cluster_hi << 16);
+	return fat_chain_count(first_clus);
+}
+
 uint de_cluster_count(fat_de de)
 {
 	u32	bpc;
@@ -201,9 +208,7 @@ uint de_cluster_count(fat_de de)
 	if (de.file_size == 0xffffffff) return 0;
 
 	if ( (ATTR_DIRECTORY & de.attr) != 0)  {
-		clusternum_t	first_clus;
-		first_clus = de.first_cluster_lo + (de.first_cluster_hi << 16);
-		return fat_chain_count(first_clus);
+		return de_cluster_count_chain(de);
 	}
 
 	bpc = bytes_per_cluster();
@@ -226,6 +231,24 @@ bool is_valid_cnum(clusternum_t cnum)
 	} else if (ft == FAT_TYPE_FAT32) {
 		if (cnum > FAT32_MAX) return false;
 		return true;
+	}
+
+	return false;
+}
+
+bool is_eof(clusternum_t cnum) {
+	if (get_fat_type() == FAT_TYPE_FAT12) {
+		if (cnum == EOF_FAT12) return true;
+		return false;
+	}
+	if (get_fat_type() == FAT_TYPE_FAT16) {
+		if (cnum == EOF_FAT16) return true;
+		return false;
+	}
+
+	if (get_fat_type() == FAT_TYPE_FAT32) {
+		if (cnum == EOF_FAT32) return true;
+		return false;
 	}
 
 	return false;

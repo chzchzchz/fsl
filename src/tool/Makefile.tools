@@ -14,7 +14,7 @@ FS_OBJNAMES= fsl.$(FSNAME).table.o fsl.$(FSNAME).types.o
 FS_OBJS := $(FS_OBJNAMES:%=$(OBJDIR)/fs/%)
 TOOL_NAMES= 	browser modify scantool fragtool 		\
 		relocate defragtool scattertool smushtool	\
-		fusebrowse
+		fusebrowse thrashcopy
 
 TOOL_BINS := $(TOOL_NAMES:%=$(BINDIR)/%-$(FSNAME))
 TOOL_MMAP_BINS := $(TOOL_NAMES:%=$(BINDIR)/mmap/%-$(FSNAME))
@@ -46,6 +46,7 @@ RELOCATE_OBJNAMES= relocate.o
 SMUSHTOOL_OBJNAMES= smushtool.o
 SCATTERTOOL_OBJNAMES= scattertool.o
 FUSEBROWSE_OBJNAMES = fuse-browser.o fuse_node.o
+THRASHCOPY_OBJNAMES= thrashcopy.o
 
 SCANTOOL_OBJS:=$(SCANTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(SCAN_OBJS)
 FRAGTOOL_OBJS:=$(FRAGTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(SCAN_OBJS)
@@ -56,6 +57,7 @@ RELOCATE_OBJS:=$(RELOCATE_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
 SMUSHTOOL_OBJS:=$(SMUSHTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
 SCATTERTOOL_OBJS:=$(SCATTERTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
 FUSEBROWSE_OBJS:=$(FUSEBROWSE_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
+THRASHCOPY_OBJS:=$(THRASHCOPY_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
 
 SRC_FSL=$(FSSRCDIR)/$(FSNAME).fsl
 SRC_FSL_ALL=$(wildcard ../../fs/$(FSNAME)*.fsl)
@@ -86,6 +88,8 @@ $(BINDIR)/scattertool-$(FSNAME): $(FS_OBJS) $(SCATTERTOOL_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 $(BINDIR)/smushtool-$(FSNAME): $(FS_OBJS) $(SMUSHTOOL_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
+$(BINDIR)/thrashcopy-$(FSNAME): $(FS_OBJS) $(THRASHCOPY_OBJS) $(RT_PREAD_OBJS)
+	gcc $(CFLAGS) -o $@ $^
 
 
 $(BINDIR)/mmap/fusebrowse-$(FSNAME): $(FS_OBJS) $(FUSEBROWSE_OBJS) $(RT_MMAP_OBJS)
@@ -106,6 +110,9 @@ $(BINDIR)/mmap/scattertool-$(FSNAME): $(FS_OBJS) $(SCATTERTOOL_OBJS) $(RT_MMAP_O
 	gcc $(CFLAGS) -o $@ $^
 $(BINDIR)/mmap/smushtool-$(FSNAME): $(FS_OBJS) $(SMUSHTOOL_OBJS) $(RT_MMAP_OBJS)
 	gcc $(CFLAGS) -o $@ $^
+$(BINDIR)/mmap/thrashcopy-$(FSNAME): $(FS_OBJS) $(THRASHCOPY_OBJS) $(RT_MMAP_OBJS)
+	gcc $(CFLAGS) -o $@ $^
+
 
 $(OBJDIR)/fs/fsl.$(FSNAME).table.o: $(OBJDIR)/fs/fsl.$(FSNAME).table.c
 	gcc $(CFLAGS) -I.. -c $^ -o $@

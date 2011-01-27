@@ -49,7 +49,6 @@ static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx)
 		rtm->rtm_clo->clo_offset / 8);
 	base = rtm->rtm_virt->vt_iter.it_range(rtm->rtm_clo, idx, params);
 	DEBUG_VIRT_WRITE("BASE FOUND: %"PRIu64, base);
-	DEBUG_VIRT_WRITE("WANTED BITOFF: %"PRIu64, bit_off);
 
 	return base;
 }
@@ -86,6 +85,8 @@ static uint64_t fsl_virt_xlate_rtm(struct fsl_rt_mapping* rtm, uint64_t bit_off)
 	base = fsl_virt_cache_find(rtm, idx);
 	if (base == ~0) {
 		base = fsl_virt_xlate_miss(rtm, idx);
+		DEBUG_VIRT_WRITE("WANTED BITOFF: %"PRIu64, bit_off);
+
 		fsl_virt_cache_update(rtm, idx, base);
 	} else {
 		FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_HIT);
@@ -328,8 +329,14 @@ static bool fsl_virt_nth_verify_bounds(
 	assert (fsl_env->fctx_except.ex_err_unsafe_op == 0);
 	fsl_env->fctx_except.ex_in_unsafe_op = false;
 
-	if (cur_size + cur_off >= fsl_virt_total_bits(rtm))
+	if (cur_size + cur_off > fsl_virt_total_bits(rtm)) {
+		DEBUG_VIRT_WRITE(
+			"fsl_virt_get_nth: Bad: voff=%"PRIu64
+			"cur_end = %"PRIu64". virt_end=%"PRIu64,
+			cur_off,
+			cur_size + cur_off, fsl_virt_total_bits(rtm));
 		return false;
+	}
 
 	DEBUG_VIRT_WRITE("fsl_virt_get_nth: Bounds OK: voff=%"PRIu64, cur_off);
 

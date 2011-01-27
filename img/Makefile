@@ -147,6 +147,12 @@ vfat.img:
 	yes | /usr/sbin/mkfs.vfat $@
 	./loopback_fs_setup.sh vfat.img vfat && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
+vfat-many-4097.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@ vfat  && GEN_FILE_LENGTH=4097 ./gen_files.sh 100 && ./loopback_fs_teardown.sh
+
+
 vfat-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /usr/sbin/mkfs.vfat $@

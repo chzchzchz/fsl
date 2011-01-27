@@ -47,7 +47,7 @@ function fsck_img
 	retval=$?
 	sudo /sbin/losetup -d $FSCKLODEV
 	if [ $retval -ne 0 ]; then
-		echo "FSCK FAILED ON ${fsck_imgname}."
+		echo "FSCK FAILED ON ${fsck_imgname}. EXITCODE=$retval"
 		exit $retval
 	fi
 }

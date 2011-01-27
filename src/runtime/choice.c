@@ -108,3 +108,8 @@ void choice_dump(struct choice_cache* cc)
 
 	exit(1);
 }
+
+void choice_refresh(struct choice_cache* choice, uint64_t lo, uint64_t hi)
+{
+	assert (0 == 1 && "STUB: TODO");
+}

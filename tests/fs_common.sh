@@ -147,6 +147,16 @@ function fs_scatter_startup_img
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
 }
 
+function fs_thrashcopy_startup_img
+{
+	fs="$1"
+	imgname="$2"
+	echo "Testing thrashcopy-$fs startup (${imgname})."
+	cmd="${TOOL_BINDIR}/thrashcopy-$fs ${src_root}/img/$imgname"
+	outdir="${src_root}/tests/thrashcopy-$fs"
+	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
+}
+
 
 function fs_defrag_startup_img
 {
@@ -201,7 +211,7 @@ function fs_cmd_startup_img
 
 	# only copy if result is not bogus from crash
 	mv cur_test.${SHANAME}.out "${outdir}/$imgname.out"
-	rm cur_test.${SHANAME}.err
+	mv cur_test.${SHANAME}.err "${outdir}/$imgname.err"
 }
 
 
