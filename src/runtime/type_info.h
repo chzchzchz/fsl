@@ -145,9 +145,11 @@ struct type_info* typeinfo_follow_iter(
 	const struct fsl_rt_iter*	ti_iter,
 	uint64_t			idx);
 
-struct type_info* typeinfo_lookup_follow(
+#define typeinfo_lookup_follow(x,y)	typeinfo_lookup_follow_idx(x,y,0)
+struct type_info* typeinfo_lookup_follow_idx(
 	struct type_info*	ti_parent,
-	const char*		fieldname);
+	const char*		fieldname,
+	uint64_t		idx);
 
 void typeinfo_phys_copy(struct type_info* dst, struct type_info* src);
 

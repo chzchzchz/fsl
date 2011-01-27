@@ -1,6 +1,7 @@
 #!/bin/bash
 
 src_root=`pwd`
+source `pwd`/tests/fs_common.sh
 
 scanout=tests/scantool-reiserfs/reiserfs.img.out
 if [ ! -f $scanout ]; then
@@ -15,10 +16,8 @@ if [ $stats -ne 37 ]; then
 fi
 
 echo Testing fusebrowse-reiserfs
-${src_root}/bin/fusebrowse-reiserfs img/reiserfs.img tmp
-ls -la tmp  >tests/fusebrowse-reiserfs/ls.out
-p=`cat tests/fusebrowse-reiserfs/ls.out | awk '{ print $5 " " $9; }'`
-fusermount -u tmp
+fs_fuse_cmd_img reiserfs reiserfs.img "ls -la" "ls"
+p=`cat tests/fusebrowse-reiserfs/reiserfs.img-ls.out | awk '{ print $5 " " $9; }'`
 sb_str=`echo "$p" | grep "204 sb_new"`
 if [ -z "$sb_str" ]; then
 	echo "BAD SB STR"

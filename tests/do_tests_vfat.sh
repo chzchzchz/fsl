@@ -2,8 +2,9 @@
 
 tool_name="browser-vfat"
 img_name="vfat.img"
-source `pwd`/tests/test_common.sh
 src_root=`pwd`
+source `pwd`/tests/test_common.sh
+source `pwd`/tests/fs_common.sh
 
 run_test 1 "Visit Root DE[1]"
 run_test_no_match 2 "Virt-If. Non-File" "vfile"
@@ -13,24 +14,12 @@ run_test_match 3 "Virt-If. File." "vfile"
 run_test_no_match 4 "Virtual. Read file xlate." "55 aa"
 
 echo Testing fusebrowse-vfat
-${src_root}/bin/fusebrowse-vfat img/vfat.img tmp
-ls -la tmp  >tests/fusebrowse-vfat/ls.out
-ret_ls=$?
-ls -la tmp/d_bpb  >tests/fusebrowse-vfat/ls_bpb.out
-ret_ls2=$?
-fusermount -u tmp
-if [ $ret_ls -ne 0 ]; then
-	echo "BAD FUSE LS /"
-	exit $ret_ls
-fi
+fs_fuse_cmd_img vfat vfat.img "ls -la" "ls"
+fs_fuse_cmd_img vfat vfat.img "ls -la d_bpb" "ls_bpb"
+fs_fuse_cmd_img vfat vfat.img "ls -la root_dir" "ls_rootdir"
 
-if [ $ret_ls2 -ne 0 ]; then
-	echo "BAD FUSELS /BPB"
-	exit $ret_ls2
-fi
-
-p=`cat tests/fusebrowse-vfat/ls.out | awk '{ print $5 " " $9; }'`
-p_bpb=`cat tests/fusebrowse-vfat/ls_bpb.out | awk '{ print $5 " " $9; }'`
+p=`cat tests/fusebrowse-vfat/vfat.img-ls.out | awk '{ print $5 " " $9; }'`
+p_bpb=`cat tests/fusebrowse-vfat/vfat.img-ls_bpb.out | awk '{ print $5 " " $9; }'`
 
 sb_str=`echo "$p" | grep "62 d_bpb"`
 if [ -z "$sb_str" ]; then
@@ -46,10 +35,18 @@ if [ -z "$fats_str" ]; then
 	exit 2
 fi
 
-rootdir=`cat tests/fusebrowse-vfat/ls.out | awk '{ print $1 " " $5 " " $9; }'`
+rootdir=`cat tests/fusebrowse-vfat/vfat.img-ls.out | awk '{ print $1 " " $5 " " $9; }'`
 rootde_str=`echo $rootdir | grep "dr-x------ 16384 root_dir"`
 if [ -z "$rootde_str" ]; then
 	echo "NO ROOT FAT DE"
 	echo "$p"
+	exit 3
+fi
+
+rootdirs=`cat tests/fusebrowse-vfat/vfat.img-ls_rootdir.out | awk '{ print $1 " " $5 " " $9; }'`
+rootdirls_str=`echo $rootdirs | grep "dr-x------ 32 19"`
+if [ -z "$rootdirls_str" ]; then
+	echo "NO ROOTDIR LISTING?"
+	echo "$rootdirs"
 	exit 3
 fi

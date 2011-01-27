@@ -433,6 +433,7 @@ typesize_t ti_size(const struct type_info* ti)
 	return ret;
 }
 
+
 struct type_info* typeinfo_follow_field(
 	struct type_info* tip,
 	const struct fsl_rtt_field* tif)
@@ -446,7 +447,6 @@ struct type_info* typeinfo_follow_field(
 	off = tif->tf_fieldbitoff(&ti_clo(tip));
 	return typeinfo_follow_field_off(tip, tif, off);
 }
-
 
 struct type_info* typeinfo_follow_field_off_idx(
 	struct type_info*		ti_parent,
@@ -581,10 +581,10 @@ struct type_info* typeinfo_alloc_origin(void)
 	return typeinfo_alloc_by_field(&init_td, NULL, NULL);
 }
 
-/* XXX: This is *SLOW* need a faster lookup mechanism in the future */
-struct type_info* typeinfo_lookup_follow(
+struct type_info* typeinfo_lookup_follow_idx(
 	struct type_info*	ti_parent,
-	const char*		fieldname)
+	const char*		fieldname,
+	uint64_t		idx)
 {
 	const struct fsl_rtt_type	*tt;
 	const struct fsl_rtt_field*	tf;
@@ -595,15 +595,21 @@ struct type_info* typeinfo_lookup_follow(
 	tf = fsl_lookup_field(tt, fieldname);
 	if (tf != NULL) {
 		if (tf->tf_typenum == TYPENUM_INVALID) return NULL;
-		return typeinfo_follow_field(ti_parent, tf);
+		if (tf->tf_cond != NULL)
+			if (tf->tf_cond(&ti_clo(ti_parent)) == false)
+				return NULL;
+		return typeinfo_follow_field_off(
+				ti_parent,
+				tf,
+				ti_field_off(ti_parent, tf, idx));
 	}
 	pt = fsl_lookup_points(tt, fieldname);
 	if (pt != NULL)
-		return typeinfo_follow_pointsto(ti_parent, pt, 0);
+		return typeinfo_follow_pointsto(ti_parent, pt, idx);
 	vt = fsl_lookup_virt(tt, fieldname);
 	if (vt != NULL) {
 		int	err;
-		return typeinfo_follow_virt(ti_parent, vt, 0, &err);
+		return typeinfo_follow_virt(ti_parent, vt, idx, &err);
 	}
 
 	return NULL;

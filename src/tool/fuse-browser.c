@@ -1,4 +1,5 @@
 #define FUSE_USE_VERSION 25
+//#define DEBUG_FUSE
 #include <fuse.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -336,7 +337,7 @@ static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
 
 static int fslfuse_access(const char* path, int i)
 {
-	return F_OK|R_OK|W_OK|X_OK;
+	return F_OK;
 }
 
 static struct fuse_operations fslfuse_oper = {
@@ -353,13 +354,18 @@ static struct fuse_operations fslfuse_oper = {
 
 int tool_entry(int argc, char *argv[])
 {
+#ifdef DEBUG_FUSE
+#define NUM_ARGS	4
+	char	*args[4] = {"fusebrowse", "-s", "-d", argv[0]};
+#else
+#define NUM_ARGS	3
 	char	*args[3] = {"fusebrowse", "-s", argv[0]};
-
+#endif
 	assert (argc == 1 && "NEEDS MOUNT POINT");
 	open_time = time(0);
 	out_file = fopen("fusebrowse.err", "w");
 	our_gid = getgid();
 	our_uid = getuid();
 	assert (out_file != NULL);
-	return fuse_main(3, args, &fslfuse_oper);
+	return fuse_main(NUM_ARGS, args, &fslfuse_oper);
 }

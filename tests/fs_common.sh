@@ -178,6 +178,32 @@ function fs_scan_startup_img
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname"
 }
 
+function fs_fuse_cmd_img
+{
+	fs="$1"
+	imgname="$2"
+	cmd="$3"
+	cmdname="$4"
+	fusermount -u tmp 2>/dev/null
+	${TOOL_BINDIR}/fusebrowse-${fs} img/${imgname} tmp
+	cd ${src_root}/tmp/
+	ret=$?
+	if [ $ret -ne 0 ]; then
+		fusermount -u tmp
+		echo "FuseCmd Init Oops. $cmd"
+		exit $ret
+	fi
+
+	$cmd  >"${src_root}"/tests/fusebrowse-${fs}/${imgname}-"$cmdname".out
+	ret=$?
+	cd ..
+	fusermount -u tmp
+	if [ $ret -ne 0 ]; then
+		echo "FuseCmd OOPS. $cmd"
+		exit $ret
+	fi
+}
+
 function fs_cmd_startup_img
 {
 	cmd="$1"

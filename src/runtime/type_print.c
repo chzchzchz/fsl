@@ -38,7 +38,6 @@ void typeinfo_print_field_value(
 {
 	uint64_t			num_elems;
 	typesize_t			field_sz;
-	typenum_t			field_typenum;
 	diskoff_t			field_off;
 	TI_INTO_CLO(ti);
 

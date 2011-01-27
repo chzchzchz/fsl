@@ -27,43 +27,86 @@ static struct type_info* ti_from_rootpath(const char* path)
 	return ret;
 }
 
+static const char* get_path_next(const char* s)
+{
+	const char	*s_next;
+	while (*s == '/') s++;
+	if (*s == '\0') return NULL;
+	s_next = strchr(s, '/');
+	if (s_next == NULL) s_next = s + strlen(s);
+	return s_next;
+}
+
+static char* get_path_first(const char* s)
+{
+	const char *s_next;
+	while (*s == '/') s++;
+	if (*s == '\0') return NULL;
+	s_next = get_path_next(s);
+	if (s_next == NULL) return NULL;
+	return strndup(s, s_next - s);
+}
+
+static struct type_info* ti_from_relpath_idx(
+	struct type_info* ti_p, const char* elem)
+{
+	uint64_t	idx, max_idx;
+
+	if (ti_p == NULL) return NULL;
+	if (ti_p->ti_prev == NULL) return NULL;
+
+	idx = atoi(elem);
+	max_idx = ti_p->ti_field->tf_elemcount(&ti_clo(ti_p->ti_prev));
+
+	/* exceeded number of elements */
+	if (max_idx <= idx) return NULL;
+
+	return typeinfo_follow_field_off_idx(
+		ti_p->ti_prev, ti_p->ti_field,
+		ti_field_off(ti_p->ti_prev, ti_p->ti_field, idx),
+		idx);
+}
+
+static struct type_info* ti_from_relpath_tryidx(
+	struct type_info* ti_p, const char* elem, const char* s_next)
+{
+	struct type_info	*ret_ti;
+	char			*next_elem;
+
+	next_elem = get_path_first(s_next);
+	if (next_elem == NULL) goto done;
+	if (!is_int(next_elem)) goto cleanup;
+
+	ret_ti = typeinfo_lookup_follow_idx(ti_p, elem, atoi(next_elem));
+cleanup:
+	free(next_elem);
+done:
+	return ret_ti;
+}
+
 static struct type_info* ti_from_relpath(
 	struct type_info* ti_parent, const char* path)
 {
 	struct type_info	*cur_ti = NULL, *ret = NULL;
-	const char		*s = path, *s_next;
+	const char		*s_next;
 	char			*elem;
 
-	while (*s == '/') s++;
-	if (*s == '\0') return ti_parent;
-	s_next = strchr(s, '/');
-	if (s_next == NULL) s_next = s + strlen(s);
+	s_next = get_path_next(path);
+	if (s_next == NULL) return ti_parent;
+	elem = get_path_first(path);
+	if (elem == NULL) return ti_parent;
 
-	elem = strndup(s, s_next - s);
 	if (is_int(elem)) {
 		/* handle array */
-		uint64_t	idx, max_idx;
-
-		if (ti_parent == NULL) goto know_cur_ti;
-		if (ti_parent->ti_prev == NULL) goto know_cur_ti;
-
-		idx = atoi(elem);
-		max_idx = ti_parent->ti_field->tf_elemcount(
-			&ti_clo(ti_parent->ti_prev));
-
-		/* exceeded number of elements */
-		if (max_idx <= idx) goto know_cur_ti;
-
-		cur_ti = typeinfo_follow_field_off_idx(
-			ti_parent->ti_prev,
-			ti_parent->ti_field,
-			ti_field_off(
-				ti_parent->ti_prev,
-				ti_parent->ti_field,
-				idx),
-			idx);
-	} else
+		cur_ti = ti_from_relpath_idx(ti_parent, elem);
+	} else {
 		cur_ti = typeinfo_lookup_follow(ti_parent, elem);
+		if (cur_ti == NULL) {
+			cur_ti = ti_from_relpath_tryidx(
+				ti_parent, elem, s_next);
+			s_next = get_path_next(s_next);
+		}
+	}
 
 know_cur_ti:
 	free(elem);

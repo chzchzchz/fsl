@@ -4,46 +4,22 @@ tool_name="browser-ext2"
 img_name="ext2.img"
 src_root=`pwd`
 source `pwd`/tests/test_common.sh
+source `pwd`/tests/fs_common.sh
 
 # visit virtual file (inode 0)
 run_test 1 "Virtual Visit"
 run_test 2 "Virtual Dump"
 
 echo Testing fusebrowse-ext2
-${src_root}/bin/fusebrowse-ext2 img/ext2.img tmp
-ls -la tmp  >tests/fusebrowse-ext2/ls.out
-ret_p=$?
-ls -la tmp/grp_desc_table >tests/fusebrowse-ext2/ls_grp.out
-ret_pgrp=$?
-ls -la tmp/grp_desc_table/3 >tests/fusebrowse-ext2/ls_grp3.out
-ret_grp3=$?
-od -Ax -tx tmp/grp_desc_table/3/block_bmp >tests/fusebrowse-ext2/od_grp3_blkbmp.out
-ret_odgrp3=$?
-ls -la tmp/grp_desc_table/3/grp_blk_bmp/ >tests/fusebrowse-ext2/ls_grp3_blkbmp_ptr.out
-ret_lspt=$?
+fs_fuse_cmd_img ext2 ext2.img "ls -la" "ls"
+fs_fuse_cmd_img ext2 ext2.img "ls -la grp_desc_table" "ls_grp"
+fs_fuse_cmd_img ext2 ext2.img "ls -la grp_desc_table/3" "ls_grp3"
+fs_fuse_cmd_img ext2 ext2.img "od -Ax -tx grp_desc_table/3/block_bmp" "od_grp3_blkbmp"
+fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_blkbmp_ptr"
 
-p=`cat tests/fusebrowse-ext2/ls.out | awk '{ print $5 " " $9; }'`
-p_grp=`cat tests/fusebrowse-ext2/ls_grp.out | awk '{ print $5 " " $9; }'`
-grp3=`cat tests/fusebrowse-ext2/ls_grp3.out | awk '{ print $5 " " $9; }'`
-fusermount -u tmp
-
-if [ $ret_p -ne 0 ]; then
-	exit $ret_p
-fi
-if [ $ret_pgrp -ne 0 ]; then
-	exit $ret_pgrp
-fi
-if [ $ret_grp3 -ne 0 ]; then
-	exit $ret_grp3
-fi
-
-if [ $ret_odgrp3 -ne 0 ]; then
-	exit $ret_odgrp3
-fi
-
-if [ $ret_lspt -ne 0 ]; then
-	exit $ret_lspt
-fi
+p=`cat tests/fusebrowse-ext2/ext2.img-ls.out | awk '{ print $5 " " $9; }'`
+p_grp=`cat tests/fusebrowse-ext2/ext2.img-ls_grp.out | awk '{ print $5 " " $9; }'`
+grp3=`cat tests/fusebrowse-ext2/ext2.img-ls_grp3.out | awk '{ print $5 " " $9; }'`
 
 sb_str=`echo "$p" | grep "1024 sb"`
 if [ -z "$sb_str" ]; then
@@ -73,7 +49,7 @@ if [ -z "$grp3_str" ]; then
 	exit 3
 fi
 
-od_str=`grep 00006103 tests/fusebrowse-ext2/od_grp3_blkbmp.out`
+od_str=`grep 00006103 tests/fusebrowse-ext2/ext2.img-od_grp3_blkbmp.out`
 if [ -z "$od_str" ]; then
 	echo "Failed ot read group block bitmap pointer"
 	cat tests/fusebrowse-ext2/od_grp3_blkbmp.out
