@@ -1,0 +1,31 @@
+const __FSL_FSNAME = xfs;
+const __FSL_MODE = 1; /* big endian */
+typedef xfs_drfsbno_t = u64;	// blockno in fs (raw)
+const NULLDRFSBNO = ~0;
+typedef xfs_drftbno_t = u64;	// number of realtime extents
+typedef xfs_drtbno_t = u64;	// number of realtime extents
+typedef xfs_agblock_t = u32;	// blockno in alloc group
+typedef xfs_ino_t = u64;	// <inode> type */
+typedef xfs_extlen_t = u32;	// extent length in blocks
+typedef xfs_agnumber_t = u32;	// allocation group number
+typedef xfs_ag_block_t = u32;
+
+const XFS_SUPER_MAGIC	= 0x58465342;
+const XFS_AGF_MAGIC	= 0x58414746;	/* 'XAGF' */
+const XFS_AGI_MAGIC	= 0x58414749;	/* 'XAGI' */
+const XFS_AGF_VERSION	= 1;
+const XFS_AGI_VERSION	= 1;
+const BBSHIFT		= 9;
+const BBSIZE		= (1<<BBSHIFT);
+
+const XFS_AGI_UNLINKED_BUCKETS = 64;
+enum xfs_btnum_t = {
+        XFS_BTNUM_BNOi, XFS_BTNUM_CNTi, XFS_BTNUM_BMAPi, XFS_BTNUM_INOi,
+        XFS_BTNUM_MAX
+} u8;
+
+const XFS_BTNUM_AGF =  XFS_BTNUM_CNTi + 1;
+
+
+include "xfs_func.fsl"
+include "xfs_types.fsl"

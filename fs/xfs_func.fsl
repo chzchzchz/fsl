@@ -1,0 +1,13 @@
+uint xfs_agfl_size() { return get_sectsz() / 4; }
+uint xfs_fsb_to_bb(uint fsbno) { return ((fsbno) * get_sectsz()); }
+uint xfs_agb_to_daddr(uint agno, uint agbno)
+{
+	return xfs_fsb_to_bb(agno * get_agblocks() + agbno);
+}
+uint xfs_ag_daddr(uint agno, uint d) { return d + xfs_agb_to_daddr(agno, 0); }
+
+uint get_bsz() { return disk.aggr[0].sb.sb_blocksize; }
+uint get_numblks() { return disk.aggr[0].sb.sb_dblocks+disk.aggr[0].sb.sb_rblocks;}
+uint get_sectsz() { return disk.aggr[0].sb.sb_sectsize; }
+uint get_agcount() { return disk.aggr[0].sb.sb_agcount; }
+uint get_agblocks() { return disk.aggr[0].sb.sb_agblocks; }
