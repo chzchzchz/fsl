@@ -1,4 +1,4 @@
-FILESYSTEMS := ext2 vfat nilfs2 iso9660 testfs reiserfs
+FILESYSTEMS := ext2 vfat nilfs2 iso9660 testfs reiserfs xfs
 TOOL_NAMES=browser scantool modify fragtool relocate defragtool scattertool smushtool
 TOOLS_BROWSER := $(FILESYSTEMS:%=browser-%)
 TOOLS_SCAN := $(FILESYSTEMS:%=scantool-%)
@@ -31,7 +31,8 @@ browser-ext2: $(wildcard ../../fs/ext2*fsl)
 	FSNAME=ext2 make -f Makefile.tools
 browser-reiserfs: $(wildcard ../../fs/reiserfs*fsl)
 	FSNAME=reiserfs make -f Makefile.tools
-
+browser-xfs: $(wildcard ../../fs/xfs*fsl)
+	FSNAME=xfs make -f Makefile.tools
 
 clean:
 	rm  -f *.s *.o *.bc *.ll fsl.*.*.c $(TOOLS_ALL)

@@ -376,6 +376,17 @@ void TableGen::genScalarConstants(void)
 		out << ((id != NULL) ? id->getName() : "__FSL_FSNAME");
 	}
 	out << "\";" << endl;
+
+	out << "int __fsl_mode = ";
+	if (constants.count("__FSL_MODE") == 0)
+		out << "0"; /* mode little endian */
+	else {
+		const Number*	num;
+		num = dynamic_cast<const Number*>(constants["__FSL_MODE"]);
+		out << ((num != NULL) ? num->getValue() : 0);
+	}
+	out << ";" << endl;
+
 }
 
 void TableGen::genWritePktTables(void)

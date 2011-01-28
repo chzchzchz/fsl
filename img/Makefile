@@ -183,6 +183,36 @@ nilfs2.img:
 	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
 	./loopback_fs_setup.sh nilfs2.img nilfs2 && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
+xfs.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /sbin/mkfs.xfs  $@
+	./loopback_fs_setup.sh $@ xfs
+	./gen_files.sh
+	./loopback_fs_teardown.sh
+
+
+xfs-many.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /sbin/mkfs.xfs $@
+	./loopback_fs_setup.sh $@ xfs
+	./gen_files.sh 100
+	./loopback_fs_teardown.sh
+
+xfs-postmark.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /sbin/mkfs.xfs  $@
+	./loopback_fs_setup.sh $@ xfs
+	./gen_postmark.sh
+	./loopback_fs_teardown.sh
+
+xfs-depth.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /sbin/mkfs.xfs  $@
+	./loopback_fs_setup.sh $@ xfs
+	./gen_depth.sh
+	./loopback_fs_teardown.sh
+
+
 reiserfs.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.reiserfs -s 1024 -f $@

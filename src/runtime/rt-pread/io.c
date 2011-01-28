@@ -10,6 +10,8 @@
 #include <string.h>
 #include <linux/fs.h>
 #include <sys/ioctl.h>
+#include <endian.h>
+#include <byteswap.h>
 
 #include "debug.h"
 #include "runtime.h"
@@ -50,6 +52,23 @@ uint64_t __getLocalPhys(uint64_t bit_off, uint64_t num_bits)
 	} else {
 		/* common path */
 		ret = fsl_io_cache_get(io, bit_off, num_bits);
+		if (__fsl_mode == FSL_MODE_BIGENDIAN) {
+		#ifdef FSL_LITTLE_ENDIAN
+			switch(num_bits) {
+			case	64:	ret = bswap_64(ret); break;
+			case	32:	ret = bswap_32(ret);; break;
+			case	16:	ret = bswap_16(ret); break;
+			}
+		#endif
+		} else {
+		#ifdef FSL_BIG_ENDIAN
+			switch(num_bits) {
+			case	64:	ret = bswap_64(ret); break;
+			case	32:	ret = bswap_32(ret);; break;
+			case	16:	ret = bswap_16(ret); break;
+			}
+		#endif
+		}
 	}
 
 	if (io->io_cb_any != NULL) io->io_cb_any(io, bit_off);
@@ -92,7 +111,6 @@ uint64_t __getLocal(
 	}
 
 	ret = __getLocalPhys(bit_off, num_bits);
-
 	DEBUG_IO_WRITE(
 		"Returning IO: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64,
 			bit_off, num_bits, ret);

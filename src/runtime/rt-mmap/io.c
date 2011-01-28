@@ -11,6 +11,8 @@
 #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <endian.h>
+#include <byteswap.h>
 
 #include "debug.h"
 #include "runtime.h"
@@ -57,6 +59,24 @@ uint64_t __getLocalPhys(uint64_t bit_off, uint64_t num_bits)
 	}
 
 	if (io->io_cb_any != NULL) io->io_cb_any(io, bit_off);
+
+	if (__fsl_mode == FSL_MODE_BIGENDIAN) {
+	#ifdef FSL_LITTLE_ENDIAN
+		switch(num_bits) {
+		case	64:	ret = bswap_64(ret); break;
+		case	32:	ret = bswap_32(ret);; break;
+		case	16:	ret = bswap_16(ret); break;
+		}
+	#endif
+	} else {
+	#ifdef FSL_BIG_ENDIAN
+		switch(num_bits) {
+		case	64:	ret = bswap_64(ret); break;
+		case	32:	ret = bswap_32(ret); break;
+		case	16:	ret = bswap_16(ret); break;
+		}
+	#endif
+	}
 
 	return ret;
 }
