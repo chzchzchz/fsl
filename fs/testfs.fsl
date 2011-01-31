@@ -11,6 +11,15 @@ type disk
 	some_type(@+1)	st4[10];	/* 624--844 */
 	another_type(st1) at;
 	t3(st1, at)	ttt;
+	stupid_bits	stu;
+}
+
+type stupid_bits
+{
+	u1	b;	/* SBO */
+	u52	c;
+	u54	d;
+	u12	e;
 }
 
 type some_type(u32 n)

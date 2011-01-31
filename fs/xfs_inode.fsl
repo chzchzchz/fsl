@@ -1,0 +1,101 @@
+type xfs_ino_blk { xfs_dinode	inos[xfs_ino_per_blk()] fixed; }
+
+type xfs_dinode
+assert (? di_core.di_magic == XFS_DINODE_MAGIC) as di_chk_magic
+{
+	xfs_dinode_core	di_core;
+	/*
+	* In adding anything between the core and the union, be
+	* sure to update the macros like XFS_LITINO below and
+	* XFS_BMAP_RBLOCK_DSIZE in xfs_bmap_btree.h.
+	*/
+	xfs_agino_t			di_next_unlinked;/* agi unlinked list ptr */
+	xfs_dinode_u(this)		di_u;
+	xfs_dinode_a(this)		di_a;
+	set_bytes(0);
+	u8				di_dump[xfs_inode_size()];
+}
+
+/*
+ * Note: Coordinate changes to this structure with the XFS_DI_* #defines
+ * below and the offsets table in xfs_ialloc_log_di().
+ */
+type xfs_dinode_core
+assert ( ? XFS_DINODE_MAGIC == di_magic) as chk_magic
+assert ( ? di_nlink > 0) as chk_links
+assert (? sizeof_bytes(this) == 96) as chk_sz
+{
+	u16		di_magic;	/* inode magic # = XFS_DINODE_MAGIC */
+	u16		di_mode;	/* mode and type of file */
+	u8		di_version;	/* inode version */
+	xfs_dino_fmt_t	di_format;	/* format of di_c data */
+	u16		di_onlink;	/* old number of links to file */
+	u32		di_uid;		/* owner's user id */
+	u32		di_gid;		/* owner's group id */
+	u32		di_nlink;	/* number of links to file */
+	u16		di_projid;	/* owner's project id */
+	u8		di_pad[8];	/* unused, zeroed space */
+	u16		di_flushiter;	/* incremented on flush */
+	xfs_timestamp	di_atime;	/* time last accessed */
+	xfs_timestamp	di_mtime;	/* time last modified */
+	xfs_timestamp	di_ctime;	/* time created/inode modified */
+	xfs_fsize_t	di_size;	/* number of bytes in file */
+	xfs_drfsbno_t	di_nblocks;	/* # of direct & btree blocks used */
+	xfs_extlen_t	di_extsize;	/* basic/minimum extent size for file */
+	xfs_extnum_t	di_nextents;	/* number of extents in data fork */
+	xfs_aextnum_t	di_anextents;	/* number of extents in attribute fork*/
+	u8		di_forkoff;	/* attr fork offs, <<3 for 64b align */
+	xfs_dino_fmt_t	di_aformat;	/* format of attr fork's data */
+	u32		di_dmevmask;	/* DMIG event mask */
+	u16		di_dmstate;	/* DMIG state info */
+	u16		di_flags;	/* random flags, XFS_DIFLAG_... */
+	u32		di_gen;		/* generation number */
+}
+
+type xfs_dinode_u(xfs_dinode di)
+{
+	if (di.di_core.di_format == XFS_DINODE_FMT_BTREE) {
+		/* btree root block */
+		xfs_bmdr_block(xfs_dfork_size(di))	di_bmbt;
+	} else if (di.di_core.di_format == XFS_DINODE_FMT_UUID) {
+		/* mount point value */
+		uuid_t			di_muuid;
+	} else if (di.di_core.di_format == XFS_DINODE_FMT_EXTENTS) {
+		/* extent list */
+		xfs_extent		di_bmx[di.di_core.di_nextents];
+	} else if (di.di_core.di_format == XFS_DINODE_FMT_LOCAL) {
+		xfs_dinode_local(di)	di_local;
+	} else {
+		u8			di_x;
+	}
+/* TODO */
+//	xfs_dir_shortform	di_dirsf;   /* shortform directory */
+//	xfs_dir2_sf_t  		di_dir2sf;  /* shortform directory v2 */
+//	char			di_c[1];/* local contents */
+//	xfs_dev_t		di_dev;	 /* device for S_IFCHR/S_IFBLK */
+//	char			di_symlink[1];  /* local symbolic link */
+}
+
+type xfs_dinode_a(xfs_dinode di)
+{
+	if (di.di_core.di_aformat == XFS_DINODE_FMT_BTREE) {
+		/* btree root block */
+		/* XXX FIXME */
+		xfs_bmdr_block(xfs_dfork_size(di))	di_abmbt;
+	} else if (di.di_core.di_aformat == XFS_DINODE_FMT_EXTENTS ) {
+		/* extent list */
+		xfs_extent		di_abmx[di.di_core.di_anextents];
+	} else {
+		u8			di_x;
+	}
+	// xfs_attr_shortform	di_attrs; /* shortform attribute list */
+}
+
+type xfs_dinode_local(xfs_dinode di)
+{
+	if ((di.di_core.di_mode & S_IFDIR) == S_IFDIR) {
+		xfs_dir2_sf	di_sf;
+	} else {
+		u8		di_c[di.di_core.di_size];
+	}
+}

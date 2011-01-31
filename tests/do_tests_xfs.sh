@@ -1,7 +1,13 @@
 #!/bin/bash
 
+tool_name="browser-xfs"
+img_name="xfs-postmark.img"
 src_root=`pwd`
+source `pwd`/tests/test_common.sh
 source `pwd`/tests/fs_common.sh
+
+echo "Testing browse.."
+run_test_match 4 "startoff = 0x80..0" "ext_startoff = 8388608"
 
 echo Testing fusebrowse-xfs
 fs_fuse_cmd_img xfs xfs.img "ls -la" "ls"

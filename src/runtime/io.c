@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <byteswap.h>
 #include "debug.h"
 #include "io.h"
 
@@ -24,6 +25,118 @@ uint64_t __getLocalArray(
 
 	real_off = base_offset + (bits_in_type * idx);
 	return __getLocal(clo, real_off, bits_in_type);
+}
+
+uint64_t __getLocalPhysMisalign(uint64_t bit_off, uint64_t num_bits)
+{
+	uint64_t	ret;
+	int		bits_left, bits_right;
+	int		bytes_full;
+
+	bits_left = 8 - (bit_off % 8);
+	if (bits_left > num_bits) bits_left = num_bits;
+	bytes_full = (num_bits - bits_left) / 8;
+	bits_right = num_bits - (8*bytes_full + bits_left);
+	assert (bits_left > 0 && bits_left < 8);
+
+	/* get the left bits */
+	ret = __getLocalPhys(8*(bit_off/8), 8);
+	ret >>= (bit_off % 8);
+
+	/* get the full-byte bits */
+	if (bytes_full != 0) {
+		uint64_t	v;
+		v = __getLocalPhys(8*(1+(bit_off/8)), 8*bytes_full);
+		ret |= v << bits_left;
+	}
+
+	ret &= (1UL << num_bits) - 1;
+
+	/* finally, any slack on the right */
+	if (bits_right != 0) {
+		uint64_t	v;
+		v = __getLocalPhys(8*(1+(bit_off/8)+bytes_full), 8);
+		v &= ((1UL << bits_right) - 1);
+		ret |= v << (bits_left + 8*bytes_full);
+	}
+
+	return ret;
+}
+
+uint64_t __swapBytes(uint64_t v, int num_bytes)
+{
+	switch(num_bytes) {
+	case 1: break;
+	case 2: v = bswap_16(v); break;
+	case 4: v = bswap_32(v); break;
+	case 8: v = bswap_64(v);break;
+	case 5: {
+	uint64_t v_out = 0;
+	v_out =   ((v & 0xff00000000) >> (4*8))
+		| ((v & 0x00ff000000) >> (2*8))
+		| ((v & 0x0000ff0000))
+		| ((v & 0x000000ff00) << (2*8))
+		| ((v & 0x00000000ff) << (4*8));
+	v = v_out;
+	break;
+	}
+	case 6: {
+	uint64_t v_out = 0;
+	v_out =   ((v & 0xff0000000000) >> (5*8))
+		| ((v & 0x00ff00000000) >> (3*8))
+		| ((v & 0x0000ff000000) >> (1*8))
+		| ((v & 0x000000ff0000) << (1*8))
+		| ((v & 0x00000000ff00) << (3*8))
+		| ((v & 0x0000000000ff) << 5*8);
+	v = v_out;
+	break;
+	}
+	default:
+	fprintf(stderr, "WHAT: %d\n", num_bytes);
+	assert(0 == 1);
+	}
+
+	return v;
+}
+
+uint64_t __getLocalPhysMisalignSwp(uint64_t bit_off, uint64_t num_bits)
+{
+	uint64_t	ret;
+	int		bits_left, bits_right;
+	int		bytes_full;
+
+	bits_left = 8 - (bit_off % 8);
+	if (bits_left > num_bits) bits_left = num_bits;
+	bits_right = (bit_off + num_bits) % 8;
+	bytes_full = (num_bits - (bits_left+bits_right)) / 8;
+	assert (bits_left > 0 && bits_left < 8);
+	assert (bits_left != 0);
+	assert (bits_left + bits_right + 8*bytes_full == num_bits);
+
+	/* get the left bits */
+	ret = __getLocalPhys(8*(bit_off/8), 8) & 0xff;
+	ret &= ((1 << bits_left)-1);
+	ret <<= num_bits-bits_left;
+
+	/* get the full-byte bits */
+	if (bytes_full != 0) {
+		uint64_t	v;
+		v = __getLocalPhys(8*(1+(bit_off/8)), 8*bytes_full);
+		//v = __swapBytes(v, bytes_full);	/* already swapped */
+		ret |= v << bits_right;
+	}
+
+	/* finally, any slack on the right */
+	if (bits_right != 0) {
+		uint64_t	v;
+		v = __getLocalPhys(8*(1+(bit_off/8)+bytes_full), 8);
+		v >>= 8 - bits_right;
+		ret |= v;
+	}
+
+	ret &= (1UL << num_bits) - 1;
+
+	return ret;
 }
 
 void __writeVal(uint64_t loc, uint64_t sz, uint64_t val)

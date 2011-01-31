@@ -13,6 +13,7 @@ extern type_map		types_map;
 
 InstanceIter::~InstanceIter(void)
 {
+	if (dst_cast != NULL) delete dst_cast;
 	delete binding;
 	delete min_expr;
 	delete max_expr;
@@ -20,7 +21,7 @@ InstanceIter::~InstanceIter(void)
 }
 
 InstanceIter::InstanceIter(void)
- : src_type(NULL), dst_type(NULL) {}
+ : src_type(NULL), dst_type(NULL), dst_cast(NULL) {}
 
 bool InstanceIter::load(
 	const Type	*in_src_type,
@@ -63,20 +64,55 @@ bool InstanceIter::loadCast(
 	preamble_args::const_iterator	&arg_it)
 {
 	const Expr	*_cast_type;
-	const Id	*cast_type;
+	string		cast_type_str;
+	const Id	*cast_type_id;
+	const FCall	*cast_type_fc;
+
 
 	if (load(in_src_type, arg_it) == false) return false;
 
 	_cast_type = (*arg_it)->getExpr(); arg_it++;
 	assert (_cast_type != NULL && "BAD CAST TYPE");
 
-	cast_type = dynamic_cast<const Id*>(_cast_type);
-	assert (cast_type != NULL && "EXPECTED ID FOR CAST TYPE");
+	cast_type_id = dynamic_cast<const Id*>(_cast_type);
+	cast_type_fc = dynamic_cast<const FCall*>(_cast_type);
+	assert (	(cast_type_id != NULL ||
+			cast_type_fc != NULL) &&
+			"EXPECTED ID FOR CAST TYPE");
 
-	if (types_map.count(cast_type->getName()) == 0) return false;
-	dst_type = types_map[cast_type->getName()];
+	if (cast_type_id != NULL) {
+		cast_type_str = cast_type_id->getName();
+		dst_cast = NULL;
+	} else {
+		cast_type_str = cast_type_fc->getName();
+		dst_cast = cast_type_fc->getExprs()->copy();
+	}
+
+	if (types_map.count(cast_type_str) == 0) return false;
+	dst_type = types_map[cast_type_str];
 
 	return true;
+}
+
+InstanceIter::InstanceIter(
+	const Type*	in_src_type,
+	const Type*	in_dst_type,
+	ExprList*	in_dst_cast,
+	Id*		in_binding,
+	Expr*		in_min_expr,
+	Expr*		in_max_expr,
+	Expr*		in_lookup_expr)
+: src_type(in_src_type), dst_type(in_dst_type), dst_cast(in_dst_cast),
+  binding(in_binding),
+  min_expr(in_min_expr), max_expr(in_max_expr),
+  lookup_expr(in_lookup_expr)
+{
+	assert (src_type != NULL);
+	assert (dst_type != NULL);
+	assert (binding != NULL);
+	assert (min_expr != NULL);
+	assert (max_expr != NULL);
+	assert (lookup_expr != NULL);
 }
 
 InstanceIter::InstanceIter(
@@ -86,7 +122,7 @@ InstanceIter::InstanceIter(
 	Expr*		in_min_expr,
 	Expr*		in_max_expr,
 	Expr*		in_lookup_expr)
-: src_type(in_src_type), dst_type(in_dst_type),
+: src_type(in_src_type), dst_type(in_dst_type), dst_cast(NULL),
   binding(in_binding),
   min_expr(in_min_expr), max_expr(in_max_expr),
   lookup_expr(in_lookup_expr)
@@ -151,12 +187,14 @@ void InstanceIter::genCodeLookup(void) const
 	local_syms = symtabs[src_type->getName()];
 	assert (local_syms != NULL);
 
+	EvalCtx			ectx(local_syms);
+
 	bb_bits = llvm::BasicBlock::Create(
 		llvm::getGlobalContext(), "entry", f);
 	builder->SetInsertPoint(bb_bits);
 	code_builder->genThunkHeaderArgs(f, src_type);
 
-	expr_eval_bits = eval(EvalCtx(local_syms), raw_expr);
+	expr_eval_bits = eval(ectx, raw_expr);
 	assert (expr_eval_bits != NULL);
 
 	ai = f->arg_begin();	/* closure */
@@ -173,10 +211,22 @@ void InstanceIter::genCodeLookup(void) const
 	assert (ret_typepass->getType() == code_builder->getClosureTyPtr());
 	/* output value should be a typepass struct */
 
-	ret_params = builder->CreateExtractValue(
-		builder->CreateLoad(ret_typepass), 1, "params");
-	ai++;	/* parambuf output */
-	code_builder->emitMemcpy64(ai, ret_params, dst_type->getParamBufEntryCount());
+	if (dst_cast == NULL) {
+		ret_params = builder->CreateExtractValue(
+			builder->CreateLoad(ret_typepass), 1, "params");
+		ai++;	/* parambuf output */
+		code_builder->emitMemcpy64(
+			ai, ret_params, dst_type->getParamBufEntryCount());
+	} else {
+		llvm::AllocaInst	*pb_outptr;
+		pb_outptr = code_builder->createTmpI64Ptr();
+		ai++;	/* parambuf output */
+		builder->CreateStore(ai, pb_outptr);
+		code_builder->storeExprListIntoParamBuf(
+			&ectx, dst_type->getArgs(),
+			dst_cast,
+			pb_outptr);
+	}
 
 	ret_off = builder->CreateExtractValue(
 		builder->CreateLoad(ret_typepass), 0, "offset");

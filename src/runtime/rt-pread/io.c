@@ -11,7 +11,6 @@
 #include <linux/fs.h>
 #include <sys/ioctl.h>
 #include <endian.h>
-#include <byteswap.h>
 
 #include "debug.h"
 #include "runtime.h"
@@ -25,53 +24,42 @@ uint64_t __getLocalPhys(uint64_t bit_off, uint64_t num_bits)
 	struct fsl_rt_io	*io;
 	uint64_t 		ret;
 
-
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_PHYSACCESS);
 
 	io = fsl_get_io();
 	if ((bit_off % 8) != 0) {
-		int	bits_left, bits_right;
-		int	bytes_full;
-
-		bits_left = 8 - (bit_off % 8);
-		if (bits_left > num_bits) bits_left = num_bits;
-		bytes_full = (num_bits - bits_left) / 8;
-		bits_right = num_bits - (8*bytes_full + bits_left);
-		assert (bits_left > 0 && bits_left < 8);
-		assert (bits_right == 0);
-
-		ret = fsl_io_cache_get(io, 8*(bit_off/8), 8);
-		ret >>= bit_off % 8;
-		if (bytes_full != 0) {
-			uint64_t	v;
-			v = fsl_io_cache_get(
-				io, 8*(1+(bit_off/8)), 8*bytes_full);
-			ret |= v << bits_left;
-		}
-		ret &= (1 << num_bits) - 1;
-	} else {
-		/* common path */
-		ret = fsl_io_cache_get(io, bit_off, num_bits);
 		if (__fsl_mode == FSL_MODE_BIGENDIAN) {
 		#ifdef FSL_LITTLE_ENDIAN
-			switch(num_bits) {
-			case	64:	ret = bswap_64(ret); break;
-			case	32:	ret = bswap_32(ret);; break;
-			case	16:	ret = bswap_16(ret); break;
-			}
+			ret =  __getLocalPhysMisalignSwp(bit_off, num_bits);
+		#else
+			/* match: big/big */
+			ret =  __getLocalPhysMisalign(bit_off, num_bits);
 		#endif
 		} else {
 		#ifdef FSL_BIG_ENDIAN
-			switch(num_bits) {
-			case	64:	ret = bswap_64(ret); break;
-			case	32:	ret = bswap_32(ret);; break;
-			case	16:	ret = bswap_16(ret); break;
-			}
+			ret =  __getLocalPhysMisalignSwp(bit_off, num_bits);
+		#else
+			/* match: LITTLE/LITTLE */
+			ret =  __getLocalPhysMisalign(bit_off, num_bits);
 		#endif
 		}
-	}
+	} else {
+		/* common path */
+		ret = fsl_io_cache_get(io, bit_off, num_bits);
+		if ((num_bits % 8) == 0) {
+			if (__fsl_mode == FSL_MODE_BIGENDIAN) {
+			#ifdef FSL_LITTLE_ENDIAN
+				ret = __swapBytes(ret, num_bits/8);
+			#endif
+			} else {
+			#ifdef FSL_BIG_ENDIAN
+				ret = __swapBytes(ret, num_bits/8);
+			#endif
+			}
+		}
 
-	if (io->io_cb_any != NULL) io->io_cb_any(io, bit_off);
+		if (io->io_cb_any != NULL) io->io_cb_any(io, bit_off);
+	}
 
 	return ret;
 }

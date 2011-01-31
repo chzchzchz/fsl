@@ -111,6 +111,11 @@ public:
 		llvm::AllocaInst* params_out_ptr,
 		unsigned int pb_base_idx);
 
+	int storeExprListIntoParamBuf(
+		class EvalCtx		*ectx,
+		const ArgsList		*args,
+		const class ExprList	*expr,
+		llvm::AllocaInst* params_out_ptr);
 private:
 	void makeClosureTy(void);
 

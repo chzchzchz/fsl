@@ -21,10 +21,20 @@ public:
 	InstanceIter(
 		const Type*	in_src_type,
 		const Type*	in_dst_type,
+		ExprList*	in_dst_cast,
 		Id*		in_binding,
 		Expr*		in_min_expr,
 		Expr*		in_max_expr,
 		Expr*		in_lookup_expr);
+
+	InstanceIter(
+		const Type*	in_src_type,
+		const Type*	in_dst_type,
+		Id*		in_binding,
+		Expr*		in_min_expr,
+		Expr*		in_max_expr,
+		Expr*		in_lookup_expr);
+
 
 	virtual ~InstanceIter(void);
 	const Type* getSrcType(void) const { return src_type; }
@@ -51,6 +61,7 @@ private:
 
 	const Type*	src_type;
 	const Type*	dst_type;	/* as given by lookup_expr */
+	ExprList*	dst_cast;	/* if casting, how to cast */
 	Id		*binding;
 	Expr		*min_expr;
 	Expr		*max_expr;

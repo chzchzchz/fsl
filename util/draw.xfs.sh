@@ -2,7 +2,7 @@
 
 source util/draw.fs.sh
 
-XFS_REGEX="(xfs_sb|xfs_agf|xfs_agi|xfs_agfl)"
+XFS_REGEX="(xfs_sb|xfs_agf|xfs_agi|xfs_agfl|xfs_freelist_blk|xfs_ino_btree|xfs_bno_blk|xfs_cnt_blk|xfs_dinode[^_]|xfs_block|xfs_dir2_sf)"
 
 function draw_scan_xfs
 {

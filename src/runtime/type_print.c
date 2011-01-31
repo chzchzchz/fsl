@@ -1,4 +1,5 @@
 //#define DEBUG_TYPEINFO
+//#define PRINT_BITS
 #include <stdbool.h>
 #include <assert.h>
 #include <stdio.h>
@@ -59,7 +60,7 @@ void typeinfo_print_field_value(
 	NEW_VCLO(last_field_clo, field_off, NULL, ti_xlate(ti));
 
 	/* dump data or print address range */
-	if (num_elems == 1 && field_sz <= 64) {
+	if (num_elems == 1 && field_sz <= 64 && field_sz > 0) {
 		uint64_t	v;
 		v = __getLocal(&last_field_clo, field_off, field_sz);
 		printf(" = %"PRIu64 " (0x%"PRIx64")", v, v);

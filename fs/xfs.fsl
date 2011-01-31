@@ -1,31 +1,68 @@
 const __FSL_FSNAME = xfs;
 const __FSL_MODE = 1; /* big endian */
+const NULLDRFSBNO = 0xffffffffffffffff;
 typedef xfs_drfsbno_t = u64;	// blockno in fs (raw)
-const NULLDRFSBNO = ~0;
 typedef xfs_drftbno_t = u64;	// number of realtime extents
 typedef xfs_drtbno_t = u64;	// number of realtime extents
 typedef xfs_agblock_t = u32;	// blockno in alloc group
-typedef xfs_ino_t = u64;	// <inode> type */
+typedef xfs_ino_t = u64;	// <inode> type
+typedef xfs_dir_ino_t = u64;	// ino_t
 typedef xfs_extlen_t = u32;	// extent length in blocks
 typedef xfs_agnumber_t = u32;	// allocation group number
 typedef xfs_ag_block_t = u32;
+typedef xfs_agino_t = u32;
+typedef xfs_extnum_t = u32;
+typedef xfs_aextnum_t = u16;
+typedef xfs_inofree_t = u64;
+typedef xfs_fsize_t = u64;
+typedef xfs_bmbt_ptr_t = u64;
+typedef xfs_bmdr_ptr_t = u64;
+typedef xfs_dfiloff_t = u64;
+typedef xfs_bmbt_key_t = u64;
+
+const BMBT_EXNTFLAG_BITOFF = 0;
+const BMBT_EXNTFLAG_BITLEN = 1;
+const BMBT_STARTOFF_BITOFF = 1;
+const BMBT_STARTOFF_BITLEN = 54;
+const BMBT_STARTBLOCK_BITLEN = 52;
+const BMBT_BLOCKCOUNT_BITOFF = 52;
+
 
 const XFS_SUPER_MAGIC	= 0x58465342;
 const XFS_AGF_MAGIC	= 0x58414746;	/* 'XAGF' */
 const XFS_AGI_MAGIC	= 0x58414749;	/* 'XAGI' */
+const XFS_DINODE_MAGIC	= 0x494e;	/* 'IN' */
+const XFS_IBT_MAGIC	= 0x49414254;	/* 'IABT' */
+const XFS_ABTB_MAGIC	= 0x41425442;	/* 'ABTB' for bno tree */
+const XFS_ABTC_MAGIC	= 0x41425443;	/* 'ABTC' for cnt tree */
+const XFS_BMAP_MAGIC	= 0x424d4150;	/* 'BMAP' */
 const XFS_AGF_VERSION	= 1;
 const XFS_AGI_VERSION	= 1;
 const BBSHIFT		= 9;
 const BBSIZE		= (1<<BBSHIFT);
 
+const S_IFREG		= 0x8000;
+const S_IFDIR		= 0x4000;
+
 const XFS_AGI_UNLINKED_BUCKETS = 64;
 enum xfs_btnum_t = {
-        XFS_BTNUM_BNOi, XFS_BTNUM_CNTi, XFS_BTNUM_BMAPi, XFS_BTNUM_INOi,
+        XFS_BTNUM_BNOi = 0, XFS_BTNUM_CNTi = 1, XFS_BTNUM_BMAPi, XFS_BTNUM_INOi,
         XFS_BTNUM_MAX
 } u8;
 
 const XFS_BTNUM_AGF =  XFS_BTNUM_CNTi + 1;
 
+enum xfs_dino_fmt_t =
+{
+        XFS_DINODE_FMT_DEV,             /* CHR, BLK: di_dev */
+        XFS_DINODE_FMT_LOCAL,           /* DIR, REG: di_c */
+                                        /* LNK: di_symlink */
+        XFS_DINODE_FMT_EXTENTS,         /* DIR, REG, LNK: di_bmx */
+        XFS_DINODE_FMT_BTREE,           /* DIR, REG, LNK: di_bmbt */
+        XFS_DINODE_FMT_UUID             /* MNT: di_uuid */
+} u8;
+
 
 include "xfs_func.fsl"
 include "xfs_types.fsl"
+include "xfs_inode.fsl"

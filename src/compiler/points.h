@@ -52,6 +52,7 @@ private:
 
 	void loadPointsInstance(
 		const Type* dst_type,
+		ExprList* dst_params,
 		const Expr* data_loc,
 		const Id* as_name);
 	void loadPointsInstance(

@@ -45,6 +45,10 @@ uint64_t __getLocalArray(
 	uint64_t idx, uint64_t bits_in_type,
 	uint64_t base_offset, uint64_t bits_in_array);
 void __writeVal(uint64_t loc, uint64_t sz, uint64_t val);
+uint64_t __getLocalPhysMisalign(uint64_t bit_off, uint64_t num_bits);
+uint64_t __getLocalPhysMisalignSwp(uint64_t bit_off, uint64_t num_bits);
+uint64_t __swapBytes(uint64_t v, int num_bytes);
+
 
 void fsl_io_steal_wlog(struct fsl_rt_io* io, struct fsl_rt_wlog* dst);
 void fsl_io_abort_wlog(struct fsl_rt_io* io);

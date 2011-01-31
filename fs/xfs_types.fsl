@@ -1,4 +1,12 @@
-type uuid_t { u8	uuid[16]; }
+type disk
+points_range(
+	ino, 0, xfs_inos_per_ag()*get_agcount(), xfs_get_inode(ino)) as inodes
+{
+	aggregate	aggr[get_agcount()] fixed;
+	set_bytes(0);
+	xfs_block	blocks[get_numblks()] fixed nofollow;
+	set_bytes(0);
+}
 
 type xfs_sb
 assert ( ? sb_magicnum == XFS_SUPER_MAGIC ) as chk_sb
@@ -24,7 +32,7 @@ assert ( ? (get_numblks()*sb_blocksize) <= __FROM_OS_BDEV_BYTES) as chk_size
 	u16		sb_sectsize;	/* volume sector size, bytes */
 	u16		sb_inodesize;	/* inode size, bytes */
 	u16		sb_inopblock;	/* inodes per block */
-	char		sb_fname[12];	/* file system name */
+	u8		sb_fname[12];	/* file system name */
 	u8		sb_blocklog;	/* log2 of sb_blocksize */
 	u8		sb_sectlog;	/* log2 of sb_sectsize */
 	u8		sb_inodelog;	/* log2 of sb_inodesize */
@@ -64,13 +72,57 @@ assert ( ? (get_numblks()*sb_blocksize) <= __FROM_OS_BDEV_BYTES) as chk_size
 
 type xfs_block { u8 data[get_bsz()]; }
 
+type xfs_bno_blk
+assert (? bno_hdr.bb_hdr.bb_magic == XFS_ABTB_MAGIC) as chk_bno_magic
+{
+	xfs_btree_sblock	bno_hdr;
+	if (bno_hdr.bb_hdr.bb_level == 0) {
+		xfs_alloc_rec	bno_alloc[bno_hdr.bb_hdr.bb_numrecs];
+	} else {
+		xfs_bb_rec32	bno_recs[bno_hdr.bb_hdr.bb_numrecs];
+	}
+	set_bytes(get_bsz());
+}
+
+type xfs_cnt_blk
+assert (? cnt_hdr.bb_hdr.bb_magic == XFS_ABTC_MAGIC) as chk_cnt_magic
+{
+	xfs_btree_sblock	cnt_hdr;
+	xfs_bb_rec32		cnt_recs[cnt_hdr.bb_hdr.bb_numrecs];
+	set_bytes(get_bsz());
+}
+
+type xfs_ino_btree(aggregate aggr)
+assert (? ino_hdr.bb_hdr.bb_magic == XFS_IBT_MAGIC) as chk_ino_magic
+points_range_cast(i, 0, ino_hdr.bb_hdr.bb_numrecs-1,
+	aggr.blocks[xfs_agino_to_agbno(ino_recs[i].ir_startino)],
+	xfs_ino_blk) as inos
+{
+	xfs_btree_sblock	ino_hdr;
+	if (ino_hdr.bb_hdr.bb_level == 0) {
+		xfs_inobt_rec		ino_recs[ino_hdr.bb_hdr.bb_numrecs] fixed;
+	} else {
+		xfs_bb_rec32		ino_ptrs[ino_hdr.bb_hdr.bb_numrecs] fixed;
+	}
+	set_bytes(get_bsz());
+}
+
+type xfs_inobt_rec
+{
+	xfs_agino_t     ir_startino;    /* starting inode number */
+	u32		ir_freecount;   /* count of free inodes (set bits) */
+	xfs_inofree_t   ir_free;        /* free inode mask */
+}
+
 /*
  * The second word of agf_levels in the first a.g. overlaps the EFS
  * superblock's magic number.  Since the magic numbers valid for EFS
  * are > 64k, our value cannot be confused for an EFS superblock's.
  */
-type xfs_agf
+type xfs_agf(aggregate aggr)
 assert (? agf_magicnum == XFS_AGF_MAGIC) as chk_agf_magic
+points_cast(xfs_bno_blk, aggr.blocks[agf_roots[XFS_BTNUM_BNOi]]) as btbno
+points_cast(xfs_cnt_blk, aggr.blocks[agf_roots[XFS_BTNUM_CNTi]]) as btcnt
 {
 	/*
 	* Common allocation group header information
@@ -91,11 +143,11 @@ assert (? agf_magicnum == XFS_AGF_MAGIC) as chk_agf_magic
 	u32          agf_longest;    /* longest free space */
 	u32          agf_btreeblks;  /* # of blocks held in AGF btrees */
 	set_bytes(get_sectsz());
-
 }
 
-type xfs_agi
+type xfs_agi(aggregate aggr)
 assert (? agi_magicnum == XFS_AGI_MAGIC) as chk_agi_magic
+points_cast(xfs_ino_btree(aggr), aggr.blocks[agi_root]) as ino_btree
 {
 	/* Common allocation group header information */
 	u32          agi_magicnum;   /* magic number == XFS_AGI_MAGIC */
@@ -121,27 +173,226 @@ assert (? agi_magicnum == XFS_AGI_MAGIC) as chk_agi_magic
 	set_bytes(get_sectsz());
 }
 
+type xfs_freelist_blk
+{
+	u8	dat[get_bsz()];
+}
+
+type xfs_freelist_ptr(aggregate aggr)
+assert (? flp != 0) as chk_flp_val
+points_cast (xfs_freelist_blk, aggr.blocks[flp]) as freeblk
+{
+	xfs_agblock_t	flp;
+}
+
 /*
  * The third a.g. block contains the a.g. freelist, an array
  * of block pointers to blocks owned by the allocation btree code.
  */
-
-type xfs_agfl {	xfs_agblock_t   agfl_bno[xfs_agfl_size()]; }
+type xfs_agfl(aggregate aggr)
+{
+	xfs_freelist_ptr(aggr)  agfl_bno[xfs_agfl_size()] fixed;
+}
 
 type aggregate
 {
 	xfs_sb		sb;
 	set_bytes(get_sectsz());
-	xfs_agf		agf;
-	xfs_agi		agi;
-	xfs_agfl	agfl;
+	xfs_agf(this)	agf;
+	xfs_agi(this)	agi;
+	xfs_agfl(this)	agfl;
 	set_bytes(0);
-	xfs_block	blocks[sb.sb_agblocks] fixed nofollow;
+	xfs_block	blocks[get_agblocks()] fixed nofollow;
+	set_bytes(0);
+	xfs_dinode	inodes[get_agblocks()*xfs_ino_per_blk()] fixed nofollow;
 }
 
-type disk
-{
-	aggregate	aggr[get_agcount()] fixed;
-	set_bytes(0);
-	xfs_block	blocks[get_numblks()] fixed nofollow;
+/*
+ * Disk inode structure.
+ * This is just the header; the inode is expanded to fill a variable size
+ * with the last field expanding.  It is split into the core and "other"
+ * because we only need the core part in the in-core inode.
+ */
+type xfs_timestamp {
+	u32	t_sec;          /* timestamp seconds */
+	u32	t_nsec;         /* timestamp nanoseconds */
 }
+
+
+type xfs_bmdr_block(u32 bytes)
+{
+	u16			bb_level;       /* 0 is a leaf */
+	u16			bb_numrecs;     /* current # of data records */
+	xfs_bmbt_key_t		bb_keys[bb_numrecs];
+	set_bytes(4+xfs_numrecs(bytes)*sizeof_bytes(xfs_bmbt_key_t));
+	xfs_bmbt_ptr_t		bb_ptrs[bb_numrecs];
+}
+
+type xfs_bmbt_rec_32 { u32	l[4]; }
+type xfs_bmbt_rec_64 { u64	l[2]; }
+
+type xfs_extent
+points_range(i, 1, ext_blkcnt, disk.blocks[(i-1)+ext_startblk]) as ext_blks
+assert( ? sizeof_bits(this) == 128) as chk_sz
+{
+	u1	ext_flag;
+	u54	ext_startoff;
+	u52	ext_startblk;
+	u21	ext_blkcnt;
+}
+
+/*
+ * The parent directory has a dedicated field, and the self-pointer must
+ * be calculated on the fly.
+ *
+ * Entries are packed toward the top as tight as possible.  The header
+ * and the elements much be memcpy'd out into a work area to get correct
+ * alignment for the inode number fields.
+ */
+type xfs_dir_sf_hdr {	/* constant-structure header block */
+	xfs_dir_ino_t   parent;	/* parent dir inode number */
+	u8		count;	/* count of active entries */
+}
+
+type xfs_dir_sf_entry {
+	xfs_dir_ino_t   inumber;	/* referenced inode number */
+	u8		namelen;	/* actual length of name (no NULL) */
+	u8		name[namelen];	/* name */
+}
+
+type xfs_dir_shortform {
+	xfs_dir_sf_hdr		hdr;
+	xfs_dir_sf_entry	list[hdr.count];
+}
+
+/*
+ * Inode number stored as 8 8-bit values.
+ */
+type xfs_dir2_ino8 { u8 i[8]; }
+
+/*
+ * Inode number stored as 4 8-bit values.
+ * Works a lot of the time, when all the inode numbers in a directory
+ * fit in 32 bits.
+ */
+type xfs_dir2_ino4 { u8 i[4]; }
+type xfs_dir2_inou {
+	union {
+		xfs_dir2_ino8	i8;
+		xfs_dir2_ino4	i4;
+	} v;
+}
+
+//#define XFS_DIR2_MAX_SHORT_INUM ((xfs_ino_t)0xffffffffULL)
+
+/*
+ * Normalized offset (in a data block) of the entry, really xfs_dir2_data_off_t.
+ * Only need 16 bits, this is the byte offset into the single block form.
+ */
+type xfs_dir2_sf_off { u8 i[2]; }
+
+/*
+ * The parent directory has a dedicated field, and the self-pointer must
+ * be calculated on the fly.
+ *
+ * Entries are packed toward the top as tightly as possible.  The header
+ * and the elements must be memcpy'd out into a work area to get correct
+ * alignment for the inode number fields.
+ */
+type xfs_dir2_sf_hdr {
+	u8		count;		/* count of entries */
+	u8		i8count;	/* count of 8-byte inode #s */
+//	xfs_dir2_inou	parent; XXX		/* parent dir inode number */
+	xfs_dir2_ino4	parent_i4;
+}
+
+type xfs_dir2_sf_entry {
+	u8		namelen;	/* actual name length */
+	xfs_dir2_sf_off	offset;		/* saved offset */
+	u8		name[namelen];	/* name, variable size */
+//	xfs_dir2_inou	inumber;	/* inode number, var. offset */ XXX
+	xfs_dir2_ino4	inumber;	/* inode number, var. offset */
+}
+
+type xfs_dir2_sf {
+	xfs_dir2_sf_hdr		hdr;			/* shortform header */
+	xfs_dir2_sf_entry	list[hdr.count];	/* shortform entries */
+}
+
+type xfs_attr_sf_hdr {        /* constant-structure header block */
+	u16	totsize;     /* total bytes in shortform list */
+	u8	count;        /* count of active entries */
+}
+
+type xfs_attr_sf_entry {
+	u8 namelen;      /* actual length of name (no NULL) */
+	u8 valuelen;     /* actual length of value (no NULL) */
+	u8 flags;        /* flags bits (see xfs_attr_leaf.h) */
+	u8 nameval[1];   /* name & value bytes concatenated */
+}
+
+type xfs_attr_shortform {
+	xfs_attr_sf_hdr 	hdr;
+	xfs_attr_sf_entry	list[1];/* variable sized array */
+}
+
+/* Data record/key structure */
+type xfs_alloc_rec {
+        u32          ar_startblock;  /* starting block number */
+        u32          ar_blockcount;  /* count of free blocks */
+}
+
+/* btree pointer type */
+typedef xfs_alloc_ptr_t = u32;
+/* btree block header type */
+//typedef struct xfs_btree_sblock xfs_alloc_block_t;
+
+type xfs_btree_sblock {
+	xfs_btree_hdr	bb_hdr;
+	u32		bb_leftsib;     /* left sibling block or NULLAGBLOCK */
+	u32		bb_rightsib;    /* right sibling block or NULLAGBLOCK */
+}
+
+/*
+ * Long form header: bmap btrees.
+ */
+type xfs_btree_lblock
+{
+	xfs_btree_hdr	bb_hdr;
+	u64		bb_leftsib;     /* left sibling block or NULLDFSBNO */
+	u64		bb_rightsib;    /* right sibling block or NULLDFSBNO */
+}
+
+/*
+ * Combined header and structure, used by common code.
+ */
+type xfs_btree_hdr
+{
+        u32          bb_magic;       /* magic number for block type */
+        u16          bb_level;       /* 0 is a leaf */
+        u16          bb_numrecs;     /* current # of data records */
+}
+
+/* short form pointers */
+type xfs_bb_rec32
+{
+	u32          bb_leftsib;
+	u32          bb_rightsib;
+}
+
+/* long form pointers */
+type xfs_bb_rec64
+{
+	u64          bb_leftsib;
+	u64          bb_rightsib;
+}
+
+type xfs_bb_u
+{
+	union {
+		xfs_bb_rec32	s;
+		xfs_bb_rec64	l;
+	} v;
+}
+
+type uuid_t { u8	uuid[16]; }

@@ -16,6 +16,7 @@ using namespace std;
 
 extern type_map		types_map;
 extern symtab_map	symtabs;
+extern ctype_map	ctypes_map;
 extern func_map		funcs_map;
 extern const_map	constants;
 extern RTInterface	rt_glue;
@@ -111,20 +112,49 @@ Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 	return erc.apply(cur_expr);
 }
 
+static Expr* eval_sizeof_type(const EvalCtx& ectx, const Id* id)
+{
+	Expr				*ret_size;
+	Expr				*resolved_closure;
+	const SymbolTable		*st;
+	const Type			*t;
+	symtab_map::const_iterator	it;
+
+	if (id == NULL) return NULL;
+
+	if (types_map.count(id->getName()) == 0) {
+		resolved_closure = ectx.resolveVal(id);
+		t = ectx.getType(id);
+		if (t == NULL) return NULL;
+	} else {
+		t = types_map[id->getName()];
+		resolved_closure = FCall::mkBaseClosure(t);
+	}
+
+	/* st = symbol table for type to get size of */
+	st = symtabs[t->getName()];
+
+	/* get typified size expression,  fill in closure param with dynamic type */
+	ret_size = st->getThunkType()->getSize()->copyFCall();
+	ret_size = Expr::rewriteReplace(
+		ret_size, rt_glue.getThunkClosure(), resolved_closure);
+	return ret_size;
+}
+
+static Expr* eval_sizeof_typedef(const Id* id)
+{
+	if (ctypes_map.count(id->getName()) == 0) return NULL;
+	return new Number(ctypes_map[id->getName()]);
+}
+
 static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits)
 {
 	const ExprList			*exprs;
-	const SymbolTable		*st;
-	const Type			*t;
-	Expr				*front;
 	Expr				*ret_size;
-	Id				*front_id;
-	Expr				*resolved_closure;
-	symtab_map::const_iterator	it;
+	const Id			*front_id;
 
 	/* fc name is either sizeof_bytes of sizeof_bits */
 	/* should probably make this its own class? */
-
 	exprs = fc->getExprs();
 	if (exprs->size() != 1) {
 		cerr <<  "sizeof expects 1 argument. Got: ";
@@ -133,46 +163,25 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 		return NULL;
 	}
 
-	/* sizeof currently only takes a type */
-	front = exprs->front();
-	front_id = dynamic_cast<Id*>(front);
+	front_id = dynamic_cast<const Id*>(exprs->front());
 	if (front_id == NULL) {
-		/* TODO: should take re-parameterized types and funcs too.. */
 		cerr << "sizeof expects id for argument. Got: ";
 		fc->print(cerr);
 		cerr << endl;
 		return NULL;
 	}
 
-	if (types_map.count(front_id->getName()) == 0) {
-		resolved_closure = ectx.resolveVal(front_id);
-		t = ectx.getType(front_id);
-		if (t == NULL) {
-			cerr << "sizeof can't find type for "<<front_id->getName();
-			cerr << endl;
-			return NULL;
-		}
-	} else {
-		t = types_map[front_id->getName()];
-		resolved_closure = FCall::mkBaseClosure(t);
+	ret_size = eval_sizeof_type(ectx, front_id);
+	if (ret_size == NULL) ret_size = eval_sizeof_typedef(front_id);
+	if (ret_size == NULL) {
+		cerr << "sizeof couldn't figure out size of '";
+		fc->print(cerr);
+		cerr << "'\n";;
+		return NULL;
 	}
 
-	/* st = symbol table for type to get size of */
-	st = symtabs[t->getName()];
-
-	/* get typified size expression,
-	 * fill in closure parameter with the dynamic type */
-	ret_size = st->getThunkType()->getSize()->copyFCall();
-	ret_size = Expr::rewriteReplace(
-		ret_size,
-		rt_glue.getThunkClosure(),
-		resolved_closure);
-
-	if (bits == false) {
-		/* convert bits to bytes */
-		ret_size = new AOPDiv(ret_size, new Number(8));
-	}
-
+	/* convert bits to bytes */
+	if (bits == false) ret_size = new AOPDiv(ret_size, new Number(8));
 	return ret_size;
 }
 

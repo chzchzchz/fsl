@@ -18,6 +18,7 @@
 #include "writepkt.h"
 #include "reloc.h"
 #include "memotab.h"
+#include "util.h"
 
 #include <stdint.h>
 #include <fstream>
@@ -64,16 +65,16 @@ static void	simplify_constants(void);
 
 static void load_primitive_ptypes(void)
 {
-#define PRIM_NUM	9
-	const char *prim_name[] = {
-			"u1", "u8", "u12", "u16", "u32", "u64",
-			"bool", "int", "uint"};
-	int	prim_bits[] = {
-			1, 8, 12, 16, 32, 64,
-			1, 64, 64};
+#define PRIM_NUM	3
+	const char *prim_name[] = {"bool", "int", "uint"};
+	int	prim_bits[] = {1, 64, 64};
 
 	for (unsigned int i = 0; i < PRIM_NUM; i++) {
 		ctypes_map[prim_name[i]] = prim_bits[i];
+	}
+
+	for (unsigned int i = 1; i <= 64; i++) {
+		ctypes_map["u"+int_to_string(i)] = i;
 	}
 }
 

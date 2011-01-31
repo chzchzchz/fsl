@@ -179,7 +179,7 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 
 	// copy bits
 	// XXX need to change to support arbitrary endians (this is little)
-	switch(num_bits/8) {
+	switch((num_bits+7)/8) {
 	case 0:
 	case 1:
 		ret = cache_line[0];
@@ -187,12 +187,26 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 	case 2:
 		ret = ((const uint16_t*)cache_line)[0];
 		break;
+	case 3:
+		ret = ((((const uint32_t*)cache_line)[0]) & 0xffffff);
+		break;
 	case 4:
 		ret = ((const uint32_t*)cache_line)[0];
+		break;
+	case 5:
+		ret = ((const uint64_t*)cache_line)[0] & 0xffffffffff;
+		break;
+	case 6:
+		ret = ((const uint64_t*)cache_line)[0]  & 0xfffffffffffff;
+		break;
+	case 7:
+		ret = ((const uint64_t*)cache_line)[0]  & 0xfffffffffffffff;
+		break;
 	case 8:
 		ret = ((const uint64_t*)cache_line)[0];
 		break;
 	default:
+		fprintf(stderr, "DAY DREAM %d\n", num_bits/8);
 		assert (0 == 1);
 	}
 	ret >>= bit_off % 8;

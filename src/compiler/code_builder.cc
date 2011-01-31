@@ -508,3 +508,38 @@ int CodeBuilder::storeExprIntoParamBuf(
 
 	return elems_stored;
 }
+
+int CodeBuilder::storeExprListIntoParamBuf(
+	EvalCtx		*ectx,
+	const ArgsList	*args_out,
+	const ExprList	*exprs,
+	llvm::AllocaInst* params_out_ptr)
+{
+	unsigned int	pb_idx, arg_idx;
+
+	assert (exprs->size() == args_out->size());
+
+	pb_idx = 0;
+	arg_idx = 0;
+	for (	ExprList::const_iterator it = exprs->begin();
+		it != exprs->end();
+		it++, arg_idx++)
+	{
+		const Expr	*cur_expr = *it;
+		Expr		*evaled_cexpr;
+		int		elems_stored;
+
+		evaled_cexpr = eval(*ectx, cur_expr);
+		elems_stored = storeExprIntoParamBuf(
+			args_out->get(arg_idx), evaled_cexpr,
+			params_out_ptr, pb_idx);
+		delete evaled_cexpr;
+		if (elems_stored <= 0) {
+			assert (0 == 1 && "FAILED TO STORE");
+			return -1;
+		}
+		pb_idx += elems_stored;
+	}
+
+	return pb_idx;
+}

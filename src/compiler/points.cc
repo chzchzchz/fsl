@@ -78,7 +78,10 @@ void Points::loadPointsCast(void)
 		const preamble_args		*args;
 		preamble_args::const_iterator	args_it;
 		const Expr			*data_loc, *_type_name;
-		const Id			*type_name;
+		std::string			type_name_str;
+		const Id			*type_name_id;
+		const FCall			*type_name_fc;
+		ExprList*			dst_params;
 		const Type			*dst_type;
 
 		args = (*it)->getArgsList();
@@ -93,8 +96,10 @@ void Points::loadPointsCast(void)
 			cerr << "points_cast: Unexpected argtype" << endl;
 			continue;
 		}
-		type_name = dynamic_cast<const Id*>(_type_name);
-		if (type_name == NULL) {
+
+		type_name_id = dynamic_cast<const Id*>(_type_name);
+		type_name_fc = dynamic_cast<const FCall*>(_type_name);
+		if (type_name_id == NULL && type_name_fc == NULL) {
 			cerr << "points_cast : Wanted type name in first arg. ";
 			cerr << "Got: ";
 			_type_name->print(cerr);
@@ -102,12 +107,21 @@ void Points::loadPointsCast(void)
 			continue;
 		}
 
-		if (types_map.count(type_name->getName()) == 0) {
+		if (type_name_id != NULL) {
+			type_name_str = type_name_id->getName();
+			dst_params = NULL;
+		} else {
+			assert (type_name_fc != NULL);
+			type_name_str = type_name_fc->getName();
+			dst_params = type_name_fc->getExprs()->copy();
+		}
+
+		if (types_map.count(type_name_str) == 0) {
 			cerr << "points_cast: invalid type " <<
-				type_name->getName()  << endl;
+				type_name_str  << endl;
 			continue;
 		}
-		dst_type = types_map[type_name->getName()];
+		dst_type = types_map[type_name_str];
 
 		args_it++;
 		data_loc = (*args_it)->getExpr();
@@ -116,7 +130,9 @@ void Points::loadPointsCast(void)
 			continue;
 		}
 
-		loadPointsInstance(dst_type, data_loc, (*it)->getAddressableName());
+		loadPointsInstance(
+			dst_type, dst_params, data_loc,
+			(*it)->getAddressableName());
 	}
 }
 
@@ -258,11 +274,12 @@ void Points::loadPointsInstance(const Expr* data_loc, const Id* as_name)
 		return;
 	}
 
-	loadPointsInstance(dst_type, data_loc, as_name);
+	loadPointsInstance(dst_type, NULL, data_loc, as_name);
 }
 
 void Points::loadPointsInstance(
-	const Type* dst_type, const Expr* data_loc, const Id* as_name)
+	const Type* dst_type, ExprList* dst_params,
+	const Expr* data_loc, const Id* as_name)
 {
 	PointsRange	*new_pr;
 
@@ -274,6 +291,7 @@ void Points::loadPointsInstance(
 		new InstanceIter(
 			src_type,
 			dst_type,
+			dst_params,
 			new Id("__nobinding"),
 			new Number(1),
 			new Number(1),
