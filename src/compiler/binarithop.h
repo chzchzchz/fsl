@@ -47,8 +47,7 @@ public:
 
 		lhs = dynamic_cast<Number*>(e_lhs);
 		rhs = dynamic_cast<Number*>(e_rhs);
-		if (lhs == NULL || rhs == NULL)
-			return false;
+		if (lhs == NULL || rhs == NULL) return false;
 
 		n_lhs = lhs->getValue();
 		n_rhs = rhs->getValue();
@@ -94,17 +93,10 @@ public:
 		const BinArithOp *in_bop;
 
 		in_bop = dynamic_cast<const BinArithOp*>(e);
-		if (in_bop == NULL)
-			return false;
-
-		if (in_bop->getOpSymbol() != getOpSymbol())
-			return false;
-
-		if (*e_lhs != in_bop->getLHS())
-			return false;
-
-		if (*e_rhs != in_bop->getRHS())
-			return false;
+		if (in_bop == NULL) return false;
+		if (in_bop->getOpSymbol() != getOpSymbol()) return false;
+		if (*e_lhs != in_bop->getLHS()) return false;
+		if (*e_rhs != in_bop->getRHS()) return false;
 
 		return true;
 	}
@@ -133,10 +125,7 @@ public:
 	Expr* simplify(void) const
 	{
 		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
+		if (toNumbers(n_lhs, n_rhs) == false) return copy();
 		return new Number(doOp(n_lhs, n_rhs));
 	}
 
@@ -163,8 +152,7 @@ public:
 	AOPOr(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
 	virtual ~AOPOr() {}
 
-	Expr* copy(void) const
-	{
+	Expr* copy(void) const {
 		return new AOPOr(e_lhs->copy(), e_rhs->copy());
 	}
 
@@ -188,16 +176,6 @@ public:
 		return new AOPAnd(e_lhs->copy(), e_rhs->copy());
 	}
 
-	Expr* simplify(void) const
-	{
-		unsigned long	n_lhs, n_rhs;
-
-		if (toNumbers(n_lhs, n_rhs) == false)
-			return copy();
-
-		return new Number(n_lhs & n_rhs);
-	}
-
 	llvm::Value* codeGen() const;
 
 protected:
@@ -219,7 +197,6 @@ public:
 	{
 		return new AOPAdd(e_lhs->copy(), e_rhs->copy());
 	}
-
 
 	llvm::Value* codeGen() const;
 
@@ -336,8 +313,7 @@ public:
 
 	virtual ~AOPMod() {}
 
-	Expr* copy(void) const
-	{
+	Expr* copy(void) const {
 		return new AOPMod(e_lhs->copy(), e_rhs->copy());
 	}
 
