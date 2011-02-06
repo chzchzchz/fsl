@@ -130,9 +130,7 @@ SymbolTable* Type::getSymsByUserType() const
 	{
 		const SymbolTableEnt*	st_ent = *it;
 
-		if (st_ent->getFieldThunk()->getType() == NULL)
-			continue;
-
+		if (st_ent->getFieldThunk()->getType() == NULL) continue;
 		ret->add(st_ent);
 	}
 
@@ -152,12 +150,8 @@ SymbolTable* Type::getSymsByUserTypeStrong() const
 	{
 		const SymbolTableEnt*	st_ent = *it;
 
-		if (st_ent->getFieldThunk()->getType() == NULL)
-			continue;
-
-		if (st_ent->isWeak())
-			continue;
-
+		if (st_ent->getFieldThunk()->getType() == NULL) continue;
+		if (st_ent->isWeak()) continue;
 		ret->add(st_ent);
 	}
 
@@ -184,11 +178,8 @@ SymbolTable* Type::getSymsStrongOrConditional(void) const
 		it++)
 	{
 		const SymbolTableEnt*	st_ent = *it;
-
 		/* accept everything but the super-weak */
-		if (st_ent->isWeak() && !st_ent->isConditional())
-			continue;
-
+		if (st_ent->isWeak() && !st_ent->isConditional()) continue;
 		ret->add(st_ent);
 	}
 
@@ -209,12 +200,8 @@ SymbolTable* Type::getSymsByUserTypeStrongOrConditional(void) const
 		const SymbolTableEnt*	st_ent = *it;
 
 		/* no super-weaks */
-		if (st_ent->isWeak() && !st_ent->isConditional())
-			continue;
-
-		if (st_ent->isUserType() == false)
-			continue;
-
+		if (st_ent->isWeak() && !st_ent->isConditional()) continue;
+		if (st_ent->isUserType() == false) continue;
 		ret->add(st_ent);
 	}
 
@@ -246,18 +233,13 @@ list<const Preamble*> TypePreamble::findByName(const string& n) const
 
 list<const Preamble*> Type::getPreambles(const string& name) const
 {
-	if (preamble == NULL)
-		return list<const Preamble*>();
-
+	if (preamble == NULL) return list<const Preamble*>();
 	return preamble->findByName(name);
 }
 
 
 void Type::addPreamble(Preamble* p)
 {
-	if (preamble == NULL) {
-		preamble = new TypePreamble();
-	}
-
+	if (preamble == NULL) preamble = new TypePreamble();
 	preamble->add(p);
 }

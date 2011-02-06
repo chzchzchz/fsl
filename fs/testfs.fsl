@@ -10,8 +10,9 @@ type disk
 	some_type(@)	st3[10];	/* 444--0+4+8+...+4*9 = 444--624 */
 	some_type(@+1)	st4[10];	/* 624--844 */
 	another_type(st1) at;
-	t3(st1, at)	ttt;
-	stupid_bits	stu;
+	t3(st1, at)		ttt;
+	param_type(st1)		pt;
+	stupid_bits		stu;
 }
 
 type stupid_bits
@@ -20,6 +21,7 @@ type stupid_bits
 	u52	c;
 	u54	d;
 	u12	e;
+	u9	ugh;
 }
 
 type some_type(u32 n)
@@ -37,4 +39,9 @@ type t3(some_type st, another_type at)
 {
 	u32	f1[st.v[0]];
 	u32	f2[at.f+2];
+}
+
+type param_type(some_type x)
+{
+	u32	v[x.n];
 }

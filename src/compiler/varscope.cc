@@ -285,9 +285,8 @@ llvm::AllocaInst* VarScope::createTmpClosure(
 		llvm::APInt(32, pb_base_idx+2));
 	code_builder->emitMemcpy64(
 		clo_pb,
-		builder->CreateGEP(parambuf_ai, idx_val),
-		t->getParamBufEntryCount()
-	);
+		builder->CreateGEP(builder->CreateLoad(parambuf_ai), idx_val),
+		t->getParamBufEntryCount());
 
 	return clo_ptr;
 }

@@ -23,8 +23,7 @@ bool ArgsList::lookupType(const string& name, string& type_ret) const
 	arg_map::const_iterator it;
 
 	it = name_to_type.find(name);
-	if (it == name_to_type.end())
-		return false;
+	if (it == name_to_type.end()) return false;
 
 	type_ret = (*it).second;
 	return true;
@@ -98,7 +97,6 @@ unsigned int ArgsList::getNumParamBufEntries(void) const
 	return ret;
 }
 
-
 void ArgsList::clear(void)
 {
 	for (unsigned int i = 0; i < types.size(); i++) {
@@ -108,4 +106,29 @@ void ArgsList::clear(void)
 	types.clear();
 	names.clear();
 	name_to_type.clear();
+}
+
+int ArgsList::getParamBufBaseIdx(int idx) const
+{
+	int ret = 0;
+	for (int i = 0; i < idx; i++)  {
+		const Type	*t;
+		t = getType(names[i]->getName());
+		if (t != NULL) {
+			ret += t->getParamBufEntryCount();
+			ret += RT_CLO_ELEMS-1; /* store offset+xlate */
+		} else
+			ret++;
+	}
+
+	return ret;
+}
+
+int ArgsList::find(const std::string& name) const
+{
+	for (unsigned int i = 0; i < names.size(); i++)
+		if (names[i]->getName() == name)
+			return i;
+
+	return -1;
 }

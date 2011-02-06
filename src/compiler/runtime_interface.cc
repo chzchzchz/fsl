@@ -312,21 +312,17 @@ Expr* RTInterface::computeArrayBits(
 	/* fieldall idx for type */
 	unsigned int fieldall_num,
 	/* converted into single closure */
-	const Expr* diskoff, 	/* base */
-	const Expr* params,	/* params */
-	const Expr* virt,	/* virt */
+	const Expr* clo,
 	/* nth element to find */
 	const Expr* num_elems)
 {
 	ExprList	*exprs;
 
 	assert (t != NULL);
-	assert (diskoff != NULL && params != NULL);
 
 	exprs = new ExprList();
 	exprs->add(new Number(t->getTypeNum()));
-	exprs->add(FCall::mkClosure(
-		diskoff->copy(), params->copy(), virt->copy()));
+	exprs->add(clo->copy());
 	exprs->add(new Number(fieldall_num));
 	exprs->add(num_elems->copy());
 

@@ -34,12 +34,7 @@ TypeStack* EvalCtx::resolveIdStructCurScope(
 	head_st = (head_type != NULL) ? symtabByName(head_type->getName()) : NULL;
 
 	head = new TypeBase(
-		head_type,
-		head_st,
-		head_sym,
-		rt_glue.getThunkArgOffset(),
-		rt_glue.getThunkArgParamPtr(),
-		rt_glue.getThunkArgVirt());
+		head_type, head_st, head_sym, rt_glue.getThunkClosure());
 	head->setNewOffsets(this, cur_scope->getOwnerType(), idx);
 
 	return resolveTail(head, ids, ++(ids->begin()));
@@ -63,15 +58,7 @@ TypeStack* EvalCtx::resolveIdStructVarScope(
 		head_type,
 		symtabByName(head_type->getName()),
 		NULL,
-		new FCall(
-			new Id("__extractOff"),
-			new ExprList(new Id(name))),
-		new FCall(
-			new Id("__extractParam"),
-			new ExprList(new Id(name))),
-		new FCall(
-			new Id("__extractVirt"),
-			new ExprList(new Id(name))));
+		new Id(name));
 
 	return resolveTail(head, ids, ++(ids->begin()));
 }
@@ -87,18 +74,14 @@ TypeStack* EvalCtx::resolveIdStructFunc(
 	assert  (cur_func_blk != NULL);
 
 	head_type = cur_func->getArgs()->getType(name);
-	if (head_type == NULL)
-		head_type = cur_func_blk->getVarType(name);
+	if (head_type == NULL) head_type = cur_func_blk->getVarType(name);
 	if (head_type == NULL) return NULL;
 
 	head = new TypeBase(
 		head_type,
 		symtabByName(head_type->getName()),
 		NULL,
-		new FCall(new Id("__extractOff"), new ExprList(new Id(name))),
-		new FCall(new Id("__extractParam"),
-			new ExprList(new Id(name))),
-		new FCall(new Id("__extractVirt"), new ExprList(new Id(name))));
+		new Id(name));
 
 	return resolveTail(head, ids, ++(ids->begin()));
 }
@@ -141,20 +124,7 @@ TypeStack* EvalCtx::resolveIdStructFHead(
 	}
 
 	head_st = symtabByName(t->getName());
-	head = new TypeBase(
-		t,
-		head_st,
-		NULL,
-		new FCall(
-			new Id("__extractOff"),
-			new ExprList(evaled_ids_f->copy())),
-		new FCall(
-			new Id("__extractParam"),
-			new ExprList(evaled_ids_f->copy())),
-		new FCall(
-			new Id("__extractVirt"),
-			new ExprList(evaled_ids_f->copy())));
-
+	head = new TypeBase(t, head_st, NULL, evaled_ids_f->copy());
 
 	ret_ts = resolveTail(head, ids, ++(ids->begin()));
 	if (ret_ts != NULL)  parent_closure = evaled_ids_f;
@@ -223,9 +193,7 @@ TypeStack* EvalCtx::resolveTypeStack(
 			t,
 			symtabByName(t->getName()),
 			NULL,
-			new Number(0),
-			new Id("__NULLPTR"),
-			new Id("__NULLPTR8"));
+			FCall::mkBaseClosure(t));
 
 		ts = resolveTail(head, ids, ++(ids->begin()));
 		if (ts) parent_closure = FCall::mkBaseClosure(t);
@@ -250,17 +218,29 @@ Expr* EvalCtx::resolveVal(const IdStruct* ids) const
 	/* massage the result into something we can use-- disk read or typepass */
 	/* return typepass if we are returning a user type */
 	top = ts->getTop();
+	assert (top != NULL);
+	if (top->isValue()) {
+		ret = top->getClosureExpr()->copy();
+		cerr << "IS VALUD!!!" << endl;
+		ids->print(cerr);
+		cerr << endl;
+		ret->print(cerr);
+		cerr << endl;
+		goto done;
+	}
+
+	assert (top->getSym() != NULL);
 	thunk_field = top->getSym()->getFieldThunk();
+	assert (thunk_field != NULL);
 	if (thunk_field->getType() != NULL) {
 		ret = FCall::mkClosure(
-			top->getDiskOff()->copy(),
+			top->getDiskOff(),
 			Expr::rewriteReplace(
-				top->getParamBuf()->copy(),
+				top->getParamBuf(),
 				rt_glue.getThunkArgIdx(),
 				new Number(0)),
-			top->getVirt()->copy());
-		delete ts;
-		return ret;
+			top->getVirt());
+		goto done;
 	}
 
 	/* not returning a user type-- we know that the size to
@@ -270,8 +250,9 @@ Expr* EvalCtx::resolveVal(const IdStruct* ids) const
 
 	ret = rt_glue.getLocal(
 		parent_closure,
-		top->getDiskOff()->copy(),
+		top->getDiskOff(),
 		thunk_field->getSize()->copyConstValue());
+done:
 	delete ts;
 	return ret;
 }
@@ -288,9 +269,8 @@ Expr* EvalCtx::resolveVal(const Id* id) const
 
 	/* is it a constant? */
 	const_it = constants.find(id->getName());
-	if (const_it != constants.end()) {
+	if (const_it != constants.end())
 		return ((*const_it).second)->simplify();
-	}
 
 	if (cur_scope != NULL) {
 		/* short-circuit, use current thunk (e.g. current type inst) */
@@ -426,22 +406,22 @@ Expr* EvalCtx::resolveVal(const IdArray* ida) const
 /* get the physical disk location of the value in the idstruct */
 Expr* EvalCtx::resolveLoc(const IdStruct* ids, Expr*& size) const
 {
-	Expr			*loc;
+	Expr			*loc, *disk_off;
 	Expr			*parent_closure = NULL;
 	const ThunkField	*thunk_field;
 	TypeStack		*ts;
 
 	if ((ts = resolveTypeStack(ids, parent_closure)) == NULL) return NULL;
 
-	cerr << "HI" << endl;
-	ids->print(cerr);
 	assert (parent_closure != NULL);
-	loc = rt_glue.toPhys(parent_closure, ts->getTop()->getDiskOff());
+	disk_off = ts->getTop()->getDiskOff();
+	loc = rt_glue.toPhys(parent_closure, disk_off);
 
 	thunk_field = ts->getTop()->getSym()->getFieldThunk();
 	size = thunk_field->getSize()->copyConstValue();
 
 	delete ts;
+	delete disk_off;
 	delete parent_closure;
 
 	return loc;
@@ -537,7 +517,6 @@ const Type* EvalCtx::getTypeIdStruct(const IdStruct* ids) const
 		string			fieldname;
 
 		if (cur_type == NULL) return NULL;
-
 		cur_symtab = symtabByName(cur_type->getName());
 		if (cur_symtab == NULL) return NULL;
 

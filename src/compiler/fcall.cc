@@ -51,6 +51,28 @@ Expr* FCall::mkClosure(Expr* diskoff, Expr* params, Expr* virt)
 	return new FCall(new Id("__mkClosure"), el);
 }
 
+Expr* FCall::extractCloOff(const Expr* expr)
+{
+	return new FCall(new Id("__extractOff"), new ExprList(expr->copy()));
+}
+
+Expr* FCall::extractCloParam(const Expr* expr)
+{
+	return new FCall(new Id("__extractParam"), new ExprList(expr->copy()));
+}
+
+Expr* FCall::extractCloVirt(const Expr* expr)
+{
+	return new FCall(new Id("__extractVirt"), new ExprList(expr->copy()));
+}
+
+Expr* FCall::extractParamVal(const Expr* expr, const Expr* off)
+{
+	return new FCall(
+		new Id("__extractParamVal"),
+		new ExprList(expr->copy(), off->copy()));
+}
+
 llvm::Value* FCall::codeGenLet(void) const
 {
 	ExprList::const_iterator	it;
@@ -139,6 +161,42 @@ llvm::Value* FCall::codeGenExtractVirt(void) const
 	return tc.getXlate();
 }
 
+llvm::Value* FCall::codeGenExtractParamVal(void) const
+{
+	Expr				*expr, *off;
+	Number				*n;
+	ExprList::const_iterator	it;
+	llvm::Value			*pb_val, *ret, *idx_val;
+	llvm::IRBuilder<>		*builder;
+
+	assert (id->getName() == "__extractParamVal");
+
+	if (exprs->size() != 2) {
+		cerr << "__extractParamVal takes 2 params" << endl;
+		return NULL;
+	}
+
+	/* we were passed expr that is a parambuf */
+	it = exprs->begin();
+	expr = (*it); it++;
+	pb_val = expr->codeGen();
+	off = (*it);
+
+	if (pb_val == NULL) {
+		cerr << "__extractParamVal could not get pbuf";
+		return NULL;
+	}
+
+	n = dynamic_cast<Number*>(off);
+	assert (n != NULL && "NEED NUMERIC PARAMVAL");
+
+	builder = code_builder->getBuilder();
+	idx_val = llvm::ConstantInt::get(
+		llvm::getGlobalContext(),
+		llvm::APInt(32, n->getValue()));
+	ret = builder->CreateGEP(pb_val, idx_val);
+	return builder->CreateLoad(ret);
+}
 
 llvm::Value* FCall::codeGenExtractParam(void) const
 {
@@ -184,7 +242,6 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 		cerr << "Couldn't mkpass: ";
 		print(cerr);
 		cerr << endl;
-
 		return NULL;
 	}
 
@@ -272,6 +329,8 @@ bool FCall::handleSpecialForms(llvm::Value* &ret) const
 		ret = codeGenExtractOff();
 	else if (call_name == "__extractParam")
 		ret = codeGenExtractParam();
+	else if (call_name == "__extractParamVal")
+		ret = codeGenExtractParamVal();
 	else if (call_name == "__extractVirt")
 		ret = codeGenExtractVirt();
 	else if (call_name == "__mkClosure")
@@ -320,7 +379,6 @@ Value* FCall::codeGenClosureRetCall(std::vector<llvm::Value*>& args) const
 
 	return tmp_tp;
 }
-
 
 llvm::Value* FCall::codeGenPrimitiveRetCall(vector<llvm::Value*>& args) const
 {

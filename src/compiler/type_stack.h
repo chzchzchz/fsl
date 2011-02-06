@@ -16,9 +16,9 @@ public:
 		const Type* in_tb_type,
 		const SymbolTable* in_tb_symtab,
 		const SymbolTableEnt* in_tb_lastsym,
-		Expr* in_tb_diskoff,
-		Expr* in_tb_parambuf,
-		Expr* in_tb_virt);
+		Expr* clo_expr,
+		bool is_value = false);
+
 	virtual ~TypeBase();
 
 	bool setNewOffsets(
@@ -37,10 +37,12 @@ public:
 
 	const Type* getType(void) const { return tb_type; }
 	const SymbolTable* getSymTab(void) const { return tb_symtab; }
-	const Expr* getDiskOff() const { return tb_diskoff; }
-	const Expr* getParamBuf() const { return tb_parambuf; }
-	const Expr* getVirt() const { return tb_virt; }
+	Expr* getDiskOff() const;
+	Expr* getParamBuf() const;
+	Expr* getVirt() const;
 	const SymbolTableEnt* getSym(void) const { return tb_lastsym; }
+	const Expr* getClosureExpr(void) const { return tb_clo; }
+	bool isValue() const { return is_value; }
 
 private:
 	/* gives sym we're sitting on  (e.g. the cursor) */
@@ -48,9 +50,8 @@ private:
 	const SymbolTable	*tb_symtab;
 	const SymbolTableEnt	*tb_lastsym;
 	/* expressions that'll take us to sym on disk (e.g. the cursor) */
-	Expr			*tb_diskoff;
-	Expr			*tb_parambuf;
-	Expr			*tb_virt;
+	Expr			*tb_clo;
+	bool			is_value;
 };
 
 typedef std::stack<TypeBase*> tb_stack;

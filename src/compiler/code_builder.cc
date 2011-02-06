@@ -358,12 +358,9 @@ void CodeBuilder::emitMemcpy64(
 		builder->getInt32Ty()};
 	llvm::Value* args[] = {
 		/* dst */
-		builder->CreateBitCast(
-			dst, builder->getInt8PtrTy(), "dst_ptr"),
-
+		builder->CreateBitCast(dst, builder->getInt8PtrTy(), "dst_ptr"),
 		/* src */
-		builder->CreateBitCast(
-			src, builder->getInt8PtrTy(), "src_ptr"),
+		builder->CreateBitCast(src, builder->getInt8PtrTy(), "src_ptr"),
 
 		/* element bytes (8 per ...) */
 		llvm::ConstantInt::get(

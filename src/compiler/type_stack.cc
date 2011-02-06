@@ -1,26 +1,23 @@
 #include "type_stack.h"
 #include "runtime_interface.h"
 #include "eval.h"
+#include <iostream>
 
+using namespace std;
 extern RTInterface	rt_glue;
+extern type_map		types_map;
 
 TypeBase::TypeBase(
 	const Type* in_tb_type,
 	const SymbolTable* in_tb_symtab,
 	const SymbolTableEnt* in_tb_lastsym,
-	Expr* in_tb_diskoff,
-	Expr* in_tb_parambuf,
-	Expr* in_tb_virt)
+	Expr* in_tb_clo,
+	bool in_is_value)
 :tb_type(in_tb_type), tb_symtab(in_tb_symtab), tb_lastsym(in_tb_lastsym),
- tb_diskoff(in_tb_diskoff), tb_parambuf(in_tb_parambuf), tb_virt(in_tb_virt)
-{ }
+ tb_clo(in_tb_clo), is_value(in_is_value)
+{ assert (tb_clo != NULL); }
 
-TypeBase::~TypeBase()
-{
-	delete tb_diskoff;
-	delete tb_parambuf;
-	delete tb_virt;
-}
+TypeBase::~TypeBase() { delete tb_clo; }
 
 TypeStack::TypeStack(TypeBase* tb)
 {
@@ -41,14 +38,8 @@ Expr* TypeBase::replaceClosure(Expr* in_expr) const
 	Expr	*ret = in_expr;
 
 	ret = Expr::rewriteReplace(
-		ret,
-		rt_glue.getThunkClosure(),
-		FCall::mkClosure(
-			tb_diskoff->simplify(),
-			tb_parambuf->simplify(),
-			tb_virt->simplify()));
-
-	/* XXX is this correct? */
+		ret, rt_glue.getThunkClosure(), tb_clo->copy());
+	/* XXX is this correct?-- it's a rebase.. */
 	ret = Expr::rewriteReplace(
 		ret, rt_glue.getThunkArgIdx(), new Number(0));
 
@@ -74,7 +65,7 @@ Expr* TypeBase::setNewOffsetsArray(
 	t = tf->getType();
 	if (t != NULL) {
 		/* non-constant type size-- call out to runtime */
-		Expr	*array_elem_base;
+		Expr	*elem_base;	/* array elem base */
 		bool	is_union;
 
 		*new_params = Expr::rewriteReplace(
@@ -86,20 +77,17 @@ Expr* TypeBase::setNewOffsetsArray(
 			sz = new AOPMul(
 				replaceClosure(tf->getSize()->copyFCall()),
 				evalReplace(*ectx, idx->simplify()));
-			array_elem_base = new AOPAdd(new_base, sz);
+			elem_base = new AOPAdd(new_base, sz);
 		} else {
-			array_elem_base = rt_glue.computeArrayBits(
+			elem_base = rt_glue.computeArrayBits(
 				parent_type,
 				tf->getFieldNum(),
-				tb_diskoff,
-				tb_parambuf,
-				tb_virt,
+				tb_clo,
 				evalReplace(*ectx, idx->simplify()));
-			array_elem_base = new AOPAdd(
-				new_base, array_elem_base);
+			elem_base = new AOPAdd(new_base, elem_base);
 		}
 
-		new_base = array_elem_base;
+		new_base = elem_base;
 	} else {
 		/* constant type size-- just multiply */
 		Expr	*field_size;
@@ -115,8 +103,22 @@ Expr* TypeBase::setNewOffsetsArray(
 	return new_base;
 }
 
-/* follows the last sym found for a type base */
+Expr* TypeBase::getDiskOff(void) const
+{
+	return FCall::extractCloOff(tb_clo);
+}
 
+Expr* TypeBase::getParamBuf(void) const
+{
+	return FCall::extractCloParam(tb_clo);
+}
+
+Expr* TypeBase::getVirt(void) const
+{
+	return FCall::extractCloVirt(tb_clo);
+}
+
+/* follows the last sym found for a type base */
 bool TypeBase::setNewOffsets(
 	const EvalCtx* ectx,
 	const Type* parent_type,
@@ -126,10 +128,9 @@ bool TypeBase::setNewOffsets(
 	Expr			*new_base = NULL;
 	Expr			*new_params = NULL;
 	Expr			*offset_fc;
+	Expr			*new_clo;
 
 	assert (tb_lastsym != NULL);
-	assert (tb_diskoff != NULL);
-	assert (tb_parambuf != NULL);
 
 	tf = tb_lastsym->getFieldThunk();
 	assert (tf != NULL);
@@ -153,11 +154,9 @@ bool TypeBase::setNewOffsets(
 		/* otherwise, we already have the offset+param we need... */
 	}
 
-	delete tb_diskoff;
-	delete tb_parambuf;
-
-	tb_diskoff = new_base;
-	tb_parambuf = new_params;
+	new_clo = FCall::mkClosure(new_base, new_params, getVirt());
+	delete tb_clo;
+	tb_clo = new_clo;
 
 	return true;
 
@@ -170,32 +169,66 @@ err_cleanup:
 
 bool TypeStack::followIdIdx(const EvalCtx* ectx, std::string& name, Expr* idx)
 {
-	TypeBase		*new_tb;
 	const TypeBase		*top_tb;
-	const Type		*tb_type;
-	const SymbolTableEnt	*tb_sym;
-	const SymbolTable	*tb_st;
+	TypeBase		*new_tb;
+	const Type		*tb_type, *new_tb_type;
+	const SymbolTableEnt	*new_tb_sym;
+	const SymbolTable	*new_tb_st;
+	Expr			*clo;
+	bool			is_val;
 
 	top_tb = getTop();
-	tb_sym = top_tb->getSymTab()->lookup(name);
-	if (tb_sym == NULL) return false;
+	tb_type = top_tb->getType();
+	new_tb_sym = top_tb->getSymTab()->lookup(name);
+	new_tb_st = NULL;
+	if (new_tb_sym == NULL) {
+		/* check if it's an arg.. */
+		const ArgsList*	args;
+		int		arg_idx, pb_idx;
+		string		type_ret;
 
-	tb_type = tb_sym->getType();
-	tb_st = (tb_type != NULL) ? symtabByName(tb_type->getName()):NULL;
+		assert (tb_type != NULL && "Arg needs a type");
+		args = tb_type->getArgs();
+		if (args == NULL || args->lookupType(name, type_ret) == false) {
+			cerr << name << ": ARG NOT FOUND??" << endl;
+			return false;
+		}
 
-	new_tb = new TypeBase(
-		tb_type,
-		tb_st,
-		tb_sym,
-		top_tb->getDiskOff()->copy(),
-		top_tb->getParamBuf()->copy(),
-		top_tb->getVirt()->copy());
+		arg_idx = args->find(name);
+		pb_idx = args->getParamBufBaseIdx(arg_idx);
 
-	if (new_tb->setNewOffsets(ectx, getTop()->getType(), idx) == false) {
+		if (types_map.count(type_ret) == 0) {
+			/* pull data from parambuf as value */
+			Expr	*pb;
+			pb = top_tb->getParamBuf();
+			clo = FCall::extractParamVal(pb, new Number(pb_idx));
+			delete pb;
+			new_tb_type = NULL;
+		} else {
+			/* make closure from parambuf */
+			new_tb_type = types_map[type_ret];
+			assert (0 == 1);
+		}
+		is_val = true;
+	} else {
+		new_tb_type = new_tb_sym->getType();
+		if (new_tb_type != NULL)
+			new_tb_st = symtabByName(new_tb_type->getName());
+		clo = top_tb->getClosureExpr()->copy();
+		is_val = false;
+	}
+
+	new_tb = new TypeBase(new_tb_type, new_tb_st, new_tb_sym, clo, is_val);
+	assert (new_tb_sym == new_tb->getSym());
+
+	if (	!is_val &&
+		new_tb->setNewOffsets(ectx, getTop()->getType(), idx) == false)
+	{
 		delete new_tb;
 		return false;
 	}
 
 	s.push(new_tb);
+
 	return true;
 }

@@ -24,6 +24,8 @@ public:
 	arg_elem get(unsigned int i) const;
 	void clear();
 
+	int find(const std::string& name) const;
+	int getParamBufBaseIdx(int idx) const;
 	bool lookupType(const std::string& name, std::string& type_ret) const;
 	const class Type* getType(const std::string& name) const;
 	bool hasField(const std::string& name) const;

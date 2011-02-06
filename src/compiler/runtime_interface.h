@@ -47,9 +47,7 @@ public:
 		/* fieldall idx for type */
 		unsigned int fieldall_num,
 		/* converted into single closure */
-		const Expr* diskoff, 	/* base */
-		const Expr* params,	/* params */
-		const Expr* virt,	/* virt */
+		const Expr* clo,
 		/* nth element to find */
 		const Expr* num_elems);
 	Expr	*fail(void);

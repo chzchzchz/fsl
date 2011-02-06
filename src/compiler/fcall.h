@@ -68,10 +68,15 @@ public:
 
 	static Expr* mkClosure(Expr* diskoff, Expr* params, Expr* virt);
 	static Expr* mkBaseClosure(const class Type* t);
+	static Expr* extractCloOff(const Expr* expr);
+	static Expr* extractCloParam(const Expr* expr);
+	static Expr* extractCloVirt(const Expr* expr);
+	static Expr* extractParamVal(const Expr* expr, const Expr* off);
 private:
 	bool handleSpecialForms(llvm::Value* &ret) const;
 
 	llvm::Value*	codeGenParams(std::vector<llvm::Value*>& args) const;
+	llvm::Value* 	codeGenExtractParamVal(void) const;
 	llvm::Value*	codeGen(std::vector<llvm::Value*>& args) const;
 	llvm::Value*	codeGenNormalFunc() const;
 	llvm::Value*	codeGenTypeFunc() const;
