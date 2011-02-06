@@ -1,23 +1,13 @@
 #ifndef EVALCTX_H
 #define EVALCTX_H
 
+#include <stack>
 #include "symtab.h"
 #include "type.h"
 #include "args.h"
 #include "expr.h"
 #include "func.h"
-
-struct TypeBase
-{
-	/* gives sym we're sitting on  */
-	const Type		*tb_type;
-	const SymbolTable	*tb_symtab;
-	const SymbolTableEnt	*tb_lastsym;
-	/* expressions that'll take us to sym */
-	Expr			*tb_diskoff;
-	Expr			*tb_parambuf;
-	Expr			*tb_virt;
-};
+#include "type_stack.h"
 
 /**
  * will eventualy want to replace this with different eval contexts so
@@ -76,42 +66,31 @@ public:
 private:
 	EvalCtx(void);
 
-	bool resolveTB(
-		const IdStruct* ids, struct TypeBase& tb,
-		Expr* &parent_closure) const;
+	TypeStack* resolveTail(
+		TypeBase			*head,
+		const IdStruct* 		ids,
+		IdStruct::const_iterator	ids_begin) const;
 
+	TypeStack* resolveTypeStack(
+		const IdStruct* ids, Expr* &parent_closure) const;
 	Expr* resolveArrayInType(const IdArray* ida) const;
-	bool setNewOffsets(
-		struct TypeBase& current_base, const Expr* idx) const;
 
-	bool resolveIdStructCurScope(
+	TypeStack* resolveIdStructCurScope(
 		const IdStruct* ids,
 		const std::string& name,
-		const Expr* idx,
-		struct TypeBase& tb) const;
-
-	bool resolveIdStructFunc(
-		const IdStruct* ids,
-		const std::string& name,
-		struct TypeBase& tb) const;
-
-	bool resolveIdStructFHead(
-		const IdStruct* ids,
-		struct TypeBase& tb,
-		Expr* &parent_clo) const;
-
-	bool resolveIdStructVarScope(
-		const IdStruct* ids,
-		const std::string& name,
-		const VarScope* vs,
-		struct TypeBase& tb) const;
-
-	Expr* setNewOffsetsArray(
-		Expr* new_base,
-		Expr** new_params,
-		const struct TypeBase& tb,
-		const ThunkField* tf,
 		const Expr* idx) const;
+
+	TypeStack* resolveIdStructFunc(
+		const IdStruct* ids,
+		const std::string& name) const;
+
+	TypeStack* resolveIdStructFHead(
+		const IdStruct* ids, Expr* &parent_closure) const;
+
+	TypeStack* resolveIdStructVarScope(
+		const IdStruct* ids,
+		const std::string& name,
+		const VarScope* vs) const;
 
 protected:
 	const FuncBlock*	cur_func_blk;
@@ -119,14 +98,7 @@ protected:
 	const SymbolTable*	cur_scope;
 	const VarScope*		cur_vscope;
 
-	const SymbolTable*	symtabByName(const std::string& s) const;
 	const Type*		typeByName(const std::string& s) const;
-
-
-	bool resolveTail(
-		TypeBase			&tb,	/* current base */
-		const IdStruct* 		ids,
-		IdStruct::const_iterator	ids_begin) const;
 
 };
 

@@ -2,6 +2,7 @@
 #include "func.h"
 #include "runtime_interface.h"
 #include "code_builder.h"
+#include "type_stack.h"
 #include <string.h>
 
 extern const Func	*gen_func;
@@ -14,277 +15,104 @@ extern RTInterface	rt_glue;
 
 using namespace std;
 
-static Expr* replaceClosure(Expr* in_expr, const struct TypeBase& tb)
+TypeStack* EvalCtx::resolveIdStructCurScope(
+	const IdStruct* ids, const std::string& name, const Expr* idx) const
 {
-	Expr	*ret = in_expr;
+	TypeBase		*head;
+	const Type		*head_type;
+	const SymbolTable	*head_st;
+	const SymbolTableEnt	*head_sym;
 
-	ret = Expr::rewriteReplace(
-		ret,
-		rt_glue.getThunkClosure(),
-		FCall::mkClosure(
-			tb.tb_diskoff->simplify(),
-			tb.tb_parambuf->simplify(),
-			tb.tb_virt->simplify()));
-
-	/* XXX is this correct? */
-	ret = Expr::rewriteReplace(
-		ret,
-		rt_glue.getThunkArgIdx(),
-		new Number(0));
-
-	return ret;
-}
-
-Expr* EvalCtx::setNewOffsetsArray(
-	Expr* new_base,
-	Expr** new_params,
-	const struct TypeBase& tb,
-	const ThunkField* tf,
-	const Expr* idx) const
-{
-	const Type	*t;
-	const Type	*parent;
-
-	assert (new_params != NULL && *new_params != NULL);
-
-	/* no index? => scalar => error */
-	if (idx == NULL) return NULL;
-
-	parent = tb.tb_type;
-	t = tf->getType();
-	if (t != NULL) {
-		/* non-constant type size-- call out to runtime */
-		Expr	*array_elem_base;
-		bool	is_union;
-
-		*new_params = Expr::rewriteReplace(
-			*new_params, new Id("@"), idx->simplify());
-		is_union = t->isUnion();
-		if (is_union == true || tf->getElems()->isFixed()) {
-			Expr	*sz;
-
-			sz = new AOPMul(
-				replaceClosure(tf->getSize()->copyFCall(), tb),
-				evalReplace(*this, idx->simplify()));
-			array_elem_base = new AOPAdd(new_base, sz);
-		} else {
-			array_elem_base = rt_glue.computeArrayBits(
-				parent,
-				tf->getFieldNum(),
-				tb.tb_diskoff,
-				tb.tb_parambuf,
-				tb.tb_virt,
-				evalReplace(*this, idx->simplify()));
-			array_elem_base = new AOPAdd(
-				new_base, array_elem_base);
-		}
-
-		new_base = array_elem_base;
-	} else {
-		/* constant type size-- just multiply */
-		Expr	*field_size;
-		Expr	*array_off;
-
-		field_size = replaceClosure(tf->getSize()->copyFCall(), tb);
-		array_off = evalReplace(*this, idx->simplify());
-
-		new_base = new AOPAdd(
-			new_base, new AOPMul(field_size, array_off));
-	}
-
-	return new_base;
-}
-
-bool EvalCtx::setNewOffsets(
-	struct TypeBase& tb, const Expr* idx) const
-{
-	const ThunkField	*tf;
-	Expr			*new_base = NULL;
-	Expr			*new_params = NULL;
-	Expr			*offset_fc;
-
-	assert (tb.tb_lastsym != NULL);
-	assert (tb.tb_diskoff != NULL);
-	assert (tb.tb_parambuf != NULL);
-
-	tf = tb.tb_lastsym->getFieldThunk();
-	assert (tf != NULL);
-
-	/* compute base and params for base element */
-	/* if this isn't an array, we're already done! */
-	offset_fc = tf->getOffset()->copyFCall();
-	assert (offset_fc != NULL);
-
-	new_base = replaceClosure(offset_fc, tb);
-	new_params = replaceClosure(tf->getParams()->copyFCall(), tb);
-
-	if (tf->getElems()->isSingleton() == false) {
-		new_base = setNewOffsetsArray(
-			new_base, &new_params, tb, tf, idx);
-		if (new_base == NULL) goto err_cleanup;
-	} else {
-		/* trying to index into a scalar type? */
-		if (idx != NULL) goto err_cleanup;
-
-		/* otherwise, we already have the offset+param we need... */
-	}
-
-	delete tb.tb_diskoff;
-	delete tb.tb_parambuf;
-
-	tb.tb_diskoff = new_base;
-	tb.tb_parambuf = new_params;
-
-	return true;
-
-err_cleanup:
-	if (new_base != NULL) delete new_base;
-	if (new_params != NULL) delete new_params;
-
-	return false;
-}
-
-bool EvalCtx::resolveTail(
-	TypeBase			&tb,	/* current base */
-	const IdStruct* 		ids,
-	IdStruct::const_iterator	ids_begin) const
-{
-	string	name;
-	Expr	*idx = NULL;
-
-	assert (ids != NULL);
-
-	/* nothing more to pass over */
-	if (ids_begin == ids->end()) return true;
-
-	/* can only crawl if we're sitting on a type */
-	if (tb.tb_type == NULL) return false;
-
-	if (toName(*ids_begin, name, idx) == false) return false;
-
-	tb.tb_lastsym = tb.tb_symtab->lookup(name);
-	if (tb.tb_lastsym == NULL) return false;
-
-	if (setNewOffsets(tb, idx) == false) goto cleanup_err;
-
-	tb.tb_type = tb.tb_lastsym->getType();
-	tb.tb_symtab = (tb.tb_type) ? symtabByName(tb.tb_type->getName()):NULL;
-
-	ids_begin++;
-	if (resolveTail(tb, ids, ids_begin) == false) goto cleanup_err;
-
-	if (idx != NULL) delete idx;
-
-	return true;
-
-cleanup_err:
-	if (tb.tb_diskoff != NULL) delete tb.tb_diskoff;
-	if (tb.tb_parambuf != NULL) delete tb.tb_parambuf;
-	if (tb.tb_virt != NULL) delete tb.tb_virt;
-	if (idx != NULL) delete idx;
-
-	tb.tb_diskoff = NULL;
-	tb.tb_parambuf = NULL;
-	tb.tb_virt = NULL;
-
-	return false;
-}
-
-bool EvalCtx::resolveIdStructCurScope(
-		const IdStruct* ids,
-		const std::string& name,
-		const Expr* idx,
-		struct TypeBase& tb) const
-{
-	if (cur_scope == NULL)
-		return false;
+	if (cur_scope == NULL) return NULL;
 
 	/* type scoped */
-	/* two cases:
-	 * 	1. reference to current type (e.g. ext2_inode.ino_num)
-	 * 	2. reference to internal field (e.g. ino_num)
-	 */
-	tb.tb_lastsym = cur_scope->lookup(name);
-	if (tb.tb_lastsym == NULL)
-		return false;
+	/* reference to internal field (e.g. ino_num of ext2_inode) */
+	head_sym = cur_scope->lookup(name);
+	if (head_sym == NULL) return NULL;
 
-	tb.tb_type = tb.tb_lastsym->getType();
-	if (tb.tb_type != NULL)
-		tb.tb_symtab = symtabByName(tb.tb_type->getName());
-	else
-		tb.tb_symtab = NULL;
+	head_type = head_sym->getType();
+	head_st = (head_type != NULL) ? symtabByName(head_type->getName()) : NULL;
 
-	tb.tb_diskoff = rt_glue.getThunkArgOffset();
-	tb.tb_parambuf = rt_glue.getThunkArgParamPtr();
-	tb.tb_virt = rt_glue.getThunkArgVirt();
-	setNewOffsets(tb, idx);
+	head = new TypeBase(
+		head_type,
+		head_st,
+		head_sym,
+		rt_glue.getThunkArgOffset(),
+		rt_glue.getThunkArgParamPtr(),
+		rt_glue.getThunkArgVirt());
+	head->setNewOffsets(this, cur_scope->getOwnerType(), idx);
 
-	return resolveTail(tb, ids, ++(ids->begin()));
+	return resolveTail(head, ids, ++(ids->begin()));
 }
 
-bool EvalCtx::resolveIdStructVarScope(
+TypeStack* EvalCtx::resolveIdStructVarScope(
 	const IdStruct* ids,
 	const std::string& name,
-	const VarScope* vs,
-	struct TypeBase& tb) const
+	const VarScope* vs) const
 {
+	TypeBase		*head;
+	const Type		*head_type;
+
 	/* pull the typepass out of the vscoped arguments */
-	if (vs == NULL) return false;
+	if (vs == NULL) return NULL;
 
-	tb.tb_lastsym = NULL;
-	tb.tb_type = vs->getVarType(name);
-	if (tb.tb_type == NULL) return false;
+	head_type = vs->getVarType(name);
+	if (head_type == NULL) return NULL;
 
-	tb.tb_symtab = symtabByName(tb.tb_type->getName());
-	tb.tb_diskoff = new FCall(
-		new Id("__extractOff"),
-		new ExprList(new Id(name)));
-	tb.tb_parambuf = new FCall(
-		new Id("__extractParam"),
-		new ExprList(new Id(name)));
-	tb.tb_virt = new FCall(
-		new Id("__extractVirt"),
-		new ExprList(new Id(name)));
-	return resolveTail(tb, ids, ++(ids->begin()));
+	head = new TypeBase(
+		head_type,
+		symtabByName(head_type->getName()),
+		NULL,
+		new FCall(
+			new Id("__extractOff"),
+			new ExprList(new Id(name))),
+		new FCall(
+			new Id("__extractParam"),
+			new ExprList(new Id(name))),
+		new FCall(
+			new Id("__extractVirt"),
+			new ExprList(new Id(name))));
+
+	return resolveTail(head, ids, ++(ids->begin()));
 }
 
-bool EvalCtx::resolveIdStructFunc(
-		const IdStruct* ids,
-		const std::string& name,
-		struct TypeBase& tb) const
+TypeStack* EvalCtx::resolveIdStructFunc(
+	const IdStruct* ids, const std::string& name) const
 {
+	TypeBase		*head;
+	const Type		*head_type;
+
 	/* function scoped */
 	/* pull the typepass out of the function arguments */
 	assert  (cur_func_blk != NULL);
 
-	tb.tb_lastsym = NULL;
-	tb.tb_type = cur_func->getArgs()->getType(name);
-	if (tb.tb_type == NULL)
-		tb.tb_type = cur_func_blk->getVarType(name);
+	head_type = cur_func->getArgs()->getType(name);
+	if (head_type == NULL)
+		head_type = cur_func_blk->getVarType(name);
+	if (head_type == NULL) return NULL;
 
-	if (tb.tb_type == NULL)
-		return false;
-	tb.tb_symtab = symtabByName(tb.tb_type->getName());
-	tb.tb_diskoff = new FCall(
-		new Id("__extractOff"),
-		new ExprList(new Id(name)));
-	tb.tb_parambuf = new FCall(
-		new Id("__extractParam"),
-		new ExprList(new Id(name)));
-	tb.tb_virt = new FCall(
-		new Id("__extractVirt"),
-		new ExprList(new Id(name)));
-	return resolveTail(tb, ids, ++(ids->begin()));
+	head = new TypeBase(
+		head_type,
+		symtabByName(head_type->getName()),
+		NULL,
+		new FCall(new Id("__extractOff"), new ExprList(new Id(name))),
+		new FCall(new Id("__extractParam"),
+			new ExprList(new Id(name))),
+		new FCall(new Id("__extractVirt"), new ExprList(new Id(name))));
+
+	return resolveTail(head, ids, ++(ids->begin()));
 }
 
-bool EvalCtx::resolveIdStructFHead(
-	const IdStruct* ids, struct TypeBase& tb, Expr* &parent_closure) const
+TypeStack* EvalCtx::resolveIdStructFHead(
+	const IdStruct* ids, Expr* &parent_closure) const
 {
-	const Type	*t;
-	const FCall	*ids_f;
-	const Func	*f;
-	bool		found_expr;
-	Expr		*evaled_ids_f;
+	const Type		*t;
+	const FCall		*ids_f;
+	const Func		*f;
+	Expr			*evaled_ids_f;
+	TypeBase		*head;
+	const SymbolTable	*head_st;
+	TypeStack		*ret_ts;
 
 	ids_f = dynamic_cast<const FCall*>(ids->front());
 	assert (ids_f != NULL);
@@ -292,7 +120,7 @@ bool EvalCtx::resolveIdStructFHead(
 	/* idstruct of form func(...).a.b.c... */
 	if (funcs_map.count(ids_f->getName()) == 0) {
 		cerr << "BAD FUNC NAME" << endl;
-		return false;
+		return NULL;
 	}
 
 	f = funcs_map[ids_f->getName()];
@@ -301,7 +129,7 @@ bool EvalCtx::resolveIdStructFHead(
 	t = types_map[f->getRet()];
 	if (t == NULL) {
 		cerr << "BAD RETURN TYPE" << endl;
-		return false;
+		return NULL;
 	}
 
 	evaled_ids_f = eval(*this, ids_f);
@@ -309,145 +137,143 @@ bool EvalCtx::resolveIdStructFHead(
 		cerr << "OOPS. ";
 		ids_f->print(cerr);
 		cerr << endl;
-		return false;
+		return NULL;
 	}
 
-	tb.tb_lastsym = NULL;
-	tb.tb_type = t;
-	tb.tb_symtab = symtabByName(tb.tb_type->getName());
-	tb.tb_diskoff = new FCall(
-		new Id("__extractOff"),
-		new ExprList(evaled_ids_f->copy()));
-	tb.tb_parambuf = new FCall(
-		new Id("__extractParam"),
-		new ExprList(evaled_ids_f->copy()));
-	tb.tb_virt = new FCall(
-		new Id("__extractVirt"),
-		new ExprList(evaled_ids_f->copy()));
-	found_expr = resolveTail(tb, ids, ++(ids->begin()));
-	if (!found_expr) goto done;
+	head_st = symtabByName(t->getName());
+	head = new TypeBase(
+		t,
+		head_st,
+		NULL,
+		new FCall(
+			new Id("__extractOff"),
+			new ExprList(evaled_ids_f->copy())),
+		new FCall(
+			new Id("__extractParam"),
+			new ExprList(evaled_ids_f->copy())),
+		new FCall(
+			new Id("__extractVirt"),
+			new ExprList(evaled_ids_f->copy())));
 
-	parent_closure = evaled_ids_f->copy();
-done:
-	delete evaled_ids_f;
-	return found_expr;
+
+	ret_ts = resolveTail(head, ids, ++(ids->begin()));
+	if (ret_ts != NULL)  parent_closure = evaled_ids_f;
+	return ret_ts;
 }
 
-bool EvalCtx::resolveTB(
-	const IdStruct* ids, struct TypeBase& tb,
-	Expr* &parent_closure) const
+TypeStack* EvalCtx::resolveTypeStack(
+	const IdStruct* ids, Expr* &parent_closure) const
 {
+	TypeStack		*ts = NULL;
 	const Type		*t;
 	string			name;
 	Expr			*idx;
 	bool			found_expr;
 
-	parent_closure = NULL;
-
 	assert (ids != NULL);
 
 	if (dynamic_cast<const FCall*>(ids->front()) != NULL)
-		return resolveIdStructFHead(ids, tb, parent_closure);
+		return resolveIdStructFHead(ids, parent_closure);
 
 	if (toName(ids->front(), name, idx) == false) return false;
 
 	found_expr = false;
 
+	/* this will catch parameters passed to the type */
 	if (cur_scope != NULL) {
-		found_expr = resolveIdStructVarScope(
-			ids, name, code_builder->getVarScope(), tb);
-		if (found_expr) parent_closure = new Id(name);
+		ts = resolveIdStructVarScope(
+			ids, name, code_builder->getVarScope());
+		if (ts) parent_closure = new Id(name);
 	}
 
+	/* this will catch parameters in any varscope */
 	if (cur_vscope != NULL) {
-		found_expr = resolveIdStructVarScope(
-			ids, name, cur_vscope, tb);
-		if (found_expr) parent_closure = new Id(name);
+		ts = resolveIdStructVarScope(ids, name, cur_vscope);
+		if (ts) parent_closure = new Id(name);
 	}
 
-	if (!found_expr) {
-		found_expr = resolveIdStructCurScope(ids, name, idx, tb);
-		if (found_expr) {
-			/* closure is from parent type.. */
-			parent_closure = rt_glue.getThunkClosure();
-		}
+	if (ts == NULL) {
+		ts = resolveIdStructCurScope(ids, name, idx);
+		/* closure is from parent type.. */
+		if (ts) parent_closure = rt_glue.getThunkClosure();
 	}
 
-	if (!found_expr && idx != NULL) {
+	if (ts == NULL && idx != NULL) {
 		/* idx on top level only permitted for expressions
 		 * being resolved within the type scope */
 		delete idx;
 		cerr << "Idx on Func Arg." << endl;
-		return false;
+		return NULL;
 	}
 
-	if (!found_expr && cur_func_blk != NULL) {
-		found_expr = resolveIdStructFunc(ids, name, tb);
-		if (found_expr) {
-			/* closure is from head of idstruct */
-			parent_closure = new Id(name);
-		}
+	if (ts == NULL && cur_func_blk != NULL) {
+		ts = resolveIdStructFunc(ids, name);
+		/* closure is from head of idstruct */
+		if (ts) parent_closure = new Id(name);
 	}
 
-	if (!found_expr && (t = typeByName(name)) != NULL) {
-		cerr << name << endl;
+	if (ts == NULL && (t = typeByName(name)) != NULL) {
+		TypeBase	*head;
+
 		assert (name == string("disk"));
 		/* Global scoped. We need to tell the run-time that we're
 		 * entering a global expression. */
-		tb.tb_lastsym = NULL;
-		tb.tb_type = t;
-		tb.tb_symtab = symtabByName(t->getName());
-		tb.tb_diskoff = new Number(0);
-		tb.tb_parambuf = new Id("__NULLPTR");
-		tb.tb_virt = new Id("__NULLPTR8");
 
-		found_expr = resolveTail(tb, ids, ++(ids->begin()));
-		if (found_expr) {
-			parent_closure = FCall::mkBaseClosure(t);
-		}
+		head = new TypeBase(
+			t,
+			symtabByName(t->getName()),
+			NULL,
+			new Number(0),
+			new Id("__NULLPTR"),
+			new Id("__NULLPTR8"));
+
+		ts = resolveTail(head, ids, ++(ids->begin()));
+		if (ts) parent_closure = FCall::mkBaseClosure(t);
 	}
 
 	delete idx;
 
-	/* nothing found, return error. */
-	if (!found_expr) return false;
-
-	return true;
+	return ts;
 }
 
 Expr* EvalCtx::resolveVal(const IdStruct* ids) const
 {
-	const ThunkField		*thunk_field;
-	struct TypeBase			tb;
-	Expr				*parent_closure;
+	const ThunkField	*thunk_field;
+	TypeStack		*ts;
+	const TypeBase		*top;
+	Expr			*ret, *parent_closure = NULL;
 
 	assert (ids != NULL);
 
-	if (resolveTB(ids, tb, parent_closure) == false) return NULL;
+	if ((ts = resolveTypeStack(ids, parent_closure)) == NULL) return NULL;
 
 	/* massage the result into something we can use-- disk read or typepass */
-
 	/* return typepass if we are returning a user type */
-	thunk_field = tb.tb_lastsym->getFieldThunk();
+	top = ts->getTop();
+	thunk_field = top->getSym()->getFieldThunk();
 	if (thunk_field->getType() != NULL) {
-		return FCall::mkClosure(
-			tb.tb_diskoff,
+		ret = FCall::mkClosure(
+			top->getDiskOff()->copy(),
 			Expr::rewriteReplace(
-				tb.tb_parambuf,
+				top->getParamBuf()->copy(),
 				rt_glue.getThunkArgIdx(),
 				new Number(0)),
-			tb.tb_virt);
+			top->getVirt()->copy());
+		delete ts;
+		return ret;
 	}
 
 	/* not returning a user type-- we know that the size to
 	 * read is going to be constant. don't need to bother with computing
 	 * parameters for the size function-- inline it! */
-	delete tb.tb_parambuf;
+	assert (parent_closure != NULL);
 
-	return rt_glue.getLocal(
+	ret = rt_glue.getLocal(
 		parent_closure,
-		tb.tb_diskoff,
+		top->getDiskOff()->copy(),
 		thunk_field->getSize()->copyConstValue());
+	delete ts;
+	return ret;
 }
 
 /** convert an id into a constant or convert to
@@ -468,8 +294,7 @@ Expr* EvalCtx::resolveVal(const Id* id) const
 
 	if (cur_scope != NULL) {
 		/* short-circuit, use current thunk (e.g. current type inst) */
-		if (id->getName() == "this")
-			return rt_glue.getThunkClosure();
+		if (id->getName() == "this") return rt_glue.getThunkClosure();
 
 		/* is is in the current scope? */
 		if ((st_ent = cur_scope->lookup(id->getName())) != NULL) {
@@ -494,15 +319,15 @@ Expr* EvalCtx::resolveVal(const Id* id) const
 				tf->getSize()->copyFCall());
 		}
 	} else if (cur_func != NULL) {
-		if (cur_func->getArgs()->hasField(id->getName())) {
-			/* pass-through */
+		/* pass-through name */
+		if (cur_func->getArgs()->hasField(id->getName()))
 			return id->copy();
-		}
 	}
 
-	/* support for access of dynamic types.. gets base bits for type */
+	/* NOTE: we need to change this for transparently nesting file systems
+	 * 	Need to review some various tricks for base relocation
+	 */
 	if ((t = typeByName(id->getName())) != NULL) {
-		cerr << id->getName() << endl;
 		assert (id->getName() == "disk");
 		return FCall::mkBaseClosure(t);
 	}
@@ -588,8 +413,7 @@ Expr* EvalCtx::resolveVal(const IdArray* ida) const
 
 	if (cur_scope != NULL) {
 		ret = resolveArrayInType(ida);
-		if (ret != NULL)
-			return ret;
+		if (ret != NULL) return ret;
 	}
 
 /* TODO -- add support for constant arrays */
@@ -603,22 +427,23 @@ Expr* EvalCtx::resolveVal(const IdArray* ida) const
 Expr* EvalCtx::resolveLoc(const IdStruct* ids, Expr*& size) const
 {
 	Expr			*loc;
-	Expr			*parent_closure;
+	Expr			*parent_closure = NULL;
 	const ThunkField	*thunk_field;
-	struct TypeBase		tb;
+	TypeStack		*ts;
 
-	if (resolveTB(ids, tb, parent_closure) == false)
-		return NULL;
+	if ((ts = resolveTypeStack(ids, parent_closure)) == NULL) return NULL;
 
+	cerr << "HI" << endl;
+	ids->print(cerr);
 	assert (parent_closure != NULL);
-	loc = rt_glue.toPhys(parent_closure, tb.tb_diskoff);
-	delete tb.tb_diskoff;
-	delete tb.tb_parambuf;
-	delete tb.tb_virt;
+	loc = rt_glue.toPhys(parent_closure, ts->getTop()->getDiskOff());
+
+	thunk_field = ts->getTop()->getSym()->getFieldThunk();
+	size = thunk_field->getSize()->copyConstValue();
+
+	delete ts;
 	delete parent_closure;
 
-	thunk_field = tb.tb_lastsym->getFieldThunk();
-	size = thunk_field->getSize()->copyConstValue();
 	return loc;
 }
 
@@ -642,17 +467,6 @@ bool EvalCtx::toName(const Expr* e, std::string& in_str, Expr* &idx) const
 	}
 
 	return false;
-}
-
-const SymbolTable* EvalCtx::symtabByName(const std::string& s) const
-{
-	symtab_map::const_iterator	it;
-
-	it = symtabs.find(s);
-	if (it == symtabs.end())
-		return NULL;
-
-	return (*it).second;
 }
 
 const Type* EvalCtx::typeByName(const std::string& s) const
@@ -737,10 +551,8 @@ const Type* EvalCtx::getTypeIdStruct(const IdStruct* ids) const
 		}
 
 		cur_st_ent = cur_symtab->lookup(fieldname);
-		if (cur_st_ent == NULL) {
-			/* field not found in symtab */
-			return NULL;
-		}
+		/* field not found in symtab? */
+		if (cur_st_ent == NULL) return NULL;
 
 		cur_type = cur_st_ent->getFieldThunk()->getType();
 	}
@@ -764,8 +576,7 @@ const Type* EvalCtx::getType(const Expr* e) const
 		const Type*	t;
 
 		f = funcs_map[fc->getName()];
-		if (f == NULL)
-			return NULL;
+		if (f == NULL) return NULL;
 
 		t = types_map[f->getRet()];
 		return t;
@@ -788,5 +599,33 @@ const Type* EvalCtx::getType(const Expr* e) const
 	e->print(cerr);
 	cerr << endl;
 
+	return NULL;
+}
+
+TypeStack* EvalCtx::resolveTail(
+	TypeBase			*tb,	/* current base */
+	const IdStruct			*ids,
+	IdStruct::const_iterator	ids_begin) const
+{
+	TypeStack	*ts;
+	string		name;
+	Expr		*idx = NULL;
+
+	assert (ids != NULL);
+
+	ts = new TypeStack(tb);
+	for (	IdStruct::const_iterator it = ids_begin;
+		ids_begin != ids->end();
+		ids_begin++)
+	{
+		if (ts->getTop()->getType() == NULL) break;
+		if (toName(*ids_begin, name, idx) == false) goto cleanup_err;
+		if (ts->followIdIdx(this, name, idx) == false) break;
+	}
+
+	return ts;
+
+cleanup_err:
+	delete ts;
 	return NULL;
 }

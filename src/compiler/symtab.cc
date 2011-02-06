@@ -7,6 +7,7 @@
 using namespace std;
 
 extern const_map		constants;
+extern symtab_map		symtabs;
 
 void SymbolTable::print(ostream& out) const
 {
@@ -146,8 +147,15 @@ bool SymbolTableEnt::isUserType(void) const
 	return (getType() != NULL);
 }
 
-
 const Type* SymbolTableEnt::getType(void) const
 {
 	 return getFieldThunk()->getType();
+}
+
+const SymbolTable* symtabByName(const std::string& s)
+{
+	symtab_map::const_iterator	it;
+	it = symtabs.find(s);
+	if (it == symtabs.end()) return NULL;
+	return (*it).second;
 }

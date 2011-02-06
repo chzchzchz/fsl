@@ -103,4 +103,6 @@ inline static void dump_symlist(const SymbolTable& st)
 	std::cerr << "done.\n";
 }
 
+const SymbolTable* symtabByName(const std::string& s);
+
 #endif

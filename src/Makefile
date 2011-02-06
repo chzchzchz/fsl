@@ -43,6 +43,7 @@ LANGOBJS=	lex.yy.o		\
 		writepkt.o		\
 		instance_iter.o		\
 		typeclosure.o		\
+		type_stack.o		\
 		reloc.o			\
 		varscope.o		\
 		wpkt_inst.o		\
