@@ -38,7 +38,7 @@ Expr* TypeBase::replaceClosure(Expr* in_expr) const
 	Expr	*ret = in_expr;
 
 	ret = Expr::rewriteReplace(
-		ret, rt_glue.getThunkClosure(), tb_clo->copy());
+		ret, rt_glue.getThunkClosure(), tb_clo->simplify());
 	/* XXX is this correct?-- it's a rebase.. */
 	ret = Expr::rewriteReplace(
 		ret, rt_glue.getThunkArgIdx(), new Number(0));
@@ -150,7 +150,6 @@ bool TypeBase::setNewOffsets(
 	} else {
 		/* trying to index into a scalar type? */
 		if (idx != NULL) goto err_cleanup;
-
 		/* otherwise, we already have the offset+param we need... */
 	}
 
@@ -214,7 +213,7 @@ bool TypeStack::followIdIdx(const EvalCtx* ectx, std::string& name, Expr* idx)
 		new_tb_type = new_tb_sym->getType();
 		if (new_tb_type != NULL)
 			new_tb_st = symtabByName(new_tb_type->getName());
-		clo = top_tb->getClosureExpr()->copy();
+		clo = top_tb->getClosureExpr()->simplify();
 		is_val = false;
 	}
 

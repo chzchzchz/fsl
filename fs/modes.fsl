@@ -1,0 +1,14 @@
+const S_IFDIR = 0x4000;
+const S_IFREG = 0x8000;
+
+bool S_ISDIR(u32 mode)
+{
+	if ((mode & S_IFDIR) == S_IFDIR) return true;
+	return false;
+}
+
+bool S_ISREG(u32 mode)
+{
+	if ((mode & S_IFREG) == S_IFREG) return true;
+	return false;
+}

@@ -5,9 +5,8 @@ const EXT2_INO_BAD = 1;
 const EXT2_INO_ROOT = 2;
 const EXT2_INO_LOADER = 5;
 const EXT2_INO_FIRST = 11;
-const S_IFDIR = 0x4000;
-const S_IFREG = 0x8000;
 
+include "modes.fsl"
 include "ext2_func.fsl"
 include "ext2_type.fsl"
 

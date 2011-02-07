@@ -40,6 +40,7 @@ Expr* FCall::mkBaseClosure(const ::Type* t)
 Expr* FCall::mkClosure(Expr* diskoff, Expr* params, Expr* virt)
 {
 	ExprList	*el;
+	Expr		*ret;
 
 	assert (diskoff != NULL && params != NULL && virt != NULL);
 
@@ -48,29 +49,41 @@ Expr* FCall::mkClosure(Expr* diskoff, Expr* params, Expr* virt)
 	el->add(params);
 	el->add(virt);
 
-	return new FCall(new Id("__mkClosure"), el);
+	ret = new FCall(new Id("__mkClosure"), el);
+
+	return ret;
 }
 
 Expr* FCall::extractCloOff(const Expr* expr)
 {
-	return new FCall(new Id("__extractOff"), new ExprList(expr->copy()));
+	const FCall	*fc = dynamic_cast<const FCall*>(expr);
+	if (fc != NULL && fc->getName() == string("__mkClosure")) {
+		return (fc->getExprs()->front())->simplify();
+	}
+	return new FCall(new Id("__extractOff"), new ExprList(expr->simplify()));
 }
 
 Expr* FCall::extractCloParam(const Expr* expr)
 {
-	return new FCall(new Id("__extractParam"), new ExprList(expr->copy()));
+	const FCall	*fc = dynamic_cast<const FCall*>(expr);
+	if (fc != NULL && fc->getName() == "__mkClosure")
+		return (fc->getExprs()->getNth(1))->simplify();
+	return new FCall(new Id("__extractParam"), new ExprList(expr->simplify()));
 }
 
 Expr* FCall::extractCloVirt(const Expr* expr)
 {
-	return new FCall(new Id("__extractVirt"), new ExprList(expr->copy()));
+	const FCall	*fc = dynamic_cast<const FCall*>(expr);
+	if (fc != NULL && fc->getName() == "__mkClosure")
+		return (fc->getExprs()->getNth(2))->simplify();
+	return new FCall(new Id("__extractVirt"), new ExprList(expr->simplify()));
 }
 
 Expr* FCall::extractParamVal(const Expr* expr, const Expr* off)
 {
 	return new FCall(
 		new Id("__extractParamVal"),
-		new ExprList(expr->copy(), off->copy()));
+		new ExprList(expr->simplify(), off->simplify()));
 }
 
 llvm::Value* FCall::codeGenLet(void) const

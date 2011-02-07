@@ -177,6 +177,7 @@ llvm::AllocaInst* VarScope::createTmpI64(const std::string& name)
 	llvm::AllocaInst	*ret;
 
 	ret = builder->CreateAlloca(builder->getInt64Ty(), 0, name);
+	if (name != ret->getName()) cerr << "OOPS name = " << name << endl;
 	assert (name == ret->getName());
 	vars_map[name] = TypedVar(NULL, ret);
 

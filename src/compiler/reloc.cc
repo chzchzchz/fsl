@@ -71,18 +71,20 @@ Reloc* RelocTypes::loadReloc(const Preamble* p)
 		(*arg_it)->getExpr(),
 		"reloc_alloc_"+src_type->getName()+"_"+int_to_string(seq),
 		src_type);
+	assert (wi_alloc != NULL);
 	arg_it++;
 	wi_relink = WritePkt::getInstance(
 		(*arg_it)->getExpr(),
 		"reloc_relink_"+src_type->getName()+"_"+int_to_string(seq),
 		src_type);
+	((*arg_it)->getExpr())->print(cerr);
+	assert (wi_relink != NULL);
 	arg_it++;
 	wi_replace = WritePkt::getInstance(
 		(*arg_it)->getExpr(),
 		"reloc_replace_"+src_type->getName()+"_"+int_to_string(seq),
 		src_type);
-
-	assert (wi_alloc && wi_relink && wi_replace);
+	assert (wi_replace != NULL);
 
 	sel_iter->setPrefix(
 		"reloc_sel_"+src_type->getName()+"_"+int_to_string(seq));

@@ -175,6 +175,12 @@ public:
 		}
 	}
 
+	const Expr* getNth(unsigned int n) const {
+		const_iterator it = begin();
+		for (unsigned int i = 0; i < n; it++,i++);
+		return (*it);
+	}
+
 private:
 };
 

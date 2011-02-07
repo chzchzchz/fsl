@@ -1,4 +1,4 @@
-FSNAMES= ext2 vfat iso9660 reiserfs xfs
+FSNAMES= ext2 vfat iso9660 reiserfs xfs minix
 NUM_JOBS=6
 MAKECMD=make -j$(NUM_JOBS)
 #CFLAGS=-O3 -DFSL_RELEASE

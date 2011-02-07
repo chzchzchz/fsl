@@ -1,0 +1,197 @@
+uint get_magic()
+{
+	u16	m = disk.sb.s_magic;
+	if (m != MINIX_SUPER_MAGIC && m != MINIX_SUPER_MAGIC2 &&
+	    m != MINIX2_SUPER_MAGIC && m != MINIX2_SUPER_MAGIC2)
+		return disk.sb3.s_magic;
+	return m;
+}
+
+bool is_valid_magic()
+{
+	u16	m = get_magic();
+	if (	m == MINIX_SUPER_MAGIC || m == MINIX_SUPER_MAGIC2 ||
+		m == MINIX2_SUPER_MAGIC || m == MINIX2_SUPER_MAGIC2 ||
+		m == MINIX3_SUPER_MAGIC)
+		return true;
+	return false;
+}
+
+minix_ver_t get_version()
+{
+	uint	m = get_magic();
+	if (m == MINIX_SUPER_MAGIC || m == MINIX_SUPER_MAGIC2) return MINIX_V1;
+	if (m == MINIX2_SUPER_MAGIC || m == MINIX2_SUPER_MAGIC2) return MINIX_V2;
+	return MINIX_V3;
+}
+
+u32 get_namelen()
+{
+	uint	m = get_magic();
+	if (m == MINIX_SUPER_MAGIC || m == MINIX2_SUPER_MAGIC) return 14;
+	if (m == MINIX_SUPER_MAGIC2 || m == MINIX2_SUPER_MAGIC2) return 30;
+	if (m == MINIX3_SUPER_MAGIC) return 60;
+	DEBUG_WRITE=999999;
+	return 1;
+}
+
+u32 minix_ino_cnt()
+{
+	if (get_version() == MINIX_V3) return disk.sb3.s_ninodes;
+	return disk.sb.s_ninodes;
+}
+
+bool is_valid_inonum(u32 ino)
+{
+	if (ino == 0) return false;
+	if (ino >= minix_ino_cnt()) return false;
+	return true;
+}
+
+u32 get_blkcnt()
+{
+	if (get_version() == MINIX_V3) return disk.sb3.s_zones;
+	if (get_version() == MINIX_V2) return disk.sb.s_zones;
+	return disk.sb.s_nzones;
+}
+
+u32 get_first_bnum()
+{
+	if (get_version() == MINIX_V3) return disk.sb3.s_firstdatazone;
+	return disk.sb.s_firstdatazone;
+}
+
+u32 minix_imap_blkcnt() { return get_bmp_blks(minix_ino_cnt()); }
+u32 minix_zmap_blkcnt() { return get_bmp_blks(get_blkcnt()); }
+
+blkoff_t bindir_base_v1() { return 7+1+(BLK_SZ/2)+1; }
+blkoff_t bindir_base_v2() { return 7+1+(BLK_SZ/4)+1; }
+blkoff_t bnum_to_zonebit(blknum_t bnum) { return (bnum-get_first_bnum())+1; }
+
+bool is_imap_set(int ino) { if (disk.imap.bits[ino+1]==1) return true; return false; }
+bool is_zmap_set(int blk) { if (disk.zmap.bits[bnum_to_zonebit(blk)]==1) return true; return false; }
+
+minix_inode get_inode_v1(u32 ino) { return disk.inov1[ino-1]; }
+minix2_inode get_inode_v2(u32 ino) { return disk.inov2[ino-1]; }
+
+u32 get_bmp_blks(u32 elems) { return (elems+8*BLK_SZ-1)/(8*BLK_SZ); }
+minix_block get_blk(u32 blkno) { return disk.blocks[blkno]; }
+
+minix_block get_nth_v1(minix_inode ino, u32 blkoff)
+{
+	return get_blk(get_nth_meta_v1_bnum(
+		ino, blkoff+get_file_meta(blkoff*BLK_SZ)));
+}
+
+minix_block get_nth_v2(minix2_inode ino, u32 blkoff)
+{
+	return get_blk(get_nth_meta_v2_bnum(
+		ino, blkoff+get_file_meta(blkoff*BLK_SZ)));
+}
+
+minix_block get_nth_meta_v1(minix_inode ino, u32 blkoff) {
+	return get_blk(get_nth_meta_v1_bnum(ino, blkoff));
+}
+
+minix_block get_nth_meta_v2(minix2_inode ino, u32 blkoff) {
+	return get_blk(get_nth_meta_v2_bnum(ino, blkoff));
+}
+
+
+u32 get_nth_meta_v2_bnum(minix2_inode ino, u32 blkoff)
+{
+	u32	indir_idx;
+	u32	indir_bnum;
+	u32	pindir;
+
+	pindir = BLK_SZ/4;
+	if (blkoff < 7) return ino.i_zone_direct[blkoff];
+	blkoff -= 7;
+	if (blkoff == 0) return ino.i_zone_indir;
+	blkoff--;
+	if (blkoff < pindir)
+		return disk.v2[ino.i_zone_indir].ptr[blkoff];
+	blkoff -= pindir;
+	if (blkoff == 0) return ino.i_zone_bindir;
+	blkoff--;
+
+	/* indir within biindir */
+	indir_idx = blkoff / (pindir+1);
+	indir_bnum = disk.v2[ino.i_zone_bindir].ptr[indir_idx];
+	if ((blkoff % (pindir+1)) == 0)
+		return indir_bnum;
+	blkoff -= (indir_idx+1);
+	if (blkoff < pindir*pindir)
+		return disk.v2[indir_bnum].ptr[blkoff%pindir];
+	blkoff -= pindir*pindir;
+
+	/* tri-indir */
+	if (blkoff == 0) return ino.i_zone_triindir;
+
+	/* XXX */
+	DEBUG_WRITE = 123456;
+	return 99999999999;
+}
+
+u32 get_nth_meta_v1_bnum(minix_inode ino, u32 blkoff)
+{
+	u32	indir_idx;
+	u32	indir_bnum;
+	u32	pindir;
+
+	pindir = BLK_SZ/2;
+	if (blkoff < 7) return ino.i_zone_direct[blkoff];
+	blkoff -= 7;
+	if (blkoff == 0) return ino.i_zone_indir;
+	blkoff--;
+	if (blkoff < pindir)
+		return disk.v1[ino.i_zone_indir].ptr[blkoff];
+	blkoff -= pindir;
+	if (blkoff == 0) return ino.i_zone_bindir;
+	blkoff--;
+
+	/* indir within biindir */
+	indir_idx = blkoff / (pindir+1);
+	indir_bnum = disk.v1[ino.i_zone_bindir].ptr[indir_idx];
+	if ((blkoff % (pindir+1)) == 0)
+		return indir_bnum;
+	blkoff -= (indir_idx+1);
+	if (blkoff < pindir*pindir)
+		return disk.v1[indir_bnum].ptr[blkoff%pindir];
+	blkoff -= pindir*pindir;
+
+	/* no tri-indir */
+
+	DEBUG_WRITE = 123456;
+	return 0;
+}
+
+u32 get_file_blks(u32 sz) { return (sz+BLK_SZ-1)/BLK_SZ; }
+u32 get_file_all(u32 sz) { return get_file_meta(sz) + get_file_blks(sz); }
+u32 get_file_meta(u32 sz)
+{
+	int	ret;
+	int	num_blocks;
+	u32	per_indir;
+
+	if (get_version() == MINIX_V1) 	per_indir = BLK_SZ/2;
+	else per_indir = BLK_SZ/4;
+
+	num_blocks = get_file_blks(sz);
+	if (num_blocks < 7) return 0;
+	num_blocks -= 7;
+
+	ret = 1;
+	if (num_blocks <= per_indir) return ret;	/* indir */
+	ret += 1 + num_blocks/per_indir;
+	if (num_blocks <= per_indir*per_indir) return ret;	/* biindir */
+	num_blocks -= per_indir*per_indir;
+
+	/* triindir */
+	ret += 1 + 	(num_blocks/(per_indir*per_indir) + 1)  +
+			(num_blocks%(per_indir*per_indir))/per_indir+1;
+	if (num_blocks <= per_indir*per_indir*per_indir) return ret;
+
+	/* oh, brother! */
+	return 99999999999;
+}

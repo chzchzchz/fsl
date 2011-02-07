@@ -337,18 +337,6 @@ ext2_inode get_inode(uint ino_num_logical)
 	return disk.blocks[blk_num].ino_blk.ino[ino_idx];
 }
 
-bool S_ISDIR(u32 mode)
-{
-	if ((mode & S_IFDIR) == S_IFDIR) return true;
-	return false;
-}
-
-bool S_ISREG(u32 mode)
-{
-	if ((mode & S_IFREG) == S_IFREG) return true;
-	return false;
-}
-
 u32 bi_count(ext2_biindir_block id)
 {
 	u32	max_blks = get_block_size()/4;

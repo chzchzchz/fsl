@@ -1,0 +1,79 @@
+const __FSL_FSNAME = minix;
+const MINIX_ROOT_INO = 1;
+const BLK_SZ = 1024;
+
+const MINIX_LINK_MAX  = 250;
+const MINIX2_LINK_MAX = 65530;
+
+const MINIX_I_MAP_SLOTS	=	8;
+const MINIX_Z_MAP_SLOTS	=	64;
+const MINIX_VALID_FS	=	0x0001; /* Clean fs. */
+const MINIX_ERROR_FS 	=	0x0002; /* fs has errors. */
+
+const MINIX_SUPER_MAGIC		= 0x137F;	/* original minix fs */
+const MINIX_SUPER_MAGIC2	= 0x138F;	/* minix fs, 30 char names */
+const MINIX2_SUPER_MAGIC	= 0x2468;	/* minix V2 fs */
+const MINIX2_SUPER_MAGIC2	= 0x2478;	/* minix V2 fs, 30 char names */
+const MINIX3_SUPER_MAGIC	= 0x4d5a;	/* minix V3 fs */
+
+enum minix_ver_t = { MINIX_V1, MINIX_V2, MINIX_V3 } u8;
+
+typedef blkoff_t = u32;
+typedef blknum_t = u32;
+
+include "modes.fsl"
+include "minix_type.fsl"
+include "minix_func.fsl"
+
+write minix_block_alloc(blknum_t bnum) { disk.zmap.bits[bnum_to_zonebit(bnum)]<-1! }
+write minix_block_replace(blknum_t bnum) { disk.zmap.bits[bnum_to_zonebit(bnum)]<-0! }
+write minix_block_relink_meta_v1(
+	minix_inode ino, blkoff_t boff, blknum_t new_bnum)
+{
+	ino.i_zone_direct[boff] <- new_bnum ? boff < 7 !
+	/* indir */
+	ino.i_zone_indir <- new_bnum ? boff == 7 !
+	disk.v1[ino.i_zone_indir].ptr[boff-8] <- new_bnum
+		? boff > 7 && (boff-8) < BLK_SZ/2 !
+
+	/* biindir */
+	ino.i_zone_bindir <- new_bnum ? boff == (8+(BLK_SZ/2)) !
+	/* biindir-indir */
+	disk.v1[ino.i_zone_bindir].ptr[
+		(boff-bindir_base_v1())/(1+(BLK_SZ/2))] <- new_bnum ?
+		boff > bindir_base_v1() &&
+		(boff-bindir_base_v1())%(1+(BLK_SZ/2)) == 0 !
+	/* b-i-direct block */
+	disk.v1[disk.v1[ino.i_zone_bindir].ptr[
+			(boff-bindir_base_v1())/(1+(BLK_SZ/2))]].ptr[
+			(boff-bindir_base_v1())%(1+(BLK_SZ/2))-1]
+				<- new_bnum ?
+		boff > bindir_base_v1() &&
+		(boff-bindir_base_v1())%(1+(BLK_SZ/2)) != 0 !
+
+}
+
+write minix_block_relink_meta_v2(
+	minix2_inode ino, blkoff_t boff, blknum_t new_bnum)
+{
+	ino.i_zone_direct[boff] <- new_bnum ? boff < 7 !
+	/* indir */
+	ino.i_zone_indir <- new_bnum ? boff == 7 !
+	disk.v1[ino.i_zone_indir].ptr[boff-8] <- new_bnum
+		? boff > 7 && (boff-8) < BLK_SZ/4 !
+
+	/* biindir */
+	ino.i_zone_bindir <- new_bnum ? boff == (7+1+(BLK_SZ/4)) !
+	/* biindir-indir */
+	disk.v1[ino.i_zone_bindir].ptr[
+		(boff-bindir_base_v1())/(1+(BLK_SZ/4))] <- new_bnum ?
+		boff > bindir_base_v1() &&
+		(boff-bindir_base_v1())%(1+(BLK_SZ/4)) == 0 !
+	/* b-i-direct block */
+	disk.v1[disk.v1[ino.i_zone_bindir].ptr[
+			(boff-bindir_base_v2())/(1+(BLK_SZ/4))]].ptr[
+			(boff-bindir_base_v2())%(1+(BLK_SZ/4))-1]
+				<- new_bnum ?
+		boff > bindir_base_v2() &&
+		(boff-bindir_base_v2())%(1+(BLK_SZ/4)) != 0 !
+}

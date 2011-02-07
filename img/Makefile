@@ -6,7 +6,8 @@ all: 	fill ext2.img vfat.img nilfs2.img testfs.img reiserfs.img \
 	iso9660-depth.img ext2-depth.img vfat-depth.img reiserfs-depth.img \
 	vfat-postmark.img ext2-postmark.img reiserfs-postmark.img \
 	ext2-linux-4gb.img reiserfs-linux-4gb.img vfat-linux-4gb.img iso9660-linux-4gb.img	\
-	ext2-linux-1gb.img
+	ext2-linux-1gb.img	\
+	minix,img
 
 depth: $(DEPTH_IMGS)
 
@@ -98,6 +99,18 @@ vfat-linux-4gb.img:
 	rm -rf linuxtmp
 
 
+minix.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=50
+	yes | /sbin/mkfs.minix $@
+	./loopback_fs_setup.sh minix.img minix && ./gen_files.sh  && ./loopback_fs_teardown.sh
+
+minix-many.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=50
+	yes | /sbin/mkfs.minix $@
+	./loopback_fs_setup.sh $@ minix
+	./gen_files.sh 100
+	./loopback_fs_teardown.sh
+
 ext2.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.ext2 $@
@@ -124,6 +137,12 @@ ext2-postmark.img:
 	./gen_postmark.sh
 	mkdir /mnt/FSTEST/lost+found/
 	./loopback_fs_teardown.sh
+
+minix-depth.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=50
+	yes | /sbin/mkfs.minix $@
+	./loopback_fs_setup.sh $@ minix && ./gen_depth.sh && ./loopback_fs_teardown.sh
+
 
 ext2-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100

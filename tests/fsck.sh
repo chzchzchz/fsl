@@ -26,6 +26,8 @@ function fsck_get_cmd
 		FSCKCMD="sudo /sbin/fsck.ext2 -v -f -n "
 	elif [ $fs = "reiserfs" ]; then
 		FSCKCMD="sudo /sbin/fsck.reiserfs -f -y "
+	elif [ $fs = "minix" ]; then
+		FSCKCMD="sudo /sbin/fsck.minix -v -s -f "
 	else
 		FSCKCMD="sudo fsck "
 	fi

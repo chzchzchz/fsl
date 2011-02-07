@@ -8,6 +8,7 @@ util/draw.vfat.sh
 util/draw.nilfs2.sh
 util/draw.iso9660.sh
 util/draw.reiserfs.sh
+util/draw.minix.sh
 end_time=`date +%s`
 
 echo "Draw Scans: Total seconds: " `expr $end_time - $start_time`

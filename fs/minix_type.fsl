@@ -1,0 +1,162 @@
+type disk
+assert (? is_valid_magic() == true) as chk_sb_magic
+points_if(? get_version() == MINIX_V1, get_inode_v1(MINIX_ROOT_INO)) as rootino
+points_if(? get_version() > MINIX_V1, get_inode_v2(MINIX_ROOT_INO)) as rootino
+{
+	set_bytes(BLK_SZ);
+	minix_super_block	sb;
+	set_bytes(BLK_SZ);
+	minix3_super_block	sb3;
+	set_bytes(BLK_SZ*2);
+	minix_imap		imap;
+	align_bytes(BLK_SZ);
+	minix_zmap		zmap;
+	align_bytes(BLK_SZ);
+
+	if (get_version() == MINIX_V1) {
+		minix_inode(@+1)	inov1[minix_ino_cnt()] fixed;
+	} else {
+		minix2_inode(@+1)	inov2[minix_ino_cnt()] fixed;
+	}
+	set_bytes(0);
+	minix_block		blocks[get_blkcnt()] fixed nofollow;
+	set_bytes(0);
+	minix_v1_ptrblock	v1[get_blkcnt()] fixed nofollow;
+	set_bytes(0);
+	minix_v2_ptrblock	v2[get_blkcnt()] fixed nofollow;
+}
+
+type minix_imap { u1 bits[minix_ino_cnt()]; }
+type minix_zmap { u1 bits[get_blkcnt()]; }
+type minix_block { u8	data[BLK_SZ]; }
+type minix_v1_ptrblock { u16	ptr[BLK_SZ/2]; }
+type minix_v2_ptrblock { u32	ptr[BLK_SZ/4]; }
+type minix_file_block { u8 data[BLK_SZ]; }
+
+/* This is the original minix inode layout on disk.
+ * Note the 8-bit gid and atime and ctime. */
+type minix_inode(int ino)
+assert ( ? is_imap_set(ino) == true) as chk_alloc
+virtual_if (
+	? S_ISREG(i_mode), minix_file_block,
+	i, 1, get_file_blks(i_size), get_nth_v1(this, i-1)) as vfile
+virtual_if (
+	? S_ISDIR(i_mode), minix_dir_entry,
+	i, 1, get_file_blks(i_size), get_nth_v1(this, i-1)) as vdir
+relocate(
+	j, 1, get_file_all(i_size), get_nth_meta_v1(this, j-1),
+	i, get_first_bnum(), get_blkcnt(),
+		disk.blocks[i], ? is_zmap_set(i) == false,
+	minix_block_alloc(i),
+	minix_block_relink_meta_v1(this, (j-1), i),
+	minix_block_replace(get_nth_meta_v1_bnum(this, j-1))) as defrag
+relocate(
+	j, 1, get_file_all(i_size), get_nth_meta_v1(this, j-1),
+	i, get_first_bnum(), get_blkcnt(),
+		disk.blocks[i], ? is_zmap_set(i) == false,
+	minix_block_alloc(i),
+	minix_block_relink_meta_v1(this, (j-1), i),
+	minix_block_replace(get_nth_meta_v1_bnum(this, j-1))) as reloc
+{
+        u16 i_mode;
+        u16 i_uid;
+        u32 i_size;
+        u32 i_time;
+        u8  i_gid;
+        u8  i_nlinks;
+	u16 i_zone_direct[7];
+	u16 i_zone_indir;
+	u16 i_zone_bindir;
+}
+
+/* The new minix inode has all the time entries, as well as
+ * long block numbers and a third indirect block (7+1+1+1
+ * instead of 7+1+1). Also, some previously 8-bit values are
+ * now 16-bit. The inode is now 64 bytes instead of 32. */
+type minix2_inode(int ino)
+assert ( ? is_imap_set(ino) == true) as chk_alloc
+virtual_if (
+	? S_ISREG(i_mode), minix_file_block,
+	i, 1, get_file_blks(i_size), get_nth_v2(this, i-1)) as vfile
+virtual_if (
+	? S_ISDIR(i_mode), minix_dir_entry,
+	i, 1, get_file_blks(i_size), get_nth_v2(this, i-1)) as vdir
+relocate(
+	j, 1, get_file_all(i_size), get_nth_meta_v2(this, j-1),
+	i, get_first_bnum(), get_blkcnt(),
+		disk.blocks[i], ? is_zmap_set(i) == false,
+	minix_block_alloc(i),
+	minix_block_relink_meta_v2(this, (j-1), i),
+	minix_block_replace(get_nth_meta_v2_bnum(this, j-1))) as defrag
+relocate(
+	j, 1, get_file_all(i_size), get_nth_meta_v2(this, j-1),
+	i, get_first_bnum(), get_blkcnt(),
+		disk.blocks[i], ? is_zmap_set(i) == false,
+	minix_block_alloc(i),
+	minix_block_relink_meta_v2(this, (j-1), i),
+	minix_block_replace(get_nth_meta_v2_bnum(this, j-1))) as reloc
+{
+        u16 i_mode;
+        u16 i_nlinks;
+        u16 i_uid;
+        u16 i_gid;
+        u32 i_size;
+        u32 i_atime;
+        u32 i_mtime;
+        u32 i_ctime;
+	u32 i_zone_direct[7];
+	u32 i_zone_indir;
+	u32 i_zone_bindir;
+	u32 i_zone_triindir;
+}
+
+/* minix super-block data on disk */
+type minix_super_block {
+        u16 s_ninodes;			// 0
+        u16 s_nzones;			// 2
+        u16 s_imap_blocks;		// 4
+        u16 s_zmap_blocks;		// 6
+        u16 s_firstdatazone;		// 8
+        u16 s_log_zone_size;		// 10
+        u32 s_max_size;			// 12
+        u16 s_magic;			// 16
+        u16 s_state;			// 18
+        u32 s_zones;			// 20
+}
+
+/* V3 minix super-block data on disk */
+type minix3_super_block
+assert ( ? get_version() == MINIX_V3 ) as chk_sbv3
+{
+        u32 s_ninodes;		// 0
+        u16 s_pad0;		// 4
+        u16 s_imap_blocks;	// 6
+        u16 s_zmap_blocks;	// 8
+        u16 s_firstdatazone;	// 10
+        u16 s_log_zone_size;	// 12
+        u16 s_pad1;		// 14
+        u32 s_max_size;		// 16
+        u32 s_zones;		// 20
+        u16 s_magic;		// 24
+        u16 s_pad2;
+        u16 s_blocksize;
+        u8  s_disk_version;
+}
+
+type minix_dir_entry
+points_if(
+	? is_valid_inonum(inode) == true && name[0] != '.',
+	get_inode_v1(inode)) as ino
+{
+        u16 inode;
+        u8 name[get_namelen()];
+}
+
+type minix3_dir_entry
+points_if(
+	? is_valid_inonum(inode) == true && name[0] != '.',
+	get_inode_v2(inode)) as ino
+{
+        u32 inode;
+        u8 name[get_namelen()];
+}

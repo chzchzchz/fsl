@@ -221,11 +221,6 @@ Expr* EvalCtx::resolveVal(const IdStruct* ids) const
 	assert (top != NULL);
 	if (top->isValue()) {
 		ret = top->getClosureExpr()->copy();
-		cerr << "IS VALUD!!!" << endl;
-		ids->print(cerr);
-		cerr << endl;
-		ret->print(cerr);
-		cerr << endl;
 		goto done;
 	}
 
@@ -601,7 +596,6 @@ TypeStack* EvalCtx::resolveTail(
 		if (toName(*ids_begin, name, idx) == false) goto cleanup_err;
 		if (ts->followIdIdx(this, name, idx) == false) break;
 	}
-
 	return ts;
 
 cleanup_err:
