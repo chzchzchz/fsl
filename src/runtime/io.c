@@ -12,15 +12,14 @@ uint64_t __getLocalArray(
 {
 	diskoff_t	real_off, array_off;
 
-	assert (bits_in_type <= 64);
+	FSL_ASSERT (bits_in_type <= 64);
 
 	array_off = bits_in_type * idx;
 	if (array_off > bits_in_array) {
-		fprintf(stderr,
-			"ARRAY OVERFLOW: idx=%"PRIu64
+		DEBUG_WRITE("ARRAY OVERFLOW: idx=%"PRIu64
 			",bit=%"PRIu64",bia=%"PRIu64"\n",
 			idx, bits_in_type, bits_in_array);
-		exit(-5);
+		FSL_ASSERT (0 == 1);
 	}
 
 	real_off = base_offset + (bits_in_type * idx);
@@ -37,7 +36,7 @@ uint64_t __getLocalPhysMisalign(uint64_t bit_off, uint64_t num_bits)
 	if (bits_left > num_bits) bits_left = num_bits;
 	bytes_full = (num_bits - bits_left) / 8;
 	bits_right = num_bits - (8*bytes_full + bits_left);
-	assert (bits_left > 0 && bits_left < 8);
+	FSL_ASSERT (bits_left > 0 && bits_left < 8);
 
 	/* get the left bits */
 	ret = __getLocalPhys(8*(bit_off/8), 8);
@@ -92,8 +91,8 @@ uint64_t __swapBytes(uint64_t v, int num_bytes)
 	break;
 	}
 	default:
-	fprintf(stderr, "WHAT: %d\n", num_bytes);
-	assert(0 == 1);
+	DEBUG_WRITE ("WHAT: %d\n", num_bytes);
+	FSL_ASSERT (0 == 1);
 	}
 
 	return v;
@@ -109,9 +108,9 @@ uint64_t __getLocalPhysMisalignSwp(uint64_t bit_off, uint64_t num_bits)
 	if (bits_left > num_bits) bits_left = num_bits;
 	bits_right = (bit_off + num_bits) % 8;
 	bytes_full = (num_bits - (bits_left+bits_right)) / 8;
-	assert (bits_left > 0 && bits_left < 8);
-	assert (bits_left != 0);
-	assert (bits_left + bits_right + 8*bytes_full == num_bits);
+	FSL_ASSERT (bits_left > 0 && bits_left < 8);
+	FSL_ASSERT (bits_left != 0);
+	FSL_ASSERT (bits_left + bits_right + 8*bytes_full == num_bits);
 
 	/* get the left bits */
 	ret = __getLocalPhys(8*(bit_off/8), 8) & 0xff;
@@ -149,8 +148,8 @@ void fsl_io_do_wpkt(const struct fsl_rtt_wpkt* wpkt, const uint64_t* params)
 {
 	int	i;
 
-	assert (wpkt->wpkt_next == NULL);
-	assert (wpkt->wpkt_blks == NULL);
+	FSL_ASSERT (wpkt->wpkt_next == NULL);
+	FSL_ASSERT (wpkt->wpkt_blks == NULL);
 
 	DEBUG_IO_ENTER();
 
@@ -175,9 +174,8 @@ void fsl_io_do_wpkt(const struct fsl_rtt_wpkt* wpkt, const uint64_t* params)
 
 void fsl_io_unhook(struct fsl_rt_io* io, int cb_type)
 {
-	assert (cb_type < IO_CB_NUM);
-	assert (io->io_cb[cb_type] != NULL && "Unhooking NULL function");
-
+	FSL_ASSERT (cb_type < IO_CB_NUM);
+	FSL_ASSERT (io->io_cb[cb_type] != NULL && "Unhooking NULL function");
 	io->io_cb[cb_type] = NULL;
 }
 
@@ -197,7 +195,7 @@ fsl_io_callback fsl_io_hook(
 {
 	fsl_io_callback	old_cb;
 
-	assert (cb_type < IO_CB_NUM);
+	FSL_ASSERT (cb_type < IO_CB_NUM);
 	old_cb = io->io_cb[cb_type];
 	io->io_cb[cb_type] = cb;
 
@@ -218,14 +216,15 @@ void fsl_io_dump_pending(void)
 		struct fsl_rt_wlog_ent	*we = &io->io_wlog.wl_write[i];
 		uint64_t	cur_v;
 
-		printf(	"PENDING: byteoff=%"PRIu64" (%"PRIu64"); bits=%d. ",
+		DEBUG_WRITE(
+			"PENDING: byteoff=%"PRIu64" (%"PRIu64"); bits=%d. ",
 			we->we_bit_addr/8,
 			we->we_bit_addr,
 			we->we_bits);
 
 		cur_v = __getLocalPhys(we->we_bit_addr, we->we_bits);
-		printf("v=%"PRIu64
-			" (current=%"PRIu64" / 0x%"PRIx64")\n",
+		DEBUG_WRITE(
+			"v=%"PRIu64" (current=%"PRIu64" / 0x%"PRIx64")\n",
 			we->we_val,
 			cur_v, cur_v);
 	}

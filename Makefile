@@ -1,5 +1,6 @@
 FSNAMES= ext2 vfat iso9660 reiserfs xfs minix
 NUM_JOBS=6
+LINUX_SRCDIR=/usr/src/linux/
 MAKECMD=make -j$(NUM_JOBS)
 #CFLAGS=-O3 -DFSL_RELEASE
 OPT_FLAGS=-O3
@@ -16,6 +17,7 @@ export FSSRCDIR
 export OPT_FLAGS
 export LLC_FLAGS
 export FSNAMES
+export LINUX_SRCDIR
 all: code tools tests draw
 
 clean: code-clean tests-clean

@@ -1,8 +1,8 @@
-//#define DEBUG_TOOL
+//#define DEBUG_CHOICE
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <assert.h>
+#include "alloc.h"
 #include "type_info.h"
 #include "choice.h"
 #include "debug.h"
@@ -17,9 +17,9 @@ choice_alloc(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 	choice_max = rel->rel_choice.it_max(&ti_clo(ti));
 	if (choice_max < choice_min) return NULL;
 
-	DEBUG_TOOL_WRITE("Loading choice\n");
+	DEBUG_CHOICE_WRITE("Loading choice\n");
 
-	ret = malloc(sizeof(struct choice_cache));
+	ret = fsl_alloc(sizeof(struct choice_cache));
 	ret->cc_min = choice_min;
 	ret->cc_max = choice_max;
 
@@ -31,15 +31,9 @@ choice_alloc(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 		bool	c_ok;
 		c_ok = rel->rel_ccond(&ti_clo(ti), cur_choice);
 		if (c_ok) choice_mark_free(ret, cur_choice);
-		if ((cur_choice % 10000) == 0)
-			printf("Load Choices: %"PRIu64"/%"PRIu64"\r",
-			cur_choice - choice_min, choice_max - choice_min);
 	}
-	printf("Load Choices: %"PRIu64"/%"PRIu64"\n",
-		choice_max - choice_min, choice_max - choice_min);
-	printf("Choices loaded.\n");
 
-	DEBUG_TOOL_WRITE("Done loading choice %d elems",
+	DEBUG_CHOICE_WRITE("Done loading choice %d elems",
 		choice_max - choice_min + 1);
 
 	return ret;
@@ -47,9 +41,9 @@ choice_alloc(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 
 void choice_free(struct choice_cache* choice)
 {
-	assert (choice != NULL);
+	FSL_ASSERT(choice != NULL);
 	bmp_uninit(&choice->cc_bmp);
-	free(choice);
+	fsl_free(choice);
 }
 
 int choice_find_avail(
@@ -60,8 +54,8 @@ int choice_find_avail(
 	int	bmp_base_off, bmp_cur_off;
 	int	max_bits;
 
-	assert (offset >= cc->cc_min && "OFFSET LESS THAN CC_MIN");
-	assert (offset <= cc->cc_max && "OFFSET MORE THAN CC_MAX");
+	FSL_ASSERT(offset >= cc->cc_min && "OFFSET LESS THAN CC_MIN");
+	FSL_ASSERT(offset <= cc->cc_max && "OFFSET MORE THAN CC_MAX");
 	bmp_base_off = offset - cc->cc_min;
 
 	bmp_cur_off = bmp_base_off;
@@ -94,22 +88,20 @@ void choice_dump(struct choice_cache* cc)
 		bool	is_cur_free;
 		is_cur_free = choice_is_free(cc, cur);
 		if (is_cur_free != was_last_free) {
-			if (was_last_free) printf("Free: ");
-			else printf("Used: ");
-			printf("[%"PRIu64"--%"PRIu64"]\n", ext_start, cur-1);
+			if (was_last_free) DEBUG_WRITE("Free: ");
+			else DEBUG_WRITE("Used: ");
+			DEBUG_WRITE("[%"PRIu64"--%"PRIu64"]\n", ext_start, cur-1);
 			was_last_free = is_cur_free;
 			ext_start = cur;
 		}
 	}
 
-	if (was_last_free) printf("Free: ");
-	else printf("Used: ");
-	printf("[%"PRIu64"--%"PRIu64"]\n", ext_start, cur-1);
-
-	exit(1);
+	if (was_last_free) DEBUG_WRITE("Free: ");
+	else DEBUG_WRITE("Used: ");
+	DEBUG_WRITE("[%"PRIu64"--%"PRIu64"]\n", ext_start, cur-1);
 }
 
 void choice_refresh(struct choice_cache* choice, uint64_t lo, uint64_t hi)
 {
-	assert (0 == 1 && "STUB: TODO");
+	FSL_ASSERT(0 == 1 && "STUB: TODO");
 }

@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <setjmp.h>
 
 /* XXX TODO Needs local context for multi-threading.. */
 
@@ -28,7 +27,6 @@ typedef uint64_t	typeoff_t;
 typedef uint64_t	typesize_t;
 typedef unsigned int	typenum_t;
 typedef uint64_t*	parambuf_t;
-
 
 typedef uint64_t(*memof_t)(void);
 extern uint64_t			__fsl_memotab[];
@@ -61,16 +59,12 @@ extern struct fsl_rt_ctx* 	fsl_env;
 #define FSL_STATS_INC(x,y)		(x)->s_counters[y]++
 #define FSL_STATS_ADD(x,y,z)		(x)->s_counters[y] += (z)
 
-struct fsl_rt_stat
-{
-	uint64_t	s_counters[FSL_NUM_STATS];
-};
+struct fsl_rt_stat { uint64_t	s_counters[FSL_NUM_STATS]; };
 
 struct fsl_rt_except
 {
 	bool			ex_in_unsafe_op;
 	int			ex_err_unsafe_op;
-	jmp_buf			ex_jmp;
 	struct type_info	*ex_caller;
 };
 
@@ -307,12 +301,7 @@ uint64_t fsl_fail(void);
 /* not exposed to llvm */
 struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
-const struct fsl_rtt_field* fsl_lookup_field(
-	const struct fsl_rtt_type*, const char* fname);
-const struct fsl_rtt_pointsto* fsl_lookup_points(
-	const struct fsl_rtt_type* tt, const char* fname);
-const struct fsl_rtt_virt* fsl_lookup_virt(
-	const struct fsl_rtt_type* tt, const char* fname);
+void fsl_load_memo(void);
 
 /* implemented by tool: */
 int tool_entry(int argc, char* argv[]);

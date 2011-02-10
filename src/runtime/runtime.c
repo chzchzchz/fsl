@@ -1,33 +1,47 @@
 /* main runtime file */
 //#define DEBUG_RT
 #include <inttypes.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
 #include <string.h>
 #include "debug.h"
 #include "io.h"
+#include "alloc.h"
 #include "runtime.h"
-#include "hits.h"
 
 extern uint64_t fsl_num_types;
 
 struct fsl_rt_ctx* 		fsl_env;
 static int			cur_debug_write_val = 0;
+const char* fsl_stat_fields[FSL_NUM_STATS] =
+{
+	"getLocals",		/* FSL_STAT_ACCESS */
+	"getLocalsPhy", 	/* FSL_STAT_PHYSACCESS */
+	"br",			/* FSL_STAT_BITS_READ */
+	"xlate_call",		/* FSL_STAT_XLATE_CALL */
+	"xlate_alloc",		/* FSL_STAT_XLATE_ALLOC */
+	"computeArrayBits",	/* FSL_STAT_COMPUTEARRAYBITS */
+	"typeinfo_alloc",	/* FSL_STAT_TYPEINFO_ALLOC */
+	"comparray_elems",	/* FSL_STAT_COMPUTEARRAYBITS_LOOPS */
+	"writes",		/* FSL_STAT_WRITES */
+	"bw",			/* FSL_STAT_BITS_WRITTEN */
+	"xlate_hit",		/* FSL_STAT_XLATE_HIT */
+	"iocache_hit",		/* FSL_STAT_IOCACHE_MISS */
+	"iocache_miss"		/* FSL_STAT_IOCACHE_HIT */
+};
 
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
 
 void __debugOutcall(uint64_t v)
 {
-	printf("DEBUG_WRITE: %"PRIu64"\n", v);
+	DEBUG_WRITE("DEBUG_WRITE: %"PRIu64"\n", v);
 	cur_debug_write_val = v;
 }
 
 void __debugClosureOutcall(uint64_t typenum, struct fsl_rt_closure* clo)
 {
-	assert (clo != NULL);
+	FSL_ASSERT (clo != NULL);
 
-	printf("DEBUG_WRITE_TYPE: %s-- voff=%"PRIu64". poff=%"PRIu64". xlate=%p\n",
+	DEBUG_WRITE("DEBUG_WRITE_TYPE: %s-- voff=%"PRIu64". poff=%"PRIu64". xlate=%p\n",
 		tt_by_num(typenum)->tt_name,
 		clo->clo_offset,
 		(clo->clo_xlate) ?
@@ -38,8 +52,9 @@ void __debugClosureOutcall(uint64_t typenum, struct fsl_rt_closure* clo)
 /* TODO FSL_FAILED should have some unique number so we know why we failed */
 uint64_t fsl_fail(void)
 {
-	fprintf(stderr, "Failed for some reason...\n");
-	exit(-1);
+	DEBUG_WRITE("Failed for some reason...\n");
+	FSL_ASSERT (0 == 1);
+	return ~0;
 }
 
 /* compute the number of bits in a given array */
@@ -59,20 +74,20 @@ typesize_t __computeArrayBits(
 
 	DEBUG_RT_ENTER();
 
-	assert (typenum_parent < fsl_rtt_entries && "Bad parent type");
+	FSL_ASSERT (typenum_parent < fsl_rtt_entries && "Bad parent type");
 
 	parent_tt = tt_by_num(typenum_parent);
-	assert (field_idx < parent_tt->tt_field_c && "Fieldnum overflow");
+	FSL_ASSERT (field_idx < parent_tt->tt_field_c && "Fieldnum overflow");
 
 	tf = &parent_tt->tt_field_table[field_idx];
 	if (field_idx != tf->tf_fieldnum)
-		printf("field_idx = %d, tf->tf_fieldnum=%d, tf->tf_fieldname=%s\n",
+		DEBUG_WRITE("field_idx = %d, tf->tf_fieldnum=%d, tf->tf_fieldname=%s\n",
 			field_idx,
 			tf->tf_fieldnum, tf->tf_fieldname);
-	assert (field_idx == tf->tf_fieldnum && "Fieldnum mismatch");
+	FSL_ASSERT (field_idx == tf->tf_fieldnum && "Fieldnum mismatch");
 
 	elem_type = tf->tf_typenum;
-	assert (elem_type < fsl_rtt_entries && "Bad array type");
+	FSL_ASSERT (elem_type < fsl_rtt_entries && "Bad array type");
 	elem_tt = tt_by_num(elem_type);
 
 	NEW_EMPTY_CLO			(cur_clo, elem_type);
@@ -108,162 +123,45 @@ typesize_t __computeArrayBits(
 	return total_bits;
 }
 
-/* not exposed to llvm */
-struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
-{
-	struct fsl_rt_ctx	*fsl_ctx;
-
-	fsl_ctx = malloc(sizeof(struct fsl_rt_ctx));
-	fsl_ctx->fctx_io = fsl_io_alloc(fsl_rt_backing_fname);
-	fsl_ctx->fctx_num_types = fsl_num_types;
-	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
-
-	return fsl_ctx;
-}
-
-static const char* fsl_stat_fields[FSL_NUM_STATS] =
-{
-	"getLocals",		/* FSL_STAT_ACCESS */
-	"getLocalsPhy", 	/* FSL_STAT_PHYSACCESS */
-	"br",			/* FSL_STAT_BITS_READ */
-	"xlate_call",		/* FSL_STAT_XLATE_CALL */
-	"xlate_alloc",		/* FSL_STAT_XLATE_ALLOC */
-	"computeArrayBits",	/* FSL_STAT_COMPUTEARRAYBITS */
-	"typeinfo_alloc",	/* FSL_STAT_TYPEINFO_ALLOC */
-	"comparray_elems",	/* FSL_STAT_COMPUTEARRAYBITS_LOOPS */
-	"writes",		/* FSL_STAT_WRITES */
-	"bw",			/* FSL_STAT_BITS_WRITTEN */
-	"xlate_hit",		/* FSL_STAT_XLATE_HIT */
-	"iocache_hit",		/* FSL_STAT_IOCACHE_MISS */
-	"iocache_miss"		/* FSL_STAT_IOCACHE_HIT */
-};
-
-static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
-{
-	const char	*stat_fname;
-	FILE		*out_file;
-	unsigned int	i;
-
-	stat_fname = getenv(FSL_ENV_VAR_STATFILE);
-	if (stat_fname != NULL) {
-		out_file = fopen(stat_fname, "w");
-		if (out_file == NULL) {
-			fprintf(stderr,
-				"Could not open statfile: %s\n",
-				stat_fname);
-			out_file = stdout;
-		}
-	} else
-		out_file = stdout;
-
-	fprintf(out_file, "# dumping stats.\n");
-	for (i = 0; i < FSL_NUM_STATS; i++) {
-		fprintf(out_file,
-			"{ '%s' : %"PRIu64" }\n",
-			fsl_stat_fields[i],
-			FSL_STATS_GET(&fctx->fctx_stat, i));
-	}
-	fprintf(out_file, "# stats done.\n");
-
-	if (stat_fname != NULL)
-		fclose(out_file);
-}
-
 void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 {
-	assert (fctx != NULL);
+	FSL_ASSERT (fctx != NULL);
 
-	fsl_rt_dump_stats(fctx);
 	fsl_io_free(fctx->fctx_io);
-	free(fctx);
+	fsl_free(fctx);
 }
 
 static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 {
-	assert (fctx != NULL);
-	assert (fctx->fctx_io != NULL && "Is the file open?");
+	FSL_ASSERT (fctx != NULL);
+	FSL_ASSERT (fctx->fctx_io != NULL && "Is the file open?");
 
 	__FROM_OS_BDEV_BYTES = fsl_io_size(fctx->fctx_io);
 	__FROM_OS_BDEV_BLOCK_BYTES = fctx->fctx_io->io_blksize;
 	__FROM_OS_SB_BLOCKSIZE_BYTES = fctx->fctx_io->io_blksize;
 }
 
-static void fsl_load_memo(void)
+void fsl_load_memo(void)
 {
 	int	i;
-	for (i = 0; i < __fsl_memotab_sz; i++) {
+	FSL_ASSERT (fsl_env != NULL);
+	for (i = 0; i < __fsl_memotab_sz; i++)
 		__fsl_memotab[i] = __fsl_memotab_funcs[i]();
-	}
 }
 
-/* XXX: SLOW */
-const struct fsl_rtt_field* fsl_lookup_field(
-	const struct fsl_rtt_type* tt, const char* fname)
+/* not exposed to llvm */
+struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
 {
-	unsigned int	i;
-	for (i = 0; i < tt->tt_field_c; i++) {
-		const struct fsl_rtt_field*	tf;
-		tf = &tt->tt_field_table[i];
-		if (strcmp(fname, tf->tf_fieldname) == 0) return tf;
-	}
-	return NULL;
-}
+	struct fsl_rt_ctx	*fsl_ctx;
 
-const struct fsl_rtt_pointsto* fsl_lookup_points(
-	const struct fsl_rtt_type* tt, const char* fname)
-{
-	unsigned int	i;
+	fsl_ctx = fsl_alloc(sizeof(struct fsl_rt_ctx));
+	if (fsl_ctx == NULL) return NULL;
 
-	for (i = 0; i < tt->tt_pointsto_c; i++) {
-		const struct fsl_rtt_pointsto*	pt;
-		pt = &tt->tt_pointsto[i];
-		if (pt->pt_name == NULL) continue;
-		if (strcmp(fname, pt->pt_name) == 0) return pt;
-	}
-	return NULL;
-}
+	fsl_ctx->fctx_io = fsl_io_alloc(fsl_rt_backing_fname);
+	fsl_ctx->fctx_num_types = fsl_num_types;
+	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
 
-const struct fsl_rtt_virt* fsl_lookup_virt(
-	const struct fsl_rtt_type* tt, const char* fname)
-{
-	unsigned int	i;
+	fsl_vars_from_env(fsl_ctx);
 
-	for (i = 0; i < tt->tt_virt_c; i++) {
-		const struct fsl_rtt_virt*	vt;
-		vt = &tt->tt_virt[i];
-		if (vt->vt_name == NULL) continue;
-		if (strcmp(fname, vt->vt_name) == 0) return vt;
-	}
-	return NULL;
-}
-
-/* main entry point for tool executable --
- * set some stuff up and then run tool */
-int main(int argc, char* argv[])
-{
-	int	tool_ret;
-
-	if (argc < 2) {
-		fprintf(stderr, "Usage: %s filename [tool opts]\n", argv[0]);
-		return -1;
-	}
-
-	fsl_env = fsl_rt_init(argv[1]);
-	if (fsl_env == NULL) {
-		fprintf(stderr, "Could not initialize environment.\n");
-		return -1;
-	}
-
-	fsl_vars_from_env(fsl_env);
-	/* track hits, if applicable */
-	fsl_hits_init();
-
-	fsl_load_memo();
-
-	tool_ret = tool_entry(argc-2, argv+2);
-
-	fsl_hits_uninit();
-	fsl_rt_uninit(fsl_env);
-
-	return tool_ret;
+	return fsl_ctx;
 }

@@ -32,6 +32,7 @@ int choice_find_avail(
 	unsigned int offset,
 	unsigned int min_count);
 void choice_dump(struct choice_cache* choice);
-void choice_refresh(struct choice_cache* choice, uint64_t lo, uint64_t hi);
+/* implement eventually */
+//void choice_refresh(struct choice_cache* choice, uint64_t lo, uint64_t hi);
 
 #endif

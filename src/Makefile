@@ -55,21 +55,25 @@ RTOBJS= runtime.o	\
 	type_info.o 	\
 	virt.o		\
 	io.o		\
+	entry.o		\
 	rt-pread/io.o		\
 	rt-pread/cache.o	\
 	rt-mmap/io.o		\
 	io_mmap.o		\
 	io_pread.o		\
-	max.o		\
-	debug.o		\
-	hits.o		\
-	log.o		\
-	type_print.o	\
-	usemap.o	\
-	bitmap.o	\
-	scan.o		\
-	choice.o	\
-	writepkt.o
+	max.o			\
+	debug.o			\
+	debug_libc.o		\
+	hits.o			\
+	log.o			\
+	type_print.o		\
+	usemap.o		\
+	bitmap.o		\
+	scan.o			\
+	choice.o		\
+	writepkt.o		\
+	lookup.o		\
+	alloc_libc.o
 
 TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o \
 		scattertool.o smushtool.o fuse-browser.o fuse_node.o thrashcopy.o
@@ -87,11 +91,15 @@ RTCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -Wall
 export CFLAGS
 export OBJDIR
 
-all: $(BINDIR)/lang
+all: $(BINDIR)/lang kern
 
 scantool: $(BINDIR)/lang
 	cd tool && make all
- 
+kern:
+ifdef LINUX_SRCDIR
+	make -C $(LINUX_SRCDIR) M=`pwd`/kernel
+endif
+
 $(BINDIR)/lang:  $(LANGOBJSOUT) $(RTOBJSOUT) $(TOOLOBJSOUT)
 	g++ $(DEBUG_FLAG) -O3 $(LANGOBJSOUT) $(LLVM_FLAGS) -o $@
 	cd tool && make clean	# outdated now..
@@ -122,5 +130,5 @@ $(OBJDIR)/runtime/io_mmap.o: $(OBJDIR)/runtime/rt-mmap/io.o
 	cp $^ $@
 
 clean: 
-	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll $(OBJDIR)/*.o $(OBJDIR)/fs/* $(OBJDIR)/runtime/*.o $(BINDIR)/*-* $(BINDIR)/lang $(BINDIR)/mmap/* $(OBJDIR)/compiler/*.o
+	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll $(OBJDIR)/*.o $(OBJDIR)/fs/* $(OBJDIR)/runtime/*.o $(BINDIR)/*-* $(BINDIR)/lang $(BINDIR)/mmap/* $(OBJDIR)/compiler/*.o kernel/*.o kernel/*.ko
 	cd tool && make clean

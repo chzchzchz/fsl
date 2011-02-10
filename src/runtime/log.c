@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <inttypes.h>
-#include <assert.h>
 #include <string.h>
 #include <stdlib.h>
 #include "runtime.h"
 #include "log.h"
 #include "io.h"
+#include "debug.h"
 
 typedef uint64_t logaddr_t;
 #define addr2log(x)	((x) >> 6)
@@ -36,7 +36,7 @@ void fsl_rlog_start(struct fsl_rt_io* io)
 {
 	fsl_io_callback	old_io_cb;
 
-	assert (io->io_rlog.log_accessed_idx == IO_IDX_STOPPED);
+	FSL_ASSERT (io->io_rlog.log_accessed_idx == IO_IDX_STOPPED);
 
 	old_io_cb = fsl_io_hook(io, fsl_rlog, IO_CB_CACHE_ANY);
 	io->io_rlog.log_accessed_idx = 0;
@@ -44,7 +44,7 @@ void fsl_rlog_start(struct fsl_rt_io* io)
 
 void fsl_rlog_stop(struct fsl_rt_io* io)
 {
-	assert (io->io_rlog.log_accessed_idx != IO_IDX_STOPPED);
+	FSL_ASSERT (io->io_rlog.log_accessed_idx != IO_IDX_STOPPED);
 	io->io_rlog.log_accessed_idx = IO_IDX_STOPPED;
 
 	fsl_io_unhook(io, IO_CB_CACHE_ANY);
@@ -59,8 +59,8 @@ static void fsl_rlog(struct fsl_rt_io* io, diskoff_t addr)
 	struct fsl_rt_rlog	*log;
 
 	log = &io->io_rlog;
-	assert (log->log_accessed_idx != IO_IDX_STOPPED);
-	assert (log->log_accessed_idx < IO_MAX_ACCESS);
+	FSL_ASSERT (log->log_accessed_idx != IO_IDX_STOPPED);
+	FSL_ASSERT (log->log_accessed_idx < IO_MAX_ACCESS);
 
 	/* round down to bytes */
 	if (fsl_rlog_contains(io, addr) == false) {
@@ -68,21 +68,6 @@ static void fsl_rlog(struct fsl_rt_io* io, diskoff_t addr)
 	}
 
 	if (log->log_next_cb != NULL) log->log_next_cb(io, addr);
-}
-
-void fsl_rlog_dump(struct fsl_rt_io* io, FILE* f)
-{
-	unsigned int	i;
-
-	for (i = 0; i < io->io_rlog.log_accessed_idx; i++) {
-		logaddr_t	logaddr;
-
-		logaddr = io->io_rlog.log_accessed[i];
-		fprintf(f, "%d. [%"PRIu64"--%"PRIu64"]\n",
-			i,
-			log2addr(logaddr),
-			log2addr(logaddr+1)-1);
-	}
 }
 
 void fsl_rlog_init(struct fsl_rt_io* io)
@@ -99,7 +84,7 @@ void fsl_wlog_init(struct fsl_rt_wlog* wl)
 
 void fsl_wlog_start(struct fsl_rt_wlog* wl)
 {
-	assert (wl->wl_idx == -1);
+	FSL_ASSERT (wl->wl_idx == -1);
 	wl->wl_idx = 0;
 }
 
@@ -107,7 +92,7 @@ void fsl_wlog_commit(struct fsl_rt_wlog* wl)
 {
 	int			i;
 
-	assert (wl->wl_idx >= 0);
+	FSL_ASSERT (wl->wl_idx >= 0);
 	for (i = 0; i < wl->wl_idx; i++) {
 		struct fsl_rt_wlog_ent	*we;
 		we = &wl->wl_write[i];
@@ -118,7 +103,7 @@ void fsl_wlog_commit(struct fsl_rt_wlog* wl)
 
 void fsl_wlog_stop(struct fsl_rt_wlog* wl)
 {
-	assert (wl->wl_idx == 0 && "STOPPING WITHOUT COMMIT");
+	FSL_ASSERT (wl->wl_idx == 0 && "STOPPING WITHOUT COMMIT");
 	wl->wl_idx = -1;
 }
 
@@ -126,12 +111,11 @@ void fsl_wlog_add(struct fsl_rt_wlog* wl, bitoff_t off, uint64_t val, int len)
 {
 	struct fsl_rt_wlog_ent	*we;
 
-	assert (wl->wl_idx >= 0 && "ADDING TO STOPPED WLOG");
+	FSL_ASSERT (wl->wl_idx >= 0 && "ADDING TO STOPPED WLOG");
 
 	/* whoops  */
 	if (wl->wl_idx == IO_MAX_ACCESS) {
-		fprintf(stderr, "PAST MAX ACCESS. AIEE\n");
-		exit(-1);
+		FSL_ASSERT (0 == 1 && "PAST MAX ACCESS AIEE");
 	}
 
 	/* XXX TODO:  put checks for concurrent write */

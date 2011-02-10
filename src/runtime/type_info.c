@@ -1,11 +1,8 @@
 //#define DEBUG_TYPEINFO
 #include <stdbool.h>
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
-
+#include "alloc.h"
 #include "debug.h"
 #include "type_info.h"
 #include "io.h"
@@ -27,11 +24,11 @@ void typeinfo_free(struct type_info* ti)
 		ti_xlate(ti) = NULL;
 	}
 	if (ti_params(ti) != NULL)
-		free(ti->ti_td.td_clo.clo_params);
+		fsl_free(ti->ti_td.td_clo.clo_params);
 
 	if (ti->ti_prev != NULL) typeinfo_free(ti->ti_prev);
 
-	free(ti);
+	fsl_free(ti);
 }
 
 static bool ti_has_loop(const struct type_info* chain)
@@ -41,7 +38,7 @@ static bool ti_has_loop(const struct type_info* chain)
 	typenum_t		top_typenum;
 
 	cur = chain;
-	assert (cur != NULL);
+	FSL_ASSERT (cur != NULL);
 
 	if (cur->ti_prev == NULL) return false;
 
@@ -80,13 +77,13 @@ static struct type_info* typeinfo_alloc_generic(
 		return NULL;
 	}
 
-	ret = malloc(sizeof(struct type_info));
+	ret = fsl_alloc(sizeof(struct type_info));
 	memset(ret, 0, sizeof(*ret));
 
 	/* set typenum */
 	ti_typenum(ret) = td_typenum(ti_td);
 	/* set offset */
-	assert (td_offset(ti_td) < __FROM_OS_BDEV_BYTES*8);
+	FSL_ASSERT (td_offset(ti_td) < __FROM_OS_BDEV_BYTES*8);
 	ti_offset(ret) = td_offset(ti_td);
 	/* set params */
 	tt = tt_by_num(ti_typenum(ret));
@@ -96,10 +93,10 @@ static struct type_info* typeinfo_alloc_generic(
 		ti_params(ret) = NULL;
 	} else {
 		unsigned int	len;
-		assert (ti_td->td_clo.clo_params != NULL);
+		FSL_ASSERT (ti_td->td_clo.clo_params != NULL);
 
 		len = sizeof(uint64_t) * tt->tt_param_c;
-		ti_params(ret) = malloc(len);
+		ti_params(ret) = fsl_alloc(len);
 		memcpy(ti_params(ret), ti_td->td_clo.clo_params, len);
 	}
 
@@ -121,7 +118,7 @@ static bool typeinfo_verify_asserts(const struct type_info *ti)
 	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
 
-	assert (ti != NULL);
+	FSL_ASSERT (ti != NULL);
 
 	if (ti_typenum(ti) == TYPENUM_INVALID) return true;
 
@@ -131,7 +128,7 @@ static bool typeinfo_verify_asserts(const struct type_info *ti)
 		TI_INTO_CLO(ti);
 
 		as = &tt->tt_assert[i];
-		DEBUG_TYPEINFO_WRITE("check assert %d in %s", i, tt->tt_name);
+		DEBUG_TYPEINFO_WRITE("check FSL_ASSERT %d in %s", i, tt->tt_name);
 		if (as->as_assertf(clo) == false) {
 			DEBUG_TYPEINFO_WRITE(
 				"%s: Assert #%d failed!!!\n",
@@ -159,9 +156,9 @@ static bool typeinfo_verify(const struct type_info* ti)
 		return false;
 	}
 
-	DEBUG_TYPEINFO_WRITE("verify: check asserts %p", ti_xlate(ti));
+	DEBUG_TYPEINFO_WRITE("verify: check FSL_ASSERTs %p", ti_xlate(ti));
 	if (typeinfo_verify_asserts(ti) == false) {
-		DEBUG_TYPEINFO_WRITE("verify: assertions failed");
+		DEBUG_TYPEINFO_WRITE("verify: FSL_ASSERTions failed");
 		DEBUG_TYPEINFO_LEAVE();
 		return false;
 	}
@@ -276,7 +273,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 
 	DEBUG_TYPEINFO_ENTER();
 
-	assert (tt_by_num(virt->vt_type_virttype)->tt_param_c == 0 &&
+	FSL_ASSERT (tt_by_num(virt->vt_type_virttype)->tt_param_c == 0 &&
 		"Parameterized virtual types not yet supported");
 
 	set_err_code(err_code, TI_ERR_OK);
@@ -301,7 +298,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 		DEBUG_TYPEINFO_WRITE("alloc_virt_idx: idx = %d", idx);
 
 		array_bit_off = fsl_virt_get_nth(td_xlate(&td), idx);
-		assert (array_bit_off != 0 && "Type must be at non-zero voff");
+		FSL_ASSERT (array_bit_off != 0 && "Type must be at non-zero voff");
 		if (offset_is_bad(array_bit_off)) {
 			fsl_virt_free(td_xlate(&td));
 			set_err_code(err_code, TI_ERR_BADIDX);
@@ -324,7 +321,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: alloc_gen voff=%"PRIu64,
 		td_offset(&td));
-	assert (td_xlate(&td) != NULL);
+	FSL_ASSERT (td_xlate(&td) != NULL);
 	ret = typeinfo_alloc_generic(&td, ti_prev);
 	if (ret == NULL) {
 		set_err_code(err_code, TI_ERR_BADALLOC);
@@ -335,7 +332,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: poff=%"PRIu64,
 		ti_phys_offset(ret));
 
-	assert (ti_xlate(ret) != NULL);
+	FSL_ASSERT (ti_xlate(ret) != NULL);
 
 	ret->ti_virt = virt;
 	ret->ti_print_name = (virt->vt_name) ? virt->vt_name : "virt";
@@ -352,7 +349,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify OK!");
 
 done:
-	assert ((ret == NULL || (offset_in_range(ti_phys_offset(ret))))
+	FSL_ASSERT ((ret == NULL || (offset_in_range(ti_phys_offset(ret))))
 		&& "Returning with bad offset.");
 
 	DEBUG_TYPEINFO_LEAVE();
@@ -365,9 +362,9 @@ struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code)
 	unsigned int	new_idx;
 	diskoff_t	new_off;
 
-	assert (ti != NULL);
-	assert (ti_xlate(ti) != NULL);
-	assert (ti->ti_virt != NULL);
+	FSL_ASSERT (ti != NULL);
+	FSL_ASSERT (ti_xlate(ti) != NULL);
+	FSL_ASSERT (ti->ti_virt != NULL);
 
 	DEBUG_TYPEINFO_ENTER();
 
@@ -376,14 +373,14 @@ struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code)
 
 	/* XXX get_nth is slow, need better interface */
 	new_off = fsl_virt_get_nth(ti_xlate(ti), new_idx);
-	assert (new_off != 0 && "Next type must be at non-zero voff");
+	FSL_ASSERT (new_off != 0 && "Next type must be at non-zero voff");
 	if (offset_is_bad(new_off)) {
 		if (new_off == OFFSET_INVALID) {
 			set_err_code(err_code, TI_ERR_BADIDX);
 		} else if (new_off == OFFSET_EOF) {
 			set_err_code(err_code, TI_ERR_EOF);
 		} else {
-			assert(0 == 1 && "UNKNOWN ERROR");
+			FSL_ASSERT(0 == 1 && "UNKNOWN ERROR");
 		}
 		typeinfo_free(ti);
 		ti = NULL;
@@ -404,7 +401,7 @@ diskoff_t ti_phys_offset(const struct type_info* ti)
 	diskoff_t	voff;
 	diskoff_t	off;
 
-	assert (ti != NULL);
+	FSL_ASSERT (ti != NULL);
 
 	voff = ti_offset(ti);
 	if (ti->ti_td.td_clo.clo_xlate == NULL) {
@@ -422,8 +419,8 @@ typesize_t ti_size(const struct type_info* ti)
 	typesize_t ret;
 
 	if (ti_typenum(ti) == TYPENUM_INVALID) {
-		assert (ti->ti_field != NULL && "Expected field entry");
-		assert (ti->ti_prev != NULL && "No parent?");
+		FSL_ASSERT (ti->ti_field != NULL && "Expected field entry");
+		FSL_ASSERT (ti->ti_prev != NULL && "No parent?");
 		/* TYPENUM_INVALID => constant size => don't need parent */
 		ret = ti->ti_field->tf_typesize(NULL);
 	} else {
@@ -485,7 +482,7 @@ struct type_info* typeinfo_follow_pointsto(
 		ti_pt->pt_iter.it_range(&ti_clo(ti_parent), idx, parambuf),
 		parambuf);
 
-	assert (offset_is_bad(td_offset(&pt_td)) == false &&
+	FSL_ASSERT (offset_is_bad(td_offset(&pt_td)) == false &&
 		"VERIFY RANGE CALL.");
 
 	ret = typeinfo_alloc_pointsto(&pt_td, ti_pt, idx, ti_parent);
@@ -508,7 +505,7 @@ struct type_info* typeinfo_follow_iter(
 	diskoff = ti_iter->it_range(&ti_clo(ti_parent), idx, parambuf);
 	td_init(&iter_td, ti_iter->it_type_dst, diskoff, parambuf);
 
-	assert (offset_is_bad(td_offset(&iter_td)) == false &&
+	FSL_ASSERT (offset_is_bad(td_offset(&iter_td)) == false &&
 		"VERIFY ITER RANGE CALL.");
 
 	DEBUG_TYPEINFO_WRITE("iter idx=%"PRIu64" / offset: %"PRIu64,
@@ -529,7 +526,7 @@ void typeinfo_ref(struct type_info* ti)
 
 static unsigned int typeinfo_unref(struct type_info* ti)
 {
-	assert (ti->ti_ref_c > 0);
+	FSL_ASSERT (ti->ti_ref_c > 0);
 	ti->ti_ref_c--;
 	return ti->ti_ref_c;
 }
@@ -544,23 +541,23 @@ void typeinfo_phys_copy(struct type_info* dst, struct type_info* src)
 	src_sz = ti_size(src);
 	dst_sz = ti_size(dst);
 
-	assert (src_sz == dst_sz && "Can't copy with different sizes!");
-	assert (src_sz % 8 == 0);
+	FSL_ASSERT (src_sz == dst_sz && "Can't copy with different sizes!");
+	FSL_ASSERT (src_sz % 8 == 0);
 
 	src_sz /= 8;
 	dst_sz /= 8;
 
-	assert (ti_xlate(dst) == NULL && "VIRT NOT SUPPORTED");
-	assert (ti_xlate(src) == NULL && "VIR TNOT SUPPORTED");
+	FSL_ASSERT (ti_xlate(dst) == NULL && "VIRT NOT SUPPORTED");
+	FSL_ASSERT (ti_xlate(src) == NULL && "VIR TNOT SUPPORTED");
 
 	src_base = ti_offset(src);
 	dst_base = ti_offset(dst);
-	assert (src_base % 8 == 0);
-	assert (dst_base % 8 == 0);
+	FSL_ASSERT (src_base % 8 == 0);
+	FSL_ASSERT (dst_base % 8 == 0);
 	src_base /= 8;
 	dst_base /= 8;
 
-	buf = malloc(4096);
+	buf = fsl_alloc(4096);
 	xfer_total = 0;
 
 	while (xfer_total < src_sz) {
@@ -572,7 +569,7 @@ void typeinfo_phys_copy(struct type_info* dst, struct type_info* src)
 		xfer_total += to_xfer;
 	}
 
-	free(buf);
+	fsl_free(buf);
 }
 
 struct type_info* typeinfo_alloc_origin(void)

@@ -1,10 +1,10 @@
 //#define DEBUG_VIRT
-#include <assert.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include "runtime.h"
 #include "virt.h"
+#include "alloc.h"
 #include "debug.h"
 
 static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify);
@@ -20,19 +20,20 @@ uint64_t fsl_virt_xlate_safe(
 	statenum_t	sn;
 	uint64_t	ret;
 
+	FSL_ASSERT (fsl_env->fctx_except.ex_in_unsafe_op == false);
+
 	fsl_env->fctx_except.ex_err_unsafe_op = 0;
 	fsl_env->fctx_except.ex_in_unsafe_op = true;
-	sn = fsl_debug_get_state();
-	if (setjmp(fsl_env->fctx_except.ex_jmp) != 0) {
-		fsl_debug_return_to_state(sn);
+
+	ret = fsl_virt_xlate(clo, bit_voff);
+	fsl_env->fctx_except.ex_in_unsafe_op = false;
+
+	if (fsl_env->fctx_except.ex_err_unsafe_op != 0) {
 		DEBUG_VIRT_WRITE("xlate_safe: bad ret on setjmp");
 		fsl_env->fctx_except.ex_err_unsafe_op = 0;
-		fsl_env->fctx_except.ex_in_unsafe_op = false;
 		return OFFSET_INVALID;
 	}
 
-	ret = fsl_virt_xlate(clo, bit_voff);
-	assert (fsl_env->fctx_except.ex_err_unsafe_op == 0);
 	fsl_env->fctx_except.ex_in_unsafe_op = false;
 
 	return ret;
@@ -53,17 +54,16 @@ static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx)
 	return base;
 }
 
-
 static uint64_t fsl_virt_xlate_rtm(struct fsl_rt_mapping* rtm, uint64_t bit_off)
 {
 	uint64_t	total_bits, idx, base, off;
 
 	DEBUG_VIRT_ENTER();
 
-	assert (rtm != NULL && "No xlate.");
-	assert (rtm->rtm_clo != NULL && "xlate not fully initialized?");
+	FSL_ASSERT (rtm != NULL && "No xlate.");
+	FSL_ASSERT (rtm->rtm_clo != NULL && "xlate not fully initialized?");
 	DEBUG_VIRT_WRITE("virt bit_off=%"PRIu64, bit_off);
-	assert ((bit_off % 8) == 0 && "Miss aligned xlate");
+	FSL_ASSERT ((bit_off % 8) == 0 && "Miss aligned xlate");
 
 	total_bits = fsl_virt_total_bits(rtm);
 	DEBUG_VIRT_WRITE("virt total bits=%"PRIu64, total_bits);
@@ -72,10 +72,10 @@ static uint64_t fsl_virt_xlate_rtm(struct fsl_rt_mapping* rtm, uint64_t bit_off)
 		DEBUG_VIRT_WRITE("Taking longjmp");
 		fsl_env->fctx_except.ex_err_unsafe_op = 1;
 		DEBUG_VIRT_LEAVE();
-		longjmp(fsl_env->fctx_except.ex_jmp, 1);
+		return ~0;
 	}
 
-	assert (bit_off < total_bits && "Accessing past virt bits");
+	FSL_ASSERT (bit_off < total_bits && "Accessing past virt bits");
 	DEBUG_VIRT_WRITE("rtm->rtm_cached_min = %"PRIu64, rtm->rtm_cached_minidx);
 	DEBUG_VIRT_WRITE("rtm->rtm_cached_max = %"PRIu64, rtm->rtm_cached_maxidx);
 
@@ -93,9 +93,9 @@ static uint64_t fsl_virt_xlate_rtm(struct fsl_rt_mapping* rtm, uint64_t bit_off)
 	}
 	off = bit_off % rtm->rtm_cached_srcsz;
 
-	assert (bit_off != base+off &&
+	FSL_ASSERT (bit_off != base+off &&
 		"Base+Off=BitOff? => Identity xlate. Probably wrong.");
-	assert ((base+off) != 0 && "xlated addr == origin? Probably wrong.");
+	FSL_ASSERT ((base+off) != 0 && "xlated addr == origin? Probably wrong.");
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_CALL);
 
@@ -113,7 +113,7 @@ uint64_t fsl_virt_xlate(const struct fsl_rt_closure* clo, uint64_t bit_off)
 
 	DEBUG_VIRT_WRITE("xlating!!!");
 
-	assert (clo != NULL);
+	FSL_ASSERT (clo != NULL);
 
 	rtm = clo->clo_xlate;
 	DEBUG_VIRT_WRITE("closure offset=%"PRIu64, clo->clo_offset);
@@ -143,11 +143,11 @@ static void fsl_virt_unref_all(struct fsl_rt_closure* clo)
 void fsl_virt_free(struct fsl_rt_mapping* rtm)
 {
 	DEBUG_VIRT_ENTER();
-	assert (rtm != NULL);
-	assert (rtm->rtm_ref_c == 1);
+	FSL_ASSERT (rtm != NULL);
+	FSL_ASSERT (rtm->rtm_ref_c == 1);
 	DEBUG_VIRT_WRITE("Freeing: rtm=%p", rtm);
 	fsl_virt_unref_all(rtm->rtm_clo);
-	free(rtm);
+	fsl_free(rtm);
 	DEBUG_VIRT_LEAVE();
 }
 
@@ -180,13 +180,13 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 {
 	struct fsl_rt_mapping		*rtm;
 
-	assert (parent != NULL);
-	assert (vt != NULL);
+	FSL_ASSERT (parent != NULL);
+	FSL_ASSERT (vt != NULL);
 
 	DEBUG_VIRT_ENTER();
 	DEBUG_VIRT_WRITE("COPYING FOR VIRT_ALLOC");
 
-	rtm = malloc(sizeof(*rtm));
+	rtm = fsl_alloc(sizeof(*rtm));
 	rtm->rtm_virt = vt;
 	rtm->rtm_clo = parent;
 	fsl_virt_ref_all(parent);
@@ -272,7 +272,7 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 
 	DEBUG_VIRT_WRITE("Get SIZE");
 	rtm->rtm_cached_srcsz = tt_vsrc->tt_size(&vsrc_clo);
-	assert (rtm->rtm_cached_srcsz > 0);
+	FSL_ASSERT (rtm->rtm_cached_srcsz > 0);
 
 
 	DEBUG_VIRT_WRITE("Looping through all source types. Verify size.");
@@ -296,7 +296,7 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 		NEW_VCLO(cur_clo, cur_off, params, rtm->rtm_clo->clo_xlate);
 		DEBUG_VIRT_WRITE("calling tt_size on idx=%d", idx);
 		cur_sz = tt_vsrc->tt_size(&cur_clo);
-		assert (cur_sz == rtm->rtm_cached_srcsz);
+		FSL_ASSERT (cur_sz == rtm->rtm_cached_srcsz);
 	}
 
 	/* XXX TODO: verify virtualtype fits in given source data */
@@ -313,21 +313,19 @@ static bool fsl_virt_nth_verify_bounds(
 {
 	NEW_VCLO	(new_clo, cur_off, NULL, rtm);
 	typesize_t	cur_size;
-	statenum_t	sn;
 
+	FSL_ASSERT (fsl_env->fctx_except.ex_in_unsafe_op == false);
 	fsl_env->fctx_except.ex_err_unsafe_op = 0;
 	fsl_env->fctx_except.ex_in_unsafe_op = true;
-	sn = fsl_debug_get_state();
-	if (setjmp(fsl_env->fctx_except.ex_jmp) != 0) {
-		fsl_debug_return_to_state(sn);
-		DEBUG_VIRT_WRITE("nth: bad ret on setjmp");
+
+	cur_size = tt->tt_size(&new_clo);
+	fsl_env->fctx_except.ex_in_unsafe_op = false;
+
+	if (fsl_env->fctx_except.ex_err_unsafe_op != 0) {
+		DEBUG_VIRT_WRITE("nth: bad ret on nth_verify_bounds");
 		fsl_env->fctx_except.ex_err_unsafe_op = 0;
-		fsl_env->fctx_except.ex_in_unsafe_op = false;
 		return false;
 	}
-	cur_size = tt->tt_size(&new_clo);
-	assert (fsl_env->fctx_except.ex_err_unsafe_op == 0);
-	fsl_env->fctx_except.ex_in_unsafe_op = false;
 
 	if (cur_size + cur_off > fsl_virt_total_bits(rtm)) {
 		DEBUG_VIRT_WRITE(
@@ -353,7 +351,7 @@ diskoff_t fsl_virt_get_nth(
 	typesize_t			total_bits;
 	typenum_t			virt_typenum;
 
-	assert (rtm != NULL);
+	FSL_ASSERT (rtm != NULL);
 
 	if (target_idx == 0) return 0;
 

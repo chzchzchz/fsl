@@ -1,7 +1,5 @@
-#include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/fs.h>
-
 
 #if 0
 static const struct file_operations fsl_file_ops = {
@@ -26,7 +24,7 @@ struct const file_operations fsl_dir_file_ops = {
 	.fsync		= fsl_sync_file
 };
 
-static const struct inode_operations fsl_file_inode_operations = 
+static const struct inode_operations fsl_file_inode_operations =
 {
 	.truncate       = fsl_truncate,
 	.getattr        = fsl_getattr,
@@ -40,7 +38,7 @@ static const struct inode_operations fsl_file_inode_operations =
 	.fiemap         = fsl_fiemap,
 };
 
-static const struct inode_operations fsl_dir_inode_operations = 
+static const struct inode_operations fsl_dir_inode_operations =
 {
 	.getattr        = fsl_getattr,
 	.lookup         = fsl_lookup,
@@ -61,31 +59,9 @@ static const struct inode_operations fsl_dir_inode_operations =
 };
 #endif
 
-static const struct file_system_type fsl_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "fsl0000"
-	.get_sb		= fsl_get_sb,
-	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV
-};
-
-static const struct super_operations fsl_super_ops = 
-{
-	.alloc_inode	= fsl_alloc_inode,
-	.destroy_inode	= fsl_destroy_inode,
-	.delete_inode	= fsl_delete_inode,
-	.put_super	= fsl_put_super,
-	.write_super	= fsl_write_super,
-	.sync_fs	= fsl_sync_fs,
-	.show_options	= fsl_show_options,
-	.write_inode	= fsl_write_inode,
-	.statfs		= fsl_statfs,
-	.remount_fs	= fsl_remount,
-};
-
 /**
  * feed data from sb into stat buf..
- */ 
+ */
 static int fsl_statfs(struct dentry* dentry, struct kstatfs* buf)
 {
 }
@@ -104,7 +80,6 @@ static void fsl_write_super(struct super_block *sb)
 {
 }
 
-
 static int fsl_remount(struct super_block* sb, int * flags, char* data)
 {
 	return -EINVAL;
@@ -119,14 +94,12 @@ static int fsl_show_options(struct seq_file* seq, struct vfsmount* vfs)
 	return -ENOSYS;
 }
 
-
 /**
  * writes inode data to disk
  */
 static int fsl_write_inode(struct inode* inode, int do_sync)
 {
 }
-
 
 /**
  * allocate fs private structures for inode
@@ -142,7 +115,6 @@ static void fsl_destroy_inode(struct inode* inode)
 {
 }
 
-
 /**
  * Called at last iput if i_nlink is zero
  */
@@ -157,7 +129,6 @@ static long fsl_ioctl(
 	return -ENOTTY;
 }
 
-
 static int fsl_fill_super(struct super_block* sb, void* data, int silent)
 {
 	/* loads up superblock */
@@ -170,27 +141,24 @@ static int fsl_get_sb(struct file_system_type *fs_type,
 	return get_sb_bdev(fs_type, flags, dev_name, data, fsl_fill_super, mnt);
 }
 
+static const struct file_system_type fsl_fs_type = {
+	.owner		= THIS_MODULE,
+	.name		= "fsl0000",
+	.get_sb		= fsl_get_sb,
+	.kill_sb	= kill_block_super,
+	.fs_flags	= FS_REQUIRES_DEV
+};
 
-static int __init init_fsl_fs(void)
+static const struct super_operations fsl_super_ops =
 {
-	int	err;
-
-	err = register_filesystem(&fsl_fs_type);
-	if (err) goto done;
-
-done:
-	return err;
-}
-
-static void __exit exit_fsl_fs(void)
-{
-	unregister_filesystem(&fsl_fs_type);
-}
-
-
-
-module_init(init_fsl_fs)
-module_exit(exit_fsl_fs)
-
-MODULE_LICENSE("GPL")
-
+	.alloc_inode	= fsl_alloc_inode,
+	.destroy_inode	= fsl_destroy_inode,
+//	.delete_inode	= fsl_delete_inode,
+	.put_super	= fsl_put_super,
+	.write_super	= fsl_write_super,
+	.sync_fs	= fsl_sync_fs,
+	.show_options	= fsl_show_options,
+	.write_inode	= fsl_write_inode,
+	.statfs		= fsl_statfs,
+	.remount_fs	= fsl_remount,
+};

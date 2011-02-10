@@ -1,8 +1,7 @@
-#include <stdlib.h>
-#include <assert.h>
 #include <string.h>
-
+#include "alloc.h"
 #include "bitmap.h"
+#include "debug.h"
 
 static int	bmp_find_avail(bitmap* b, unsigned int offset);
 static int	bmp_find_set(bitmap* b, unsigned int offset);
@@ -10,7 +9,7 @@ static int	bmp_find_set(bitmap* b, unsigned int offset);
 void bmp_init(bitmap* b, unsigned int elements)
 {
 	b->bmp_bytes = (elements + 7) / 8;
-	b->bmp_data = malloc(b->bmp_bytes);
+	b->bmp_data = fsl_alloc(b->bmp_bytes);
 	b->bmp_size = elements;
 }
 
@@ -21,22 +20,21 @@ void bmp_clear(bitmap* b)
 
 void bmp_uninit(bitmap* b)
 {
-	free(b->bmp_data);
+	fsl_free(b->bmp_data);
 }
 
 int bmp_set_avail(bitmap* b, unsigned int offset, unsigned int n)
 {
 	int	avail_loc;
 
-	assert(offset < b->bmp_size);
+	FSL_ASSERT(offset < b->bmp_size);
 
 	avail_loc = offset;
 	do{
 		int	count;
 
 		avail_loc = bmp_find_avail(b, avail_loc);
-		if(avail_loc == -1)
-			return -1;
+		if(avail_loc == -1) return -1;
 
 		count = bmp_count_contig_avail(b, avail_loc);
 		if(count < n){
@@ -56,7 +54,7 @@ void bmp_set(bitmap* b, unsigned int offset, unsigned int n)
 	int	off;
 	int	count;
 
-	assert((offset + (n-1)) < b->bmp_size);
+	FSL_ASSERT((offset + (n-1)) < b->bmp_size);
 
 	count = n;
 	off = offset;
@@ -86,7 +84,7 @@ void bmp_unset(bitmap* b, unsigned int offset, unsigned int n)
 	int	off;
 	int	count;
 
-	assert((offset + (n-1)) < b->bmp_size);
+	FSL_ASSERT((offset + (n-1)) < b->bmp_size);
 
 	count = n;
 	off = offset;
@@ -122,7 +120,7 @@ void bmp_unset(bitmap* b, unsigned int offset, unsigned int n)
 
 int bmp_get_set(bitmap* b, unsigned int offset)
 {
-	assert(offset < b->bmp_size);
+	FSL_ASSERT(offset < b->bmp_size);
 
 	return bmp_find_set(b, offset);
 }
@@ -131,7 +129,7 @@ int bmp_count_set_contiguous(bitmap* b, unsigned int offset, unsigned int* num)
 {
 	int	set_loc;
 
-	assert(offset < b->bmp_size);
+	FSL_ASSERT(offset < b->bmp_size);
 
 	set_loc = bmp_find_set(b, offset);
 	if(set_loc == -1){
@@ -236,7 +234,7 @@ int bmp_count_set(bitmap* b, unsigned int offset)
 	int	n;
 	int	i;
 
-	assert(offset < b->bmp_size);
+	FSL_ASSERT(offset < b->bmp_size);
 
 	n = 0;
 	for(i = offset / 8; i < b->bmp_bytes; i++){
@@ -256,7 +254,7 @@ int bmp_count_avail(bitmap* b, unsigned int offset)
 	int	n;
 	int	i;
 
-	assert(offset < b->bmp_size);
+	FSL_ASSERT(offset < b->bmp_size);
 
 	n = 0;
 	for(i = offset / 8; i < b->bmp_bytes; i++){

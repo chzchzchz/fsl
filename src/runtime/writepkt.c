@@ -1,7 +1,6 @@
 //#define DEBUG_TOOL
 //#define NO_WRITES
 #include <inttypes.h>
-#include <assert.h>
 #include "runtime.h"
 #include "debug.h"
 #include "type_info.h"
@@ -40,10 +39,10 @@ void wpkt_relocate(
 	replace_choice_ti = typeinfo_follow_iter(
 		ti_parent, &rel->rel_choice, choice_idx);
 	if (replace_choice_ti == NULL) {
-		printf("WANTED REPLACE CHOICE %"PRIu32"\n", choice_idx);
-		printf("BUT COULDN'T GET IT??\n");
+		DEBUG_WRITE("WANTED REPLACE CHOICE %"PRIu32"\n", choice_idx);
+		DEBUG_WRITE("BUT COULDN'T GET IT??\n");
 	}
-	assert (replace_choice_ti != NULL);
+	FSL_ASSERT (replace_choice_ti != NULL);
 
 	/* wpkt_alloc => (choice_idx) */
 	FSL_WRITE_START();
@@ -51,7 +50,7 @@ void wpkt_relocate(
 	rel->rel_alloc.wpi_params(&ti_clo(ti_parent), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_alloc.wpi_wpkt, wpkt_params);
 #ifdef DEBUG_TOOL
-	printf("ALLOC PENDING: \n");
+	DEBUG_WRITE("ALLOC PENDING: \n");
 	fsl_io_dump_pending();
 #endif
 #ifdef NO_WRITES
@@ -65,16 +64,16 @@ void wpkt_relocate(
 #endif
 
 #ifdef DEBUG_TOOL
-	printf("COPIED: %"PRIu64" -> %"PRIu64"\n",
+	DEBUG_WRITE("COPIED: %"PRIu64" -> %"PRIu64"\n",
 		ti_phys_offset(rel_sel_ti) / 8,
 		ti_phys_offset(replace_choice_ti) / 8);
 
-	printf("rel_sel: ");
+	DEBUG_WRITE("rel_sel: ");
 	typeinfo_print_path(rel_sel_ti);
-	printf("\n");
-	printf("replace_ti: ");
+	DEBUG_WRITE("\n");
+	DEBUG_WRITE("replace_ti: ");
 	typeinfo_print_path(replace_choice_ti);
-	printf("\n");
+	DEBUG_WRITE("\n");
 #endif
 
 	/* wpkt_replace => (sel_idx) */
