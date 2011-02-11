@@ -69,7 +69,7 @@ FS_CAPITAL=$(shell echo $(FSNAME) | sed "s/[a-z]/\U&/g")
 FS_DEFINE=-DFS_$(FS_CAPITAL)
 CFLAGS+= $(FS_DEFINE)
 
-all: $(TOOL_BINS) $(TOOL_MMAP_BINS)
+all: $(TOOL_BINS) $(TOOL_MMAP_BINS) $(OBJDIR)/fs/fsl.$(FSNAME).o $(OBJDIR)/fs/kfsl.$(FSNAME).o
 
 clean:
 	rm -f $(TOOL_BINS) $(TOOL_MMAP_BINS) $(FS_OBJS)
@@ -117,6 +117,23 @@ $(BINDIR)/mmap/smushtool-$(FSNAME): $(FS_OBJS) $(SMUSHTOOL_OBJS) $(RT_MMAP_OBJS)
 $(BINDIR)/mmap/thrashcopy-$(FSNAME): $(FS_OBJS) $(THRASHCOPY_OBJS) $(RT_MMAP_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 
+
+# KERNEL SPACE
+$(OBJDIR)/fs/kfsl.$(FSNAME).o: $(OBJDIR)/fs/kfsl.$(FSNAME).table.o $(OBJDIR)/fs/kfsl.$(FSNAME).types.o
+	ld -r -o $@ $^
+
+$(OBJDIR)/fs/kfsl.$(FSNAME).table.o: $(OBJDIR)/fs/fsl.$(FSNAME).table.c
+	gcc -mcmodel=kernel -mno-red-zone $(CFLAGS) -I.. -c $^ -o $@
+
+$(OBJDIR)/fs/kfsl.$(FSNAME).types.o: $(OBJDIR)/fs/kfsl.$(FSNAME).types.s
+	as -g $< -o $@
+
+$(OBJDIR)/fs/kfsl.$(FSNAME).types.s: $(OBJDIR)/fs/fsl.$(FSNAME).types.bc
+	llc -disable-red-zone -code-model=kernel $(LLC_FLAGS)  $< -o $@
+
+# USER SPACE
+$(OBJDIR)/fs/fsl.$(FSNAME).o: $(OBJDIR)/fs/fsl.$(FSNAME).table.o $(OBJDIR)/fs/fsl.$(FSNAME).types.o
+	ld -r -o $@ $^
 
 $(OBJDIR)/fs/fsl.$(FSNAME).table.o: $(OBJDIR)/fs/fsl.$(FSNAME).table.c
 	gcc $(CFLAGS) -I.. -c $^ -o $@

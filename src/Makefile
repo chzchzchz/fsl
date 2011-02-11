@@ -51,7 +51,7 @@ LANGOBJS=	lex.yy.o		\
 		wpkt_call.o		\
 		memotab.o
 
-RTOBJS= runtime.o	\
+USER_RTOBJS= runtime.o	\
 	type_info.o 	\
 	virt.o		\
 	io.o		\
@@ -74,11 +74,24 @@ RTOBJS= runtime.o	\
 	writepkt.o		\
 	lookup.o		\
 	alloc_libc.o
+KERN_RTOBJS=	runtime.o	\
+		type_info.o 	\
+		virt.o		\
+		io.o		\
+		max.o			\
+		debug.o			\
+		log.o			\
+		bitmap.o		\
+		scan.o			\
+		choice.o		\
+		writepkt.o		\
+		lookup.o		\
 
 TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o \
 		scattertool.o smushtool.o fuse-browser.o fuse_node.o thrashcopy.o
 
-RTOBJSOUT := $(RTOBJS:%=$(OBJDIR)/runtime/%)
+RTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/runtime/%)
+RTKOBJSOUT := $(KERN_RTOBJS:%=$(OBJDIR)/kernel/%)
 TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/tool/%)
 LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/compiler/%)
 
@@ -88,16 +101,18 @@ LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual
 LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
 COMP_CFLAGS= $(CFLAGS) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
 RTCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -Wall
+RTKCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -mcmodel=kernel -mno-red-zone -Wall
 export CFLAGS
 export OBJDIR
 
-all: $(BINDIR)/lang kern
+all: $(BINDIR)/lang
 
 scantool: $(BINDIR)/lang
-	cd tool && make all
-kern:
+	cd tool && $(MAKECMD)  all
+
+kern: $(RTKOBJSOUT)
 ifdef LINUX_SRCDIR
-	make -C $(LINUX_SRCDIR) M=`pwd`/kernel
+	cd kernel; make; cd ..
 endif
 
 $(BINDIR)/lang:  $(LANGOBJSOUT) $(RTOBJSOUT) $(TOOLOBJSOUT)
@@ -118,6 +133,9 @@ $(OBJDIR)/tool/%.o: tool/%.c
 $(OBJDIR)/runtime/%.o: runtime/%.c
 	gcc $(RTCFLAGS) -Iruntime/ -c $< -o $@
 
+$(OBJDIR)/kernel/%.o: runtime/%.c
+	gcc $(RTKCFLAGS) -Iruntime/ -c $< -o $@
+
 $(OBJDIR)/compiler/%.o: compiler/%.cc
 	g++ $(COMP_CFLAGS) -c $< $(LLVM_FLAGS) -o $@
 
@@ -130,5 +148,6 @@ $(OBJDIR)/runtime/io_mmap.o: $(OBJDIR)/runtime/rt-mmap/io.o
 	cp $^ $@
 
 clean: 
-	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll $(OBJDIR)/*.o $(OBJDIR)/fs/* $(OBJDIR)/runtime/*.o $(BINDIR)/*-* $(BINDIR)/lang $(BINDIR)/mmap/* $(OBJDIR)/compiler/*.o kernel/*.o kernel/*.ko
+	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll $(OBJDIR)/*.o $(OBJDIR)/fs/* $(OBJDIR)/runtime/*.o $(BINDIR)/*-* $(BINDIR)/lang $(BINDIR)/mmap/* $(OBJDIR)/compiler/*.o kernel/*.o kernel/*.ko $(OBJDIR)/kernel/*
 	cd tool && make clean
+	cd kernel && make clean

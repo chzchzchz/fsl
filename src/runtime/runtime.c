@@ -1,7 +1,6 @@
 /* main runtime file */
 //#define DEBUG_RT
 #include <inttypes.h>
-#include <assert.h>
 #include <string.h>
 #include "debug.h"
 #include "io.h"
@@ -28,8 +27,6 @@ const char* fsl_stat_fields[FSL_NUM_STATS] =
 	"iocache_hit",		/* FSL_STAT_IOCACHE_MISS */
 	"iocache_miss"		/* FSL_STAT_IOCACHE_HIT */
 };
-
-static void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
 
 void __debugOutcall(uint64_t v)
 {
@@ -131,7 +128,7 @@ void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 	fsl_free(fctx);
 }
 
-static void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
+void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 {
 	FSL_ASSERT (fctx != NULL);
 	FSL_ASSERT (fctx->fctx_io != NULL && "Is the file open?");
@@ -147,21 +144,51 @@ void fsl_load_memo(void)
 	FSL_ASSERT (fsl_env != NULL);
 	for (i = 0; i < __fsl_memotab_sz; i++)
 		__fsl_memotab[i] = __fsl_memotab_funcs[i]();
+
 }
 
-/* not exposed to llvm */
-struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
+uint64_t __getLocal(
+	const struct fsl_rt_closure* clo,
+	uint64_t bit_off, uint64_t num_bits)
 {
-	struct fsl_rt_ctx	*fsl_ctx;
+	uint64_t		ret;
 
-	fsl_ctx = fsl_alloc(sizeof(struct fsl_rt_ctx));
-	if (fsl_ctx == NULL) return NULL;
+	FSL_ASSERT (num_bits <= 64);
+	FSL_ASSERT (num_bits > 0);
 
-	fsl_ctx->fctx_io = fsl_io_alloc(fsl_rt_backing_fname);
-	fsl_ctx->fctx_num_types = fsl_num_types;
-	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
+	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_ACCESS);
+	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_READ, num_bits);
 
-	fsl_vars_from_env(fsl_ctx);
+	DEBUG_IO_ENTER();
 
-	return fsl_ctx;
+	DEBUG_IO_WRITE("Requesting IO: bitoff=%"PRIu64, bit_off);
+
+	if (clo->clo_xlate != NULL) {
+		/* xlate path */
+		uint64_t	bit_off_old, bit_off_next, bit_off_last;
+
+		bit_off_old = bit_off;
+		DEBUG_IO_WRITE("BIT_COUNT=%"PRIu64, num_bits);
+		DEBUG_IO_WRITE("BIT_OFF_OLD=%"PRIu64, bit_off_old);
+		bit_off = fsl_virt_xlate(clo, bit_off_old);
+
+		/* ensure read will go to only a contiguous range (e.g. xlate
+		 * not sliced too thin) */
+		bit_off_next = bit_off_old + 8*((num_bits - 1)/8);
+		DEBUG_IO_WRITE("BIT_OFF_NEXT=%"PRIu64, bit_off_next);
+		bit_off_last = fsl_virt_xlate(clo, bit_off_next);
+		FSL_ASSERT ((bit_off + 8*((num_bits-1)/8)) == (bit_off_last) &&
+			"Discontiguous getLocal not permitted");
+	}
+
+	ret = __getLocalPhys(bit_off, num_bits);
+	DEBUG_IO_WRITE(
+		"Returning IO: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64,
+			bit_off, num_bits, ret);
+
+	DEBUG_IO_LEAVE();
+
+	if (num_bits == 1) FSL_ASSERT (ret < 2 && "BADMASK.");
+
+	return ret;
 }

@@ -54,6 +54,7 @@ void fsl_io_abort_wlog(struct fsl_rt_io* io);
 
 /* io funcs */
 struct fsl_rt_io* fsl_io_alloc(const char* backing_fname);
+struct fsl_rt_io* fsl_io_alloc_fd(unsigned long fd);
 void fsl_io_free(struct fsl_rt_io* io);
 ssize_t fsl_io_size(struct fsl_rt_io* io);
 void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits);

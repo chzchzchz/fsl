@@ -5,6 +5,7 @@
 #include "alloc.h"
 #include "debug.h"
 #include "type_info.h"
+#include "lookup.h"
 #include "io.h"
 
 static bool ti_has_loop(const struct type_info* chain);

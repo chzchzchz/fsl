@@ -1,8 +1,13 @@
 #include <inttypes.h>
 #include <stdlib.h>
+#include "io.h"
+#include "alloc.h"
 #include "hits.h"
 #include "runtime.h"
+#include <string.h>
+#include <stdio.h>
 
+extern uint64_t fsl_num_types;
 extern const char* fsl_stat_fields[FSL_NUM_STATS];
 
 static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
@@ -31,6 +36,22 @@ static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 	fprintf(out_file, "# stats done.\n");
 
 	if (stat_fname != NULL) fclose(out_file);
+}
+
+static struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
+{
+	struct fsl_rt_ctx	*fsl_ctx;
+
+	fsl_ctx = fsl_alloc(sizeof(struct fsl_rt_ctx));
+	if (fsl_ctx == NULL) return NULL;
+
+	fsl_ctx->fctx_io = fsl_io_alloc(fsl_rt_backing_fname);
+	fsl_ctx->fctx_num_types = fsl_num_types;
+	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
+
+	fsl_vars_from_env(fsl_ctx);
+
+	return fsl_ctx;
 }
 
 /* main entry point for tool executable --

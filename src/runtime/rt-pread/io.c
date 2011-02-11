@@ -64,52 +64,6 @@ uint64_t __getLocalPhys(uint64_t bit_off, uint64_t num_bits)
 	return ret;
 }
 
-uint64_t __getLocal(
-	const struct fsl_rt_closure* clo,
-	uint64_t bit_off, uint64_t num_bits)
-{
-	uint64_t		ret;
-
-	assert (num_bits <= 64);
-	assert (num_bits > 0);
-
-	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_ACCESS);
-	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_READ, num_bits);
-
-	DEBUG_IO_ENTER();
-
-	DEBUG_IO_WRITE("Requesting IO: bitoff=%"PRIu64, bit_off);
-
-	if (clo->clo_xlate != NULL) {
-		/* xlate path */
-		uint64_t	bit_off_old, bit_off_next, bit_off_last;
-
-		bit_off_old = bit_off;
-		DEBUG_IO_WRITE("BIT_COUNT=%"PRIu64, num_bits);
-		DEBUG_IO_WRITE("BIT_OFF_OLD=%"PRIu64, bit_off_old);
-		bit_off = fsl_virt_xlate(clo, bit_off_old);
-
-		/* ensure read will go to only a contiguous range (e.g. xlate
-		 * not sliced too thin) */
-		bit_off_next = bit_off_old + 8*((num_bits - 1)/8);
-		DEBUG_IO_WRITE("BIT_OFF_NEXT=%"PRIu64, bit_off_next);
-		bit_off_last = fsl_virt_xlate(clo, bit_off_next);
-		assert ((bit_off + 8*((num_bits-1)/8)) == (bit_off_last) &&
-			"Discontiguous getLocal not permitted");
-	}
-
-	ret = __getLocalPhys(bit_off, num_bits);
-	DEBUG_IO_WRITE(
-		"Returning IO: bitoff = %"PRIu64" // bits=%"PRIu64" // v = %"PRIu64,
-			bit_off, num_bits, ret);
-
-	DEBUG_IO_LEAVE();
-
-	if (num_bits == 1) assert (ret < 2 && "BADMASK.");
-
-	return ret;
-}
-
 struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 {
 	struct fsl_rt_io	*ret;

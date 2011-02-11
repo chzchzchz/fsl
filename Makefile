@@ -1,11 +1,12 @@
 FSNAMES= ext2 vfat iso9660 reiserfs xfs minix
 NUM_JOBS=6
-LINUX_SRCDIR=/usr/src/linux/
+#LINUX_SRCDIR=/usr/src/linux/
+LINUX_SRCDIR=/home/chz/src/research/FSL_VM_LINUX/
 MAKECMD=make -j$(NUM_JOBS)
 #CFLAGS=-O3 -DFSL_RELEASE
 OPT_FLAGS=-O3
 LLC_FLAGS=-O3
-CFLAGS=-g -O3 -DFSL_LITTLE_ENDIAN
+CFLAGS=-g -O3 -DFSL_LITTLE_ENDIAN -fno-common
 #CFLAGS=-g
 export CFLAGS
 OBJDIR=$(shell pwd)/obj/
@@ -38,6 +39,9 @@ code:
 
 tools: code
 	cd src/tool && $(MAKECMD) && cd ../..
+
+kern: tools
+	cd src && $(MAKECMD) kern && cd ..
 
 libs:
 	make -C lib all

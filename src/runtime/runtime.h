@@ -1,10 +1,11 @@
 #ifndef RUNTIME_H
 #define RUNTIME_H
 
-
+#ifndef __KERNEL__
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h>
+#include <unistd.h>
+#endif
 
 /* XXX TODO Needs local context for multi-threading.. */
 
@@ -299,12 +300,11 @@ uint64_t __max7(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 uint64_t fsl_fail(void);
 
 /* not exposed to llvm */
-struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt);
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
 void fsl_load_memo(void);
+void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
 
 /* implemented by tool: */
 int tool_entry(int argc, char* argv[]);
-
 
 #endif
