@@ -64,6 +64,7 @@ USER_RTOBJS= runtime.o	\
 	max.o			\
 	debug.o			\
 	debug_libc.o		\
+	info_libc.o		\
 	hits.o			\
 	log.o			\
 	type_print.o		\
@@ -74,8 +75,10 @@ USER_RTOBJS= runtime.o	\
 	writepkt.o		\
 	lookup.o		\
 	alloc_libc.o
+
 KERN_RTOBJS=	runtime.o	\
 		type_info.o 	\
+		type_print.o	\
 		virt.o		\
 		io.o		\
 		max.o			\
@@ -87,12 +90,15 @@ KERN_RTOBJS=	runtime.o	\
 		writepkt.o		\
 		lookup.o		\
 
+KERN_TOOLOBJS = smushtool.o scattertool.o defragtool.o
+
 TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o \
 		scattertool.o smushtool.o fuse-browser.o fuse_node.o thrashcopy.o
 
 RTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/runtime/%)
 RTKOBJSOUT := $(KERN_RTOBJS:%=$(OBJDIR)/kernel/%)
 TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/tool/%)
+KTOOLOBJSOUT := $(KERN_TOOLOBJS:%=$(OBJDIR)/kernel/tool/%)
 LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/compiler/%)
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
@@ -101,11 +107,11 @@ LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual
 LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
 COMP_CFLAGS= $(CFLAGS) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
 RTCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -Wall
-RTKCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -mcmodel=kernel -mno-red-zone -Wall
+RTKCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -mcmodel=kernel -mno-red-zone -Wall  -D__KERNEL__
 export CFLAGS
 export OBJDIR
 
-all: $(BINDIR)/lang
+all: $(BINDIR)/lang $(KTOOLOBJSOUT)
 
 scantool: $(BINDIR)/lang
 	cd tool && $(MAKECMD)  all
@@ -134,6 +140,9 @@ $(OBJDIR)/runtime/%.o: runtime/%.c
 	gcc $(RTCFLAGS) -Iruntime/ -c $< -o $@
 
 $(OBJDIR)/kernel/%.o: runtime/%.c
+	gcc $(RTKCFLAGS) -Iruntime/ -c $< -o $@
+
+$(OBJDIR)/kernel/tool/%.o: tool/%.c
 	gcc $(RTKCFLAGS) -Iruntime/ -c $< -o $@
 
 $(OBJDIR)/compiler/%.o: compiler/%.cc

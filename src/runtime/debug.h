@@ -81,7 +81,6 @@ extern unsigned int fsl_debug_depth;
 
 typedef unsigned int statenum_t;
 
-
 void fsl_debug_enter(const char *func_name);
 void fsl_debug_leave(const char *func_name);
 void fsl_debug_write(const char* fmt, ...);

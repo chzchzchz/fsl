@@ -1,15 +1,11 @@
 //#define DEBUG_TYPEINFO
 //#define PRINT_BITS
-#include <stdbool.h>
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <inttypes.h>
-#include <string.h>
-
-#include "io.h"
+#include <unistd.h>
 #include "runtime.h"
+#include "io.h"
 #include "debug.h"
+#include "info.h"
 #include "type_info.h"
 
 static void typeinfo_print_field(const struct type_info* ti);
@@ -30,7 +26,7 @@ static void typeinfo_print_path_helper(const struct type_info* ti)
 	typeinfo_print_path_helper(ti->ti_prev);
 
 	typeinfo_print(ti);
-	printf("/");
+	FSL_INFO("/");
 }
 
 void typeinfo_print_field_value(
@@ -49,9 +45,9 @@ void typeinfo_print_field_value(
 
 
 	field_sz = ti_field_size(ti, field, &num_elems);
-	printf("%s", field->tf_fieldname);
+	FSL_INFO("%s", field->tf_fieldname);
 	if (num_elems > 1) {
-		printf("[%"PRIu64"]", num_elems);
+		FSL_INFO("[%"PRIu64"]", num_elems);
 	}
 
 	DEBUG_TYPEINFO_WRITE("Width = %d", field_sz);
@@ -63,16 +59,16 @@ void typeinfo_print_field_value(
 	if (num_elems == 1 && field_sz <= 64 && field_sz > 0) {
 		uint64_t	v;
 		v = __getLocal(&last_field_clo, field_off, field_sz);
-		printf(" = %"PRIu64 " (0x%"PRIx64")", v, v);
+		FSL_INFO(" = %"PRIu64 " (0x%"PRIx64")", v, v);
 	}
 
 #ifdef PRINT_BITS
-	printf("@%"PRIu64"--%"PRIu64, field_off, field_off + field_sz);
+	FSL_INFO("@%"PRIu64"--%"PRIu64, field_off, field_off + field_sz);
 #else
-	printf("@%"PRIu64"--%"PRIu64, field_off/8, (field_off + field_sz)/8);
+	FSL_INFO("@%"PRIu64"--%"PRIu64, field_off/8, (field_off + field_sz)/8);
 #endif
 
-	printf("\n");
+	FSL_INFO("\n");
 
 	DEBUG_TYPEINFO_LEAVE();
 }
@@ -87,14 +83,14 @@ static void typeinfo_print_type(const struct type_info* ti)
 	len = tt->tt_size(clo);
 
 #ifdef PRINT_BITS
-	printf("%s@%"PRIu64"--%"PRIu64, //" (%"PRIu64" bits)",
+	FSL_INFO("%s@%"PRIu64"--%"PRIu64, //" (%"PRIu64" bits)",
 		tt_by_ti(ti)->tt_name,
 		ti_offset(ti),
 		ti_offset(ti) + len //,
 //		len
 	);
 #else
-	printf("%s@%"PRIu64"--%"PRIu64, //" (%"PRIu64" bytes)",
+	FSL_INFO("%s@%"PRIu64"--%"PRIu64, //" (%"PRIu64" bytes)",
 		tt_by_ti(ti)->tt_name,
 		ti_offset(ti)/8,
 		(ti_offset(ti) + len)/8 //,
@@ -111,19 +107,19 @@ static void typeinfo_print_field(const struct type_info* ti)
 	TI_INTO_CLO			(ti->ti_prev);
 
 	field = ti->ti_field;
-	assert (field != NULL);
+	FSL_ASSERT(field != NULL);
 
 	tt = tt_by_ti(ti->ti_prev);
 	len = field->tf_typesize(clo);
 #ifdef PRINT_BITS
-	printf("%s.%s@%"PRIu64"--%"PRIu64,
+	FSL_INFO("%s.%s@%"PRIu64"--%"PRIu64,
 		tt->tt_name,
 		field->tf_fieldname,
 		ti_offset(ti),
 		ti_offset(ti) + len
 	);
 #else
-	printf("%s.%s@%"PRIu64"--%"PRIu64,
+	FSL_INFO("%s.%s@%"PRIu64"--%"PRIu64,
 		tt->tt_name,
 		field->tf_fieldname,
 		ti_offset(ti)/8,
@@ -134,33 +130,33 @@ static void typeinfo_print_field(const struct type_info* ti)
 
 static void typeinfo_print_default(const struct type_info* ti)
 {
-	assert (ti->ti_print_name != NULL);
+	FSL_ASSERT(ti->ti_print_name != NULL);
 	if (ti->ti_print_idxval != TI_INVALID_IDXVAL)
-		printf("%s[%"PRIu64"]", ti->ti_print_name, ti->ti_print_idxval);
+		FSL_INFO("%s[%"PRIu64"]", ti->ti_print_name, ti->ti_print_idxval);
 	else
-		printf("%s", ti->ti_print_name);
+		FSL_INFO("%s", ti->ti_print_name);
 #ifdef PRINT_BITS
-	printf("@%"PRIu64, ti_offset(ti));
+	FSL_INFO("@%"PRIu64, ti_offset(ti));
 #else
-	printf("@%"PRIu64, ti_offset(ti) / 8);
+	FSL_INFO("@%"PRIu64, ti_offset(ti) / 8);
 #endif
 }
 
 static void typeinfo_print_virt(const struct type_info* ti)
 {
-	assert (ti->ti_print_name != NULL);
-	assert (ti_xlate(ti) != NULL);
+	FSL_ASSERT(ti->ti_print_name != NULL);
+	FSL_ASSERT(ti_xlate(ti) != NULL);
 
 	if (ti->ti_print_idxval != TI_INVALID_IDXVAL)
-		printf("%s[%"PRIu64"]", ti->ti_print_name, ti->ti_print_idxval);
+		FSL_INFO("%s[%"PRIu64"]", ti->ti_print_name, ti->ti_print_idxval);
 	else
-		printf("%s", ti->ti_print_name);
+		FSL_INFO("%s", ti->ti_print_name);
 #ifdef PRINT_BITS
-	printf("@v%"PRIu64"p%"PRIu64,
+	FSL_INFO("@v%"PRIu64"p%"PRIu64,
 		ti_offset(ti),
 		fsl_virt_xlate(&ti_clo(ti), ti_offset(ti)));
 #else
-	printf("@v%"PRIu64"p%"PRIu64,
+	FSL_INFO("@v%"PRIu64"p%"PRIu64,
 		ti_offset(ti) / 8,
 		fsl_virt_xlate(&ti_clo(ti), ti_offset(ti)) / 8);
 #endif
@@ -168,20 +164,20 @@ static void typeinfo_print_virt(const struct type_info* ti)
 
 void typeinfo_print(const struct type_info* ti)
 {
-	assert (ti != NULL);
+	FSL_ASSERT(ti != NULL);
 
 	if (ti->ti_prev == NULL && ti_typenum(ti) != TYPENUM_INVALID) {
 		typeinfo_print_type(ti);
 		return;
 	}
 
-	assert (ti->ti_prev != NULL);
+	FSL_ASSERT(ti->ti_prev != NULL);
 
 	if (ti->ti_field) typeinfo_print_field(ti);
 	else if (ti->ti_points) typeinfo_print_pointsto(ti);
 	else if (ti->ti_virt) typeinfo_print_virt(ti);
 	else if (ti->ti_iter) typeinfo_print_iter(ti);
-	else printf("???");
+	else FSL_INFO("???");
 }
 
 void typeinfo_print_fields(const struct type_info* ti)
@@ -195,7 +191,7 @@ void typeinfo_print_fields(const struct type_info* ti)
 	tt = tt_by_ti(ti);
 
 	if (tt->tt_fieldall_c > 0)
-		printf("Fields:\n");
+		FSL_INFO("Fields:\n");
 
 	for (i = 0; i < tt->tt_fieldall_c; i++) {
 		const struct fsl_rtt_field	*field;
@@ -212,9 +208,9 @@ void typeinfo_print_fields(const struct type_info* ti)
 			continue;
 
 		if (field->tf_typenum != TYPENUM_INVALID)
-			printf("%02d. ", i);
+			FSL_INFO("%02d. ", i);
 		else
-			printf("--- ");
+			FSL_INFO("--- ");
 
 		typeinfo_print_field_value(ti, field);
 	}
@@ -250,16 +246,16 @@ void typeinfo_print_pointstos(const struct type_info* ti)
 		if (pt_min > pt_max) continue;
 
 		if (none_seen) {
-			printf("Points-To:\n");
+			FSL_INFO("Points-To:\n");
 			none_seen = false;
 		}
 
 		if (pt->pt_name == NULL) {
-			printf("%02d. (%s)\n",
+			FSL_INFO("%02d. (%s)\n",
 				tt->tt_fieldall_c + i,
 				tt_by_num(pt->pt_iter.it_type_dst)->tt_name);
 		} else {
-			printf("%02d. %s (%s)\n",
+			FSL_INFO("%02d. %s (%s)\n",
 				tt->tt_fieldall_c + i,
 				pt->pt_name,
 				tt_by_num(pt->pt_iter.it_type_dst)->tt_name);
@@ -299,17 +295,17 @@ void typeinfo_print_virts(const struct type_info* ti)
 		if (vt_min > vt_max) continue;
 
 		if (none_seen) {
-			printf("Virtuals: \n");
+			FSL_INFO("Virtuals: \n");
 			none_seen = false;
 		}
 
 		if (vt->vt_name == NULL) {
-			printf("%02d. (%s->%s)\n",
+			FSL_INFO("%02d. (%s->%s)\n",
 				tt->tt_fieldall_c + tt->tt_pointsto_c + i,
 				tt_by_num(vt->vt_iter.it_type_dst)->tt_name,
 				tt_by_num(vt->vt_type_virttype)->tt_name);
 		} else {
-			printf("%02d. %s (%s->%s)\n",
+			FSL_INFO("%02d. %s (%s->%s)\n",
 				tt->tt_fieldall_c + tt->tt_pointsto_c + i,
 				vt->vt_name,
 				tt_by_num(vt->vt_iter.it_type_dst)->tt_name,
@@ -336,22 +332,22 @@ void typeinfo_dump_data(const struct type_info* ti)
 		uint8_t	c;
 
 		if ((i % DUMP_WIDTH) == 0) {
-			if (i != 0) printf("\n");
-			printf("%04x: ", i);
+			if (i != 0) FSL_INFO("\n");
+			FSL_INFO("%04x: ", i);
 		}
 		c = __getLocal(clo, ti_offset(ti) + (i*8), 8);
-		printf("%c%c ", hexmap[(c >> 4) & 0xf], hexmap[c & 0xf]);
+		FSL_INFO("%c%c ", hexmap[(c >> 4) & 0xf], hexmap[c & 0xf]);
 
 	}
 
-	printf("\n");
+	FSL_INFO("\n");
 	if (type_sz % 8)
-		printf("OOPS-- size is not byte-aligned\n");
+		FSL_INFO("OOPS-- size is not byte-aligned\n");
 }
 
 void typeinfo_print_value(const struct type_info* ti)
 {
-	assert (ti != NULL);
-	assert (ti->ti_field != NULL && "Only fields supported");
+	FSL_ASSERT(ti != NULL);
+	FSL_ASSERT(ti->ti_field != NULL && "Only fields supported");
 	typeinfo_print_field_value(ti->ti_prev, ti->ti_field);
 }

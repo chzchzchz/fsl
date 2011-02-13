@@ -1,15 +1,12 @@
 /* try to smush as close to the top as possible */
 //#define DEBUG_TOOL
-#include <stdio.h>
 #include <stdint.h>
-#include <inttypes.h>
-#include <assert.h>
-#include <stdlib.h>
 #include <string.h>
 #include "runtime.h"
+#include "tool.h"
+#include "info.h"
 #include "debug.h"
 #include "type_info.h"
-#include "bitmap.h"
 #include "scan.h"
 #include "log.h"
 #include "choice.h"
@@ -33,10 +30,8 @@ static void cache_refresh(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 	refresh_count++;
 }
 
-/*
- * get a free block to replace
- */
-uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
+/* get a free block to replace */
+static uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 {
 	uint64_t	ccmax;
 
@@ -68,7 +63,7 @@ uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 /* compare location of selected with reloc locations */
 /* if reloc location needs to be set, try to swap in */
 /* if rel_sel location is on empty reloc location, try to swap out */
-void swap_rel_sel(
+static void swap_rel_sel(
 	struct type_info* ti, const struct fsl_rtt_reloc* rel,
 	struct type_info* rel_sel_ti, unsigned int sel_v)
 {
@@ -113,7 +108,7 @@ done:
 	DEBUG_TOOL_LEAVE();
 }
 
-void do_rel_type(struct type_info* ti, const struct fsl_rtt_reloc* rel)
+static void do_rel_type(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 {
 	const struct fsl_rtt_type	*dst_type;
 	int				sel_cur, sel_min, sel_max;
@@ -148,7 +143,7 @@ void do_rel_type(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 	}
 }
 
-int ti_handle(struct type_info* ti, struct scatterscan_info* rinfo)
+static int ti_handle(struct type_info* ti, struct scatterscan_info* rinfo)
 {
 	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
@@ -169,21 +164,21 @@ int ti_handle(struct type_info* ti, struct scatterscan_info* rinfo)
 	return SCAN_RET_CONTINUE;
 }
 
-struct scan_ops ops = { .so_ti = (scan_ti_f)ti_handle };
+static struct scan_ops ops = { .so_ti = (scan_ti_f)ti_handle };
 
-int tool_entry(int argc, char* argv[])
+TOOL_ENTRY(smush)
 {
 	struct type_info	*origin_ti;
 	struct scatterscan_info	info;
 
-	printf("Welcome to fsl smushtool. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
-	assert (argc == 0 && "./smushtool hd.img");
+	FSL_INFO("Welcome to fsl smushtool. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
+	FSL_ASSERT (argc == 0 && "./smushtool hd.img");
 
 	DEBUG_TOOL_WRITE("Origin Type Allocating...\n");
 	origin_ti = typeinfo_alloc_origin();
 	if (origin_ti == NULL) {
-		printf("Could not open origin type\n");
-		printf("Failed assert: %s\n", fsl_env->fctx_failed_assert);
+		FSL_INFO("Could not open origin type\n");
+		FSL_INFO("Failed assert: %s\n", fsl_env->fctx_failed_assert);
 		return -1;
 	}
 
@@ -196,6 +191,6 @@ int tool_entry(int argc, char* argv[])
 
 	typeinfo_free(origin_ti);
 
-	printf("Have a nice day\n");
+	FSL_INFO("fslsmush: Have a nice day\n");
 	return 0;
 }

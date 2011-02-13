@@ -29,7 +29,6 @@ void fsl_debug_leave(const char *func_name)
 void fsl_debug_write(const char* fmt, ...)
 {
 	va_list	vl;
-
 	va_start(vl, fmt);
 	fsl_debug_vwrite(fmt, vl);
 	va_end(vl);
@@ -38,8 +37,7 @@ void fsl_debug_write(const char* fmt, ...)
 static void fsl_debug_indent(void)
 {
 	unsigned int i;
-	for (i = 0; i < fsl_debug_depth; i++)
-		printf(" ");
+	for (i = 0; i < fsl_debug_depth; i++) printf(" ");
 }
 
 void fsl_debug_vwrite(const char* fmt, va_list vl)

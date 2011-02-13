@@ -29,6 +29,7 @@ static int init_rt(unsigned long fd)
 		fsl_io_free(fsl_io);
 		return -ENOMEM;
 	}
+	memset(fsl_ctx, 0, sizeof(struct fsl_rt_ctx));
 
 	fsl_ctx->fctx_io = fsl_io;
 	fsl_ctx->fctx_num_types = fsl_num_types;
@@ -68,18 +69,39 @@ static long fsl_ioctl_blkdevget(struct file* filp, unsigned long fd)
 	return ret;
 }
 
+extern int scatter_entry(int argc, char* argv[]);
+extern int defrag_entry(int argc, char* argv[]);
+extern int smush_entry(int argc, char* argv[]);
+
+static long fsl_ioctl_dotool(unsigned long arg)
+{
+	int	ret;
+
+	if (is_inited == false) return -ENXIO;
+
+	/* do the tool stuff here */
+	switch (arg) {
+	case FSL_DOTOOL_SCATTER: ret = scatter_entry(0, NULL); break;
+	case FSL_DOTOOL_DEFRAG: ret = defrag_entry(0, NULL); break;
+	case FSL_DOTOOL_SMUSH: ret = smush_entry(0, NULL); break;
+	default: return -EINVAL;
+	}
+
+	return ret;
+}
 
 static int fsl_dev_open(struct inode* ino, struct file* f) { return 0; }
 static int fsl_dev_release(struct inode* ino, struct file* f) { return 0; }
 static long fsl_dev_ioctl(
 	struct file* filp, unsigned int ioctl, unsigned long arg)
 {
-	long ret = 0;
+	long ret = -ENOSYS;
 	switch (ioctl) {
 	case FSL_IOCTL_BLKDEVGET:
 		ret = fsl_ioctl_blkdevget(filp, arg);
 		break;
 	case FSL_IOCTL_BLKDEVPUT: ret = fsl_ioctl_blkdevput(); break;
+	case FSL_IOCTL_DOTOOL: ret = fsl_ioctl_dotool(arg); break;
 	default: printk("WHHHHHHAT %x\n", ioctl);
 	}
 	return ret;

@@ -23,8 +23,8 @@ uint64_t fsl_virt_xlate_safe(
 	FSL_ASSERT (fsl_env->fctx_except.ex_in_unsafe_op == false);
 
 	fsl_env->fctx_except.ex_err_unsafe_op = 0;
-	fsl_env->fctx_except.ex_in_unsafe_op = true;
 
+	fsl_env->fctx_except.ex_in_unsafe_op = true;
 	ret = fsl_virt_xlate(clo, bit_voff);
 	fsl_env->fctx_except.ex_in_unsafe_op = false;
 
@@ -33,8 +33,6 @@ uint64_t fsl_virt_xlate_safe(
 		fsl_env->fctx_except.ex_err_unsafe_op = 0;
 		return OFFSET_INVALID;
 	}
-
-	fsl_env->fctx_except.ex_in_unsafe_op = false;
 
 	return ret;
 }
@@ -315,9 +313,9 @@ static bool fsl_virt_nth_verify_bounds(
 	typesize_t	cur_size;
 
 	FSL_ASSERT (fsl_env->fctx_except.ex_in_unsafe_op == false);
+
 	fsl_env->fctx_except.ex_err_unsafe_op = 0;
 	fsl_env->fctx_except.ex_in_unsafe_op = true;
-
 	cur_size = tt->tt_size(&new_clo);
 	fsl_env->fctx_except.ex_in_unsafe_op = false;
 

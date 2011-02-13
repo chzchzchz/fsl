@@ -178,8 +178,8 @@ done:
 void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
 {
 	struct fsl_rt_io	*io = fsl_get_io();
+	struct buffer_head	*bh;
 	size_t			br;
-	void			*kaddr;
 	uint64_t		cur_off;
 
 	FSL_STATS_ADD(&fsl_env->fctx_stat, FSL_STAT_BITS_READ, byte_c*8);
@@ -193,18 +193,18 @@ void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
 		to_read = byte_c - br;
 		if (to_read > PAGE_SIZE) to_read = PAGE_SIZE;
 
-		pg = grab_cache_page(io_mapping(io), io_boff_to_page(cur_off));
-		if (pg == NULL) {
-			if (fsl_env->fctx_except.ex_in_unsafe_op)
-				fsl_env->fctx_except.ex_err_unsafe_op = 1;
-			FSL_ASSERT (0 == 1 && "READ ERORR, NO EXCEPTION");
-		}
-		kaddr = kmap_atomic(pg, KM_USER0);
-		memcpy(	buf + br,
-			kaddr + io_boff_to_pageoff(cur_off),
+		FSL_ASSERT (bh != NULL);
+
+		bh = __getblk(io_bdev(io), io_boff_to_blk(io, cur_off), PAGE_SIZE);
+		FSL_ASSERT (bh != NULL);
+		lock_buffer(bh);
+		bh_submit_read(bh);
+		memcpy(	bh->b_data + io_boff_to_blkoff(io, cur_off),
+			buf + br,
 			to_read);
-		kunmap_atomic(kaddr, KM_USER0);
-		page_cache_release(pg);
+		unlock_buffer(bh);
+		__brelse(bh);
+
 		br += to_read;
 	} while (br < byte_c);
 }

@@ -1,6 +1,5 @@
 //#define DEBUG_SCAN
 #include <inttypes.h>
-#include <assert.h>
 #include <string.h>
 #include "runtime.h"
 #include "debug.h"
@@ -122,7 +121,7 @@ static int scan_pointsto(
 
 	DEBUG_SCAN_ENTER();
 
-	assert (pt->pt_iter.it_range != NULL);
+	FSL_ASSERT (pt->pt_iter.it_range != NULL);
 
 	tt = tt_by_num(pt->pt_iter.it_type_dst);
 
@@ -210,7 +209,7 @@ static int scan_virt(struct scan_ctx* ctx, const struct fsl_rtt_virt* vt)
 			continue;
 		}
 
-		assert (ti_cur->ti_td.td_clo.clo_xlate != NULL);
+		FSL_ASSERT (ti_cur->ti_td.td_clo.clo_xlate != NULL);
 
 		DEBUG_SCAN_WRITE("Following virtual %s[%d]", vt->vt_name, i);
 
@@ -342,11 +341,10 @@ int scan_type(struct type_info* ti, const struct scan_ops* sops, void* aux)
 	struct scan_ctx		ctx;
 	int			ret;
 
-	assert (sops != NULL);
+	FSL_ASSERT (sops != NULL);
 
 	if (ti == NULL) return SCAN_RET_CONTINUE;
 	if (ti_typenum(ti) == TYPENUM_INVALID) return SCAN_RET_CONTINUE;
-
 
 	DEBUG_SCAN_ENTER();
 

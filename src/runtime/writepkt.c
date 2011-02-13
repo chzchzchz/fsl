@@ -50,18 +50,21 @@ void wpkt_relocate(
 	rel->rel_alloc.wpi_params(&ti_clo(ti_parent), wpi_params, wpkt_params);
 	fsl_io_do_wpkt(rel->rel_alloc.wpi_wpkt, wpkt_params);
 #ifdef DEBUG_TOOL
-	DEBUG_WRITE("ALLOC PENDING: \n");
+	DEBUG_WRITE("ALLOC PENDING:");
 	fsl_io_dump_pending();
 #endif
 #ifdef NO_WRITES
 	FSL_WRITE_DROP();
 #else
+	DEBUG_TOOL_WRITE("COMPLETINGING ALLOC");
 	FSL_WRITE_COMPLETE();
 #endif
 
+	DEBUG_TOOL_WRITE("ALLOC COMPLETE!");
 #ifndef NO_WRITES
 	typeinfo_phys_copy(replace_choice_ti, rel_sel_ti);
 #endif
+	DEBUG_TOOL_WRITE("PHYS COPY COMPLETE!");
 
 #ifdef DEBUG_TOOL
 	DEBUG_WRITE("COPIED: %"PRIu64" -> %"PRIu64"\n",
@@ -85,7 +88,7 @@ void wpkt_relocate(
 #ifdef DEBUG_TOOL
 	fsl_io_dump_pending();
 #endif
-
+	DEBUG_TOOL_WRITE("STEALING LOG");
 	fsl_io_steal_wlog(fsl_get_io(), &wlog_replace);
 
 	/* wpkt_relink => (sel_idx, choice_idx) */
@@ -102,9 +105,11 @@ void wpkt_relocate(
 #ifdef NO_WRITES
 	FSL_WRITE_DROP();
 #else
+	DEBUG_TOOL_WRITE("COMPLETE WRITE.");
 	FSL_WRITE_COMPLETE();
+	DEBUG_TOOL_WRITE("COMMIT LOG.");
 	fsl_wlog_commit(&wlog_replace);
 #endif
-
+	DEBUG_TOOL_WRITE("FREE REPLACE CHOICE");
 	typeinfo_free(replace_choice_ti);
 }

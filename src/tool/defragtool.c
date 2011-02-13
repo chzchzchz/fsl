@@ -1,9 +1,9 @@
 //#define DEBUG_TOOL
 #include <inttypes.h>
-#include <stdio.h>
-#include <assert.h>
 #include <string.h>
+#include "tool.h"
 #include "debug.h"
+#include "info.h"
 #include "runtime.h"
 #include "type_info.h"
 #include "choice.h"
@@ -29,7 +29,7 @@ static bool is_fragmented(
 
 	sel_cur = sel_min;
 	rel_sel_ti = typeinfo_follow_iter(ti, &rel->rel_sel, sel_cur);
-	assert (rel_sel_ti != NULL);
+	FSL_ASSERT (rel_sel_ti != NULL);
 
 	last_off = ti_phys_offset(rel_sel_ti);
 	last_sz = ti_size(rel_sel_ti);
@@ -39,7 +39,7 @@ static bool is_fragmented(
 		diskoff_t	cur_off, cur_sz;
 
 		rel_sel_ti = typeinfo_follow_iter(ti, &rel->rel_sel, sel_cur);
-		assert (rel_sel_ti != NULL);
+		FSL_ASSERT (rel_sel_ti != NULL);
 		cur_off = ti_phys_offset(rel_sel_ti);
 		cur_sz = ti_size(rel_sel_ti);
 		typeinfo_free(rel_sel_ti);
@@ -94,17 +94,17 @@ static void do_defrag(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 
 	DEBUG_TOOL_WRITE("sel_count: %d", sel_count);
 #ifdef DEBUG_TOOL
-	typeinfo_print_path(ti); printf("\n");
+	typeinfo_print_path(ti); DEBUG_TOOL_WRITE("");
 #endif
 	for (i = 0; i < sel_count; i++) {
 		struct type_info	*ti_sel;
 #ifdef DEBUG_TOOL
 		DEBUG_TOOL_WRITE("Getting sel_idx=%d", sel_min+i);
-		typeinfo_print_path(ti); printf("\n");
+		typeinfo_print_path(ti); DEBUG_TOOL_WRITE("");
 #endif
 		ti_sel = typeinfo_follow_iter(ti, &rel->rel_sel, sel_min+i);
-		assert (ti_sel != NULL);
-		assert(choice_is_free(ccache, (cc_begin+i)));
+		FSL_ASSERT (ti_sel != NULL);
+		FSL_ASSERT (choice_is_free(ccache, (cc_begin+i)));
 		DEBUG_TOOL_WRITE("WPKT_RELOC: sel_idx=%d", sel_min+i);
 		wpkt_relocate(ti, rel, ti_sel, sel_min+i, cc_begin+i);
 		DEBUG_TOOL_WRITE("WPKT_RELOC DONE.");
@@ -113,9 +113,8 @@ static void do_defrag(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 	}
 
 	ccache_cursor += sel_count;
-	if (ccache_cursor > choice_max(ccache)) {
+	if (ccache_cursor > choice_max(ccache))
 		ccache_cursor = choice_min(ccache);
-	}
 }
 
 static int handle_ti(struct type_info* ti, void* aux)
@@ -139,17 +138,17 @@ static int handle_ti(struct type_info* ti, void* aux)
 
 static struct scan_ops ops = { .so_ti = handle_ti };
 
-int tool_entry(int argc, char* argv[])
+TOOL_ENTRY(defrag)
 {
 	struct type_info	*origin_ti;
 
-	printf("Welcome to fsl defrag. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
+	FSL_INFO ("Welcome to fsl defrag. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
 
 	DEBUG_TOOL_WRITE("Origin Type Allocating...\n");
 	origin_ti = typeinfo_alloc_origin();
 	if (origin_ti == NULL) {
-		printf("Could not open origin type\n");
-		printf("Failed assert: %s\n", fsl_env->fctx_failed_assert);
+		FSL_INFO ("Could not open origin type\n");
+		FSL_INFO ("Failed assert: %s\n", fsl_env->fctx_failed_assert);
 		return -1;
 	}
 
@@ -157,6 +156,8 @@ int tool_entry(int argc, char* argv[])
 
 	if (ccache != NULL) choice_free(ccache);
 	typeinfo_free(origin_ti);
+
+	FSL_INFO("fsldefrag: Have a nice day\n");
 
 	return 0;
 }

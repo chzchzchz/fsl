@@ -30,6 +30,7 @@ RT_OBJNAMES =	runtime.o 		\
 		alloc_libc.o		\
 		hits.o			\
 		lookup.o		\
+		info_libc.o		\
 		entry.o			\
 		type_print.o
 
@@ -74,6 +75,8 @@ all: $(TOOL_BINS) $(TOOL_MMAP_BINS) $(OBJDIR)/fs/fsl.$(FSNAME).o $(OBJDIR)/fs/kf
 clean:
 	rm -f $(TOOL_BINS) $(TOOL_MMAP_BINS) $(FS_OBJS)
 
+##PREAD TOOLS#############
+
 $(BINDIR)/fusebrowse-$(FSNAME): $(FS_OBJS) $(FUSEBROWSE_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -lfuse -o $@ $^
 $(BINDIR)/browser-$(FSNAME): $(FS_OBJS) $(BROWSER_OBJS) $(RT_PREAD_OBJS)
@@ -95,6 +98,7 @@ $(BINDIR)/smushtool-$(FSNAME): $(FS_OBJS) $(SMUSHTOOL_OBJS) $(RT_PREAD_OBJS)
 $(BINDIR)/thrashcopy-$(FSNAME): $(FS_OBJS) $(THRASHCOPY_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 
+##MMAP TOOLS#########
 
 $(BINDIR)/mmap/fusebrowse-$(FSNAME): $(FS_OBJS) $(FUSEBROWSE_OBJS) $(RT_MMAP_OBJS)
 	gcc $(CFLAGS) -lfuse -o $@ $^

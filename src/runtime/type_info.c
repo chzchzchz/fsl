@@ -559,6 +559,8 @@ void typeinfo_phys_copy(struct type_info* dst, struct type_info* src)
 	dst_base /= 8;
 
 	buf = fsl_alloc(4096);
+	FSL_ASSERT (buf != NULL);
+
 	xfer_total = 0;
 
 	while (xfer_total < src_sz) {

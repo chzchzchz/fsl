@@ -202,7 +202,7 @@ fsl_io_callback fsl_io_hook(
 	return old_cb;
 }
 
-ssize_t fsl_io_size(struct fsl_rt_io* io)
+uint64_t fsl_io_size(struct fsl_rt_io* io)
 {
 	return io->io_blksize*io->io_blk_c;
 }
@@ -212,6 +212,7 @@ void fsl_io_dump_pending(void)
 	struct fsl_rt_io	*io = fsl_get_io();
 	int			i;
 
+	DEBUG_WRITE("Dumping pending");
 	for (i = 0; i < io->io_wlog.wl_idx; i++) {
 		struct fsl_rt_wlog_ent	*we = &io->io_wlog.wl_write[i];
 		uint64_t	cur_v;
@@ -224,8 +225,9 @@ void fsl_io_dump_pending(void)
 
 		cur_v = __getLocalPhys(we->we_bit_addr, we->we_bits);
 		DEBUG_WRITE(
-			"v=%"PRIu64" (current=%"PRIu64" / 0x%"PRIx64")\n",
+			"v=%"PRIu64" (current=%"PRIu64" / 0x%"PRIx64")",
 			we->we_val,
 			cur_v, cur_v);
 	}
+	DEBUG_WRITE("Done dumping pending");
 }

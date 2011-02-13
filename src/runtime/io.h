@@ -28,7 +28,7 @@ struct fsl_rt_io
 	struct fsl_rt_rlog	io_rlog;
 	struct fsl_rt_wlog	io_wlog;
 	uint32_t		io_blksize;
-	ssize_t			io_blk_c;
+	uint64_t		io_blk_c;
 	struct fsl_rt_io_priv	*io_priv;
 };
 
@@ -56,7 +56,7 @@ void fsl_io_abort_wlog(struct fsl_rt_io* io);
 struct fsl_rt_io* fsl_io_alloc(const char* backing_fname);
 struct fsl_rt_io* fsl_io_alloc_fd(unsigned long fd);
 void fsl_io_free(struct fsl_rt_io* io);
-ssize_t fsl_io_size(struct fsl_rt_io* io);
+uint64_t fsl_io_size(struct fsl_rt_io* io);
 void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits);
 fsl_io_callback fsl_io_hook(struct fsl_rt_io* io, fsl_io_callback, int cb_type);
 void fsl_io_unhook(struct fsl_rt_io* io, int cb_type);

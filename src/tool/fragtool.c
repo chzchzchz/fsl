@@ -29,7 +29,7 @@ static int handle_virt(
 	v_ti = typeinfo_follow_virt(ti, vt, idx, &err);
 	if (v_ti == NULL) return SCAN_RET_CONTINUE;
 	rtm = ti_xlate(v_ti);
-	assert (rtm != NULL && "Vtype => xlate!");
+	FSL_ASSERT (rtm != NULL && "Vtype => xlate!");
 
 	/* read offset for each element */
 	elem_len = fsl_virt_elem_bits(rtm);

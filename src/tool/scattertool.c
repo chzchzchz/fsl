@@ -1,15 +1,12 @@
 /* scatter the data to the windssssss */
 //#define DEBUG_TOOL
-#include <stdio.h>
-#include <stdint.h>
 #include <inttypes.h>
-#include <assert.h>
-#include <stdlib.h>
 #include <string.h>
 #include "runtime.h"
 #include "debug.h"
+#include "info.h"
+#include "tool.h"
 #include "type_info.h"
-#include "bitmap.h"
 #include "scan.h"
 #include "log.h"
 #include "choice.h"
@@ -31,7 +28,7 @@ static int			num_relocs = 0;
 /*
  * get a random free block to replace
  */
-uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
+static uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 {
 	int	i;
 	for (i = 0; i <= 10; i++) {
@@ -39,13 +36,13 @@ uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 		uint64_t	choice_base;
 		int		k;
 
-		rand_choice = rand() % (choice_max(ccache) - choice_min(ccache));
+		rand_choice = FSL_RAND() % (choice_max(ccache) - choice_min(ccache));
 		choice_base = rand_choice + choice_min(ccache);
 		k = choice_find_avail(ccache, choice_base, 1);
 		if (k == -1) continue;
 		/* check cache first. not set => not available */
 		if (choice_is_alloc(ccache, k)) continue;
-		assert (k <= choice_max(ccache) && "Out of bounds choice.");
+		FSL_ASSERT (k <= choice_max(ccache) && "Out of bounds choice.");
 		return k;
 	}
 
@@ -61,14 +58,14 @@ uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 /* compare location of selected with reloc locations */
 /* if reloc location needs to be set, try to swap in */
 /* if rel_sel location is on empty reloc location, try to swap out */
-void swap_rel_sel(
+static void swap_rel_sel(
 	struct type_info* ti, const struct fsl_rtt_reloc* rel,
 	struct type_info* rel_sel_ti, unsigned int sel_v)
 {
 	uint64_t		replace_choice_idx;
 
 	/* limit fragmentation to user defined percentage */
-	if ((rand() % 100) > frag_percent) return;
+	if ((FSL_RAND() % 100) > frag_percent) return;
 
 	/* already in an OK place, don't do anything
 	 * (in future, may want to steal if we have overlaps) */
@@ -87,15 +84,14 @@ void swap_rel_sel(
 	wpkt_relocate(ti, rel, rel_sel_ti, sel_v, replace_choice_idx);
 	num_relocs++;
 	if ((num_relocs % 100) == 0) {
-		printf("NUM RELOCS: %d\r", num_relocs);
-		fflush(stdout);
+		FSL_INFO("NUM RELOCS: %d\r", num_relocs);
 	}
 	choice_mark_alloc(ccache, replace_choice_idx);
 
 	DEBUG_TOOL_LEAVE();
 }
 
-void do_rel_type(struct type_info* ti, const struct fsl_rtt_reloc* rel)
+static void do_rel_type(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 {
 	const struct fsl_rtt_type	*dst_type;
 	int				sel_cur, sel_min, sel_max;
@@ -126,7 +122,7 @@ void do_rel_type(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 	}
 }
 
-int ti_handle(struct type_info* ti, struct scatterscan_info* rinfo)
+static int ti_handle(struct type_info* ti, struct scatterscan_info* rinfo)
 {
 	const struct fsl_rtt_type	*tt;
 	unsigned int			i;
@@ -146,37 +142,36 @@ int ti_handle(struct type_info* ti, struct scatterscan_info* rinfo)
 	return SCAN_RET_CONTINUE;
 }
 
-struct scan_ops ops = { .so_ti = (scan_ti_f)ti_handle };
+static struct scan_ops ops = { .so_ti = (scan_ti_f)ti_handle };
 
-int tool_entry(int argc, char* argv[])
+TOOL_ENTRY(scatter)
 {
 	struct type_info	*origin_ti;
 	struct scatterscan_info	info;
 
-	printf("Welcome to fsl scatter. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
-	srand(0);
-	assert (argc >= 0 && "./scattertool hd.img [fragpercent]");
-	if (argc > 0) frag_percent = atoi(argv[0]);
+	FSL_INFO("Welcome to fsl scatter. Filesystem mode: \"%s\"\n", fsl_rt_fsname);
+	FSL_ASSERT (argc >= 0 && "./scattertool hd.img [fragpercent]");
+	if (argc > 0) frag_percent = FSL_ATOI(argv[0]);
 
 	DEBUG_TOOL_WRITE("Origin Type Allocating...\n");
 	origin_ti = typeinfo_alloc_origin();
 	if (origin_ti == NULL) {
-		printf("Could not open origin type\n");
-		printf("Failed assert: %s\n", fsl_env->fctx_failed_assert);
+		FSL_INFO("Could not open origin type\n");
+		FSL_INFO("Failed assert: %s\n", fsl_env->fctx_failed_assert);
 		return -1;
 	}
 
 	DEBUG_TOOL_WRITE("Origin Type Now Allocated");
 
-	printf("Scattering with fragmentation percentage %d%%\n", frag_percent);
+	FSL_INFO("Scattering with fragmentation percentage %d%%\n", frag_percent);
 
 	info.rel_c = 0;
 	scan_type(origin_ti, &ops, &info);
-	printf("\nDone relocating.\n");
+	FSL_INFO("\nDone relocating.\n");
 	if (ccache != NULL) choice_free(ccache);
 
 	typeinfo_free(origin_ti);
 
-	printf("Have a nice day\n");
+	FSL_INFO("Have a nice day\n");
 	return 0;
 }

@@ -5,6 +5,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <stdlib.h>
+#define FSL_RAND()	rand()
+#define FSL_ATOI(x)	atoi(x)
+#else
+#include <stdbool.h>
+#include <linux/random.h>
+#define FSL_RAND()	random32()
+#define FSL_ATOI(x)	simple_strtol(x, NULL, 10)
 #endif
 
 /* XXX TODO Needs local context for multi-threading.. */
