@@ -8,6 +8,7 @@ util/draw.vfat.sh
 util/draw.nilfs2.sh
 util/draw.iso9660.sh
 util/draw.reiserfs.sh
+util/draw.xfs.sh
 util/draw.minix.sh
 end_time=`date +%s`
 

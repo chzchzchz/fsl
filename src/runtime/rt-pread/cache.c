@@ -77,10 +77,11 @@ static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line
 			fsl_env->fctx_except.ex_err_unsafe_op = 1;
 
 		DEBUG_WRITE ("BAD PREAD bit_off=%"PRIu64
-				" br=%"PRIu64". bits=%"PRIu64,
+				" br=%"PRIu64". cache_line_bits=%"PRIu64,
 			file_offset*8, br, (uint64_t)FSL_IO_CACHE_BITS);
 
 		FSL_ASSERT (0 == 1 && "READ ERORR, NO EXCEPTION");
+		exit(1);
 	}
 
 	return ce->ce_data;

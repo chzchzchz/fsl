@@ -99,6 +99,7 @@ RTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/runtime/%)
 KLEERTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/klee/runtime/%)
 RTKOBJSOUT := $(KERN_RTOBJS:%=$(OBJDIR)/kernel/%)
 TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/tool/%)
+KLEETOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/klee/tool/%)
 KTOOLOBJSOUT := $(KERN_TOOLOBJS:%=$(OBJDIR)/kernel/tool/%)
 LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/compiler/%)
 
@@ -122,7 +123,8 @@ ifdef LINUX_SRCDIR
 	cd kernel; make; cd ..
 endif
 
-klee: $(KLEERTOBJSOUT)
+#KLEE
+klee: $(KLEERTOBJSOUT) $(KLEETOOLOBJSOUT)
 
 $(OBJDIR)/klee/runtime/%.o: runtime/%.c
 	llvm-gcc $(RTCFLAGS) --emit-llvm -Iruntime/ -c $< -o $@
@@ -132,11 +134,10 @@ $(OBJDIR)/klee/runtime/io_pread.o: 	\
 	llvm-ld -r -o $@ $^
 $(OBJDIR)/klee/runtime/io_mmap.o: $(OBJDIR)/klee/runtime/rt-mmap/io.o
 	cp $^ $@
+$(OBJDIR)/klee/tool/%.o: tool/%.c
+	llvm-gcc $(RTCFLAGS) --emit-llvm -Iruntime/ -c $< -o $@
 
-$(BINDIR)/lang:  $(LANGOBJSOUT) $(RTOBJSOUT) $(TOOLOBJSOUT)
-	g++ $(DEBUG_FLAG) -O3 $(LANGOBJSOUT) $(LLVM_FLAGS) -o $@
-	cd tool && make clean	# outdated now..
-
+# LANGUAGE
 compiler/parser.hh: compiler/parser.cc
 
 compiler/parser.cc: compiler/parser.y
@@ -145,6 +146,11 @@ compiler/parser.cc: compiler/parser.y
 compiler/lex.yy.cc: compiler/lang.lex
 	flex -o $@ $^
 
+$(BINDIR)/lang:  $(LANGOBJSOUT) $(RTOBJSOUT) $(TOOLOBJSOUT)
+	g++ $(DEBUG_FLAG) -O3 $(LANGOBJSOUT) $(LLVM_FLAGS) -o $@
+	cd tool && make clean	# outdated now..
+
+# TOOLS
 $(OBJDIR)/tool/%.o: tool/%.c
 	gcc $(RTCFLAGS) -Iruntime/ -c $< -o $@
 
@@ -176,6 +182,7 @@ clean:
 	$(RTKOBJSOUT)	\
 	$(TOOLOBJSOUT)	\
 	$(KLEERTOBJSOUT) \
+	$(KLEETOOLOBJSOUT) \
 	$(OBJDIR)/fs/*
 	cd tool && make clean
 	cd kernel && make clean

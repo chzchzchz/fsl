@@ -22,6 +22,7 @@ export LINUX_SRCDIR
 all: code tools tests draw
 
 clean: code-clean tests-clean
+	rm -f bin/*-* bin/lang bin/*/*
 
 draw: draw-hits draw-scans draw-relocs
 

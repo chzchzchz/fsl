@@ -12,11 +12,16 @@ endif
 
 FS_OBJNAMES= fsl.$(FSNAME).table.o fsl.$(FSNAME).types.o
 FS_OBJS := $(FS_OBJNAMES:%=$(OBJDIR)/fs/%)
+KLEE_FS_OBJNAMES= fsl.$(FSNAME).table.bc fsl.$(FSNAME).types.bc
+KLEE_FS_OBJS := $(KLEE_FS_OBJNAMES:%=$(OBJDIR)/fs/%)
+
 TOOL_NAMES= 	browser modify scantool fragtool 		\
 		relocate defragtool scattertool smushtool	\
 		fusebrowse thrashcopy
+KLEE_TOOL_NAMES= browser scantool scattertool smushtool thrashcopy defragtool
 
 TOOL_BINS := $(TOOL_NAMES:%=$(BINDIR)/%-$(FSNAME))
+KLEE_BINS := $(KLEE_TOOL_NAMES:%=$(BINDIR)/klee/%-$(FSNAME).bc)
 TOOL_MMAP_BINS := $(TOOL_NAMES:%=$(BINDIR)/mmap/%-$(FSNAME))
 
 RT_OBJNAMES =	runtime.o 		\
@@ -41,6 +46,9 @@ RT_MMAP_OBJS := $(RT_MMAP_OBJNAMES:%=$(OBJDIR)/runtime/%)
 SCAN_OBJS := $(OBJDIR)/runtime/scan.o
 WRITE_OBJNAMES = scan.o choice.o writepkt.o bitmap.o
 WRITE_OBJS := $(WRITE_OBJNAMES:%=$(OBJDIR)/runtime/%)
+KLEE_WRITE_OBJS := $(WRITE_OBJNAMES:%=$(OBJDIR)/klee/runtime/%)
+KLEE_RT_PREAD_OBJS := $(RT_PREAD_OBJNAMES:%=$(OBJDIR)/klee/runtime/%)
+KLEE_SCAN_OBJS := $(OBJDIR)/klee/runtime/scan.o
 
 SCANTOOL_OBJNAMES=scantool.o
 FRAGTOOL_OBJNAMES=fragtool.o
@@ -64,19 +72,42 @@ SCATTERTOOL_OBJS:=$(SCATTERTOOL_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
 FUSEBROWSE_OBJS:=$(FUSEBROWSE_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
 THRASHCOPY_OBJS:=$(THRASHCOPY_OBJNAMES:%=$(OBJDIR)/tool/%) $(WRITE_OBJS)
 
+KLEE_SCANTOOL_OBJS:=$(SCANTOOL_OBJNAMES:%=$(OBJDIR)/klee/tool/%) $(KLEE_SCAN_OBJS)
+KLEE_BROWSER_OBJS:=$(BROWSER_OBJNAMES:%=$(OBJDIR)/klee/tool/%) $(KLEE_WRITE_OBJS)
+KLEE_DEFRAGTOOL_OBJS:=$(DEFRAGTOOL_OBJNAMES:%=$(OBJDIR)/klee/tool/%) $(KLEE_WRITE_OBJS)
+KLEE_SMUSHTOOL_OBJS:=$(SMUSHTOOL_OBJNAMES:%=$(OBJDIR)/klee/tool/%) $(KLEE_WRITE_OBJS)
+KLEE_SCATTERTOOL_OBJS:=$(SCATTERTOOL_OBJNAMES:%=$(OBJDIR)/klee/tool/%) $(KLEE_WRITE_OBJS)
+KLEE_THRASHCOPY_OBJS:=$(THRASHCOPY_OBJNAMES:%=$(OBJDIR)/klee/tool/%) $(KLEE_WRITE_OBJS)
+
 SRC_FSL=$(FSSRCDIR)/$(FSNAME).fsl
 SRC_FSL_ALL=$(wildcard ../../fs/$(FSNAME)*.fsl)
 FS_CAPITAL=$(shell echo $(FSNAME) | sed "s/[a-z]/\U&/g")
 FS_DEFINE=-DFS_$(FS_CAPITAL)
 CFLAGS+= $(FS_DEFINE)
 
-all: $(TOOL_BINS) $(TOOL_MMAP_BINS) $(OBJDIR)/fs/fsl.$(FSNAME).o $(OBJDIR)/fs/kfsl.$(FSNAME).o
+all:	$(TOOL_BINS) $(TOOL_MMAP_BINS) \
+	$(KLEE_BINS)	\
+	$(OBJDIR)/fs/fsl.$(FSNAME).o $(OBJDIR)/fs/kfsl.$(FSNAME).o
 
 clean:
 	rm -f $(TOOL_BINS) $(TOOL_MMAP_BINS) $(FS_OBJS)
 
-##PREAD TOOLS#############
+#KLEE TOOLS
+$(BINDIR)/klee/browser-$(FSNAME).bc: $(KLEE_FS_OBJS) $(KLEE_BROWSER_OBJS) $(KLEE_RT_PREAD_OBJS)
+	llvm-link -o $@ $^
+$(BINDIR)/klee/scantool-$(FSNAME).bc: $(KLEE_FS_OBJS) $(KLEE_SCANTOOL_OBJS) $(KLEE_RT_PREAD_OBJS)
+	llvm-link -o $@ $^
+$(BINDIR)/klee/scattertool-$(FSNAME).bc: $(KLEE_FS_OBJS) $(KLEE_SCATTERTOOL_OBJS) $(KLEE_RT_PREAD_OBJS)
+	llvm-link -o $@ $^
+$(BINDIR)/klee/smushtool-$(FSNAME).bc: $(KLEE_FS_OBJS) $(KLEE_SMUSHTOOL_OBJS) $(KLEE_RT_PREAD_OBJS)
+	llvm-link -o $@ $^
+$(BINDIR)/klee/thrashcopy-$(FSNAME).bc: $(KLEE_FS_OBJS) $(KLEE_THRASHCOPY_OBJS) $(KLEE_RT_PREAD_OBJS)
+	llvm-link -o $@ $^
+$(BINDIR)/klee/defragtool-$(FSNAME).bc: $(KLEE_FS_OBJS) $(KLEE_DEFRAGTOOL_OBJS) $(KLEE_RT_PREAD_OBJS)
+	llvm-link -o $@ $^
 
+
+##PREAD TOOLS#############
 $(BINDIR)/fusebrowse-$(FSNAME): $(FS_OBJS) $(FUSEBROWSE_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -lfuse -o $@ $^
 $(BINDIR)/browser-$(FSNAME): $(FS_OBJS) $(BROWSER_OBJS) $(RT_PREAD_OBJS)
@@ -99,7 +130,6 @@ $(BINDIR)/thrashcopy-$(FSNAME): $(FS_OBJS) $(THRASHCOPY_OBJS) $(RT_PREAD_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 
 ##MMAP TOOLS#########
-
 $(BINDIR)/mmap/fusebrowse-$(FSNAME): $(FS_OBJS) $(FUSEBROWSE_OBJS) $(RT_MMAP_OBJS)
 	gcc $(CFLAGS) -lfuse -o $@ $^
 $(BINDIR)/mmap/browser-$(FSNAME): $(FS_OBJS) $(BROWSER_OBJS) $(RT_MMAP_OBJS)
@@ -121,8 +151,7 @@ $(BINDIR)/mmap/smushtool-$(FSNAME): $(FS_OBJS) $(SMUSHTOOL_OBJS) $(RT_MMAP_OBJS)
 $(BINDIR)/mmap/thrashcopy-$(FSNAME): $(FS_OBJS) $(THRASHCOPY_OBJS) $(RT_MMAP_OBJS)
 	gcc $(CFLAGS) -o $@ $^
 
-
-# KERNEL SPACE
+# KERNEL SPACE FS MODULES
 $(OBJDIR)/fs/kfsl.$(FSNAME).o: $(OBJDIR)/fs/kfsl.$(FSNAME).table.o $(OBJDIR)/fs/kfsl.$(FSNAME).types.o
 	ld -r -o $@ $^
 
@@ -135,7 +164,7 @@ $(OBJDIR)/fs/kfsl.$(FSNAME).types.o: $(OBJDIR)/fs/kfsl.$(FSNAME).types.s
 $(OBJDIR)/fs/kfsl.$(FSNAME).types.s: $(OBJDIR)/fs/fsl.$(FSNAME).types.bc
 	llc -disable-red-zone -code-model=kernel $(LLC_FLAGS)  $< -o $@
 
-# USER SPACE
+# USER SPACE FS MODULES
 $(OBJDIR)/fs/fsl.$(FSNAME).o: $(OBJDIR)/fs/fsl.$(FSNAME).table.o $(OBJDIR)/fs/fsl.$(FSNAME).types.o
 	ld -r -o $@ $^
 
@@ -153,3 +182,6 @@ $(OBJDIR)/fs/fsl.$(FSNAME).types.bc: $(OBJDIR)/fs/fsl.$(FSNAME).types.ll
 
 $(OBJDIR)/fs/fsl.$(FSNAME).table.c $(OBJDIR)/fs/fsl.$(FSNAME).types.ll: $(SRC_FSL_ALL)
 	cd $(OBJDIR)/fs/ && $(BINDIR)/lang $(FSNAME) <$(SRC_FSL) 2>$(FSNAME).err
+
+$(OBJDIR)/fs/fsl.$(FSNAME).table.bc: $(OBJDIR)/fs/fsl.$(FSNAME).table.c
+	llvm-gcc $(CFLAGS) --emit-llvm -I.. -c $^ -o $@
