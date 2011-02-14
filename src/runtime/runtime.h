@@ -10,7 +10,8 @@
 #define FSL_ATOI(x)	atoi(x)
 #else
 #include <stdbool.h>
-#include <linux/random.h>
+extern uint32_t random32(void);
+extern long simple_strtol(const char*, char**, unsigned int);
 #define FSL_RAND()	random32()
 #define FSL_ATOI(x)	simple_strtol(x, NULL, 10)
 #endif

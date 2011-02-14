@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "info.h"
 
 void fsl_info_write(const char* fmt, ...)
