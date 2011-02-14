@@ -8,16 +8,7 @@
 #include "type_info.h"
 #include "scan.h"
 
-#define INDENT(x)	print_indent(ti_depth(x))
-
-static void print_indent(unsigned int depth)
-{
-	while (depth) {
-		printf(" ");
-		depth--;
-	}
-}
-
+#if 0
 static void dump_field(const struct fsl_rtt_field* field, diskoff_t bitoff)
 {
 	printf("%s::", field->tf_fieldname);
@@ -28,17 +19,7 @@ static void dump_field(const struct fsl_rtt_field* field, diskoff_t bitoff)
 
 	printf("@offset=0x%" PRIx64 " (%" PRIu64 ")\n", bitoff, bitoff);
 }
-
-static int handle_strong(
-	struct type_info* ti,
-	const struct fsl_rtt_field* field, void* aux)
-{
-	size_t		off;
-	INDENT(ti);
-	off = field->tf_fieldbitoff(&ti_clo(ti));
-	dump_field(field, off);
-	return SCAN_RET_CONTINUE;
-}
+#endif
 
 static int handle_ti(struct type_info* ti, void* aux)
 {
@@ -75,11 +56,7 @@ done:
 	return SCAN_RET_CONTINUE;
 }
 
-struct scan_ops ops =
-{
-	.so_ti = handle_ti,
-//	.so_strong = handle_strong
-};
+struct scan_ops ops = { .so_ti = handle_ti };
 
 int tool_entry(int argc, char* argv[])
 {

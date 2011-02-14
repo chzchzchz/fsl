@@ -34,6 +34,9 @@ draw-scans:
 draw-relocs:
 	util/draw_all_relocs.sh
 
+klee:
+	cd src && $(MAKECMD) klee && cd ..
+
 code:
 	cd src && $(MAKECMD) && cd ..
 

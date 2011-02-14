@@ -59,6 +59,7 @@ static const char* chop_head(const char* v)
 	return dot_loc;
 }
 
+#if 0
 static bool get_idx(const char* cur, int* idx)
 {
 	char	*next_bracket;
@@ -84,6 +85,7 @@ static bool get_idx(const char* cur, int* idx)
 
 	return true;
 }
+#endif
 
 static char* get_name(const char* cur)
 {

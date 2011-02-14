@@ -24,7 +24,7 @@ void fsl_io_cache_init(struct fsl_io_cache* ioc)
 {
 	unsigned int	i;
 
-	assert (ioc != NULL);
+	FSL_ASSERT (ioc != NULL);
 
 	memset(ioc, 0, sizeof(struct fsl_io_cache));
 	for (i = 0; i < FSL_IO_CACHE_ENTS; i++)
@@ -68,21 +68,19 @@ static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line
 	/* get fresh line */
 	ce = fsl_io_cache_evict(&iop->iop_cache, cache_line);
 	ce->ce_addr = cache_line;
-	assert (ce != NULL);
+	FSL_ASSERT (ce != NULL);
 
 	file_offset = cache_line * FSL_IO_CACHE_BYTES;
 	br = pread64(iop->iop_fd, ce->ce_data, FSL_IO_CACHE_BYTES, file_offset);
 	if (br != FSL_IO_CACHE_BYTES) {
-		if (fsl_env->fctx_except.ex_in_unsafe_op) {
+		if (fsl_env->fctx_except.ex_in_unsafe_op)
 			fsl_env->fctx_except.ex_err_unsafe_op = 1;
-			longjmp(fsl_env->fctx_except.ex_jmp, 1);
-		}
 
-		fprintf(stderr, "BAD PREAD bit_off=%"PRIu64
-				" br=%"PRIu64". bits=%"PRIu64"\n",
+		DEBUG_WRITE ("BAD PREAD bit_off=%"PRIu64
+				" br=%"PRIu64". bits=%"PRIu64,
 			file_offset*8, br, (uint64_t)FSL_IO_CACHE_BITS);
 
-		assert (0 == 1 && "READ ERORR, NO EXCEPTION");
+		FSL_ASSERT (0 == 1 && "READ ERORR, NO EXCEPTION");
 	}
 
 	return ce->ce_data;
@@ -103,12 +101,12 @@ uint64_t fsl_io_cache_get_unaligned(
 
 	line_begin = bit_off / FSL_IO_CACHE_BITS;
 	line_end = ((bit_off + num_bits - 1) / FSL_IO_CACHE_BITS);
-	assert ((line_begin+1) == line_end && "Cache lines too small?");
+	FSL_ASSERT ((line_begin+1) == line_end && "Cache lines too small?");
 
 	cache_line[0] = fsl_io_cache_hitmiss(io, bit_off);
 	cache_line[1] = fsl_io_cache_hitmiss(io, bit_off + FSL_IO_CACHE_BITS);
 
-	assert ((bit_off % 8) == 0);
+	FSL_ASSERT ((bit_off % 8) == 0);
 
 	cache0_off = (bit_off / 8) - (line_begin*FSL_IO_CACHE_BYTES);
 	cache0_len = FSL_IO_CACHE_BYTES - cache0_off;
@@ -116,8 +114,8 @@ uint64_t fsl_io_cache_get_unaligned(
 	memcpy(join_buf, &cache_line[0][cache0_off], cache0_len);
 	memcpy(&join_buf[cache0_len], cache_line[1], cache1_len);
 	buf_len = cache0_len + cache1_len;
-	assert (buf_len <= 8);
-	assert (((num_bits / 8)-1) < 8);
+	FSL_ASSERT (buf_len <= 8);
+	FSL_ASSERT (((num_bits / 8)-1) < 8);
 
 	// copy bits, byte by byte
 	// XXX need to change to support arbitrary endians (this is little)
@@ -150,7 +148,7 @@ const uint8_t *fsl_io_cache_hitmiss(struct fsl_rt_io* io, uint64_t bit_off)
 		if (io->io_cb_hit != NULL) io->io_cb_hit(io, bit_off);
 	}
 
-	assert (cache_line != NULL);
+	FSL_ASSERT (cache_line != NULL);
 
 	return cache_line;
 }
@@ -175,7 +173,7 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 	cache_line = fsl_io_cache_hitmiss(io, bit_off);
 	cache_line += (bit_off/8) % FSL_IO_CACHE_BYTES;
 
-	assert ((bit_off % 8) == 0 && "NOT BYTE ALIGNED??");
+	FSL_ASSERT ((bit_off % 8) == 0 && "NOT BYTE ALIGNED??");
 
 	// copy bits
 	// XXX need to change to support arbitrary endians (this is little)
@@ -206,8 +204,9 @@ uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits)
 		ret = ((const uint64_t*)cache_line)[0];
 		break;
 	default:
-		fprintf(stderr, "DAY DREAM %d\n", num_bits/8);
-		assert (0 == 1);
+		ret = 0;
+		DEBUG_WRITE("WTF %d\n", num_bits/8);
+		FSL_ASSERT (0 == 1);
 	}
 	ret >>= bit_off % 8;
 	if (num_bits < 64) ret &= (1LL << num_bits)-1;

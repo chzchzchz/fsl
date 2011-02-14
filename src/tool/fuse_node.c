@@ -1,6 +1,7 @@
 #include "fuse_node.h"
 #include "type_info.h"
 #include "runtime.h"
+#include "lookup.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -108,7 +109,6 @@ static struct type_info* ti_from_relpath(
 		}
 	}
 
-know_cur_ti:
 	free(elem);
 	if (cur_ti == NULL) return NULL;
 

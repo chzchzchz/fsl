@@ -17,7 +17,6 @@ static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx);
 uint64_t fsl_virt_xlate_safe(
 	const struct fsl_rt_closure* clo, uint64_t bit_voff)
 {
-	statenum_t	sn;
 	uint64_t	ret;
 
 	FSL_ASSERT (fsl_env->fctx_except.ex_in_unsafe_op == false);

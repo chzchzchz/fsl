@@ -81,14 +81,14 @@ KERN_RTOBJS=	runtime.o	\
 		type_print.o	\
 		virt.o		\
 		io.o		\
-		max.o			\
-		debug.o			\
-		log.o			\
-		bitmap.o		\
-		scan.o			\
-		choice.o		\
-		writepkt.o		\
-		lookup.o		\
+		max.o		\
+		debug.o		\
+		log.o		\
+		bitmap.o	\
+		scan.o		\
+		choice.o	\
+		writepkt.o	\
+		lookup.o	\
 
 KERN_TOOLOBJS = smushtool.o scattertool.o defragtool.o
 
@@ -96,6 +96,7 @@ TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o \
 		scattertool.o smushtool.o fuse-browser.o fuse_node.o thrashcopy.o
 
 RTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/runtime/%)
+KLEERTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/klee/runtime/%)
 RTKOBJSOUT := $(KERN_RTOBJS:%=$(OBJDIR)/kernel/%)
 TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/tool/%)
 KTOOLOBJSOUT := $(KERN_TOOLOBJS:%=$(OBJDIR)/kernel/tool/%)
@@ -111,7 +112,7 @@ RTKCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -mcmodel=kernel -mno-red-zone -Wall  -D__KE
 export CFLAGS
 export OBJDIR
 
-all: $(BINDIR)/lang $(KTOOLOBJSOUT)
+all: $(BINDIR)/lang $(KTOOLOBJSOUT) klee
 
 scantool: $(BINDIR)/lang
 	cd tool && $(MAKECMD)  all
@@ -120,6 +121,17 @@ kern: $(RTKOBJSOUT)
 ifdef LINUX_SRCDIR
 	cd kernel; make; cd ..
 endif
+
+klee: $(KLEERTOBJSOUT)
+
+$(OBJDIR)/klee/runtime/%.o: runtime/%.c
+	llvm-gcc $(RTCFLAGS) --emit-llvm -Iruntime/ -c $< -o $@
+$(OBJDIR)/klee/runtime/io_pread.o: 	\
+	$(OBJDIR)/klee/runtime/rt-pread/io.o \
+	$(OBJDIR)/klee/runtime/rt-pread/cache.o
+	llvm-ld -r -o $@ $^
+$(OBJDIR)/klee/runtime/io_mmap.o: $(OBJDIR)/klee/runtime/rt-mmap/io.o
+	cp $^ $@
 
 $(BINDIR)/lang:  $(LANGOBJSOUT) $(RTOBJSOUT) $(TOOLOBJSOUT)
 	g++ $(DEBUG_FLAG) -O3 $(LANGOBJSOUT) $(LLVM_FLAGS) -o $@
@@ -157,6 +169,13 @@ $(OBJDIR)/runtime/io_mmap.o: $(OBJDIR)/runtime/rt-mmap/io.o
 	cp $^ $@
 
 clean: 
-	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll $(OBJDIR)/*.o $(OBJDIR)/fs/* $(OBJDIR)/runtime/*.o $(BINDIR)/*-* $(BINDIR)/lang $(BINDIR)/mmap/* $(OBJDIR)/compiler/*.o kernel/*.o kernel/*.ko $(OBJDIR)/kernel/*
+	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll \
+	$(RTOBJSOUT) \
+	$(LANGOBJSOUT) \
+	$(KTOOLOBJSOUT)	\
+	$(RTKOBJSOUT)	\
+	$(TOOLOBJSOUT)	\
+	$(KLEERTOBJSOUT) \
+	$(OBJDIR)/fs/*
 	cd tool && make clean
 	cd kernel && make clean
