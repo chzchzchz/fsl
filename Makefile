@@ -12,6 +12,7 @@ export CFLAGS
 OBJDIR=$(shell pwd)/obj/
 BINDIR=$(shell pwd)/bin/
 FSSRCDIR=$(shell pwd)/fs/
+KLEEBINDIR=/home/chz/src/klee/Release/bin/
 export OBJDIR
 export BINDIR
 export FSSRCDIR
@@ -55,6 +56,20 @@ code-clean:
 
 tests: code tools
 	tests/do_all_tests.sh
+
+KLEEFLAGS=-max-instruction-time=30.  --max-memory-inhibit=false   --use-random-path -max-static-fork-pct=30 -max-static-solve-pct=30 --max-static-cpfork-pct=30  --disable-inlining --use-interleaved-covnew-NURS  --use-batching-search --batch-instructions 1000   -weight-type=covnew  --only-output-states-covering-new  -use-cache -use-cex-cache --optimize -libc=uclibc -posix-runtime -init-env
+KLEEENV=-sym-args 2 2 64 -sym-files  1 4194304
+
+
+TESTS_KLEE=$(FSNAMES:%=tests-klee-%)
+tests-klee: $(TESTS_KLEE)
+tests-klee-%:
+	mkdir -p tests/klee-`echo $@ | cut -f3 -d- `
+	cp $(BINDIR)/klee/scantool-`echo $@ | cut -f3 -d- `.bc \
+		tests/klee-`echo $@ | cut -f3 -d- `/
+	cd tests/klee-`echo $@ | cut -f3 -d-` && \
+	$(KLEEBINDIR)/klee $(KLEEFLAGS) ./scantool-`echo $@ | cut -f3 -d-`.bc \
+		$(KLEEENV)
 
 tests-mmap:
 	TOOL_RT=mmap tests/do_all_tests.sh

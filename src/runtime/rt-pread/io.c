@@ -85,14 +85,14 @@ struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 	ret->io_priv->iop_fd = fd;
 	ret->io_blksize = s.st_blksize;
 	if (S_ISBLK(s.st_mode)) {
-		if (ioctl(fd, BLKGETSIZE, &ret->io_blk_c) != 0) {
-			free(ret);
-			return NULL;
-		}
+		if (ioctl(fd, BLKGETSIZE, &ret->io_blk_c) != 0)
+			goto error_bad_blkgetsz;
 		ret->io_blk_c *= 512;
 	} else {
 		ret->io_blk_c = lseek64(ret->io_priv->iop_fd, 0, SEEK_END);
 	}
+	if (ret->io_blksize == 0) goto error_bad_blksz;
+
 	ret->io_blk_c /= ret->io_blksize;
 
 	fsl_rlog_init(ret);
@@ -100,6 +100,12 @@ struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 	fsl_io_cache_init(&ret->io_priv->iop_cache);
 
 	return ret;
+error_bad_blkgetsz:
+error_bad_blksz:
+	close(fd);
+	free(ret->io_priv);
+	free(ret);
+	return NULL;
 }
 
 void fsl_io_free(struct fsl_rt_io* io)

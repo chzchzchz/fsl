@@ -42,6 +42,7 @@ static int handle_ti(struct type_info* ti, void* aux)
 	printf("\n");
 #endif
 
+#ifndef USE_KLEE
 	printf("{ 'Mode' : 'Scan', 'voff' : %"PRIu64
 		", 'poff' : %"PRIu64
 		", 'size': %"PRIu64
@@ -50,7 +51,7 @@ static int handle_ti(struct type_info* ti, void* aux)
 		voff, poff, size,
 		tt_by_ti(ti)->tt_name,
 		ti_depth(ti));
-
+#endif
 done:
 	DEBUG_TOOL_LEAVE();
 	return SCAN_RET_CONTINUE;

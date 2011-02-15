@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <inttypes.h>
 #include <stdlib.h>
 #include "io.h"
@@ -44,10 +45,10 @@ static struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
 
 	fsl_ctx = fsl_alloc(sizeof(struct fsl_rt_ctx));
 	if (fsl_ctx == NULL) return NULL;
+	memset(fsl_ctx, 0, sizeof(*fsl_ctx));
 
 	fsl_ctx->fctx_io = fsl_io_alloc(fsl_rt_backing_fname);
 	fsl_ctx->fctx_num_types = fsl_num_types;
-	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
 
 	fsl_vars_from_env(fsl_ctx);
 
@@ -58,7 +59,7 @@ static struct fsl_rt_ctx* fsl_rt_init(const char* fsl_rt_backing_fname)
  * set some stuff up and then run tool */
 int main(int argc, char* argv[])
 {
-	int	tool_ret;
+	int		tool_ret;
 
 	if (argc < 2) {
 		fprintf(stderr, "Usage: %s filename [tool opts]\n", argv[0]);
@@ -73,6 +74,7 @@ int main(int argc, char* argv[])
 
 	/* track hits, if applicable */
 	fsl_hits_init();
+
 	fsl_load_memo();
 
 	tool_ret = tool_entry(argc-2, argv+2);

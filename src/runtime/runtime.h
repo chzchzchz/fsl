@@ -306,7 +306,7 @@ uint64_t __max6(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 		uint64_t a5);
 uint64_t __max7(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 		uint64_t a5, uint64_t a6);
-uint64_t fsl_fail(void);
+uint64_t fsl_fail(uint64_t);
 
 /* not exposed to llvm */
 void fsl_rt_uninit(struct fsl_rt_ctx* ctx);

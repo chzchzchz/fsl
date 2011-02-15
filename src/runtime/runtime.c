@@ -46,8 +46,7 @@ void __debugClosureOutcall(uint64_t typenum, struct fsl_rt_closure* clo)
 		clo->clo_xlate);
 }
 
-/* TODO FSL_FAILED should have some unique number so we know why we failed */
-uint64_t fsl_fail(void)
+uint64_t fsl_fail(uint64_t x)
 {
 	DEBUG_WRITE("Failed for some reason...\n");
 	FSL_ASSERT (0 == 1);

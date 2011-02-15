@@ -1,3 +1,28 @@
+u64 assert_nonzero(u64 x) { if (x == 0) return fsl_fail(0); return x; }
+int blks_per_grp() { return assert_nonzero(disk.sb.s_blks_per_grp); }
+int blknum_to_grp(blknum_t blknum) { return (blknum-1) / blks_per_grp(); }
+int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % blks_per_grp(); }
+
+int get_total_blks() { return assert_nonzero(disk.sb.s_blocks_c); }
+int get_block_size() { return assert_nonzero(1024 << disk.sb.s_log_block_sz); }
+
+int get_group_count()
+{
+	ext2_sb	sb = disk.sb;
+	return assert_nonzero(
+		1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/sb.s_blks_per_grp));
+}
+
+uint blocks_per_indir() { return assert_nonzero(get_block_size()/4); }
+
+int bit_add_offset() { if (get_block_size() > 1024) return 1; return 0; }
+
+int inode_table_block_count()
+{
+	u32	needed_bytes = sizeof_bytes(ext2_inode)*disk.sb.s_inos_per_grp;
+	return assert_nonzero((needed_bytes+get_block_size()-1)/get_block_size());
+}
+
 u32 indir_count(ext2_indir_block id)
 {
 	u32	max_blks = get_block_size()/4;
@@ -24,21 +49,6 @@ bool is_blk_avail(blknum_t blknum)
 	return false;
 }
 
-int blknum_to_grp(blknum_t blknum) { return (blknum-1) / blks_per_grp(); }
-int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % blks_per_grp(); }
-
-int get_total_blks() { return disk.sb.s_blocks_c; }
-
-int get_block_size() { return (1024 << disk.sb.s_log_block_sz); }
-
-int get_group_count()
-{
-	ext2_sb	sb = disk.sb;
-	return 1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/sb.s_blks_per_grp);
-}
-
-int blks_per_grp() { return disk.sb.s_blks_per_grp; }
-
 ext2_bmp_blk get_group_bmp(int grpnum)
 {
 	blknum_t 	bmp_blknum = disk.grp_desc_table[grpnum].block_bmp;
@@ -47,11 +57,6 @@ ext2_bmp_blk get_group_bmp(int grpnum)
 
 ext2_group_desc get_group(int grpnum) { return disk.grp_desc_table[grpnum]; }
 
-int inode_table_block_count()
-{
-	u32	needed_bytes = sizeof_bytes(ext2_inode)*disk.sb.s_inos_per_grp;
-	return (needed_bytes+get_block_size()-1)/get_block_size();
-}
 
 ext2_inode ino_by_num(u32 ino_num)
 {
@@ -92,8 +97,6 @@ uint num_direct_blocks(ext2_inode ino)
 		return EXT2_NDIR_BLOCKS;
 	return num_blks;
 }
-
-uint blocks_per_indir() { return get_block_size()/4; }
 
 bool is_fast_symlink(ext2_inode ino)
 {
@@ -361,4 +364,9 @@ u32 tri_count(ext2_triindir_block id)
 		i++;
 	}
 	return ret;
+}
+
+int bn2bmpidx(blknum_t bn)
+{
+	return bn + bit_add_offset();
 }

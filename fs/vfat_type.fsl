@@ -1,8 +1,8 @@
 type disk
-assert ( ? (d_bpb.bytes_per_sector & (512 - 1)) == 0)
-assert ( ? d_bpb.reserved_sector_c > 0)
+assert ( ? (d_bpb.bytes_per_sector & (512 - 1)) == 0) as chk_sect_mul512
+assert ( ? d_bpb.reserved_sector_c > 0) as chk_resv
 assert ( ? get_cluster_count() <=
-	((get_fat_bytes()*8)/get_fatent_bits()-2) )
+	((get_fat_bytes()*8)/get_fatent_bits()-2) ) as chk_fitsfat
 virtual_if(
 	? is_fat32() == true,
 	fat_de,
@@ -103,7 +103,7 @@ type bpb_32 {
 }
 
 type bpb
-assert (? is_fat12() || is_fat16() || is_fat32())
+assert (? is_fat12() || is_fat16() || is_fat32()) as chk_type
 {
 	u8		jmp[3];
 	u8		oem_name[8];

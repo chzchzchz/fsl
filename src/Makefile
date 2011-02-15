@@ -127,7 +127,7 @@ endif
 klee: $(KLEERTOBJSOUT) $(KLEETOOLOBJSOUT)
 
 $(OBJDIR)/klee/runtime/%.o: runtime/%.c
-	llvm-gcc $(RTCFLAGS) --emit-llvm -Iruntime/ -c $< -o $@
+	llvm-gcc -DUSE_KLEE $(RTCFLAGS) --emit-llvm -Iruntime/ -c $< -o $@
 $(OBJDIR)/klee/runtime/io_pread.o: 	\
 	$(OBJDIR)/klee/runtime/rt-pread/io.o \
 	$(OBJDIR)/klee/runtime/rt-pread/cache.o
@@ -135,7 +135,7 @@ $(OBJDIR)/klee/runtime/io_pread.o: 	\
 $(OBJDIR)/klee/runtime/io_mmap.o: $(OBJDIR)/klee/runtime/rt-mmap/io.o
 	cp $^ $@
 $(OBJDIR)/klee/tool/%.o: tool/%.c
-	llvm-gcc $(RTCFLAGS) --emit-llvm -Iruntime/ -c $< -o $@
+	llvm-gcc -DUSE_KLEE $(RTCFLAGS) --emit-llvm -Iruntime/ -c $< -o $@
 
 # LANGUAGE
 compiler/parser.hh: compiler/parser.cc

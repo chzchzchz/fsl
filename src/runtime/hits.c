@@ -62,9 +62,7 @@ static void fsl_hits_init_ev(struct io_ev_log* ev, uint64_t byte_len)
 
 	ev->ev_log = NULL;
 	ev->ev_fname = getenv(ev->ev_envvar);
-	if (ev->ev_fname == NULL)
-		return;
-
+	if (ev->ev_fname == NULL) return;
 
 	ev->ev_bytelen = byte_len;
 	ev->ev_log = malloc(ev->ev_bytelen);
@@ -83,6 +81,7 @@ static void fsl_hits_uninit_ev(struct io_ev_log* ev)
 
 void fsl_hits_init(void)
 {
+#ifndef USE_KLEE
 	unsigned int	byte_len;
 
 	byte_len = (__FROM_OS_BDEV_BYTES/HIT_BYTE_GRANULARITY+1);
@@ -90,6 +89,7 @@ void fsl_hits_init(void)
 	fsl_hits_init_ev(&log_hit, byte_len);
 	fsl_hits_init_ev(&log_miss, byte_len);
 	fsl_hits_init_ev(&log_write, byte_len);
+#endif
 }
 
 static void fsl_hits_dump(const struct io_ev_log* ev)
@@ -133,6 +133,7 @@ static void fsl_hits_dump(const struct io_ev_log* ev)
 
 void fsl_hits_uninit(void)
 {
+#ifndef USE_KLEE
 	fsl_hits_dump(&log_hit);
 	fsl_hits_dump(&log_miss);
 	fsl_hits_dump(&log_write);
@@ -140,4 +141,5 @@ void fsl_hits_uninit(void)
 	fsl_hits_uninit_ev(&log_hit);
 	fsl_hits_uninit_ev(&log_miss);
 	fsl_hits_uninit_ev(&log_write);
+#endif
 }

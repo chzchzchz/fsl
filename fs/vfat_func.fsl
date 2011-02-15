@@ -1,6 +1,8 @@
+u64 assert_nonzero(u64 x) { if (x == 0) return fsl_fail(0); return x; }
+
 uint bytes_per_cluster() {
 	bpb	b = disk.d_bpb;
-	return b.sectors_per_cluster*b.bytes_per_sector;
+	return assert_nonzero(b.sectors_per_cluster*b.bytes_per_sector);
 }
 
 uint bytes_per_sector() { return disk.d_bpb.bytes_per_sector; }
@@ -8,18 +10,24 @@ uint bytes_per_sector() { return disk.d_bpb.bytes_per_sector; }
 uint get_total_sectors()
 {
 	bpb	b = disk.d_bpb;
-	if (b.total_sect16 != 0) return b.total_sect16;
-	return b.total_sect32;
+	u32	total;
+	if (b.total_sect16 != 0) total = b.total_sect16;
+	else total = b.total_sect32;
+	return assert_nonzero(total);
 }
 
 uint get_fat_sectors()
 {
 	bpb	b = disk.d_bpb;
-	if (b.sectors_in_fat16 != 0) return b.sectors_in_fat16;
-	return b.priv32.sectors_in_fat32;
+	u32	sects;
+	if (b.sectors_in_fat16 != 0) sects = b.sectors_in_fat16;
+	else sects = b.priv32.sectors_in_fat32;
+	return assert_nonzero(sects);
 }
 
-uint get_fat_bytes() { return get_fat_sectors()*disk.d_bpb.bytes_per_sector; }
+uint get_fat_bytes() {
+	return assert_nonzero(get_fat_sectors()*disk.d_bpb.bytes_per_sector);
+}
 
 uint get_cluster_count()
 {
@@ -48,7 +56,7 @@ uint get_cluster_count()
 	data_sectors = total_sectors - resv_sectors;
 	cluster_c = data_sectors / b.sectors_per_cluster;
 
-	return cluster_c;
+	return assert_nonzero(cluster_c);
 }
 
 fat_type get_fat_type()

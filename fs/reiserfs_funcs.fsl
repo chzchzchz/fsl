@@ -1,18 +1,7 @@
-bool is_any_reiserfs_magic(reiserfs_sb sb)
-{
-	/* file system is reiserfs:
-	 * "ReIsErFs" or "ReIsEr2Fs" or "ReIsEr3Fs" */
-	/* TODO: need string ops */
-	if (	sb.s_v1.s_magic[0] == 'R' && sb.s_v1.s_magic[1] == 'e' &&
-		sb.s_v1.s_magic[2] == 'I')
-		return true;
-	return false;
-}
+u64 assert_nonzero(u64 x) { if (x == 0) return fsl_fail(0); return x; }
 
-bool is_valid_sb(reiserfs_sb sb) { return is_any_reiserfs_magic(sb); }
-
-int get_bsz() { return get_sb().s_v1.s_blocksize; }
-u32 get_block_count() { return get_sb().s_v1.s_block_count; }
+int get_bsz() { return assert_nonzero(get_sb().s_v1.s_blocksize); }
+u32 get_block_count() { return assert_nonzero(get_sb().s_v1.s_block_count); }
 
 reiserfs_sb get_sb()
 {
@@ -36,6 +25,19 @@ bool is_new()
 }
 
 bool is_bmap_spread() { if (is_new() == true) return true; DEBUG_WRITE=12345; return false; }
+
+bool is_any_reiserfs_magic(reiserfs_sb sb)
+{
+	/* file system is reiserfs:
+	 * "ReIsErFs" or "ReIsEr2Fs" or "ReIsEr3Fs" */
+	/* TODO: need string ops */
+	if (	sb.s_v1.s_magic[0] == 'R' && sb.s_v1.s_magic[1] == 'e' &&
+		sb.s_v1.s_magic[2] == 'I')
+		return true;
+	return false;
+}
+
+bool is_valid_sb(reiserfs_sb sb) { return is_any_reiserfs_magic(sb); }
 
 bool is_journal_magic(reiserfs_journal_desc jd)
 {

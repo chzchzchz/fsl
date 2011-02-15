@@ -50,4 +50,5 @@ void fsl_debug_vwrite(const char* fmt, va_list vl)
 void fsl_assert_fail(const char* fname, int line, const char* str)
 {
 	printf("BARF: %s@%d. %s\n", fname, line, str);
+	exit(-1);
 }
