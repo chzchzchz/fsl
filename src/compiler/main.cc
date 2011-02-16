@@ -391,7 +391,7 @@ static void gen_notes(
 
 		t = *it;
 		note = new NoteType(t);
-		note->genProtos();
+		note->genProto();
 		note->genCode();
 		note_list.push_back(note);
 		note_map[t->getName()] = note;

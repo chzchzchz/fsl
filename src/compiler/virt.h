@@ -11,39 +11,35 @@ typedef PtrList<class VirtualType>		virt_list;
 typedef std::list<class VirtualTypes*>		typevirt_list;
 typedef std::map<std::string, VirtualTypes*>	typevirt_map;
 
-class VirtualTypes : public TableWriter
+class VirtualTypes : public TableWriter, public Annotation
 {
 public:
 	VirtualTypes(const Type* t);
 	virtual ~VirtualTypes(void) {}
 
-	void genCode(void);
-	void genProtos(void);
-
-	const virt_list* getVirts(void) const { return &virts; }
-	const Type* getType(void) const { return src_type; }
 	unsigned int getNumVirts(void) const { return virts.size(); }
+	virtual const anno_ent_list* getEntryList(void) const
+		{ return (const anno_ent_list*)&virts; }
 
 	virtual void genExterns(TableGen* tg);
 	virtual void genTables(TableGen* tg);
+protected:
+	void load(const Preamble* pre);
 private:
-	void loadVirtuals(bool conditional);
 	VirtualType* loadVirtual(const Preamble* p, bool conditional);
 
-	const Type*	src_type;
 	virt_list	virts;
-	unsigned int	seq;
 };
 
 class VirtualType : public PointsRange
 {
 public:
 	VirtualType(
+		Annotation	*in_parent,
+		const Preamble	*in_pre,
 		InstanceIter	*in_iter,
-		const Type	*in_virt_type,	/* type we map data to */
-		Id*		in_name,
-		unsigned int	seq)
-	: PointsRange(in_iter, in_name, seq),
+		const Type	*in_virt_type /* type we map data to */)
+	: PointsRange(in_parent, in_pre, in_iter),
 	  v_type(in_virt_type)
 	{
 		assert (v_type != NULL);
@@ -61,15 +57,15 @@ class VirtualIf : public VirtualType
 {
 public:
 	VirtualIf(
+		Annotation	*in_parent,
+		const Preamble	*in_pre,
 		InstanceIter	*in_iter,
 		CondExpr	*in_cond,
-		const Type	*in_virt_type,
-		Id		*in_name,
-		unsigned int	seq);
+		const Type	*in_virt_type);
 
 	virtual ~VirtualIf(void);
-	virtual void genCode(void) const;
-	virtual void genProto(void) const;
+	virtual void genCode(void);
+	virtual void genProto(void);
 
 private:
 	const std::string getWrapperFCallName(void) const;

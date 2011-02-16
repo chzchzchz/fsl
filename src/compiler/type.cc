@@ -215,21 +215,17 @@ std::ostream& operator<<(std::ostream& in, const Type& t)
 	return in;
 }
 
-
 list<const Preamble*> TypePreamble::findByName(const string& n) const
 {
 	list<const Preamble*>	ret;
 
 	for (const_iterator it = begin(); it != end(); it++) {
-		const Preamble	*p;
-		p = *it;
-		if (p->getName() == n)
-			ret.push_back(p);
+		const Preamble	*p = *it;
+		if (p->getName() == n) ret.push_back(p);
 	}
 
 	return ret;
 }
-
 
 list<const Preamble*> Type::getPreambles(const string& name) const
 {

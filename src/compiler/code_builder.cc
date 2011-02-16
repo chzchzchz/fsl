@@ -47,7 +47,6 @@ unsigned int CodeBuilder::getTmpVarCount(void) const
 }
 
 void CodeBuilder::createGlobal(const char* str, uint64_t v, bool is_const)
-
 {
 	llvm::GlobalVariable	*gv;
 

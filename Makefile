@@ -57,9 +57,13 @@ code-clean:
 tests: code tools
 	tests/do_all_tests.sh
 
+paper: paper-gen paper-tests paper-draw
+paper-gen: tests
+paper-tests: tests-extra tests-extra-oprof tests-extra-stack tests-depth-stack
+paper-draw: draw
+
 KLEEFLAGS=-max-instruction-time=30.  --max-memory-inhibit=false   --use-random-path -max-static-fork-pct=30 -max-static-solve-pct=30 --max-static-cpfork-pct=30  --disable-inlining --use-interleaved-covnew-NURS  --use-batching-search --batch-instructions 1000   -weight-type=covnew  --only-output-states-covering-new  -use-cache -use-cex-cache --optimize -libc=uclibc -posix-runtime -init-env
 KLEEENV=-sym-args 2 2 64 -sym-files  1 4194304
-
 
 TESTS_KLEE=$(FSNAMES:%=tests-klee-%)
 tests-klee: $(TESTS_KLEE)

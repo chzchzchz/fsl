@@ -15,25 +15,17 @@ using namespace std;
 extern CodeBuilder	*code_builder;
 extern symtab_map	symtabs;
 
-RelocTypes::RelocTypes(const Type* t)
-: src_type(t), seq(0)
+RelocTypes::RelocTypes(const Type* t) : Annotation(t, "relocate")
 {
-	preamble_list	pl;
-
-	assert (t != NULL);
-
-	pl = src_type->getPreambles("relocate");
-	for (	preamble_list::const_iterator it = pl.begin();
-		it != pl.end();
-		it++)
-	{
-		Reloc	*r = loadReloc(*it);
-		if (r == NULL) continue;
-		relocs.push_back(r);
-		seq++;
-	}
+	loadByName();
 }
 
+void RelocTypes::load(const Preamble* p)
+{
+	Reloc	*r = loadReloc(p);
+	if (r == NULL) return;
+	relocs.add(r);
+}
 
 Reloc* RelocTypes::loadReloc(const Preamble* p)
 {
@@ -69,60 +61,55 @@ Reloc* RelocTypes::loadReloc(const Preamble* p)
 
 	wi_alloc = WritePkt::getInstance(
 		(*arg_it)->getExpr(),
-		"reloc_alloc_"+src_type->getName()+"_"+int_to_string(seq),
+		"reloc_alloc_"+src_type->getName()+"_"+int_to_string(getSeq()),
 		src_type);
 	assert (wi_alloc != NULL);
 	arg_it++;
 	wi_relink = WritePkt::getInstance(
 		(*arg_it)->getExpr(),
-		"reloc_relink_"+src_type->getName()+"_"+int_to_string(seq),
+		"reloc_relink_"+src_type->getName()+"_"+int_to_string(getSeq()),
 		src_type);
 	((*arg_it)->getExpr())->print(cerr);
 	assert (wi_relink != NULL);
 	arg_it++;
 	wi_replace = WritePkt::getInstance(
 		(*arg_it)->getExpr(),
-		"reloc_replace_"+src_type->getName()+"_"+int_to_string(seq),
+		"reloc_replace_"+src_type->getName()+"_"+int_to_string(getSeq()),
 		src_type);
 	assert (wi_replace != NULL);
 
 	sel_iter->setPrefix(
-		"reloc_sel_"+src_type->getName()+"_"+int_to_string(seq));
+		"reloc_sel_"+src_type->getName()+"_"+int_to_string(getSeq()));
 	choice_iter->setPrefix(
-		"reloc_choice_"+src_type->getName()+"_"+int_to_string(seq));
+		"reloc_choice_"+src_type->getName()+"_"+int_to_string(getSeq()));
 
 	return new Reloc(
 		this,
-		seq,
-		p->getAddressableName(),
+		p,
 		sel_iter, choice_iter,
 		choice_cond->copy(),
 		wi_alloc, wi_relink, wi_replace);
 }
 
 Reloc::Reloc(
-	RelocTypes* in_parent,
-	unsigned int in_seq,
-	const Id* in_as_name,
+	RelocTypes*	in_parent,
+	const Preamble* in_pre,
 	InstanceIter*	in_sel_iter,
 	InstanceIter*	in_choice_iter,
 	CondExpr*	in_choice_cond,
 	WritePktInstance	*in_wpkt_alloc,
 	WritePktInstance	*in_wpkt_relink,
 	WritePktInstance	*in_wpkt_replace)
-:	parent(in_parent), seq(in_seq),
+:	AnnotationEntry(in_parent, in_pre),
 	sel_iter(in_sel_iter), choice_iter(in_choice_iter),
 	choice_cond(in_choice_cond),
 	wpkt_alloc(in_wpkt_alloc),
 	wpkt_relink(in_wpkt_relink),
 	wpkt_replace(in_wpkt_replace)
-{
-	as_name = (in_as_name != NULL) ? in_as_name->copy() : NULL;
-}
+{ }
 
 Reloc::~Reloc()
 {
-	if (as_name != NULL) delete as_name;
 	delete sel_iter;
 	delete choice_iter;
 	delete choice_cond;
@@ -160,7 +147,7 @@ void Reloc::genCondCode(void) const
 	builder->CreateRet(cond_v);
 }
 
-void Reloc::genCode(void) const
+void Reloc::genCode(void)
 {
 	ArgsList	*args;
 
@@ -185,7 +172,7 @@ void Reloc::genCode(void) const
 	genCondCode();
 }
 
-void Reloc::genProtos(void) const
+void Reloc::genProto(void)
 {
 	wpkt_alloc->genProto();
 	wpkt_relink->genProto();
@@ -236,16 +223,6 @@ void Reloc::genCondProto(void) const
 	assert (f->arg_size() == 2);
 }
 
-void RelocTypes::genProtos(void)
-{
-	iter_do(reloc_list, relocs, genProtos);
-}
-
-void RelocTypes::genCode(void)
-{
-	iter_do(reloc_list, relocs, genCode);
-}
-
 void RelocTypes::genExterns(TableGen* tg)
 {
 	for (	reloc_list::const_iterator it = relocs.begin();
@@ -276,6 +253,7 @@ void RelocTypes::genTables(TableGen* tg)
 void Reloc::genTableInstance(TableGen* tg) const
 {
 	StructWriter		sw(tg->getOS());
+	const Id		*as_name(getName());
 
 	sw.write(".rel_sel = ");
 	sel_iter->genTableInstance(tg);

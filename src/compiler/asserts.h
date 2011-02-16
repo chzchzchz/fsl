@@ -3,55 +3,46 @@
 
 #include "collection.h"
 #include "table_gen.h"
+#include "annotation.h"
 
 typedef PtrList<class Assertion>		assertion_list;
 typedef std::map<std::string, class Asserts*>	assert_map;
 typedef std::list<class Asserts*>		assert_list;
 
-class Asserts : public TableWriter
+class Asserts : public Annotation, public TableWriter
 {
 public:
 	Asserts(const Type* t);
-	virtual ~Asserts(void) {}
+	virtual ~Asserts(void);
 
-	const assertion_list* getAsserts(void) const { 	return &assert_elems; }
-	const Type* getType(void) const { return src_type; }
 	unsigned int getNumAsserts(void) const { return assert_elems.size(); }
-
-	void genCode(void);
-	void genProtos(void);
+	virtual const anno_ent_list* getEntryList(void) const
+		{ return (const anno_ent_list*)(&assert_elems); }
 
 	virtual void genExterns(TableGen* tg);
 	virtual void genTables(TableGen* tg);
+protected:
+	virtual void load(const Preamble* p);
 private:
-	void loadAsserts(void);
-
-	assertion_list		assert_elems;
-	const Type*		src_type;
-	unsigned int		seq;
+	assertion_list	assert_elems;
 };
 
-class Assertion
+class Assertion : public AnnotationEntry
 {
 public:
 	Assertion(
-		const Type*	in_src_type,
-		const CondExpr	*in_pred,
-		const Id	*in_name,
-		unsigned int	in_seq);
+		Asserts*	in_parent,
+		const Preamble* in_pre,
+		const CondExpr* in_pred);
 	virtual ~Assertion(void);
 
 	void genCode(void);
-	void genProtos(void);
+	void genProto(void);
 	void genInstance(TableGen* tg) const;
-	const std::string getFCallName(void) const;
-	const Id* getName(void) const { return name; }
+
 private:
 	Assertion() {}
-	const Type*	src_type;
 	CondExpr*	pred;
-	const Id*	name;
-	unsigned int	seq;
 };
 
 #endif

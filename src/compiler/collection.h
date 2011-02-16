@@ -14,18 +14,13 @@ public:
 	PtrList(const PtrList<T>& pl)
 	{
 		typename std::list<T*>::const_iterator	it;
-
-		for (it = pl.begin(); it != pl.end(); it++) {
-			add((*it)->copy());
-		}
+		for (it = pl.begin(); it != pl.end(); it++) add((*it)->copy());
 	}
 
 	virtual ~PtrList()
 	{
 		typename std::list<T*>::iterator	it;
-		for (it = this->begin(); it != this->end(); it++) {
-			delete (*it);
-		}
+		for (it = this->begin(); it != this->end(); it++) delete (*it);
 	}
 	virtual void add(T* t) { assert (t != NULL); push_back(t); }
 	virtual void clear_nofree(void)
@@ -36,9 +31,7 @@ public:
 	virtual void clear(void)
 	{
 		typename std::list<T*>::iterator	it;
-		for (it = this->begin(); it != this->end(); it++) {
-			delete (*it);
-		}
+		for (it = this->begin(); it != this->end(); it++) delete (*it);
 		std::list<T*>::clear();
 	}
 };

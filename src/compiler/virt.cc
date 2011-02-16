@@ -17,29 +17,22 @@ extern RTInterface		rt_glue;
 using namespace std;
 
 VirtualTypes::VirtualTypes(const Type* t)
-: src_type(t), seq(0)
+ : Annotation(t, "virtual")
 {
-	assert (t != NULL);
-	loadVirtuals(false);
-	loadVirtuals(true);
+	loadByName();
+	loadByName("virtual_if");
 }
 
-void VirtualTypes::loadVirtuals(bool is_cond)
+void VirtualTypes::load(const Preamble* pre)
 {
-	preamble_list	virt_preambles;
+	VirtualType	*virt;
+	bool		is_cond;
 
-	virt_preambles = src_type->getPreambles(
-		"virtual" + string(((is_cond) ? "_if" : "")));
+	is_cond = (pre->getName() == string("virtual_if"));
 
-	for (	preamble_list::const_iterator it = virt_preambles.begin();
-		it != virt_preambles.end();
-		it++)
-	{
-		VirtualType			*virt;
-		virt = loadVirtual(*it, is_cond);
-		if (virt == NULL) continue;
-		virts.add(virt);
-	}
+	virt = loadVirtual(pre, is_cond);
+	if (virt == NULL) return;
+	virts.add(virt);
 }
 
 VirtualType* VirtualTypes::loadVirtual(const Preamble* p, bool is_conditional)
@@ -47,7 +40,7 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p, bool is_conditional)
 	const preamble_args		*args;
 	const Expr			*_target_type_expr;
 	const CondExpr			*cond;
-	const Id			*target_type_expr, *as_name;
+	const Id			*target_type_expr;
 	preamble_args::const_iterator	arg_it;
 	EvalCtx				ectx(symtabs[src_type->getName()]);
 	const Type			*target_type;
@@ -83,44 +76,28 @@ VirtualType* VirtualTypes::loadVirtual(const Preamble* p, bool is_conditional)
 	}
 	target_type = types_map[target_type_expr->getName()];
 
-	as_name = p->getAddressableName();
-
 	instance_iter = new InstanceIter();
 	instance_iter->load(src_type, arg_it);
 
 	if (is_conditional) {
 		return new VirtualIf(
+			this,
+			p,
 			instance_iter,
 			cond->copy(),
-			target_type,
-			(as_name != NULL) ? as_name->copy() : NULL,
-			seq++);
+			target_type);
 	} else {
-		return new VirtualType(
-			instance_iter,
-			target_type,
-			(as_name != NULL) ? as_name->copy() : NULL,
-			seq++);
+		return new VirtualType(this, p, instance_iter, target_type);
 	}
 }
 
-void VirtualTypes::genCode(void)
-{
-	iter_do(virt_list, virts, genCode);
-}
-
-void VirtualTypes::genProtos(void)
-{
-	iter_do(virt_list, virts, genProto);
-}
-
 VirtualIf::VirtualIf(
+	Annotation	*in_parent,
+	const Preamble	*in_pre,
 	InstanceIter	*in_iter,
 	CondExpr	*in_cond,
-	const Type	*in_virt_type,
-	Id		*in_name,
-	unsigned int	seq)
-: VirtualType(in_iter, in_virt_type, in_name, seq),
+	const Type	*in_virt_type)
+: VirtualType(in_parent, in_pre, in_iter, in_virt_type),
   cond(in_cond)
 {
 	assert (cond != NULL);
@@ -146,17 +123,17 @@ const string VirtualIf::getWrapperFCallName(void) const
 		int_to_string(getSeqNum());
 }
 
-void VirtualIf::genCode(void) const
+void VirtualIf::genCode(void)
 {
 	code_builder->genCodeCond(
 		iter->getSrcType(),
 		getWrapperFCallName(),
-		cond,true_min_expr, false_min_expr);
+		cond, true_min_expr, false_min_expr);
 
 	VirtualType::genCode();
 }
 
-void VirtualIf::genProto(void) const
+void VirtualIf::genProto(void)
 {
 	code_builder->genThunkProto(getWrapperFCallName());
 	VirtualType::genProto();
@@ -166,7 +143,7 @@ void VirtualType::genInstance(TableGen* tg) const
 {
 	StructWriter		sw(tg->getOS());
 	const InstanceIter	*ii;
-	Id			*name;
+	const Id		*name = getName();
 
 	ii = getInstanceIter();
 
@@ -174,7 +151,6 @@ void VirtualType::genInstance(TableGen* tg) const
 	ii->genTableInstance(tg);
 	sw.write("vt_type_virttype", getTargetType()->getTypeNum());
 
-	name = getName();
 	if (name != NULL)	sw.writeStr("vt_name", name->getName());
 	else			sw.write("vt_name", "NULL");
 }

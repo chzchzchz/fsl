@@ -56,6 +56,7 @@ static void fsl_hits_io_cb_write(struct fsl_rt_io* io, uint64_t bit_addr)
 	log_write.ev_log[bit_addr]++;
 }
 
+#ifndef USE_KLEE
 static void fsl_hits_init_ev(struct io_ev_log* ev, uint64_t byte_len)
 {
 	fsl_io_callback	old_cb;
@@ -78,6 +79,7 @@ static void fsl_hits_uninit_ev(struct io_ev_log* ev)
 	ev->ev_log = NULL;
 	ev->ev_fname = NULL;
 }
+#endif
 
 void fsl_hits_init(void)
 {
@@ -92,6 +94,7 @@ void fsl_hits_init(void)
 #endif
 }
 
+#ifndef USE_KLEE
 static void fsl_hits_dump(const struct io_ev_log* ev)
 {
 	unsigned int	num_ents;
@@ -130,6 +133,7 @@ static void fsl_hits_dump(const struct io_ev_log* ev)
 
 	fclose(f);
 }
+#endif
 
 void fsl_hits_uninit(void)
 {

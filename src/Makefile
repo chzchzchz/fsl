@@ -21,6 +21,7 @@ LANGOBJS=	lex.yy.o		\
 		fcall.o			\
 		func.o			\
 		evalctx.o		\
+		annotation.o		\
 		symtab_thunkbuilder.o	\
 		code_builder.o		\
 		table_gen.o		\
