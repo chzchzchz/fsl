@@ -3,6 +3,7 @@
 #env variables:
 # USE_OPROF
 # USE_STATS
+# USE_SYNC
 # XFM_PIN_STACK
 # XFM_MEM
 
@@ -221,8 +222,18 @@ function fs_cmd_startup_img
 	get_timefname "$fprefix"
 	timefname=${TIMEFNAME_VAL}
 	cmd_xfrm "$cmd" "$fprefix"
+	if [ ! -z $USE_SYNC ]; then
+		sync
+		cat /proc/diskstats >${outdir}/$imgname.begin.io
+	fi
 	{ time eval "${CMD_XFM_VAL}" >cur_test.${SHANAME}.out 2>cur_test.${SHANAME}.err; } 2>${timefname}
 	retval=$?
+	if [ ! -z $USE_SYNC ]; then
+		sync
+		cat /proc/diskstats >${outdir}/$imgname.end.io
+	fi
+	"${src_root}"/util/diskstat.py ${outdir}/$imgname.begin.io ${outdir}/$imgname.end.io >${outdir}/$imgname.diskstat
+
 	unset_statfiles
 	stop_oprof "$fprefix" `echo $cmd | cut -f1 -d' ' `
 

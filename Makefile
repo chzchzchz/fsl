@@ -3,10 +3,10 @@ NUM_JOBS=6
 #LINUX_SRCDIR=/usr/src/linux/
 LINUX_SRCDIR=/home/chz/src/research/FSL_VM_LINUX/
 MAKECMD=make -j$(NUM_JOBS)
-#CFLAGS=-O3 -DFSL_RELEASE
+CFLAGS=-O3 -DFSL_RELEASE -DNDEBUG -DFSL_LITTLE_ENDIAN
 OPT_FLAGS=-O3
 LLC_FLAGS=-O3
-CFLAGS=-g -O3 -DFSL_LITTLE_ENDIAN -fno-common
+#CFLAGS=-g -O3 -DFSL_LITTLE_ENDIAN -fno-common
 #CFLAGS=-g
 export CFLAGS
 OBJDIR=$(shell pwd)/obj/
@@ -91,13 +91,16 @@ tests-extra-mmap: $(TEST_EXTRA_MMAP)
 tests-extra-mmap-%:
 	TOOL_RT=mmap TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS=`echo $@ | cut -f4 -d-`  tests/do_all_tests.sh
 
-
-
 TEST_EXTRA=$(FSNAMES:%=tests-extra-std-%)
 tests-extra: tests-extra-std
 tests-extra-std: $(TEST_EXTRA)
 tests-extra-std-%:
 	TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS=`echo $@ | cut -f4 -d-` tests/do_all_tests.sh
+
+TEST_EXTRA=$(FSNAMES:%=tests-extra-std-%)
+tests-extra-diskstat: $(TEST_EXTRA)
+tests-extra-diskstat-%:
+	TEST_CONFIG="EXTRA" USE_SYNC="YES" USE_STATS="YES" TEST_FS=`echo $@ | cut -f4 -d-` tests/do_all_tests.sh
 
 tests-depth-stack:
 	tests/tests_depth.sh
