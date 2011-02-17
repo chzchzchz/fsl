@@ -10,7 +10,7 @@ int get_group_count()
 {
 	ext2_sb	sb = disk.sb;
 	return assert_nonzero(
-		1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/sb.s_blks_per_grp));
+		1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/blks_per_grp()));
 }
 
 uint blocks_per_indir() { return assert_nonzero(get_block_size()/4); }

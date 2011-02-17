@@ -1,11 +1,11 @@
+#include <inttypes.h>
 #include "fuse_node.h"
 #include "type_info.h"
 #include "runtime.h"
 #include "lookup.h"
-#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
+#include "alloc.h"
 
 static struct type_info* ti_from_rootpath(const char* path);
 static struct type_info* ti_from_relpath(
@@ -13,8 +13,6 @@ static struct type_info* ti_from_relpath(
 static struct type_info* ti_from_parentpath(const char* path);
 static char* get_path_child(const char* path);
 static bool is_int(const char* s);
-
-extern FILE* out_file;
 
 static struct type_info* ti_from_rootpath(const char* path)
 {
@@ -218,7 +216,7 @@ struct fsl_fuse_node* fslnode_by_path(const char* path)
 {
 	struct fsl_fuse_node	*ret;
 
-	ret = malloc(sizeof(*ret));
+	ret = fsl_alloc(sizeof(*ret));
 	if (ret == NULL) return NULL;
 
 	memset(ret, 0, sizeof(*ret));
@@ -234,7 +232,7 @@ struct fsl_fuse_node* fslnode_by_path(const char* path)
 			/* forced array index */
 			bool	is_elem_num;
 			is_elem_num = is_int(path_child);
-			free(path_child);
+			fsl_free(path_child);
 			if (is_elem_num) return ret;
 		}
 
@@ -260,7 +258,7 @@ struct fsl_fuse_node* fslnode_by_path(const char* path)
 	if (fslnode_by_arraypath(path, ret) == true) goto done;
 	if (fslnode_by_primpath(path, ret) == true) goto done;
 
-	free(ret);
+	fsl_free(ret);
 	return NULL;
 done:
 	return ret;
@@ -273,5 +271,5 @@ void fslnode_free(struct fsl_fuse_node* fn)
 	if (fn->fn_parent != NULL) typeinfo_free(fn->fn_parent);
 	if (fn->fn_array_parent != NULL) typeinfo_free(fn->fn_array_parent);
 	if (fn->fn_prim_ti != NULL) typeinfo_free(fn->fn_prim_ti);
-	free(fn);
+	fsl_free(fn);
 }

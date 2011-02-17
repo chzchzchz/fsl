@@ -150,8 +150,7 @@ static int scan_pointsto(
 		ctx->sctx_ti = ti;
 		if (ctx->sctx_ops->so_pt != NULL) {
 			ret = ctx->sctx_ops->so_pt(ti, pt, k, ctx->sctx_aux);
-			if (is_ret_done(ret))
-				goto done;
+			if (is_ret_done(ret)) goto done;
 		}
 
 		new_ti = typeinfo_follow_pointsto(ti, pt, k);

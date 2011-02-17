@@ -141,6 +141,7 @@ static int read_ti_dir(
 	filler(buf, "..", NULL, 0);
 
 	tt = tt_by_ti(ti);
+
 	for (i = 0; i < tt->tt_fieldall_c; i++) {
 		const struct fsl_rtt_field	*tf;
 
@@ -156,11 +157,14 @@ static int read_ti_dir(
 	}
 
 	for (i = 0; i < tt->tt_pointsto_c; i++) {
-		if (tt->tt_pointsto[i].pt_name == NULL) continue;
-		cur_ti = typeinfo_follow_pointsto(ti, &tt->tt_pointsto[i], 0);
+		const struct fsl_rtt_pointsto*	pt = &tt->tt_pointsto[i];
+
+		if (pt->pt_name == NULL) continue;
+		cur_ti = typeinfo_follow_pointsto(
+			ti, pt, pt->pt_iter.it_min(&ti_clo(ti)));
 		if (cur_ti == NULL) continue;
 
-		if (filler(buf, tt->tt_pointsto[i].pt_name, NULL, 0) == 1) {
+		if (filler(buf, pt->pt_name, NULL, 0) == 1) {
 			fprintf(out_file, "ALGRG FULLBUFF\n");
 			fflush(out_file);
 		}
@@ -168,12 +172,15 @@ static int read_ti_dir(
 	}
 
 	for (i = 0; i < tt->tt_virt_c; i++) {
-		int	err;
-		if (tt->tt_virt[i].vt_name == NULL) continue;
-		cur_ti = typeinfo_follow_virt(ti, &tt->tt_virt[i], 0, &err);
+		const struct fsl_rtt_virt	*vt = &tt->tt_virt[i];
+		int				err;
+
+		if (vt->vt_name == NULL) continue;
+		cur_ti = typeinfo_follow_virt(
+			ti, vt, vt->vt_iter.it_min(&ti_clo(ti)), &err);
 		if (cur_ti == NULL) continue;
 
-		if (filler(buf, tt->tt_virt[i].vt_name, NULL, 0) == 1) {
+		if (filler(buf, vt->vt_name, NULL, 0) == 1) {
 			fprintf(out_file, "ALGRG FULLBUFF\n");
 			fflush(out_file);
 		}
@@ -195,17 +202,21 @@ static int read_array_dir(
 	elem_c = fn->fn_array_field->tf_elemcount(&ti_clo(fn->fn_array_parent));
 	for (i = 0; i < elem_c; i++) {
 		char				name[16];
+		diskoff_t			f_off;
 		struct type_info		*cur_ti;
 
+		f_off = ti_field_off(
+			fn->fn_array_parent, fn->fn_array_field, i);
 		cur_ti = typeinfo_follow_field_off_idx(
-			fn->fn_array_parent,
-			fn->fn_array_field,
-			ti_field_off(
-				fn->fn_array_parent,
-				fn->fn_array_field,
-				i),
-			i);
-		if (cur_ti == NULL) continue;
+			fn->fn_array_parent, fn->fn_array_field, f_off, i);
+
+		fprintf(out_file, "cur_ti[%d]=%p. phys=%"PRIu64"\n",
+			elem_c, cur_ti, f_off/8); fflush(out_file);
+		if (cur_ti == NULL) {
+			fprintf(out_file, "err=%s\n", fsl_err_get());
+			fsl_err_reset();
+			continue;
+		}
 		typeinfo_free(cur_ti);
 
 		sprintf(name, "%d", i);
@@ -218,7 +229,6 @@ static int read_array_dir(
 	return 0;
 }
 
-
 static int fslfuse_readdir(
 	const char *path, void *buf, fuse_fill_dir_t filler,
 	off_t offset, struct fuse_file_info *fi)
@@ -230,10 +240,13 @@ static int fslfuse_readdir(
 
 	fn = get_fnode(fi);
 	if (fn_is_type(fn)) {
+		fprintf(out_file, "TYPE\n"); fflush(out_file);
 		return read_ti_dir(buf, filler, get_fnode(fi)->fn_ti);
 	} else if (fn_is_array(fn)) {
-		return read_array_dir(buf, filler, get_fnode(fi));
+			fprintf(out_file, "ARRAY\n"); fflush(out_file);
+			return read_array_dir(buf, filler, get_fnode(fi));
 	} else if (fn_is_prim(fn)) {
+		fprintf(out_file, "ENOENT\n"); fflush(out_file);
 		return -ENOENT;
 	}
 
@@ -242,7 +255,6 @@ static int fslfuse_readdir(
 
 	return -ENOENT;
 }
-
 
 static int fslfuse_close(const char *path, struct fuse_file_info *fi)
 {

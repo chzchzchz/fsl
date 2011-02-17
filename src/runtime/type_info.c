@@ -478,6 +478,9 @@ struct type_info* typeinfo_follow_pointsto(
 	struct type_desc	pt_td;
 	uint64_t		parambuf[tt_by_ti(ti_parent)->tt_param_c];
 
+	FSL_ASSERT (	ti_pt->pt_iter.it_min(&ti_clo(ti_parent)) <= idx &&
+			"IDX TOO SMALL");
+
 	td_init(&pt_td,
 		ti_pt->pt_iter.it_type_dst,
 		ti_pt->pt_iter.it_range(&ti_clo(ti_parent), idx, parambuf),
@@ -581,6 +584,12 @@ struct type_info* typeinfo_alloc_origin(void)
 	return typeinfo_alloc_by_field(&init_td, NULL, NULL);
 }
 
+/* BIG NOTE HERE:
+ * idx always starts at 0!!
+ * This is so that we don't have to write different interfaces depending on
+ * whether it is a points-to or an array or whatever.
+ * Just [0..(num_elems-1]
+ */
 struct type_info* typeinfo_lookup_follow_idx(
 	struct type_info*	ti_parent,
 	const char*		fieldname,
@@ -605,11 +614,15 @@ struct type_info* typeinfo_lookup_follow_idx(
 	}
 	pt = fsl_lookup_points(tt, fieldname);
 	if (pt != NULL)
-		return typeinfo_follow_pointsto(ti_parent, pt, idx);
+		return typeinfo_follow_pointsto(
+			ti_parent, pt, idx+pt->pt_iter.it_min(&ti_clo(ti_parent)));
 	vt = fsl_lookup_virt(tt, fieldname);
 	if (vt != NULL) {
 		int	err;
-		return typeinfo_follow_virt(ti_parent, vt, idx, &err);
+		return typeinfo_follow_virt(
+			ti_parent, vt,
+			idx+vt->vt_iter.it_min(&ti_clo(ti_parent)),
+			&err);
 	}
 
 	return NULL;
