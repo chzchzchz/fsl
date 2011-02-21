@@ -1,7 +1,6 @@
 #define FUSE_USE_VERSION 25
 //#define DEBUG_FUSE
 #include <fuse.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
@@ -10,6 +9,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <sys/types.h>
+#include "debug.h"
 #include "runtime.h"
 #include "type_info.h"
 #include "fuse_node.h"
@@ -248,7 +248,6 @@ static struct type_info* ao_get_vt(struct fsl_fuse_node* fn, unsigned int i)
 	return TYPEINFO_NOMORE;
 }
 
-
 struct array_ops ao_field_ops = {
 	.ao_elems = ao_elems_field, .ao_get = ao_get_field};
 struct array_ops ao_pt_ops = { .ao_elems = ao_elems_pt, .ao_get = ao_get_pt};
@@ -267,7 +266,7 @@ static int read_array_dir(
 
 	elem_c = ao->ao_elems(fn);
 	for (i = 0; i < elem_c; i++) {
-		char				name[16];
+		char				name[256];
 		struct type_info		*cur_ti;
 
 		cur_ti = ao->ao_get(fn, i);
@@ -277,9 +276,12 @@ static int read_array_dir(
 			continue;
 		} else if (cur_ti == TYPEINFO_NOMORE)
 			break;
+
+		if (typeinfo_getname(cur_ti, name, 256) == NULL)
+			sprintf(name, "%d", i);
+
 		typeinfo_free(cur_ti);
 
-		sprintf(name, "%d", i);
 		if (filler(buf, name, NULL, 0) == 1) {
 			fprintf(out_file, "ARRRRRRGH FULL BUFF\n");
 			fflush(out_file);
@@ -295,8 +297,7 @@ static int fslfuse_readdir(
 {
 	struct fsl_fuse_node	*fn;
 
-	fprintf(out_file, "READDIR %s\n", path);
-	fflush(out_file);
+	DEBUG_WRITE("READDIR %s", path);
 
 	fn = get_fnode(fi);
 	if (fn_is_type(fn)) {
@@ -379,7 +380,7 @@ static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
 	clo_off = ti_offset(fn->fn_prim_ti);
 	if ((size + offset) > len) size = len - offset;
 
-	/* XXX SLOW */
+	/* XXX SLOW-- adapt ti_to_buf to do offsets */
 	for (i = 0; i < size; i++) {
 		buf[i] = __getLocal(
 			&ti_clo(fn->fn_prim_ti), clo_off+(offset+i)*8, 8);
@@ -417,7 +418,10 @@ int tool_entry(int argc, char *argv[])
 	assert (argc == 1 && "NEEDS MOUNT POINT");
 	open_time = time(0);
 	out_file = fopen("fusebrowse.err", "w");
-	if (out_file != NULL) setlinebuf(out_file);
+	if (out_file != NULL) {
+		setlinebuf(out_file);
+		fsl_debug_set_file(out_file);
+	}
 	our_gid = getgid();
 	our_uid = getuid();
 	assert (out_file != NULL);

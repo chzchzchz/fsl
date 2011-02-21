@@ -192,7 +192,7 @@ type ext2_str(u8 len) { u8 name[len]; }
 
 type ext2_dir_entry
 points_if(? name_len > 0 && inode != 0, ino_by_num(inode)) as ent_ino
-points(name) as name
+points(ent_name) as name
 {
 	u32			inode;		/* inode number */
 	u16			rec_len;	/* de length */

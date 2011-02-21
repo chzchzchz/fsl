@@ -16,7 +16,6 @@ struct fsl_fuse_node
 	struct type_info		*fn_parent;
 	const struct fsl_rtt_field	*fn_field;
 	struct type_info		*fn_prim_ti;
-	int				fn_idx; /* for arrays */
 };
 
 #define get_fnode(x)	((struct fsl_fuse_node*)(((x))->fh))

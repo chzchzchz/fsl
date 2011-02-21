@@ -87,6 +87,10 @@ void fsl_debug_write(const char* fmt, ...);
 void fsl_debug_vwrite(const char* fmt, va_list vl);
 void fsl_debug_return_to_state(statenum_t);
 void fsl_assert_fail(const char* fname, int line, const char* str);
+#ifndef __KERNEL__
+#include <stdio.h>
+void fsl_debug_set_file(FILE* f);
+#endif
 #define fsl_debug_get_state() fsl_debug_depth
 
 #define FSL_ASSERT(x)	do {				\

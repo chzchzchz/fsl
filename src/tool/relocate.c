@@ -89,12 +89,14 @@ uint64_t choice_find(struct type_info* ti, const struct fsl_rtt_reloc* rel)
 		uint64_t	buf[param_c];
 		diskoff_t	off_bits;
 		uint64_t	imgidx;
+		void		*xlate;
 
 		/* check cache first-- don't use allocated type */
 		if (choice_is_alloc(ccache, cur_choice)) continue;
 
 		/* get offset on disk of choice type */
-		off_bits = rel->rel_choice.it_range(&ti_clo(ti), cur_choice, buf);
+		off_bits = rel->rel_choice.it_range(&ti_clo(ti), cur_choice, buf, &xlate);
+		FSL_ASSERT (xlate == NULL);
 		imgidx = byte_to_imgidx(reloc_img, off_bits / 8);
 		if (imgidx == reloc_cursor) {
 			/* success! */

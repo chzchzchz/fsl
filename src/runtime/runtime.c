@@ -1,5 +1,6 @@
 /* main runtime file */
 //#define DEBUG_RT
+//#define DEBUG_IO
 #include <inttypes.h>
 #include <string.h>
 #include "debug.h"
@@ -160,7 +161,8 @@ uint64_t __getLocal(
 
 	DEBUG_IO_ENTER();
 
-	DEBUG_IO_WRITE("Requesting IO: bitoff=%"PRIu64, bit_off);
+	DEBUG_IO_WRITE("Requesting IO: bitoff=%"PRIu64". clo_off=%"PRIu64,
+		bit_off, clo->clo_offset);
 
 	if (clo->clo_xlate != NULL) {
 		/* xlate path */

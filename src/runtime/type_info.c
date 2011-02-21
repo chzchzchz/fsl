@@ -15,6 +15,9 @@ static struct type_info* typeinfo_alloc_generic(
 static bool typeinfo_verify_asserts(const struct type_info *ti);
 static bool typeinfo_verify(const struct type_info* ti);
 static unsigned int typeinfo_unref(struct type_info* ti);
+static struct type_info* typeinfo_follow_name(
+	struct type_info*	ti, /* array to avoid aliasing */
+	const char*		fieldname);
 
 void typeinfo_free(struct type_info* ti)
 {
@@ -43,11 +46,9 @@ static bool ti_has_loop(const struct type_info* chain)
 
 	if (cur->ti_prev == NULL) return false;
 
-	DEBUG_TYPEINFO_WRITE("COMPUTING PHYSOFF %p", ti_xlate(cur));
 	top_poff = ti_phys_offset(cur);
 	top_typenum = ti_typenum(cur);
 	cur = cur->ti_prev;
-	DEBUG_TYPEINFO_WRITE("TI_HAS_LOOP: SCAN PARENTS");
 
 	for (; cur != NULL; cur = cur->ti_prev) {
 		/* TODO: cache physical offsets? */
@@ -59,7 +60,6 @@ static bool ti_has_loop(const struct type_info* chain)
 		}
 	}
 
-	DEBUG_TYPEINFO_WRITE("TI_HAS_LOOP: NO LOOP.");
 	return false;
 }
 
@@ -129,7 +129,7 @@ static bool typeinfo_verify_asserts(const struct type_info *ti)
 		TI_INTO_CLO(ti);
 
 		as = &tt->tt_assert[i];
-		DEBUG_TYPEINFO_WRITE("check FSL_ASSERT %d in %s", i, tt->tt_name);
+		DEBUG_TYPEINFO_WRITE("check assertions %d in %s", i, tt->tt_name);
 		if (as->as_assertf(clo) == false) {
 			DEBUG_TYPEINFO_WRITE(
 				"%s: Assert #%d failed!!!\n",
@@ -157,7 +157,7 @@ static bool typeinfo_verify(const struct type_info* ti)
 		return false;
 	}
 
-	DEBUG_TYPEINFO_WRITE("verify: check FSL_ASSERTs %p", ti_xlate(ti));
+	DEBUG_TYPEINFO_WRITE("verify: check asserts. xlate=%p", ti_xlate(ti));
 	if (typeinfo_verify_asserts(ti) == false) {
 		DEBUG_TYPEINFO_WRITE("verify: FSL_ASSERTions failed");
 		DEBUG_TYPEINFO_LEAVE();
@@ -410,7 +410,6 @@ diskoff_t ti_phys_offset(const struct type_info* ti)
 	FSL_ASSERT (ti != NULL);
 
 	voff = ti_offset(ti);
-	DEBUG_TYPEINFO_WRITE("physoff: voff=%"PRIu64, voff);
 	if (ti->ti_td.td_clo.clo_xlate == NULL) {
 		/* no xlate, phys = virt */
 		return voff;
@@ -436,7 +435,6 @@ typesize_t ti_size(const struct type_info* ti)
 
 	return ret;
 }
-
 
 struct type_info* typeinfo_follow_field(
 	struct type_info* tip,
@@ -483,14 +481,18 @@ struct type_info* typeinfo_follow_pointsto(
 	struct type_info	*ret;
 	struct type_desc	pt_td;
 	uint64_t		parambuf[tt_by_ti(ti_parent)->tt_param_c];
+	void			*xlate;
 
 	FSL_ASSERT (	ti_pt->pt_iter.it_min(&ti_clo(ti_parent)) <= idx &&
 			"IDX TOO SMALL");
 
-	td_init(&pt_td,
+	td_vinit(&pt_td,
 		ti_pt->pt_iter.it_type_dst,
-		ti_pt->pt_iter.it_range(&ti_clo(ti_parent), idx, parambuf),
-		parambuf);
+		ti_pt->pt_iter.it_range(&ti_clo(ti_parent), idx, parambuf, &xlate),
+		parambuf,
+		xlate);
+
+	DEBUG_TYPEINFO_WRITE("POINTSTO XLATE: %p", td_xlate(&pt_td));
 
 	FSL_ASSERT (offset_is_bad(td_offset(&pt_td)) == false &&
 		"VERIFY RANGE CALL.");
@@ -508,12 +510,13 @@ struct type_info* typeinfo_follow_iter(
 	struct type_info	*ret;
 	struct type_desc	iter_td;
 	uint64_t		parambuf[tt_by_ti(ti_parent)->tt_param_c];
+	void			*xlate;
 	diskoff_t		diskoff;
 
 	DEBUG_TYPEINFO_ENTER();
 
-	diskoff = ti_iter->it_range(&ti_clo(ti_parent), idx, parambuf);
-	td_init(&iter_td, ti_iter->it_type_dst, diskoff, parambuf);
+	diskoff = ti_iter->it_range(&ti_clo(ti_parent), idx, parambuf, &xlate);
+	td_vinit(&iter_td, ti_iter->it_type_dst, diskoff, parambuf, xlate);
 
 	FSL_ASSERT (offset_is_bad(td_offset(&iter_td)) == false &&
 		"VERIFY ITER RANGE CALL.");
@@ -541,6 +544,22 @@ static unsigned int typeinfo_unref(struct type_info* ti)
 	return ti->ti_ref_c;
 }
 
+unsigned int typeinfo_to_buf(
+	struct type_info* src, void* buf, unsigned int bytes)
+{
+	typesize_t	src_sz;
+	unsigned int	copy_bytes;
+	diskoff_t	base_off;
+
+	src_sz = (ti_size(src)+7)/8;
+	copy_bytes = (src_sz < bytes) ? src_sz : bytes;
+	base_off = ti_phys_offset(src)/8;
+	fsl_io_read_bytes(buf, copy_bytes, base_off);
+	return copy_bytes;
+}
+
+#define COPY_BUF_SZ	4096
+
 void typeinfo_phys_copy(struct type_info* dst, struct type_info* src)
 {
 	typesize_t		src_sz, dst_sz;
@@ -567,7 +586,7 @@ void typeinfo_phys_copy(struct type_info* dst, struct type_info* src)
 	src_base /= 8;
 	dst_base /= 8;
 
-	buf = fsl_alloc(4096);
+	buf = fsl_alloc(COPY_BUF_SZ);
 	FSL_ASSERT (buf != NULL);
 
 	xfer_total = 0;
@@ -575,13 +594,40 @@ void typeinfo_phys_copy(struct type_info* dst, struct type_info* src)
 	while (xfer_total < src_sz) {
 		unsigned int	to_xfer;
 		to_xfer = src_sz - xfer_total;
-		if (to_xfer > 4096) to_xfer = 4096;
+		if (to_xfer > COPY_BUF_SZ) to_xfer = COPY_BUF_SZ;
 		fsl_io_read_bytes(buf, to_xfer, xfer_total + src_base);
 		fsl_io_write_bytes(buf, to_xfer, xfer_total + dst_base);
 		xfer_total += to_xfer;
 	}
 
 	fsl_free(buf);
+}
+
+char* typeinfo_getname(struct type_info* ti, char* buf, unsigned int len)
+{
+	struct type_info	*name_ti;
+	unsigned int		read_len;
+	char			*ret = NULL;
+
+	DEBUG_TYPEINFO_ENTER();
+
+	if (ti == NULL) goto done;
+
+	name_ti = typeinfo_lookup_follow_direct(ti, "name");
+	if (name_ti == NULL) goto done;
+
+	DEBUG_TYPEINFO_WRITE("NAME VOFF=%"PRIu64". POFF=%"PRIu64,
+		ti_offset(name_ti) / 8,
+		ti_phys_offset(name_ti) / 8);
+
+	ret = buf;
+	read_len = typeinfo_to_buf(name_ti, buf, len-1);
+	buf[read_len] = '\0';
+	typeinfo_free(name_ti);
+
+done:
+	DEBUG_TYPEINFO_LEAVE();
+	return ret;
 }
 
 struct type_info* typeinfo_alloc_origin(void)
@@ -596,10 +642,11 @@ struct type_info* typeinfo_alloc_origin(void)
  * whether it is a points-to or an array or whatever.
  * Just [0..(num_elems-1]
  */
-struct type_info* typeinfo_lookup_follow_idx(
+struct type_info* typeinfo_lookup_follow_idx_all(
 	struct type_info*	ti_parent,
 	const char*		fieldname,
-	uint64_t		idx)
+	uint64_t		idx,
+	bool			accept_names)
 {
 	const struct fsl_rtt_type	*tt;
 	const struct fsl_rtt_field*	tf;
@@ -611,8 +658,11 @@ struct type_info* typeinfo_lookup_follow_idx(
 	if (tf != NULL) {
 		if (tf->tf_typenum == TYPENUM_INVALID) return NULL;
 		if (tf->tf_cond != NULL)
-			if (tf->tf_cond(&ti_clo(ti_parent)) == false)
+			if (tf->tf_cond(&ti_clo(ti_parent)) == false) {
+				DEBUG_TYPEINFO_WRITE("BAD COND");
 				return NULL;
+			}
+
 		return typeinfo_follow_field_off(
 				ti_parent,
 				tf,
@@ -631,7 +681,68 @@ struct type_info* typeinfo_lookup_follow_idx(
 			&err);
 	}
 
-	return NULL;
+	if (!accept_names) return NULL;
+
+	/* last effort: scan all strong fields for names */
+	return typeinfo_follow_name(ti_parent, fieldname);
+}
+
+static struct type_info* typeinfo_follow_name(
+	struct type_info*	ti, /* array to avoid aliasing */
+	const char*		fieldname)
+{
+	const struct fsl_rtt_pointsto*	pt;
+	const struct fsl_rtt_virt*	vt;
+	uint64_t			idx;
+	struct type_info		*ret, *ti_prev;
+	char				*name_buf;
+
+	ti_prev = ti->ti_prev;
+	if (ti_prev == NULL) return NULL;
+
+	name_buf = fsl_alloc(256);
+
+	if ((pt = ti->ti_points) != NULL) {
+		/* scan all members of points */
+		uint64_t max_idx;
+		idx = pt->pt_iter.it_min(&ti_clo(ti_prev));
+		if (idx == ~0) goto done;
+		max_idx = pt->pt_iter.it_max(&ti_clo(ti_prev));
+		for (; idx <= max_idx; idx++) {
+			ret = typeinfo_follow_pointsto(ti_prev, pt, idx);
+			if (ret == NULL) continue;
+			if (	typeinfo_getname(ret, name_buf, 255) == NULL ||
+				strcmp(name_buf, fieldname) != 0)
+			{
+				typeinfo_free(ret);
+			} else
+				goto done;
+		}
+		ret = NULL;
+	} else if ((vt = ti->ti_virt) != NULL) {
+		/* scan all virt members */
+		int	err;
+		idx = vt->vt_iter.it_min(&ti_clo(ti_prev));
+		if (idx == ~0) goto done;
+		err = 0;
+		while (err == TI_ERR_OK || err == TI_ERR_BADVERIFY) {
+			ret = typeinfo_follow_virt(ti_prev, vt, idx, &err);
+			idx++;
+			if (ret == NULL) continue;
+			if (	typeinfo_getname(ret, name_buf, 255) == NULL ||
+				strcmp(name_buf, fieldname) != 0)
+			{
+				typeinfo_free(ret);
+			} else
+				goto done;
+		}
+		ret = NULL;
+	}
+
+done:
+	fsl_free(name_buf);
+	if (ret != NULL) ret->ti_flag |= TI_FL_FROMNAME;
+	return ret;
 }
 
 struct type_info* typeinfo_reindex(

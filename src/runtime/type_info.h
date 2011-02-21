@@ -29,9 +29,12 @@ struct type_info
 	const struct fsl_rtt_pointsto	*ti_points;
 	const struct fsl_rt_iter	*ti_iter;
 
+	unsigned int		ti_flag;
 	unsigned int		ti_depth;
 };
 
+#define TI_FL_FROMNAME	1
+#define ti_from_name(x)	((x)->ti_flag & TI_FL_FROMNAME)
 #define ti_is_field(x)	((x)->ti_field != NULL)
 #define ti_is_virt(x)	((x)->ti_virt != NULL)
 #define ti_is_points(x) ((x)->ti_points != NULL)
@@ -140,7 +143,6 @@ struct type_info* typeinfo_follow_field_off_idx(
 struct type_info* typeinfo_follow_field(
 	struct type_info* tip, const struct fsl_rtt_field* tif);
 
-
 struct type_info* typeinfo_follow_pointsto(
 	struct type_info*		ti_parent,
 	const struct fsl_rtt_pointsto*	ti_pt,
@@ -150,15 +152,20 @@ struct type_info* typeinfo_follow_iter(
 	const struct fsl_rt_iter*	ti_iter,
 	uint64_t			idx);
 
-#define typeinfo_lookup_follow(x,y)	typeinfo_lookup_follow_idx(x,y,0)
-struct type_info* typeinfo_lookup_follow_idx(
+#define typeinfo_lookup_follow(x,y)	typeinfo_lookup_follow_idx_all(x,y,0,true)
+#define typeinfo_lookup_follow_direct(x,y) typeinfo_lookup_follow_idx_all(x,y,0,false)
+#define typeinfo_lookup_follow_idx(x,y,z) typeinfo_lookup_follow_idx_all(x,y,z,false)
+struct type_info* typeinfo_lookup_follow_idx_all(
 	struct type_info*	ti_parent,
 	const char*		fieldname,
-	uint64_t		idx);
+	uint64_t		idx,
+	bool			accept_names);
 
 void typeinfo_phys_copy(struct type_info* dst, struct type_info* src);
+unsigned int typeinfo_to_buf(struct type_info* src, void* buf, unsigned int bytes);
 struct type_info* typeinfo_reindex(
 	const struct type_info* dst, unsigned int idx);
+char* typeinfo_getname(struct type_info* ti, char* buf, unsigned int len);
 
 #include "type_print.h"
 

@@ -3,6 +3,7 @@
 #include "struct_writer.h"
 #include "symtab.h"
 #include "eval.h"
+#include "typeclosure.h"
 
 using namespace std;
 
@@ -165,7 +166,7 @@ void InstanceIter::genCodeLookup(void) const
 	llvm::Function		*f;
 	llvm::BasicBlock	*bb_bits;
 	llvm::IRBuilder<>	*builder;
-	llvm::Value		*ret_typepass, *ret_off, *ret_params;
+	llvm::Value		*ret_typepass, *ret_off;
 	string			fcall_bits;
 	Expr			*expr_eval_bits;
 	SymbolTable		*local_syms;
@@ -205,22 +206,19 @@ void InstanceIter::genCodeLookup(void) const
 		ai,
 		code_builder->createTmpI64(binding->getName()));
 
-	ret_typepass = expr_eval_bits->codeGen();
-	assert (ret_typepass != NULL);
-
-	assert (ret_typepass->getType() == code_builder->getClosureTyPtr());
 	/* output value should be a typepass struct */
+	ret_typepass = expr_eval_bits->codeGen();
+	TypeClosure	ret_clo(ret_typepass);
 
+	ai++;	/* parambuf output */
 	if (dst_cast == NULL) {
-		ret_params = builder->CreateExtractValue(
-			builder->CreateLoad(ret_typepass), 1, "params");
-		ai++;	/* parambuf output */
 		code_builder->emitMemcpy64(
-			ai, ret_params, dst_type->getParamBufEntryCount());
+			ai,
+			ret_clo.getParamBuf(),
+			dst_type->getParamBufEntryCount());
 	} else {
 		llvm::AllocaInst	*pb_outptr;
 		pb_outptr = code_builder->createTmpI64Ptr();
-		ai++;	/* parambuf output */
 		builder->CreateStore(ai, pb_outptr);
 		code_builder->storeExprListIntoParamBuf(
 			&ectx, dst_type->getArgs(),
@@ -228,8 +226,10 @@ void InstanceIter::genCodeLookup(void) const
 			pb_outptr);
 	}
 
-	ret_off = builder->CreateExtractValue(
-		builder->CreateLoad(ret_typepass), 0, "offset");
+	ai++;	/* virt output */
+	builder->CreateStore(ret_clo.getXlate(), ai);
+
+	ret_off = ret_clo.getOffset();
 	builder->CreateRet(ret_off);
 }
 
@@ -251,6 +251,9 @@ void InstanceIter::genProto(void) const
 
 	/* parambuf_t out */
 	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
+
+	/* virt out */
+	args.push_back(code_builder->getVirtTyPtr());
 
 	ft = llvm::FunctionType::get(
 		llvm::Type::getInt64Ty(llvm::getGlobalContext()), args, false);
@@ -295,12 +298,13 @@ void InstanceIter::genTableInstance(TableGen* tg) const
 void InstanceIter::printExterns(TableGen* tg) const
 {
 	string	args_pr[] = {
-		"const struct fsl_rt_closure*", "uint64_t", "uint64_t*"};
+		"const struct fsl_rt_closure*",
+		"uint64_t", "uint64_t*","void**"};
 	string	args_bound[] = {"const struct fsl_rt_closure*"};
 
 	tg->printExternFunc(
 		getLookupFCallName(),
-		vector<string>(args_pr,args_pr+3),
+		vector<string>(args_pr,args_pr+4),
 		"uint64_t");
 
 	tg->printExternFunc(

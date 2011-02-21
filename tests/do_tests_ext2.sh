@@ -18,12 +18,16 @@ fs_fuse_cmd_img ext2 ext2.img "od -Ax -tx grp_desc_table/3/block_bmp" "od_grp3_b
 fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_blkbmp_ptr"
 fs_fuse_cmd_img ext2 ext2-many.img  "ls -la grp_desc_table/2/grp_ino_tab/ino" "ls_grp2_inotab"
 fs_fuse_cmd_img ext2 ext2-many.img  "ls -la root_ino/vdir/" "ls_rootino"
+fs_fuse_cmd_img ext2 ext2-many.img  "ls -la root_ino/vdir/1d" "ls_rootino_1d"
+fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_blkbmp_ptr"
+#fs_fuse_cmd_img ext2 ext2.img  "ls -la root_ino/vdir" "ls_grp3_blkbmp_ptr"
 
 p=`cat tests/fusebrowse-ext2/ext2.img-ls.out | awk '{ print $5 " " $9; }'`
 p_grp=`cat tests/fusebrowse-ext2/ext2.img-ls_grp.out | awk '{ print $5 " " $9; }'`
 grp3=`cat tests/fusebrowse-ext2/ext2.img-ls_grp3.out | awk '{ print $5 " " $9; }'`
 inotab=`cat tests/fusebrowse-ext2/ext2-many.img-ls_grp2_inotab.out | awk '{ print $5 " " $9; }'`
 rootino=`cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino.out | awk '{ print $5 " " $9; }'`
+rootino_1d=`cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino_1d.out | awk '{ print $5 " " $9; }'`
 
 sb_str=`echo "$p" | grep "1024 sb"`
 if [ -z "$sb_str" ]; then
@@ -53,12 +57,20 @@ if [ -z "$grp3_str" ]; then
 	exit 3
 fi
 
-rootino_str=`echo "$rootino" | grep "16 9"`
+rootino_str=`echo "$rootino" | grep "20 lost+found"`
 if [ -z "$rootino_str" ]; then
-	echo "Couldn't read inode_block??"
+	echo "Couldn't read root_ino vdir??"
 	cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino.out
 	exit 3
 fi
+
+rootino_1d_str=`echo "${rootino_1d}" | grep "1 file_type"`
+if [ -z "$rootino_1d_str" ]; then
+	echo "Couldn't read directory entry for /1d/??"
+	cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino_1d.out
+	exit 3
+fi
+
 
 inotab_str=`echo "$inotab" | grep "128 0"`
 if [ -z "$inotab_str" ]; then

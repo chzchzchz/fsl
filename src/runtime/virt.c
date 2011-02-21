@@ -39,13 +39,14 @@ uint64_t fsl_virt_xlate_safe(
 static diskoff_t fsl_virt_xlate_miss(struct fsl_rt_mapping *rtm, int idx)
 {
 	diskoff_t		base;
+	void			*xlate;
 	uint64_t params[tt_by_num(rtm->rtm_virt->vt_iter.it_type_dst)->tt_param_c];
 
 	DEBUG_VIRT_WRITE("&rtm->rtm_clo = %p", rtm->rtm_clo);
 	DEBUG_VIRT_WRITE("rtm_clo->clo_offset: %"PRIu64" bits (%"PRIu64" bytes)",
 		rtm->rtm_clo->clo_offset,
 		rtm->rtm_clo->clo_offset / 8);
-	base = rtm->rtm_virt->vt_iter.it_range(rtm->rtm_clo, idx, params);
+	base = rtm->rtm_virt->vt_iter.it_range(rtm->rtm_clo, idx, params, &xlate);
 	DEBUG_VIRT_WRITE("BASE FOUND: %"PRIu64, base);
 
 	return base;
@@ -225,6 +226,7 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 	diskoff_t                       first_type_off;
 	uint64_t			idx;
 	const struct fsl_rtt_virt	*vt;
+	void				*xlate;
 
 	vt = rtm->rtm_virt;
 
@@ -261,7 +263,7 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 	first_type_off = vt->vt_iter.it_range(
 		rtm->rtm_clo,
 		rtm->rtm_cached_minidx,
-		params);
+		params, &xlate);
 
 	DEBUG_VIRT_WRITE("NEW_VCLO");
 	NEW_VCLO(vsrc_clo, first_type_off, params, rtm->rtm_clo->clo_xlate);
@@ -287,8 +289,10 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 	{
 		diskoff_t	cur_off;
 		size_t		cur_sz;
+		void		*xlate;
+
 		DEBUG_VIRT_WRITE("calling vt_range on idx=%d", idx);
-		cur_off = vt->vt_iter.it_range(rtm->rtm_clo, idx, params);
+		cur_off = vt->vt_iter.it_range(rtm->rtm_clo, idx, params, &xlate);
 		NEW_VCLO(cur_clo, cur_off, params, rtm->rtm_clo->clo_xlate);
 		DEBUG_VIRT_WRITE("calling tt_size on idx=%d", idx);
 		cur_sz = tt_vsrc->tt_size(&cur_clo);

@@ -326,6 +326,13 @@ void CodeBuilder::makeClosureTy(void)
 	closure_struct = llvm::StructType::get(gctx, types, "closure");
 }
 
+llvm::Type* CodeBuilder::getVirtTyPtr(void)
+{
+	return llvm::PointerType::get(
+		llvm::Type::getInt8PtrTy(llvm::getGlobalContext()),
+		0);
+}
+
 llvm::AllocaInst* CodeBuilder::createTmpI64Ptr(void)
 {
 	return vscope->createTmpI64Ptr();

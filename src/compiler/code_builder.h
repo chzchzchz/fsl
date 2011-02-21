@@ -80,8 +80,8 @@ public:
 
 
 	llvm::Type* getClosureTy(void) { return closure_struct; }
-
 	llvm::Type* getClosureTyPtr(void);
+	llvm::Type* getVirtTyPtr(void);
 
 	void copyClosure(const Type* t,
 		llvm::Value *src, llvm::Value *dst_ptr);

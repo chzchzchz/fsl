@@ -7,12 +7,14 @@ TypeClosure::TypeClosure(llvm::Function::arg_iterator arg_it)
 	: clo_ptr(arg_it), builder(code_builder->getBuilder())
 {
 	assert (clo_ptr != NULL);
+	assert (clo_ptr->getType() == code_builder->getClosureTyPtr());
 }
 
 TypeClosure::TypeClosure(llvm::Value* in_clo)
 	: clo_ptr(in_clo), builder(code_builder->getBuilder())
 {
 	assert (clo_ptr != NULL);
+	assert (clo_ptr->getType() == code_builder->getClosureTyPtr());
 }
 
 llvm::Value* TypeClosure::getOffset(void) const
