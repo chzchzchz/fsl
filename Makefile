@@ -42,7 +42,7 @@ klee:
 code:
 	cd src && $(MAKECMD) && cd ..
 
-tools: code
+tools: code klee
 	cd src/tool && $(MAKECMD) && cd ../..
 
 kern: tools

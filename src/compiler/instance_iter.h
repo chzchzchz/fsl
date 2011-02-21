@@ -35,7 +35,6 @@ public:
 		Expr*		in_max_expr,
 		Expr*		in_lookup_expr);
 
-
 	virtual ~InstanceIter(void);
 	const Type* getSrcType(void) const { return src_type; }
 	const Type* getDstType(void) const { return dst_type; }

@@ -7,8 +7,10 @@ struct fsl_fuse_node
 	struct type_info		*fn_ti;
 
 	/* fn */
-	struct type_info		*fn_array_parent;
-	const struct fsl_rtt_field	*fn_array_field;
+	struct type_info		*fn_arr_parent;
+	const struct fsl_rtt_field	*fn_arr_field;
+	const struct fsl_rtt_pointsto	*fn_arr_pt;
+	const struct fsl_rtt_virt	*fn_arr_vt;
 
 	/* primitive */
 	struct type_info		*fn_parent;
@@ -21,7 +23,10 @@ struct fsl_fuse_node
 #define set_fnode(x,y)	((x))->fh = (uint64_t)((void*)(y))
 
 #define fn_is_type(x)	(((x)->fn_ti) != NULL)
-#define fn_is_array(x)	(((x)->fn_array_parent) != NULL)
+#define fn_is_array(x)	(((x)->fn_arr_parent) != NULL)
+#define fn_is_array_field(x) (((x)->fn_arr_field) != NULL)
+#define fn_is_array_pt(x) (((x)->fn_arr_pt) != NULL)
+#define fn_is_array_vt(x) (((x)->fn_arr_vt) != NULL)
 #define fn_is_prim(x)	(((x)->fn_parent) != NULL)
 
 struct fsl_fuse_node* fslnode_by_path(const char* path);

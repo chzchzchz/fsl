@@ -105,7 +105,7 @@ KTOOLOBJSOUT := $(KERN_TOOLOBJS:%=$(OBJDIR)/kernel/tool/%)
 LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/compiler/%)
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
-LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core) 
+LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core)
 LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual//;s/-fPIC//;s/-DNDEBUG//g") -Wall
 LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
 COMP_CFLAGS= $(CFLAGS) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
@@ -114,7 +114,7 @@ RTKCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -mcmodel=kernel -mno-red-zone -Wall  -D__KE
 export CFLAGS
 export OBJDIR
 
-all: $(BINDIR)/lang $(KTOOLOBJSOUT) klee
+all: $(BINDIR)/lang $(KTOOLOBJSOUT)
 
 scantool: $(BINDIR)/lang
 	cd tool && $(MAKECMD)  all
@@ -175,7 +175,7 @@ $(OBJDIR)/runtime/io_pread.o: 		\
 $(OBJDIR)/runtime/io_mmap.o: $(OBJDIR)/runtime/rt-mmap/io.o
 	cp $^ $@
 
-clean: 
+clean:
 	rm -f  compiler/lex.yy.cc compiler/y.tab.h compiler/parser.cc compiler/parser.hh  fsl.table.c *.ll \
 	$(RTOBJSOUT) \
 	$(LANGOBJSOUT) \

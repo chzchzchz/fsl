@@ -20,6 +20,12 @@ static uid_t		our_uid;
 static gid_t		our_gid;
 time_t			open_time;
 
+struct array_ops
+{
+	uint64_t (*ao_elems)(struct fsl_fuse_node* fn);
+	struct type_info* (*ao_get)(struct fsl_fuse_node* fn, unsigned int);
+};
+
 static int fslfuse_getattr_type(struct type_info* ti, struct stat* stbuf)
 {
 	stbuf->st_mode = S_IFDIR | 0500;
@@ -33,14 +39,19 @@ static int fslfuse_getattr_array(struct fsl_fuse_node* fn, struct stat* stbuf)
 {
 	const struct fsl_rtt_field	*tf;
 	uint64_t			num_elems;
+	size_t				sz;
 
-	tf = fn->fn_array_field;
-	assert (tf != NULL);
+	tf = fn->fn_arr_field;
+	if (tf != NULL)
+		sz = ti_field_size(fn->fn_arr_parent, tf, &num_elems)/8;
+	else
+		sz = 0;
 
 	stbuf->st_nlink = 2;
 	stbuf->st_mode = S_IFDIR | 0500;
-	stbuf->st_size = ti_field_size(fn->fn_array_parent, tf, &num_elems)/8;
 	stbuf->st_blksize = 512;
+	stbuf->st_size = sz;
+
 	return 0;
 }
 
@@ -63,9 +74,6 @@ static int fslfuse_getattr_ti(const char *path, struct stat *stbuf)
 {
 	int			ret;
 	struct fsl_fuse_node	*fn;
-
-	fprintf(out_file, "GETATTR GUY %s\n", path);
-	fflush(out_file);
 
 	fn = fslnode_by_path(path);
 	if (fn == NULL) return -ENOENT;
@@ -190,8 +198,66 @@ static int read_ti_dir(
 	return 0;
 }
 
+#define TYPEINFO_NOMORE		((void*)((intptr_t)~0))
+#define ti_is_nomore(x)		((x) == TYPEINFO_NOMORE)
+
+static uint64_t ao_elems_field(struct fsl_fuse_node* fn)
+{
+	return fn->fn_arr_field->tf_elemcount(&ti_clo(fn->fn_arr_parent));
+}
+
+static struct type_info* ao_get_field(struct fsl_fuse_node* fn, unsigned int i)
+{
+	ti_field_off(fn->fn_arr_parent, fn->fn_arr_field, i);
+	return typeinfo_follow_field_off_idx(
+			fn->fn_arr_parent, fn->fn_arr_field,
+			ti_field_off(fn->fn_arr_parent, fn->fn_arr_field, i),
+			i);
+}
+
+static uint64_t ao_elems_pt(struct fsl_fuse_node* fn)
+{
+	uint64_t	it_min, it_max;
+	it_min = fn->fn_arr_pt->pt_iter.it_min(&ti_clo(fn->fn_arr_parent));
+	if (it_min == ~0) return 0;
+	it_max = fn->fn_arr_pt->pt_iter.it_max(&ti_clo(fn->fn_arr_parent));
+	if (it_min > it_max) return 0;
+	return (it_max-it_min)+1;
+}
+
+static struct type_info* ao_get_pt(struct fsl_fuse_node* fn, unsigned int i)
+{
+	return typeinfo_follow_pointsto(
+		fn->fn_arr_parent, fn->fn_arr_pt,
+		i+fn->fn_arr_pt->pt_iter.it_min(&ti_clo(fn->fn_arr_parent)));
+}
+
+static uint64_t ao_elems_vt(struct fsl_fuse_node* fn) { return ~0; }
+
+static struct type_info* ao_get_vt(struct fsl_fuse_node* fn, unsigned int i)
+{
+	int			err;
+	struct type_info	*ti;
+
+	ti = typeinfo_follow_virt(
+		fn->fn_arr_parent, fn->fn_arr_vt,
+		i+fn->fn_arr_vt->vt_iter.it_min(&ti_clo(fn->fn_arr_parent)),
+		&err);
+	if (ti) return ti;
+	if (err == TI_ERR_BADVERIFY) return NULL;
+	return TYPEINFO_NOMORE;
+}
+
+
+struct array_ops ao_field_ops = {
+	.ao_elems = ao_elems_field, .ao_get = ao_get_field};
+struct array_ops ao_pt_ops = { .ao_elems = ao_elems_pt, .ao_get = ao_get_pt};
+struct array_ops ao_vt_ops = { .ao_elems = ao_elems_vt, .ao_get = ao_get_vt};
+
 static int read_array_dir(
-	void *buf, fuse_fill_dir_t filler, struct fsl_fuse_node* fn)
+	void *buf, fuse_fill_dir_t filler,
+	struct fsl_fuse_node* fn,
+	struct array_ops* ao)
 {
 	unsigned int			i;
 	uint64_t			elem_c;
@@ -199,24 +265,18 @@ static int read_array_dir(
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
 
-	elem_c = fn->fn_array_field->tf_elemcount(&ti_clo(fn->fn_array_parent));
+	elem_c = ao->ao_elems(fn);
 	for (i = 0; i < elem_c; i++) {
 		char				name[16];
-		diskoff_t			f_off;
 		struct type_info		*cur_ti;
 
-		f_off = ti_field_off(
-			fn->fn_array_parent, fn->fn_array_field, i);
-		cur_ti = typeinfo_follow_field_off_idx(
-			fn->fn_array_parent, fn->fn_array_field, f_off, i);
-
-		fprintf(out_file, "cur_ti[%d]=%p. phys=%"PRIu64"\n",
-			elem_c, cur_ti, f_off/8); fflush(out_file);
+		cur_ti = ao->ao_get(fn, i);
 		if (cur_ti == NULL) {
 			fprintf(out_file, "err=%s\n", fsl_err_get());
 			fsl_err_reset();
 			continue;
-		}
+		} else if (cur_ti == TYPEINFO_NOMORE)
+			break;
 		typeinfo_free(cur_ti);
 
 		sprintf(name, "%d", i);
@@ -240,36 +300,26 @@ static int fslfuse_readdir(
 
 	fn = get_fnode(fi);
 	if (fn_is_type(fn)) {
-		fprintf(out_file, "TYPE\n"); fflush(out_file);
 		return read_ti_dir(buf, filler, get_fnode(fi)->fn_ti);
-	} else if (fn_is_array(fn)) {
-			fprintf(out_file, "ARRAY\n"); fflush(out_file);
-			return read_array_dir(buf, filler, get_fnode(fi));
-	} else if (fn_is_prim(fn)) {
-		fprintf(out_file, "ENOENT\n"); fflush(out_file);
+	} else if (fn_is_array_field(fn)) {
+		return read_array_dir(buf, filler, get_fnode(fi), &ao_field_ops);
+	} else if (fn_is_array_pt(fn)) {
+		return read_array_dir(buf, filler, get_fnode(fi), &ao_pt_ops);
+	} else if (fn_is_array_vt(fn)) {
+		return read_array_dir(buf, filler, get_fnode(fi), &ao_vt_ops);
+	}else if (fn_is_prim(fn)) {
+		// fprintf(out_file, "ENOENT\n"); fflush(out_file);
 		return -ENOENT;
 	}
-
-	fprintf(out_file, "READDIR %s OK.\n", path);
-	fflush(out_file);
 
 	return -ENOENT;
 }
 
 static int fslfuse_close(const char *path, struct fuse_file_info *fi)
 {
-	if (!fi->fh) {
-		fprintf(out_file, "fffffffff%s\n", path);
-	}else {
-		fprintf(out_file, "RELEASING %s\n", path);
-		fslnode_free(get_fnode(fi));
-		fprintf(out_file, "DONE RELEASING %s\n", path);
-	}
-
-	fflush(out_file);
+	if (fi->fh) fslnode_free(get_fnode(fi));
 	return 0;
 }
-
 
 static int fslfuse_opendir(const char *path, struct fuse_file_info *fi)
 {
@@ -294,9 +344,6 @@ static int fslfuse_open(const char *path, struct fuse_file_info *fi)
 {
 	struct fsl_fuse_node	*fn;
 
-	fprintf(out_file, "OP %s\n", path);
-	fflush(out_file);
-
 	if ((fi->flags & 3) != O_RDONLY) return -EACCES;
 	fn = fslnode_by_path(path);
 	if (fn == NULL) return -ENOENT;
@@ -315,6 +362,7 @@ static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi)
 {
 	struct fsl_fuse_node	*fn;
+	diskoff_t		clo_off;
 	uint64_t		num_elems;
 	size_t 			len;
 	int			i;
@@ -324,25 +372,18 @@ static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
 	if (!fn_is_prim(fn)) return -ENOENT;
 
 	len = ti_field_size(fn->fn_parent, fn->fn_field, &num_elems)/8;
+	if (offset >= len) return 0;
 
-	if (offset < len) {
-		diskoff_t	clo_off;
+	assert (offset < len);
 
-		if (offset + size > len) size = len - offset;
+	clo_off = ti_offset(fn->fn_prim_ti);
+	if ((size + offset) > len) size = len - offset;
 
-		clo_off = ti_offset(fn->fn_prim_ti);
-
-		/* XXX SLOW */
-		for (i = 0; i < size; i++) {
-			char	c;
-			c = __getLocal(
-				&ti_clo(fn->fn_prim_ti),
-				clo_off+(offset+i)*8,
-				8);
-			buf[i] = c;
-		}
-	} else
-		size = 0;
+	/* XXX SLOW */
+	for (i = 0; i < size; i++) {
+		buf[i] = __getLocal(
+			&ti_clo(fn->fn_prim_ti), clo_off+(offset+i)*8, 8);
+	}
 
 	return size;
 }
@@ -376,6 +417,7 @@ int tool_entry(int argc, char *argv[])
 	assert (argc == 1 && "NEEDS MOUNT POINT");
 	open_time = time(0);
 	out_file = fopen("fusebrowse.err", "w");
+	if (out_file != NULL) setlinebuf(out_file);
 	our_gid = getgid();
 	our_uid = getuid();
 	assert (out_file != NULL);

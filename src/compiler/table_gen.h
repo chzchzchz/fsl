@@ -60,9 +60,6 @@ private:
 	/* these generate the struct instances ala
 	 * { .some_field = whatever, ... } */
 	void genInstanceType(const Type *t);
-	void genInstanceTypeField(
-		const Type*			parent_type,
-		const class SymbolTableEnt*	st_ent);
 
 	void genScalarConstants(void);
 

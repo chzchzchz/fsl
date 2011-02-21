@@ -71,7 +71,6 @@ static uint64_t fsl_virt_xlate_rtm(struct fsl_rt_mapping* rtm, uint64_t bit_off)
 		DEBUG_VIRT_LEAVE();
 		return ~0;
 	}
-
 	FSL_ASSERT (bit_off < total_bits && "Accessing past virt bits");
 	DEBUG_VIRT_WRITE("rtm->rtm_cached_min = %"PRIu64, rtm->rtm_cached_minidx);
 	DEBUG_VIRT_WRITE("rtm->rtm_cached_max = %"PRIu64, rtm->rtm_cached_maxidx);

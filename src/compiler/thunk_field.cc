@@ -1,5 +1,8 @@
 #include "thunk_field.h"
 #include "thunk_type.h"
+#include "table_gen.h"
+#include "struct_writer.h"
+#include "thunk_fieldoffset_cond.h"
 
 #include "runtime_interface.h"
 
@@ -86,7 +89,6 @@ ThunkField::ThunkField(
 	assert (t_params != NULL);
 	assert (field_num == TF_FIELDNUM_NONE ||
 		(field_num < in_owner.getNumFields() && "Bad type in copy"));
-
 	setFields(in_owner);
 }
 
@@ -107,13 +109,7 @@ ThunkField::ThunkField(
 	assert (t_params != NULL);
 
 	setFields(in_owner);
-
 	field_num = in_owner.incNumFields();
-
-	cout << "Owner Type: " << owner_type->getName() << endl;
-	cout << "Fieldname: " << fieldname << endl;
-	cout << "Fieldnum: " << field_num << endl;
-	cout << "-------" << endl;
 }
 
 void ThunkField::setFields(ThunkType& in_owner)
@@ -144,4 +140,84 @@ ThunkField::~ThunkField()
 	delete t_size;
 	delete t_elems;
 	delete t_params;
+}
+
+void ThunkField::genFieldEntry(TableGen* tg) const
+{
+	StructWriter			sw(tg->getOS());
+	const Type			*field_type;
+	const ThunkFieldOffsetCond	*condoff;
+	FCall				*field_off_fc;
+	FCall				*field_elems_fc;
+	FCall				*field_size_fc;
+	FCall				*field_params_fc;
+
+	condoff = dynamic_cast<const ThunkFieldOffsetCond*>(getOffset());
+	field_off_fc = getOffset()->copyFCall();
+	field_elems_fc = getElems()->copyFCall();
+	field_size_fc = getSize()->copyFCall();
+	field_params_fc = getParams()->copyFCall();
+	field_type = getType();
+
+	sw.writeStr("tf_fieldname", getFieldName());
+	sw.write("tf_fieldbitoff", field_off_fc->getName());
+	if (field_type != NULL) {
+		sw.write32("tf_typenum", field_type->getTypeNum());
+	} else
+		sw.write32("tf_typenum", ~0);
+	sw.write("tf_elemcount", field_elems_fc->getName());
+	sw.write("tf_typesize", field_size_fc->getName());
+	sw.write("tf_params",  field_params_fc->getName());
+
+	if (condoff != NULL) {
+		FCall	*present_fc;
+		present_fc = condoff->copyFCallPresent();
+		sw.write("tf_cond", present_fc->getName());
+		delete present_fc;
+	} else
+		sw.write("tf_cond", "NULL");
+
+	sw.write("tf_flags",
+		((getElems()->isNoFollow() == true) ? 4 : 0) |
+		((getElems()->isFixed() == true) ? 2 : 0) |
+		((getSize()->isConstant() == true) ? 1 : 0));
+
+	sw.write("tf_fieldnum", getFieldNum());
+
+	delete field_params_fc;
+	delete field_off_fc;
+	delete field_elems_fc;
+	delete field_size_fc;
+}
+
+void ThunkField::genFieldExtern(TableGen* tg) const
+{
+	ostream				&out(tg->getOS());
+	const ThunkFieldOffsetCond	*fo_cond;
+	FCall				*fc_off;
+	FCall				*fc_elems;
+	FCall				*fc_size;
+
+	fc_off = getOffset()->copyFCall();
+	fc_elems = getElems()->copyFCall();
+	fc_size = getSize()->copyFCall();
+
+	tg->printExternFuncThunk(fc_off->getName());
+	tg->printExternFuncThunk(fc_elems->getName());
+	tg->printExternFuncThunk(fc_size->getName());
+	tg->printExternFuncThunkParams(getParams());
+
+	fo_cond = dynamic_cast<const ThunkFieldOffsetCond*>(getOffset());
+	if (fo_cond != NULL) {
+		FCall	*cond_fc;
+		cond_fc = fo_cond->copyFCallPresent();
+		tg->printExternFuncThunk(cond_fc->getName(), "bool");
+		delete cond_fc;
+	}
+
+	out << endl;
+
+	delete fc_off;
+	delete fc_elems;
+	delete fc_size;
 }

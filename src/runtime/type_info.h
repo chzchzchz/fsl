@@ -32,6 +32,11 @@ struct type_info
 	unsigned int		ti_depth;
 };
 
+#define ti_is_field(x)	((x)->ti_field != NULL)
+#define ti_is_virt(x)	((x)->ti_virt != NULL)
+#define ti_is_points(x) ((x)->ti_points != NULL)
+#define ti_is_iter(x)	((x)->ti_iter != NULL)
+
 #define td_origin()	{.td_typenum = fsl_rt_origin_typenum, 	\
 			.td_clo = { 				\
 				.clo_offset = 0, 		\
@@ -152,6 +157,8 @@ struct type_info* typeinfo_lookup_follow_idx(
 	uint64_t		idx);
 
 void typeinfo_phys_copy(struct type_info* dst, struct type_info* src);
+struct type_info* typeinfo_reindex(
+	const struct type_info* dst, unsigned int idx);
 
 #include "type_print.h"
 

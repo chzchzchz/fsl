@@ -40,6 +40,12 @@ public:
 		out << '.' << fieldname << " = \"" << val << "\"";
 	}
 
+	void write32(const std::string& fieldname, uint32_t val)
+	{
+		writeComma();
+		out << '.' << fieldname << "=(uint32_t)" << val;
+	}
+
 	void write(const std::string& fieldname, uint64_t val)
 	{
 		writeComma();

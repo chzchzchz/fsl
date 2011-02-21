@@ -39,59 +39,6 @@ extern MemoTab			memotab;
 
 using namespace std;
 
-void TableGen::genInstanceTypeField(
-	const Type*		parent_type,
-	const SymbolTableEnt*	st_ent)
-{
-	StructWriter			sw(out);
-	const Type			*field_type;
-	const ThunkField		*tf;
-	const ThunkFieldOffsetCond	*condoff;
-	FCall				*field_off_fc;
-	FCall				*field_elems_fc;
-	FCall				*field_size_fc;
-	FCall				*field_params_fc;
-
-	tf = st_ent->getFieldThunk();
-	condoff = dynamic_cast<const ThunkFieldOffsetCond*>(tf->getOffset());
-	field_off_fc = tf->getOffset()->copyFCall();
-	field_elems_fc = tf->getElems()->copyFCall();
-	field_size_fc = tf->getSize()->copyFCall();
-	field_params_fc = tf->getParams()->copyFCall();
-	field_type = types_map[st_ent->getTypeName()];
-
-	sw.writeStr("tf_fieldname", st_ent->getFieldName());
-	sw.write("tf_fieldbitoff", field_off_fc->getName());
-	if (field_type != NULL)
-		sw.write("tf_typenum", field_type->getTypeNum());
-	else
-		sw.write("tf_typenum", "~0");
-	sw.write("tf_elemcount", field_elems_fc->getName());
-	sw.write("tf_typesize", field_size_fc->getName());
-	sw.write("tf_params",  field_params_fc->getName());
-
-	if (condoff != NULL) {
-		FCall	*present_fc;
-
-		present_fc = condoff->copyFCallPresent();
-		sw.write("tf_cond", present_fc->getName());
-		delete present_fc;
-	} else {
-		sw.write("tf_cond", "NULL");
-	}
-
-	sw.write("tf_flags",
-		((tf->getElems()->isNoFollow() == true) ? 4 : 0) |
-		((tf->getElems()->isFixed() == true) ? 2 : 0) |
-		((tf->getSize()->isConstant() == true) ? 1 : 0));
-
-	sw.write("tf_fieldnum", tf->getFieldNum());
-
-	delete field_params_fc;
-	delete field_off_fc;
-	delete field_elems_fc;
-	delete field_size_fc;
-}
 
 void TableGen::genThunksTableBySymtab(
 	const string&		table_name,
@@ -106,7 +53,7 @@ void TableGen::genThunksTableBySymtab(
 		const SymbolTableEnt	*st_ent;
 		st_ent = *it;
 		sw.beginWrite();
-		genInstanceTypeField(st.getOwnerType(), st_ent);
+		st_ent->getFieldThunk()->genFieldEntry(this);
 	}
 }
 
@@ -262,38 +209,8 @@ void TableGen::genExternsFieldsByType(const Type *t)
 		it++)
 	{
 		const SymbolTableEnt		*st_ent;
-		const ThunkField		*tf;
-		const ThunkFieldOffsetCond	*fo_cond;
-		FCall				*fc_off;
-		FCall				*fc_elems;
-		FCall				*fc_size;
-
 		st_ent = *it;
-		tf = st_ent->getFieldThunk();
-
-		fc_off = tf->getOffset()->copyFCall();
-		fc_elems = tf->getElems()->copyFCall();
-		fc_size = tf->getSize()->copyFCall();
-
-		printExternFuncThunk(fc_off->getName());
-		printExternFuncThunk(fc_elems->getName());
-		printExternFuncThunk(fc_size->getName());
-		printExternFuncThunkParams(tf->getParams());
-
-		fo_cond = dynamic_cast<const ThunkFieldOffsetCond*>(
-			tf->getOffset());
-		if (fo_cond != NULL) {
-			FCall	*cond_fc;
-			cond_fc = fo_cond->copyFCallPresent();
-			printExternFuncThunk(cond_fc->getName(), "bool");
-			delete cond_fc;
-		}
-
-		out << endl;
-
-		delete fc_off;
-		delete fc_elems;
-		delete fc_size;
+		st_ent->getFieldThunk()->genFieldExtern(this);
 	}
 
 	fc_type_size = st->getThunkType()->getSize()->copyFCall();

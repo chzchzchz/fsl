@@ -231,8 +231,8 @@ function fs_cmd_startup_img
 	if [ ! -z $USE_SYNC ]; then
 		sync
 		cat /proc/diskstats >${outdir}/$imgname.end.io
+		"${src_root}"/util/diskstat.py ${outdir}/$imgname.begin.io ${outdir}/$imgname.end.io >${outdir}/$imgname.diskstat
 	fi
-	"${src_root}"/util/diskstat.py ${outdir}/$imgname.begin.io ${outdir}/$imgname.end.io >${outdir}/$imgname.diskstat
 
 	unset_statfiles
 	stop_oprof "$fprefix" `echo $cmd | cut -f1 -d' ' `

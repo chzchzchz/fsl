@@ -58,8 +58,12 @@ public:
 	unsigned int getFieldNum(void) const { return field_num; }
 	const Type* getOwnerType(void) const { return owner_type; }
 
+	void genFieldEntry(class TableGen* tg) const;
+	void genFieldExtern(class TableGen* tg) const;
+
 private:
 	void setFields(ThunkType& owner);
+	void mkInstanceIter(void);
 
 	std::string		fieldname;
 	ThunkFieldOffset	*t_fieldoff;

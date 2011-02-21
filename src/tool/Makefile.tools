@@ -86,11 +86,13 @@ FS_DEFINE=-DFS_$(FS_CAPITAL)
 CFLAGS+= $(FS_DEFINE)
 
 all:	$(TOOL_BINS) $(TOOL_MMAP_BINS) \
-	$(KLEE_BINS)	\
-	$(OBJDIR)/fs/fsl.$(FSNAME).o $(OBJDIR)/fs/kfsl.$(FSNAME).o
+	$(OBJDIR)/fs/fsl.$(FSNAME).o $(OBJDIR)/fs/kfsl.$(FSNAME).o \
+	klee
+
+klee:  $(KLEE_BINS) $(OBJDIR)/fs/kfsl.$(FSNAME).o
 
 clean:
-	rm -f $(TOOL_BINS) $(TOOL_MMAP_BINS) $(FS_OBJS)
+	rm -f $(TOOL_BINS) $(TOOL_MMAP_BINS) $(FS_OBJS) $(KLEE_BINS) $(OBJDIR)/fs/kfsl.$(FSNAME).o
 
 #KLEE TOOLS
 $(BINDIR)/klee/browser-$(FSNAME).bc: $(KLEE_FS_OBJS) $(KLEE_BROWSER_OBJS) $(KLEE_RT_PREAD_OBJS)

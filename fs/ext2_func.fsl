@@ -57,7 +57,6 @@ ext2_bmp_blk get_group_bmp(int grpnum)
 
 ext2_group_desc get_group(int grpnum) { return disk.grp_desc_table[grpnum]; }
 
-
 ext2_inode ino_by_num(u32 ino_num)
 {
 	int	ino_grp;

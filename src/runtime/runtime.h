@@ -35,7 +35,7 @@ typedef uint64_t	byteoff_t;
 typedef uint64_t	bitoff_t;
 typedef uint64_t	typeoff_t;
 typedef uint64_t	typesize_t;
-typedef unsigned int	typenum_t;
+typedef uint32_t	typenum_t;
 typedef uint64_t*	parambuf_t;
 
 typedef uint64_t(*memof_t)(void);
@@ -126,15 +126,15 @@ struct fsl_rt_closure
 typedef diskoff_t(*thunkf_t)(const struct fsl_rt_closure*);
 typedef typesize_t(*sizef_t)(const struct fsl_rt_closure*);
 typedef uint64_t(*elemsf_t)(const struct fsl_rt_closure*);
+typedef void(*paramsf_t)(
+	const struct fsl_rt_closure*,
+	uint64_t /* array idx within a field */,
+	parambuf_t /* out */);
 typedef uint64_t(*points_minf_t)(const struct fsl_rt_closure*);
 typedef uint64_t(*points_maxf_t)(const struct fsl_rt_closure*);
 typedef diskoff_t(*points_rangef_t)(
 	const struct fsl_rt_closure*,
 	uint64_t /* idx */,
-	parambuf_t /* out */);
-typedef void(*paramsf_t)(
-	const struct fsl_rt_closure*,
-	uint64_t /* array idx within a field */,
 	parambuf_t /* out */);
 typedef bool(*condf_t)(const struct fsl_rt_closure*);
 typedef bool(*condidxf_t)(const struct fsl_rt_closure*, uint64_t);
@@ -189,28 +189,30 @@ struct fsl_rtt_type
 #define FIELD_FL_FIXED		0x2
 #define FIELD_FL_NOFOLLOW	0x4
 
-struct fsl_rtt_field
-{
-	const char	*tf_fieldname;
-	typenum_t	tf_typenum;
-	uint32_t	tf_flags;
-
-	thunkf_t	tf_fieldbitoff;
-	elemsf_t	tf_elemcount;
-	sizef_t		tf_typesize;
-	condf_t		tf_cond;
-	paramsf_t	tf_params;
-
-	/* XXX: used for debugging, remove in real life */
-	unsigned int	tf_fieldnum;
-};
-
 struct fsl_rt_iter
 {
 	typenum_t	it_type_dst;
 	points_rangef_t	it_range;
 	points_minf_t	it_min;
 	points_maxf_t	it_max;
+};
+
+struct fsl_rtt_field
+{
+	const char		*tf_fieldname;
+	typenum_t		tf_typenum;
+	uint32_t		tf_flags;
+
+	thunkf_t		tf_fieldbitoff;
+	elemsf_t		tf_elemcount;
+	sizef_t			tf_typesize;
+	condf_t			tf_cond;
+	paramsf_t		tf_params;
+
+//	struct fsl_rt_iter	tf_iter;
+
+	/* XXX: used for debugging, remove in real life */
+	unsigned int	tf_fieldnum;
 };
 
 struct fsl_rtt_pointsto

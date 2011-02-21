@@ -35,5 +35,9 @@ browser-xfs: $(wildcard ../../fs/xfs*fsl)
 browser-minix: $(wildcard ../../fs/xfs*fsl)
 	FSNAME=minix make -f Makefile.tools
 
-clean:
-	rm  -f *.s *.o *.bc *.ll fsl.*.*.c $(TOOLS_ALL)
+CLEANTARGETS=$(FILESYSTEMS:%=clean-%)
+
+clean: $(CLEANTARGETS)
+
+clean-%:
+	FSNAME=`echo $@ | cut -f2 -d'-'`  make -f Makefile.tools clean

@@ -101,12 +101,12 @@ static struct type_info* typeinfo_alloc_generic(
 		memcpy(ti_params(ret), ti_td->td_clo.clo_params, len);
 	}
 
+	ret->ti_prev = ti_prev;
+	ret->ti_depth = (ti_prev != NULL) ? ti_prev->ti_depth + 1 : 0;
+
 	/* set xlate -- if this is a virt type, its xlate is already
 	 * allocated by typeinfo_alloc_virt.. */
 	ret->ti_td.td_clo.clo_xlate = td_xlate(ti_td);
-
-	ret->ti_prev = ti_prev;
-	ret->ti_depth = (ti_prev != NULL) ? ti_prev->ti_depth + 1 : 0;
 
 	typeinfo_ref(ret);
 	if (ti_prev != NULL) typeinfo_ref(ti_prev);
@@ -185,7 +185,7 @@ struct type_info* typeinfo_alloc_pointsto(
 	ret->ti_print_name = "points-to";
 	if (ti_pointsto->pt_name) ret->ti_print_name = ti_pointsto->pt_name;
 	ret->ti_print_idxval = ti_pointsto_elem;
-
+	ret->ti_iter = &ti_pointsto->pt_iter;
 
 	if (typeinfo_verify(ret) == false) {
 		typeinfo_free(ret);
@@ -210,7 +210,6 @@ struct type_info* typeinfo_alloc_iter(
 
 	DEBUG_TYPEINFO_WRITE("Generic alloced ptr=%p", ret);
 
-	ret->ti_iter = ti_iter;
 	ret->ti_print_name = "iter";
 	ret->ti_print_idxval = ti_iter_elem;
 	ret->ti_iter = ti_iter;
@@ -231,7 +230,8 @@ struct type_info* typeinfo_alloc_by_field(
 	const struct fsl_rtt_field	*ti_field,
 	struct type_info		*ti_prev)
 {
-	struct type_info*	ret;
+	struct type_info	*ret;
+	struct fsl_rt_mapping	*rtm;
 
 	DEBUG_TYPEINFO_ENTER();
 
@@ -247,6 +247,10 @@ struct type_info* typeinfo_alloc_by_field(
 	ret->ti_field = ti_field;
 	ret->ti_print_name = (ti_field) ? ti_field->tf_fieldname : "disk";
 	ret->ti_print_idxval = TI_INVALID_IDXVAL;
+	if (ti_prev &&  (rtm = ti_xlate(ti_prev)) != NULL) {
+		ret->ti_td.td_clo.clo_xlate = rtm;
+		fsl_virt_ref(&ti_clo(ret));
+	}
 
 	DEBUG_TYPEINFO_WRITE("Verifying");
 
@@ -338,6 +342,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 	ret->ti_virt = virt;
 	ret->ti_print_name = (virt->vt_name) ? virt->vt_name : "virt";
 	ret->ti_print_idxval = idx;
+	ret->ti_iter = &virt->vt_iter;
 
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: typeinfo_verify");
 	if (typeinfo_verify(ret) == false) {
@@ -405,6 +410,7 @@ diskoff_t ti_phys_offset(const struct type_info* ti)
 	FSL_ASSERT (ti != NULL);
 
 	voff = ti_offset(ti);
+	DEBUG_TYPEINFO_WRITE("physoff: voff=%"PRIu64, voff);
 	if (ti->ti_td.td_clo.clo_xlate == NULL) {
 		/* no xlate, phys = virt */
 		return voff;
@@ -628,6 +634,42 @@ struct type_info* typeinfo_lookup_follow_idx(
 	return NULL;
 }
 
+struct type_info* typeinfo_reindex(
+	const struct type_info* ti_p, unsigned int idx)
+{
+	const struct fsl_rtt_pointsto   *pt;
+	const struct fsl_rtt_virt       *vt;
+
+	if (ti_p == NULL) return NULL;
+	if (ti_p->ti_prev == NULL) return NULL;
+
+	if (ti_p->ti_field != NULL) {
+		uint64_t	max_idx;
+
+		max_idx = ti_p->ti_field->tf_elemcount(&ti_clo(ti_p->ti_prev));
+		/* exceeded number of elements */
+		if (max_idx <= idx) return NULL;
+
+		return typeinfo_follow_field_off_idx(
+			ti_p->ti_prev, ti_p->ti_field,
+			ti_field_off(ti_p->ti_prev, ti_p->ti_field, idx),
+			idx);
+	} else if ((pt = ti_p->ti_points) != NULL) {
+		uint64_t		it_min;
+		it_min = pt->pt_iter.it_min(&ti_clo(ti_p->ti_prev));
+		if (it_min == ~0) return NULL;
+		return typeinfo_follow_pointsto(ti_p->ti_prev, pt, idx+it_min);
+	} else if ((vt = ti_p->ti_virt) != NULL) {
+		int		err;
+		uint64_t		it_min;
+		it_min = vt->vt_iter.it_min(&ti_clo(ti_p->ti_prev));
+		if (it_min == ~0) return NULL;
+		return typeinfo_follow_virt(ti_p->ti_prev, vt, idx+it_min, &err);
+	}
+
+	return NULL;
+}
+
 typesize_t ti_field_size(
 	const struct type_info* ti, const struct fsl_rtt_field* tf,
 	uint64_t* num_elems)
@@ -680,11 +722,12 @@ typesize_t ti_field_off(
 		/* non-constant width.. */
 		field_sz = __computeArrayBits(
 			ti_typenum(ti), clo, tf->tf_fieldnum, idx);
-	} else {
+	} else if (idx > 0) {
 		/* constant width */
 		field_sz = tf->tf_typesize(clo);
 		field_sz *= idx;
-	}
+	} else
+		field_sz = 0;
 
 	DEBUG_TYPEINFO_WRITE("Field size = %"PRIu64, field_sz);
 

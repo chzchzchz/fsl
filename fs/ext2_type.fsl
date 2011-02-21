@@ -198,7 +198,7 @@ points(name) as name
 	u16			rec_len;	/* de length */
 	u8			name_len;
 	u8			file_type;
-	ext2_str(name_len)	name;
+	ext2_str(name_len)	ent_name;
 	set_bytes(rec_len);
 }
 

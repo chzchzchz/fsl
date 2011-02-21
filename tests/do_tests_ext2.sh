@@ -17,11 +17,13 @@ fs_fuse_cmd_img ext2 ext2.img "ls -la grp_desc_table/3" "ls_grp3"
 fs_fuse_cmd_img ext2 ext2.img "od -Ax -tx grp_desc_table/3/block_bmp" "od_grp3_blkbmp"
 fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_blkbmp_ptr"
 fs_fuse_cmd_img ext2 ext2-many.img  "ls -la grp_desc_table/2/grp_ino_tab/ino" "ls_grp2_inotab"
+fs_fuse_cmd_img ext2 ext2-many.img  "ls -la root_ino/vdir/" "ls_rootino"
 
 p=`cat tests/fusebrowse-ext2/ext2.img-ls.out | awk '{ print $5 " " $9; }'`
 p_grp=`cat tests/fusebrowse-ext2/ext2.img-ls_grp.out | awk '{ print $5 " " $9; }'`
 grp3=`cat tests/fusebrowse-ext2/ext2.img-ls_grp3.out | awk '{ print $5 " " $9; }'`
 inotab=`cat tests/fusebrowse-ext2/ext2-many.img-ls_grp2_inotab.out | awk '{ print $5 " " $9; }'`
+rootino=`cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino.out | awk '{ print $5 " " $9; }'`
 
 sb_str=`echo "$p" | grep "1024 sb"`
 if [ -z "$sb_str" ]; then
@@ -51,6 +53,13 @@ if [ -z "$grp3_str" ]; then
 	exit 3
 fi
 
+rootino_str=`echo "$rootino" | grep "16 9"`
+if [ -z "$rootino_str" ]; then
+	echo "Couldn't read inode_block??"
+	cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino.out
+	exit 3
+fi
+
 inotab_str=`echo "$inotab" | grep "128 0"`
 if [ -z "$inotab_str" ]; then
 	echo "Couldn't read inode_block??"
@@ -58,12 +67,12 @@ if [ -z "$inotab_str" ]; then
 	exit 3
 fi
 
-
 od_str=`grep 00006103 tests/fusebrowse-ext2/ext2.img-od_grp3_blkbmp.out`
 if [ -z "$od_str" ]; then
 	echo "Failed ot read group block bitmap pointer"
 	cat tests/fusebrowse-ext2/ext2.img-od_grp3_blkbmp.out
 	exit 4
 fi
+
 
 exit 0

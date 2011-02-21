@@ -206,6 +206,7 @@ bool TypeStack::followIdIdx(const EvalCtx* ectx, std::string& name, Expr* idx)
 		} else {
 			/* make closure from parambuf */
 			new_tb_type = types_map[type_ret];
+			clo = NULL;
 			assert (0 == 1);
 		}
 		is_val = true;
