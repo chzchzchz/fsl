@@ -70,22 +70,16 @@ static int fslfuse_getattr_prim(struct fsl_fuse_node* fn, struct stat *stbuf)
 	return 0;
 }
 
-static int fslfuse_getattr_ti(const char *path, struct stat *stbuf)
+static int fslfuse_getattr_fn(struct fsl_fuse_node* fn, struct stat * stbuf)
 {
-	int			ret;
-	struct fsl_fuse_node	*fn;
-
-	fn = fslnode_by_path(path);
-	if (fn == NULL) return -ENOENT;
-
 	stbuf->st_uid = our_uid;
 	stbuf->st_gid = our_gid;
 	if (fn_is_type(fn)) {
-		ret = fslfuse_getattr_type(fn->fn_ti, stbuf);
+		fslfuse_getattr_type(fn->fn_ti, stbuf);
 	} else if (fn_is_prim(fn)) {
-		ret = fslfuse_getattr_prim(fn, stbuf);
+		fslfuse_getattr_prim(fn, stbuf);
 	} else if (fn_is_array(fn)) {
-		ret = fslfuse_getattr_array(fn, stbuf);
+		fslfuse_getattr_array(fn, stbuf);
 	} else {
 		assert (0 == 1);
 	}
@@ -93,6 +87,20 @@ static int fslfuse_getattr_ti(const char *path, struct stat *stbuf)
 	stbuf->st_atime = open_time;
 	stbuf->st_mtime = open_time;
 	stbuf->st_ctime = open_time;
+
+	return 0;
+}
+
+static int fslfuse_getattr_ti(const char *path, struct stat *stbuf)
+{
+	int			ret;
+	struct fsl_fuse_node	*fn;
+
+	fn = fslnode_by_path(path);
+
+	DEBUG_WRITE("GETATTR: %s", path);
+	if (fn == NULL) return -ENOENT;
+	ret = fslfuse_getattr_fn(fn, stbuf);
 
 	fslnode_free(fn);
 
@@ -119,21 +127,8 @@ static int fslfuse_fgetattr(
 	fn = get_fnode(fi);
 	if (fn == NULL) return -ENOENT;
 
-	stbuf->st_uid = our_uid;
-	stbuf->st_gid = our_gid;
-	if (fn_is_type(fn)) {
-		fslfuse_getattr_type(fn->fn_ti, stbuf);
-	} else if (fn_is_prim(fn)) {
-		fslfuse_getattr_prim(fn, stbuf);
-	} else if (fn_is_array(fn)) {
-		fslfuse_getattr_array(fn, stbuf);
-	} else {
-		assert (0 == 1);
-	}
-
-	stbuf->st_atime = open_time;
-	stbuf->st_mtime = open_time;
-	stbuf->st_ctime = open_time;
+	DEBUG_WRITE("GETATTR: %s", path);
+	fslfuse_getattr_fn(fn, stbuf);
 
 	return 0;
 }
@@ -172,10 +167,8 @@ static int read_ti_dir(
 			ti, pt, pt->pt_iter.it_min(&ti_clo(ti)));
 		if (cur_ti == NULL) continue;
 
-		if (filler(buf, pt->pt_name, NULL, 0) == 1) {
-			fprintf(out_file, "ALGRG FULLBUFF\n");
-			fflush(out_file);
-		}
+		if (filler(buf, pt->pt_name, NULL, 0) == 1)
+			DEBUG_WRITE("ALGRG FULLBUFF PT");
 		typeinfo_free(cur_ti);
 	}
 
@@ -184,14 +177,11 @@ static int read_ti_dir(
 		int				err;
 
 		if (vt->vt_name == NULL) continue;
-		cur_ti = typeinfo_follow_virt(
-			ti, vt, vt->vt_iter.it_min(&ti_clo(ti)), &err);
+		cur_ti = typeinfo_follow_virt(ti, vt, 0, &err);
 		if (cur_ti == NULL) continue;
 
-		if (filler(buf, vt->vt_name, NULL, 0) == 1) {
-			fprintf(out_file, "ALGRG FULLBUFF\n");
-			fflush(out_file);
-		}
+		if (filler(buf, vt->vt_name, NULL, 0) == 1)
+			DEBUG_WRITE("ALGRG FULLBUFF VT");
 		typeinfo_free(cur_ti);
 	}
 
@@ -227,9 +217,11 @@ static uint64_t ao_elems_pt(struct fsl_fuse_node* fn)
 
 static struct type_info* ao_get_pt(struct fsl_fuse_node* fn, unsigned int i)
 {
+	uint64_t	min;
+	min = fn->fn_arr_pt->pt_iter.it_min(&ti_clo(fn->fn_arr_parent));
+	if (min == ~0) return NULL;
 	return typeinfo_follow_pointsto(
-		fn->fn_arr_parent, fn->fn_arr_pt,
-		i+fn->fn_arr_pt->pt_iter.it_min(&ti_clo(fn->fn_arr_parent)));
+		fn->fn_arr_parent, fn->fn_arr_pt, i+min);
 }
 
 static uint64_t ao_elems_vt(struct fsl_fuse_node* fn) { return ~0; }
@@ -239,10 +231,7 @@ static struct type_info* ao_get_vt(struct fsl_fuse_node* fn, unsigned int i)
 	int			err;
 	struct type_info	*ti;
 
-	ti = typeinfo_follow_virt(
-		fn->fn_arr_parent, fn->fn_arr_vt,
-		i+fn->fn_arr_vt->vt_iter.it_min(&ti_clo(fn->fn_arr_parent)),
-		&err);
+	ti = typeinfo_follow_virt(fn->fn_arr_parent, fn->fn_arr_vt, i, &err);
 	if (ti) return ti;
 	if (err == TI_ERR_BADVERIFY) return NULL;
 	return TYPEINFO_NOMORE;

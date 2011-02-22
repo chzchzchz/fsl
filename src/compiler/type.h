@@ -357,15 +357,14 @@ public:
 	{
 		/* do not set type number more than once since we may happen
 		 * to rely on a stale value */
-		assert (type_num == -1);
-		assert (new_type_num >= 0);
+		assert (type_num == -1 && "ALREADY BEEN SET");
+		assert (new_type_num > -1);
 		type_num = new_type_num;
 	}
 
 	int getTypeNum(void) const
 	{
-		/* do not allow get if it hasn't been set yet! */
-		assert (type_num != -1);
+		/* if type has not been set yet, invisiblet! */
 		return type_num;
 	}
 

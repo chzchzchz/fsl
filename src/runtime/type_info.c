@@ -145,12 +145,12 @@ static bool typeinfo_verify_asserts(const struct type_info *ti)
 static bool typeinfo_verify(const struct type_info* ti)
 {
 	DEBUG_TYPEINFO_ENTER();
-	DEBUG_TYPEINFO_WRITE("check loop %p", ti_xlate(ti));
+	DEBUG_TYPEINFO_WRITE("check loop %p. phys=%"PRIu64,
+		ti_xlate(ti), ti_phys_offset(ti));
 	if (ti_has_loop(ti) == true) {
 		DEBUG_TYPEINFO_WRITE("verify: addr already in chain! voff=%"PRIu64
-			" poff=%"PRIu64" (%s). xlate=%p",
+			"(%s). xlate=%p",
 			ti_offset(ti),
-			ti_phys_offset(ti),
 			ti_type_name(ti),
 			ti->ti_td.td_clo.clo_xlate);
 		DEBUG_TYPEINFO_LEAVE();
@@ -483,8 +483,7 @@ struct type_info* typeinfo_follow_pointsto(
 	uint64_t		parambuf[tt_by_ti(ti_parent)->tt_param_c];
 	void			*xlate;
 
-	FSL_ASSERT (	ti_pt->pt_iter.it_min(&ti_clo(ti_parent)) <= idx &&
-			"IDX TOO SMALL");
+	if (!pt_is_ok(ti_pt, &ti_clo(ti_parent))) return NULL;
 
 	td_vinit(&pt_td,
 		ti_pt->pt_iter.it_type_dst,
@@ -671,14 +670,12 @@ struct type_info* typeinfo_lookup_follow_idx_all(
 	pt = fsl_lookup_points(tt, fieldname);
 	if (pt != NULL)
 		return typeinfo_follow_pointsto(
-			ti_parent, pt, idx+pt->pt_iter.it_min(&ti_clo(ti_parent)));
+			ti_parent, pt,
+			idx+pt->pt_iter.it_min(&ti_clo(ti_parent)));
 	vt = fsl_lookup_virt(tt, fieldname);
 	if (vt != NULL) {
 		int	err;
-		return typeinfo_follow_virt(
-			ti_parent, vt,
-			idx+vt->vt_iter.it_min(&ti_clo(ti_parent)),
-			&err);
+		return typeinfo_follow_virt(ti_parent, vt, idx, &err);
 	}
 
 	if (!accept_names) return NULL;
@@ -772,10 +769,7 @@ struct type_info* typeinfo_reindex(
 		return typeinfo_follow_pointsto(ti_p->ti_prev, pt, idx+it_min);
 	} else if ((vt = ti_p->ti_virt) != NULL) {
 		int		err;
-		uint64_t		it_min;
-		it_min = vt->vt_iter.it_min(&ti_clo(ti_p->ti_prev));
-		if (it_min == ~0) return NULL;
-		return typeinfo_follow_virt(ti_p->ti_prev, vt, idx+it_min, &err);
+		return typeinfo_follow_virt(ti_p->ti_prev, vt, idx, &err);
 	}
 
 	return NULL;

@@ -190,6 +190,7 @@ struct fsl_rtt_type
 #define FIELD_FL_FIXED		0x2
 #define FIELD_FL_NOFOLLOW	0x4
 
+
 struct fsl_rt_iter
 {
 	typenum_t	it_type_dst;
@@ -197,6 +198,19 @@ struct fsl_rt_iter
 	points_minf_t	it_min;
 	points_maxf_t	it_max;
 };
+
+static inline bool iter_is_ok(
+	const struct fsl_rt_iter* rt, const struct fsl_rt_closure* clo)
+{
+	uint64_t	it_min, it_max;
+	if ((it_min = rt->it_min(clo)) == ~0) return false;
+	it_max = rt->it_max(clo);
+	if (it_max < it_min) return false;
+	return true;
+}
+
+#define pt_is_ok(p,c)	iter_is_ok(&(p)->pt_iter, c)
+#define rt_is_ok(v,c)	iter_is_ok(&(v)->vt_iter, c)
 
 struct fsl_rtt_field
 {

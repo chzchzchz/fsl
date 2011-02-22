@@ -83,7 +83,6 @@ static uint64_t fsl_virt_xlate_rtm(struct fsl_rt_mapping* rtm, uint64_t bit_off)
 	if (base == ~0) {
 		base = fsl_virt_xlate_miss(rtm, idx);
 		DEBUG_VIRT_WRITE("WANTED BITOFF: %"PRIu64, bit_off);
-
 		fsl_virt_cache_update(rtm, idx, base);
 	} else {
 		FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_HIT);
@@ -189,9 +188,6 @@ struct fsl_rt_mapping*  fsl_virt_alloc(
 	fsl_virt_ref_all(parent);
 	rtm->rtm_ref_c = 1;
 
-	DEBUG_VIRT_WRITE("DYNALLOC: rtm=%p. rtm->rtm_clo=%p",
-		rtm, rtm->rtm_clo);
-
 	/* XXX for the time being, assume all source types are same size */
 	if (fsl_virt_load_cache(rtm, true) == false) {
 		/* empty type */
@@ -228,13 +224,14 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 	const struct fsl_rtt_virt	*vt;
 	void				*xlate;
 
+	DEBUG_VIRT_WRITE("rtm=%p. rtm->rtm_clo=%p", rtm, rtm->rtm_clo);
 	vt = rtm->rtm_virt;
 
 	DEBUG_VIRT_ENTER();
 
 	DEBUG_VIRT_WRITE("BEFORE FINDING IDXS");
 
-	/* XXX these should be invalidated when underlying changes.. need
+	/* XXX THese should be invalidated when underlying changes.. need
 	 * to use logging facility */
 	rtm->rtm_cached_minidx = rtm->rtm_virt->vt_iter.it_min(rtm->rtm_clo);
 	if (rtm->rtm_cached_minidx == ~0) {
@@ -273,15 +270,18 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 	FSL_ASSERT (rtm->rtm_cached_srcsz > 0);
 
 
-	DEBUG_VIRT_WRITE("Looping through all source types. Verify size.");
+	DEBUG_VIRT_WRITE(
+		"Looping through all source types. Verify size=%"PRIu64" bytes",
+		rtm->rtm_cached_srcsz/8);
 	/* verify that srcsz is constant-- if not we need to do some other
 	 * tricks */
-
+#if 0
 	if (no_verify) {
+		DEBUG_VIRT_WRITE("NO VERIFY. FAST LANE");
 		DEBUG_VIRT_LEAVE();
 		return true;
 	}
-
+#endif
 	/* IN FUTURE: use compiler information to judge this */
 	for (	idx = rtm->rtm_cached_minidx + 1;
 		idx <= rtm->rtm_cached_maxidx;
@@ -291,11 +291,11 @@ static bool fsl_virt_load_cache(struct fsl_rt_mapping* rtm, bool no_verify)
 		size_t		cur_sz;
 		void		*xlate;
 
-		DEBUG_VIRT_WRITE("calling vt_range on idx=%d", idx);
 		cur_off = vt->vt_iter.it_range(rtm->rtm_clo, idx, params, &xlate);
+		DEBUG_VIRT_WRITE("Called vt_range on idx=%d. off=%"PRIu64, idx, cur_off);
 		NEW_VCLO(cur_clo, cur_off, params, rtm->rtm_clo->clo_xlate);
-		DEBUG_VIRT_WRITE("calling tt_size on idx=%d", idx);
 		cur_sz = tt_vsrc->tt_size(&cur_clo);
+		DEBUG_VIRT_WRITE("Called tt_size on idx=%d. sz=%"PRIu64, idx, cur_sz);
 		FSL_ASSERT (cur_sz == rtm->rtm_cached_srcsz);
 	}
 
@@ -361,7 +361,8 @@ diskoff_t fsl_virt_get_nth(
 	cur_off = 0;
 	virt_typenum = rtm->rtm_virt->vt_type_virttype;
 	tt = tt_by_num(virt_typenum);
-	DEBUG_VIRT_WRITE("nth of type: %s", tt->tt_name);
+	DEBUG_VIRT_WRITE("nth of type: %s. targetidx=[%d]",
+		tt->tt_name, target_idx);
 
 	for (i = 0; i < target_idx; i++) {
 		typesize_t		cur_size;
@@ -423,6 +424,7 @@ static diskoff_t fsl_virt_cache_find(const struct fsl_rt_mapping* rtm, int idx)
 	struct fsl_virtc_ent	*vc;
 	vc = &rtm->rtm_cache[idx % VIRT_CACHE_ENTS];
 	if (vc->vc_idx != idx) return ~0;
+	DEBUG_VIRT_WRITE("cache_find: %"PRIu64, vc->vc_off);
 	return vc->vc_off;
 }
 

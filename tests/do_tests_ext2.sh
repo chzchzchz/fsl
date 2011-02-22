@@ -16,7 +16,7 @@ fs_fuse_cmd_img ext2 ext2.img "ls -la grp_desc_table" "ls_grp"
 fs_fuse_cmd_img ext2 ext2.img "ls -la grp_desc_table/3" "ls_grp3"
 fs_fuse_cmd_img ext2 ext2.img "od -Ax -tx grp_desc_table/3/block_bmp" "od_grp3_blkbmp"
 fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_blkbmp_ptr"
-fs_fuse_cmd_img ext2 ext2-many.img  "ls -la grp_desc_table/2/grp_ino_tab/ino" "ls_grp2_inotab"
+fs_fuse_cmd_img ext2 ext2.img  "ls -la root_ino/vdir/5.aaa/ent_ino/0/vfile/0" "ls_vfile"
 fs_fuse_cmd_img ext2 ext2-many.img  "ls -la root_ino/vdir/" "ls_rootino"
 fs_fuse_cmd_img ext2 ext2-many.img  "ls -la root_ino/vdir/1d" "ls_rootino_1d"
 fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_blkbmp_ptr"
@@ -25,9 +25,9 @@ fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_bl
 p=`cat tests/fusebrowse-ext2/ext2.img-ls.out | awk '{ print $5 " " $9; }'`
 p_grp=`cat tests/fusebrowse-ext2/ext2.img-ls_grp.out | awk '{ print $5 " " $9; }'`
 grp3=`cat tests/fusebrowse-ext2/ext2.img-ls_grp3.out | awk '{ print $5 " " $9; }'`
-inotab=`cat tests/fusebrowse-ext2/ext2-many.img-ls_grp2_inotab.out | awk '{ print $5 " " $9; }'`
 rootino=`cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino.out | awk '{ print $5 " " $9; }'`
 rootino_1d=`cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino_1d.out | awk '{ print $5 " " $9; }'`
+vfile=`cat tests/fusebrowse-ext2/ext2.img-ls_vfile.out | awk '{ print $5 " " $9; }'`
 
 sb_str=`echo "$p" | grep "1024 sb"`
 if [ -z "$sb_str" ]; then
@@ -41,6 +41,13 @@ if [ -z "$blocks_str" ]; then
 	echo "BAD BLOCKS STR"
 	echo "$p"
 	exit 1
+fi
+
+vfile_str=`echo "$vfile" | grep "1024 data"`
+if [ -z "$vfile_str" ]; then
+	echo "BAD VFILE STR"
+	echo $vfile_str
+	exit 5
 fi
 
 grp_str=`echo "$p_grp" | grep "32 2"`
@@ -71,13 +78,6 @@ if [ -z "$rootino_1d_str" ]; then
 	exit 3
 fi
 
-
-inotab_str=`echo "$inotab" | grep "128 0"`
-if [ -z "$inotab_str" ]; then
-	echo "Couldn't read inode_block??"
-	cat tests/fusebrowse-ext2/ext2-many.img-ls_grp2_inotab.out
-	exit 3
-fi
 
 od_str=`grep 00006103 tests/fusebrowse-ext2/ext2.img-od_grp3_blkbmp.out`
 if [ -z "$od_str" ]; then

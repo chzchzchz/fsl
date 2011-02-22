@@ -64,9 +64,10 @@ type ext2_data_block { u8	data[get_block_size()]; }
 type ext2_group_desc(int group_num)
 points(disk.blocks[block_bmp].blk_bmp) as grp_blk_bmp
 points(disk.blocks[inode_bmp].ino_bmp) as grp_ino_bmp
-points_range(
-	i, 1, inode_table_block_count(),
-	disk.blocks[(inode_table+i-1)].ino_blk) as grp_ino_tab
+/* dirs handle it now */
+//points_range(
+//	i, 1, inode_table_block_count(),
+//	disk.blocks[(inode_table+i-1)].ino_blk) as grp_ino_tab
 assert(? sizeof_bytes(this) == 32)
 {
 	u32	block_bmp;
@@ -190,9 +191,20 @@ relocate(
 
 type ext2_str(u8 len) { u8 name[len]; }
 
+bool is_user_name(ext2_str n)
+{
+	int	len = n.len;
+	if (len > 2) return true;
+	if (len == 0) return false;
+	if (n.name[0] == '.') {
+		if (len == 1 || n.name[1] == '.') return false;
+	}
+	return true;
+}
+
 type ext2_dir_entry
-points_if(? name_len > 0 && inode != 0, ino_by_num(inode)) as ent_ino
-points(ent_name) as name
+points_if(? name_len > 0 && inode != 0, get_inode(inode)) as ent_ino
+points_if(? is_user_name(ent_name), ent_name) as name
 {
 	u32			inode;		/* inode number */
 	u16			rec_len;	/* de length */

@@ -161,9 +161,9 @@ void ThunkField::genFieldEntry(TableGen* tg) const
 
 	sw.writeStr("tf_fieldname", getFieldName());
 	sw.write("tf_fieldbitoff", field_off_fc->getName());
-	if (field_type != NULL) {
+	if (field_type != NULL)
 		sw.write32("tf_typenum", field_type->getTypeNum());
-	} else
+	else
 		sw.write32("tf_typenum", ~0);
 	sw.write("tf_elemcount", field_elems_fc->getName());
 	sw.write("tf_typesize", field_size_fc->getName());
