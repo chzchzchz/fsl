@@ -65,10 +65,12 @@ static struct type_info* ti_from_relpath_tryidx(
 
 	next_elem = get_path_first(s_next);
 	if (next_elem == NULL) goto done;
-	if (!is_int(next_elem)) goto cleanup;
 
-	ret_ti = typeinfo_lookup_follow_idx(ti_p, elem, atoi(next_elem));
-cleanup:
+	if (!is_int(next_elem))
+		ret_ti = typeinfo_follow_into_name(ti_p, elem, next_elem);
+	else
+		ret_ti = typeinfo_lookup_follow_idx(ti_p, elem, atoi(next_elem));
+
 	free(next_elem);
 done:
 	return ret_ti;
@@ -227,6 +229,7 @@ struct fsl_fuse_node* fslnode_by_path(const char* path)
 		fslnode_root_loaded(p_child, ret);
 		goto done;
 	}
+
 	if (p_child == NULL) goto err;
 
 	ti_parent = ti_from_parentpath(path);

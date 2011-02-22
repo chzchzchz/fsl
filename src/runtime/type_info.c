@@ -684,60 +684,145 @@ struct type_info* typeinfo_lookup_follow_idx_all(
 	return typeinfo_follow_name(ti_parent, fieldname);
 }
 
+static struct type_info* typeinfo_follow_name_tf(
+	struct type_info		*ti,
+	const struct fsl_rtt_field	*tf,
+	const char			*name)
+{
+	struct type_info	*ret = NULL;
+	uint64_t 		idx, max_idx;
+	char			*name_buf = fsl_alloc(256);
+
+	max_idx = tf->tf_elemcount(&ti_clo(ti));
+	for (idx = 0; idx <= max_idx; idx++) {
+		ret = typeinfo_follow_field_off_idx(
+			ti, tf,	ti_field_off(ti, tf, idx), idx);
+		if (ret == NULL) continue;
+		if (	typeinfo_getname(ret, name_buf, 255) == NULL ||
+			strcmp(name_buf, name) != 0)
+		{
+			typeinfo_free(ret);
+		} else
+			goto done;
+	}
+	ret = NULL;
+
+done:
+	fsl_free(name_buf);
+	return ret;
+}
+
+
+
+static struct type_info* typeinfo_follow_name_pt(
+	struct type_info		*ti,
+	const struct fsl_rtt_pointsto	*pt,
+	const char			*fieldname)
+{
+	struct type_info	*ret = NULL;
+	uint64_t 		idx, max_idx;
+	char			*name_buf = fsl_alloc(256);
+
+	/* scan all members of points */
+	idx = pt->pt_iter.it_min(&ti_clo(ti));
+	if (idx == ~0) goto done;
+	max_idx = pt->pt_iter.it_max(&ti_clo(ti));
+	for (; idx <= max_idx; idx++) {
+		ret = typeinfo_follow_pointsto(ti, pt, idx);
+		if (ret == NULL) continue;
+		if (	typeinfo_getname(ret, name_buf, 255) == NULL ||
+			strcmp(name_buf, fieldname) != 0)
+		{
+			typeinfo_free(ret);
+		} else
+			goto done;
+	}
+	ret = NULL;
+
+done:
+	fsl_free(name_buf);
+	return ret;
+}
+
+static struct type_info* typeinfo_follow_name_vt(
+	struct type_info		*ti,
+	const struct fsl_rtt_virt	*vt,
+	const char			*fieldname)
+{
+	/* scan all virt members */
+	struct type_info	*ret = NULL;
+	uint64_t 		idx;
+	char			*name_buf = fsl_alloc(256);
+	int			err;
+
+	idx = vt->vt_iter.it_min(&ti_clo(ti));
+	if (idx == ~0) goto done;
+	err = 0;
+	while (err == TI_ERR_OK || err == TI_ERR_BADVERIFY) {
+		ret = typeinfo_follow_virt(ti, vt, idx, &err);
+		idx++;
+		if (ret == NULL) continue;
+		if (	typeinfo_getname(ret, name_buf, 255) == NULL ||
+			strcmp(name_buf, fieldname) != 0)
+		{
+			typeinfo_free(ret);
+		} else
+			goto done;
+	}
+	ret = NULL;
+done:
+	fsl_free(name_buf);
+	return ret;
+}
+
 static struct type_info* typeinfo_follow_name(
 	struct type_info*	ti, /* array to avoid aliasing */
-	const char*		fieldname)
+	const char*		name)
 {
-	const struct fsl_rtt_pointsto*	pt;
-	const struct fsl_rtt_virt*	vt;
-	uint64_t			idx;
 	struct type_info		*ret, *ti_prev;
-	char				*name_buf;
 
 	ti_prev = ti->ti_prev;
 	if (ti_prev == NULL) return NULL;
 
-	name_buf = fsl_alloc(256);
+	if (ti->ti_points != NULL) {
+		ret = typeinfo_follow_name_pt(ti_prev, ti->ti_points, name);
+	} else if (ti->ti_virt != NULL) {
+		ret = typeinfo_follow_name_vt(ti_prev, ti->ti_virt, name);
+	}
 
-	if ((pt = ti->ti_points) != NULL) {
-		/* scan all members of points */
-		uint64_t max_idx;
-		idx = pt->pt_iter.it_min(&ti_clo(ti_prev));
-		if (idx == ~0) goto done;
-		max_idx = pt->pt_iter.it_max(&ti_clo(ti_prev));
-		for (; idx <= max_idx; idx++) {
-			ret = typeinfo_follow_pointsto(ti_prev, pt, idx);
-			if (ret == NULL) continue;
-			if (	typeinfo_getname(ret, name_buf, 255) == NULL ||
-				strcmp(name_buf, fieldname) != 0)
-			{
-				typeinfo_free(ret);
-			} else
-				goto done;
-		}
-		ret = NULL;
-	} else if ((vt = ti->ti_virt) != NULL) {
-		/* scan all virt members */
-		int	err;
-		idx = vt->vt_iter.it_min(&ti_clo(ti_prev));
-		if (idx == ~0) goto done;
-		err = 0;
-		while (err == TI_ERR_OK || err == TI_ERR_BADVERIFY) {
-			ret = typeinfo_follow_virt(ti_prev, vt, idx, &err);
-			idx++;
-			if (ret == NULL) continue;
-			if (	typeinfo_getname(ret, name_buf, 255) == NULL ||
-				strcmp(name_buf, fieldname) != 0)
-			{
-				typeinfo_free(ret);
-			} else
-				goto done;
-		}
-		ret = NULL;
+	if (ret != NULL) ret->ti_flag |= TI_FL_FROMNAME;
+	return ret;
+}
+
+struct type_info* typeinfo_follow_into_name(
+	struct type_info*	ti, /* array to avoid aliasing */
+	const char*		fieldname,
+	const char*		name)
+{
+	struct type_info		*ret;
+	const struct fsl_rtt_field	*tf;
+	const struct fsl_rtt_type	*tt;
+	const struct fsl_rtt_pointsto	*pt;
+	const struct fsl_rtt_virt	*vt;
+
+	tt = tt_by_ti(ti);
+	tf = fsl_lookup_field(tt, fieldname);
+	if (tf != NULL) {
+		ret = typeinfo_follow_name_tf(ti, tf, name);
+		goto done;
+	}
+	pt = fsl_lookup_points(tt, fieldname);
+	if (pt != NULL) {
+		ret = typeinfo_follow_name_pt(ti, pt, name);
+		goto done;
+	}
+	vt = fsl_lookup_virt(tt, fieldname);
+	if (vt != NULL) {
+		ret = typeinfo_follow_name_vt(ti, vt, name);
+		goto done;
 	}
 
 done:
-	fsl_free(name_buf);
 	if (ret != NULL) ret->ti_flag |= TI_FL_FROMNAME;
 	return ret;
 }

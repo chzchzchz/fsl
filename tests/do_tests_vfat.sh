@@ -44,7 +44,7 @@ if [ -z "$rootde_str" ]; then
 fi
 
 rootdirs=`cat tests/fusebrowse-vfat/vfat.img-ls_rootdir.out | awk '{ print $1 " " $5 " " $9; }'`
-rootdirls_str=`echo $rootdirs | grep "dr-x------ 32 19"`
+rootdirls_str=`echo $rootdirs | grep "dr-x------ 32 4D"`
 if [ -z "$rootdirls_str" ]; then
 	echo "NO ROOTDIR LISTING?"
 	echo "$rootdirs"

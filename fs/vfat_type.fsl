@@ -22,9 +22,11 @@ type cluster { u8 data[bytes_per_cluster()]; }
 type file_cluster { u8 data[bytes_per_cluster()]; }
 type fat_dir(int num_ents) { fat_de de[num_ents] fixed; }
 
+type fat_short_name { u8 name[8+3]; }
+
 type fat_de
-assert (? is_deleted(this) == false) as not_del
-assert (? is_lfn(this) == false) as not_lfn
+assert (? is_deleted(this) == false) as chk_not_del
+assert (? is_lfn(this) == false) as chk_not_lfn
 assert (? is_back_ref(this) == false) as not_backref
 virtual_if(
 	? file_size != 0xffffffff && ((DIR_MASK & attr) == 0),
@@ -48,8 +50,9 @@ relocate(
 	block_alloc(i, get_fat_type()),
 	block_relink(this, j, i, get_fat_type()),
 	block_replace(get_nth_cnum(this, j), get_fat_type())) as defrag
+points(fname) as name
 {
-	u8		name[8+3];	/* name + ext */
+	fat_short_name	fname nofollow;	/* name + ext */
 	u8		attr;
 	u8		nters;	/* special NT data */
 	u8		time_create_ms;

@@ -115,6 +115,10 @@ struct type_info* typeinfo_alloc_iter(
 	unsigned int			ti_iter_elem,
 	struct type_info*		ti_prev);
 
+struct type_info* typeinfo_follow_into_name(
+	struct type_info*	ti,
+	const char*		fieldname,
+	const char*		name);
 #define typeinfo_alloc_virt(v,t)	typeinfo_alloc_virt_idx(v,t,0,NULL)
 #define typeinfo_follow_virt(ti, vt, idx, err) typeinfo_alloc_virt_idx(vt, ti, idx, err)
 

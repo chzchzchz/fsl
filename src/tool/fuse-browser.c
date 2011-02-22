@@ -260,8 +260,6 @@ static int read_array_dir(
 
 		cur_ti = ao->ao_get(fn, i);
 		if (cur_ti == NULL) {
-			fprintf(out_file, "err=%s\n", fsl_err_get());
-			fsl_err_reset();
 			continue;
 		} else if (cur_ti == TYPEINFO_NOMORE)
 			break;

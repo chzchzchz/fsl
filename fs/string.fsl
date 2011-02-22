@@ -1,0 +1,10 @@
+/* world's best string type ! */
+type string_delim(u8 delim)
+{
+	u8	car;
+	if (car != delim) {
+		string_delim(delim)	cdr;
+	}
+}
+type string { string_delim(0) s; }
+type line { string_delim(0x0a) s; }
