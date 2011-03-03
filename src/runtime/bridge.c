@@ -49,6 +49,31 @@ struct fsl_bridge_node* fsl_bridge_follow_tf(
 	return fbn;
 }
 
+struct fsl_bridge_node* fsl_bridge_follow_pretty_name(
+	struct fsl_bridge_node *fbn,
+	const char* pretty_name)
+{
+	struct fsl_bridge_node	*ret_fbn;
+	struct type_info	*ret_ti = NULL;
+
+	if (fbn_is_array_pt(fbn)) {
+		ret_ti = typeinfo_follow_name_pt(
+			fbn->fbn_arr_parent,
+			fbn->fbn_arr_pt,
+			pretty_name);
+	} else if (fbn_is_array_vt(fbn)) {
+		ret_ti = typeinfo_follow_name_vt(
+			fbn->fbn_arr_parent,
+			fbn->fbn_arr_vt,
+			pretty_name);
+	}
+
+	if (ret_ti == NULL) return NULL;
+
+	ret_fbn = fsl_bridge_from_ti(ret_ti);
+	return ret_fbn;
+}
+
 struct fsl_bridge_node* fsl_bridge_follow_name(
 	struct type_info* ti_p, /* parent*/
 	const char* child_path /* name */)
@@ -99,7 +124,6 @@ struct fsl_bridge_node* fsl_bridge_idx_into(
 	}
 
 	*err = 0;
-	new_fbn = fbn_alloc();
 	if (fbn->fbn_arr_field) {
 		ret_ti = typeinfo_follow_field_idx(
 			fbn->fbn_arr_parent, fbn->fbn_arr_field, idx);
@@ -117,6 +141,9 @@ struct fsl_bridge_node* fsl_bridge_idx_into(
 		ret_ti = NULL;
 	}
 
+	if (ret_ti == NULL) return NULL;
+
+	new_fbn = fbn_alloc();
 	new_fbn->fbn_ti = ret_ti;	/* XXX SUPPORT PRIMS */
 	return new_fbn;
 }

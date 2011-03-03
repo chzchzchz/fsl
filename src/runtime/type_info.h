@@ -174,7 +174,10 @@ struct type_info* typeinfo_follow_name_pt(
 	struct type_info		*ti,
 	const struct fsl_rtt_pointsto	*pt,
 	const char			*fieldname);
-
+struct type_info* typeinfo_follow_name_vt(
+	struct type_info		*ti,
+	const struct fsl_rtt_virt	*vt,
+	const char			*fieldname);
 
 void typeinfo_phys_copy(struct type_info* dst, struct type_info* src);
 unsigned int typeinfo_to_buf(struct type_info* src, void* buf, unsigned int bytes);

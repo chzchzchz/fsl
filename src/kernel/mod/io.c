@@ -212,7 +212,6 @@ done:
 void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
 {
 	struct fsl_rt_io	*io = fsl_get_io();
-	struct buffer_head	*bh;
 	size_t			br;
 	uint64_t		cur_off;
 
@@ -221,7 +220,8 @@ void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
 	br = 0;
 	cur_off = off;
 	do {
-		int		to_read;
+		struct buffer_head	*bh;
+		int			to_read;
 
 		to_read = byte_c - br;
 		if (to_read > PAGE_SIZE) to_read = PAGE_SIZE;
@@ -230,8 +230,8 @@ void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
 		FSL_ASSERT (bh != NULL);
 		lock_buffer(bh);
 		bh_submit_read(bh);
-		memcpy(	bh->b_data + io_boff_to_blkoff(io, cur_off),
-			buf + br,
+		memcpy(	buf + br,
+			bh->b_data + io_boff_to_blkoff(io, cur_off),
 			to_read);
 		unlock_buffer(bh);
 		__brelse(bh);

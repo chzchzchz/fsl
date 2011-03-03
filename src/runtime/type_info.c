@@ -613,10 +613,6 @@ char* typeinfo_getname(struct type_info* ti, char* buf, unsigned int len)
 	name_ti = typeinfo_lookup_follow_direct(ti, "name");
 	if (name_ti == NULL) goto done;
 
-	DEBUG_TYPEINFO_WRITE("NAME VOFF=%"PRIu64". POFF=%"PRIu64,
-		ti_offset(name_ti) / 8,
-		ti_phys_offset(name_ti) / 8);
-
 	ret = buf;
 	read_len = typeinfo_to_buf(name_ti, buf, len-1);
 	buf[read_len] = '\0';
@@ -662,14 +658,17 @@ struct type_info* typeinfo_lookup_follow_idx_all(
 
 		return typeinfo_follow_field_idx(ti_parent, tf, idx);
 	}
+
 	pt = fsl_lookup_points(tt, fieldname);
-	if (pt != NULL)
+	if (pt != NULL) {
 		return typeinfo_follow_pointsto(
 			ti_parent, pt,
 			idx+pt->pt_iter.it_min(&ti_clo(ti_parent)));
+	}
+
 	vt = fsl_lookup_virt(tt, fieldname);
 	if (vt != NULL) {
-		int	err;
+		int	err = 0;
 		return typeinfo_follow_virt(ti_parent, vt, idx, &err);
 	}
 
@@ -736,7 +735,7 @@ done:
 	return ret;
 }
 
-static struct type_info* typeinfo_follow_name_vt(
+struct type_info* typeinfo_follow_name_vt(
 	struct type_info		*ti,
 	const struct fsl_rtt_virt	*vt,
 	const char			*fieldname)

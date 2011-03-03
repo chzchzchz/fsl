@@ -21,6 +21,7 @@ sudo chmod 666 /dev/fslctl
 echo "==========TOOLS=========="
 sudo ./fslcmd get /dev/sdb
 sudo ./fslcmd scatter
+sudo fsck.$FSNAME -v -f -n /dev/sdb 2>fsck.scatter.err.test >fsck.scatter.out.test
 sudo ./fslcmd defrag
 sudo ./fslcmd smush
 sudo ./fslcmd put

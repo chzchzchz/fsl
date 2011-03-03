@@ -46,6 +46,9 @@ struct fsl_bridge_node* fsl_bridge_idx_into(
 		const struct fsl_bridge_node*	fbn,
 		unsigned int			idx,
 		int*				err);
+struct fsl_bridge_node* fsl_bridge_follow_pretty_name(
+		struct fsl_bridge_node* fbn,
+		const char* pretty_name);
 struct fsl_bridge_node* fsl_bridge_follow_name(
 		struct type_info* ti_p, /* parentpath */
 		const char* child_path);

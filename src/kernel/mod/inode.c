@@ -114,7 +114,6 @@ static int fsl_type_readdir_ti(struct file *file, void *buf, filldir_t filler)
 	struct type_info		*ti, *cur_ti;
 
 	BUG_ON(pos < 0);
-	DEBUG_TOOL_WRITE("READING DIR");
 
 	realpos = file_get_priv(file)->fp_realpos;
 	ti = ti_by_fbn(fbn_by_ino(file->f_dentry->d_inode));
@@ -223,13 +222,13 @@ static int fsl_readdir_array_fbn(struct file *file, void *buf, filldir_t fill)
 
 	BUG_ON(pos < 0);
 
-	realpos = file_get_priv(file)->fp_realpos;
-
 	fbn = fbn_by_ino(file->f_dentry->d_inode);
+	realpos = file_get_priv(file)->fp_realpos;
 	i = realpos;
 	while (1) {
 		struct fsl_bridge_node		*cur_fbn;
 		char				name[64];
+		int				n_len;
 
 		cur_fbn = fsl_bridge_idx_into(fbn, i, &err);
 		if (cur_fbn == NULL) {
@@ -237,16 +236,22 @@ static int fsl_readdir_array_fbn(struct file *file, void *buf, filldir_t fill)
 			goto next;
 		}
 
-		if (typeinfo_getname(cur_fbn->fbn_ti, name, 64) == NULL)
+		name[0] = '\0';
+		if (	typeinfo_getname(cur_fbn->fbn_ti, name, 64) == NULL ||
+			(n_len = strlen(name)) < 1)
+		{
 			sprintf(name, "%d", i);
+			n_len = strlen(name);
+		}
 		fsl_bridge_free(cur_fbn);
 
-		full = fill(buf, name, strlen(name), pos++, -1, DT_DIR);
+		full = fill(buf, name, n_len, pos++, -1, DT_DIR);
 		if (full) break;
 next:
 		i++;
 		realpos++;
 	}
+
 
 	file_get_priv(file)->fp_realpos = realpos;
 	file->f_pos = pos + 2;
@@ -307,19 +312,16 @@ static struct dentry* fsl_array_lookup(
 	struct inode *dir, struct dentry *de, struct nameidata *nid)
 {
 	struct inode		*new_inode;
-	struct fsl_bridge_node	*new_fbn = NULL;
+	struct fsl_bridge_node	*dir_fbn, *new_fbn = NULL;
 
+	dir_fbn = fbn_by_ino(dir);
 	if (FSL_IS_INT(de->d_name.name)) {
 		int	err;
 		new_fbn = fsl_bridge_idx_into(
-			fbn_by_ino(dir), FSL_ATOI(de->d_name.name), &err);
+			dir_fbn, FSL_ATOI(de->d_name.name), &err);
 	} else {
-/* XXX TODO */
-//		new_fbn = fsl_bridge_follow_name(
-//			ti_by_fbn(fbn_by_ino(dir)), de->d_name.name);
-//		if (new_fbn == NULL) return NULL;
-//
-		return NULL;
+		new_fbn = fsl_bridge_follow_pretty_name(
+			dir_fbn, de->d_name.name);
 	}
 	if (new_fbn == NULL) return NULL;
 	new_inode = fsl_inode_iget(dir->i_sb, new_fbn);

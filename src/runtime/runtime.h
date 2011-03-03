@@ -17,9 +17,9 @@
 #include <stdarg.h>
 #include <linux/types.h>
 #include <linux/string.h>
-#define PRIu64	"%lld"
-#define PRIx64	"%llx"
-#define PRIu32	"%d"
+#define PRIu64	"lld"
+#define PRIx64	"llx"
+#define PRIu32	"d"
 extern uint32_t random32(void);
 extern long simple_strtol(const char*, char**, unsigned int);
 #define FSL_RAND()	random32()

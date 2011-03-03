@@ -7,3 +7,4 @@ ls -lah /mnt/fslfs/root_ino 2>&1 >ext2_rootino.test
 ls -lah /mnt/fslfs/grp_desc_table 2>&1 >ext2_grpdesc.test
 ls -lah /mnt/fslfs/root_ino/0 2>&1 >ext2_rootino_dat.test
 od -Ax -tx /mnt/fslfs/grp_desc_table/3/block_bmp 2>&1 >ext2_od_grp3_blkbmp.test
+ls -lah /mnt/fslfs/root_ino/0/vdir/ 2>&1 >ext2_root_vdir.test

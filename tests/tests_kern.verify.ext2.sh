@@ -11,6 +11,7 @@ chk_blocks=`cat $TESTDIR/ext2_ls_lah.test  | eval "$SZ_AND_NAME" | grep "100M bl
 chk_grptab=`cat $TESTDIR/ext2_ls_lah.test  | eval "$SZ_AND_NAME" | grep "416 grp_desc_table" `
 chk_rootvdir=`cat $TESTDIR/ext2_rootino_dat.test  | eval "$SZ_AND_NAME" | grep '0 vdir' `
 chk_od=`grep 00006103 $TESTDIR/ext2_od_grp3_blkbmp.test`
+chk_root_vdir_ent=`cat $TESTDIR/ext2_root_vdir.test | eval "$SZ_AND_NAME" | grep "12 s2"`
 
 if [ -z "$chk_desc12" ]; then
 	echo "CHKDESC12"
@@ -57,4 +58,10 @@ if [ -z "$chk_od" ]; then
 	echo "Failed to read group block bitmap pointer"
 	cat $TESTDIR/ext2_od_grp3_blkbmp.test
 	exit 8
+fi
+
+if [ -z "$chk_root_vdir_ent" ]; then
+	echo "CHK ROOT VDIR ENT"
+	cat $TESTDIR/ext2_root_vdir.test
+	exit 9
 fi
