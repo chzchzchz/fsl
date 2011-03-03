@@ -1,7 +1,7 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
-#include <stdint.h>
+#include "runtime.h"
 
 typedef struct bitmap{
 	uint8_t		*bmp_data;

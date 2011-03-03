@@ -1,8 +1,6 @@
 /* main runtime file */
 //#define DEBUG_RT
 //#define DEBUG_IO
-#include <inttypes.h>
-#include <string.h>
 #include "debug.h"
 #include "io.h"
 #include "alloc.h"
@@ -120,12 +118,21 @@ typesize_t __computeArrayBits(
 	return total_bits;
 }
 
-void fsl_rt_uninit(struct fsl_rt_ctx* fctx)
+int fsl_rt_uninit(struct fsl_rt_ctx* fctx)
 {
+
 	FSL_ASSERT (fctx != NULL);
+
+	if (fctx->fctx_exit_f != NULL) {
+		int	ret;
+		ret = fctx->fctx_exit_f();
+		if (ret != 0) return ret;
+	}
 
 	fsl_io_free(fctx->fctx_io);
 	fsl_free(fctx);
+
+	return 0;
 }
 
 void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
@@ -192,4 +199,10 @@ uint64_t __getLocal(
 	if (num_bits == 1) FSL_ASSERT (ret < 2 && "BADMASK.");
 
 	return ret;
+}
+
+bool fsl_is_int(const char* s)
+{
+	while (*s) if (*s < '0' || *s > '9') return false; else s++;
+	return true;
 }

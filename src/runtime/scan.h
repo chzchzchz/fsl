@@ -6,6 +6,8 @@
 #define SCAN_RET_SKIP		2	/* stop scanning this type */
 #define SCAN_RET_EXIT_TYPE	3	/* leave scan of parent type */
 
+#define is_ret_done(x)	((x) == SCAN_RET_TERMINATE || (x) == SCAN_RET_EXIT_TYPE)
+
 typedef int(*scan_ti_f)(struct type_info* ti, void* aux);
 typedef int(*scan_virt_f)(
 	struct type_info* ti,

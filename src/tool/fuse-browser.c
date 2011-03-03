@@ -14,6 +14,7 @@
 #include "type_info.h"
 #include "fuse_node.h"
 #include "io.h"
+#include "tool.h"
 
 FILE			*out_file;
 static uid_t		our_uid;
@@ -393,7 +394,7 @@ static struct fuse_operations fslfuse_oper = {
 	.fgetattr	= fslfuse_fgetattr
 };
 
-int tool_entry(int argc, char *argv[])
+TOOL_ENTRY(fusebrowser)
 {
 #ifdef DEBUG_FUSE
 #define NUM_ARGS	4

@@ -9,6 +9,7 @@
 #define FSL_DOTOOL_SCATTER	0x0
 #define FSL_DOTOOL_DEFRAG	0x1
 #define FSL_DOTOOL_SMUSH	0x2
-#define FSL_MAX_DOTOOL		0x2
+#define FSL_DOTOOL_VFS		0x3
+#define FSL_MAX_DOTOOL		0x3
 
 #endif

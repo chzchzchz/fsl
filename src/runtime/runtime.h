@@ -1,20 +1,32 @@
-#ifndef RUNTIME_H
-#define RUNTIME_H
+#ifndef FSLRUNTIME_H
+#define FSLRUNTIME_H
 
+#include <stddef.h>
+
+#define FSL_IS_INT(x)	fsl_is_int(x)
 #ifndef __KERNEL__
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #define FSL_RAND()	rand()
 #define FSL_ATOI(x)	atoi(x)
 #else
-#include <stdbool.h>
+#include <stdarg.h>
+#include <linux/types.h>
+#include <linux/string.h>
+#define PRIu64	"%lld"
+#define PRIx64	"%llx"
+#define PRIu32	"%d"
 extern uint32_t random32(void);
 extern long simple_strtol(const char*, char**, unsigned int);
 #define FSL_RAND()	random32()
 #define FSL_ATOI(x)	simple_strtol(x, NULL, 10)
 #endif
+
+typedef int(*tool_exit_fn)(void);
 
 /* XXX TODO Needs local context for multi-threading.. */
 
@@ -47,6 +59,9 @@ extern int			__fsl_mode;
 extern struct fsl_rt_ctx* 	fsl_env;
 #define fsl_err_reset()		do { fsl_env->fctx_failed_assert = 0; } while (0)
 #define fsl_err_get()		fsl_env->fctx_failed_assert
+
+#define fsl_set_exit(x)		do { fsl_env->fctx_exit_f = x; } while (0)
+#define fsl_get_exit()		fsl_env->fctx_exit_f
 
 #define FSL_MODE_BIGENDIAN		1
 #define FSL_MODE_LITTLEENDIAN		0
@@ -85,6 +100,7 @@ struct fsl_rt_ctx
 	struct fsl_rt_stat	fctx_stat;
 	struct fsl_rt_except	fctx_except;
 	const char*		fctx_failed_assert;
+	tool_exit_fn		fctx_exit_f;
 };
 
 struct fsl_rt_mapping;
@@ -326,11 +342,14 @@ uint64_t __max7(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4,
 uint64_t fsl_fail(uint64_t);
 
 /* not exposed to llvm */
-void fsl_rt_uninit(struct fsl_rt_ctx* ctx);
+int fsl_rt_uninit(struct fsl_rt_ctx* ctx);
 void fsl_load_memo(void);
 void fsl_vars_from_env(struct fsl_rt_ctx* fctx);
 
+bool fsl_is_int(const char* s);
+
 /* implemented by tool: */
 int tool_entry(int argc, char* argv[]);
+
 
 #endif

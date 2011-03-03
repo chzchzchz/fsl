@@ -33,7 +33,7 @@ struct fsl_rt_io* fsl_io_alloc_fd(unsigned long fd)
 	if (ret->io_priv == NULL) goto error_priv;
 	ret->io_priv->iop_file = file;
 	ret->io_priv->iop_ino = ino;
-	ret->io_priv->iop_bdev = ino->i_bdev;
+	ret->io_priv->iop_bdev = ino->i_bdev; /* bdgrab if not ino */
 
 	ret->io_blksize = ino->i_bdev->bd_block_size;
 	ret->io_blk_c = ino->i_size / ret->io_blksize;
@@ -52,9 +52,43 @@ error:
 	return NULL;
 }
 
+/* ownership of bd is managed outside of rt_io, but is exclusive */
+/* (this is mainly to work with the sb/bdev model) */
+struct fsl_rt_io* fsl_io_alloc_bdev(struct block_device* bd)
+{
+	struct fsl_rt_io	*ret;
+
+	if (bd == NULL) goto error;
+
+	ret = fsl_alloc(sizeof(*ret));
+	if (ret == NULL) goto error_ret;
+	memset(ret, 0, sizeof(*ret));
+
+	ret->io_priv = fsl_alloc(sizeof(struct fsl_rt_io_priv));
+	if (ret->io_priv == NULL) goto error_priv;
+	ret->io_priv->iop_file = NULL;
+	ret->io_priv->iop_ino = NULL;
+	ret->io_priv->iop_bdev = bd;
+
+	ret->io_blksize = bd->bd_block_size;
+	ret->io_blk_c = bd->bd_inode->i_size / ret->io_blksize;
+
+	fsl_io_cache_init(&ret->io_priv->iop_cache);
+	fsl_rlog_init(ret);
+	fsl_wlog_init(&ret->io_wlog);
+
+	return ret;
+
+error_priv:
+	fsl_free(ret);
+error:
+error_ret:
+	return NULL;
+}
+
 void fsl_io_free(struct fsl_rt_io* io)
 {
-	fput(io->io_priv->iop_file);
+	if (io->io_priv->iop_file != NULL) fput(io->io_priv->iop_file);
 	fsl_free(io->io_priv);
 	fsl_free(io);
 }
@@ -187,13 +221,10 @@ void fsl_io_read_bytes(void* buf, unsigned int byte_c, uint64_t off)
 	br = 0;
 	cur_off = off;
 	do {
-		struct page*	pg;
 		int		to_read;
 
 		to_read = byte_c - br;
 		if (to_read > PAGE_SIZE) to_read = PAGE_SIZE;
-
-		FSL_ASSERT (bh != NULL);
 
 		bh = __getblk(io_bdev(io), io_boff_to_blk(io, cur_off), PAGE_SIZE);
 		FSL_ASSERT (bh != NULL);

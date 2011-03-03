@@ -75,9 +75,11 @@ USER_RTOBJS= runtime.o	\
 	choice.o		\
 	writepkt.o		\
 	lookup.o		\
+	bridge.o		\
 	alloc_libc.o
 
 KERN_RTOBJS=	runtime.o	\
+		bridge.o	\
 		type_info.o 	\
 		type_print.o	\
 		virt.o		\
@@ -110,7 +112,10 @@ LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual
 LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
 COMP_CFLAGS= $(CFLAGS) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
 RTCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -Wall
-RTKCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -mcmodel=kernel -mno-red-zone -Wall  -D__KERNEL__
+RTKCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) 	\
+	-I$(LINUX_SRCDIR)/include/ 	\
+	-I$(LINUX_SRCDIR)/arch/x86/include/ 	\
+	-mcmodel=kernel -mno-red-zone -Wall  -D__KERNEL__
 export CFLAGS
 export OBJDIR
 

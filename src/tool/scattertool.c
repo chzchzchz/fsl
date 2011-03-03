@@ -1,7 +1,5 @@
 /* scatter the data to the windssssss */
 //#define DEBUG_TOOL
-#include <inttypes.h>
-#include <string.h>
 #include "runtime.h"
 #include "debug.h"
 #include "info.h"

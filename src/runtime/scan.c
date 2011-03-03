@@ -1,12 +1,8 @@
 //#define DEBUG_SCAN
-#include <inttypes.h>
-#include <string.h>
 #include "runtime.h"
 #include "debug.h"
 #include "type_info.h"
 #include "scan.h"
-
-#define is_ret_done(x)	((x) == SCAN_RET_TERMINATE || (x) == SCAN_RET_EXIT_TYPE)
 
 struct scan_ctx {
 	struct type_info		*sctx_ti;
@@ -157,7 +153,7 @@ static int scan_pointsto(
 		if (new_ti == NULL) {
 			DEBUG_SCAN_WRITE("skipped");
 			continue;
-		}else
+		} else
 			DEBUG_SCAN_WRITE("found pointsto");
 
 		DEBUG_SCAN_WRITE("Followng points-to");

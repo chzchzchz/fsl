@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <inttypes.h>
-#include <string.h>
-#include <stdlib.h>
 #include "runtime.h"
 #include "log.h"
 #include "io.h"

@@ -1,7 +1,4 @@
 //#define DEBUG_VIRT
-#include <inttypes.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include "runtime.h"
 #include "virt.h"
 #include "alloc.h"

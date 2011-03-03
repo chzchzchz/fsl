@@ -1,6 +1,5 @@
 //#define DEBUG_TOOL
 //#define NO_WRITES
-#include <inttypes.h>
 #include "runtime.h"
 #include "debug.h"
 #include "type_info.h"

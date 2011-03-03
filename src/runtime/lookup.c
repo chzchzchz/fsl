@@ -1,4 +1,3 @@
-#include <string.h>
 #include "runtime.h"
 #include "lookup.h"
 

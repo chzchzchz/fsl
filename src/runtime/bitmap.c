@@ -1,4 +1,3 @@
-#include <string.h>
 #include "alloc.h"
 #include "bitmap.h"
 #include "debug.h"

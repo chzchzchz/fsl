@@ -1,7 +1,4 @@
 //#define DEBUG_TYPEINFO
-#include <stdbool.h>
-#include <inttypes.h>
-#include <string.h>
 #include "alloc.h"
 #include "debug.h"
 #include "type_info.h"
@@ -453,7 +450,7 @@ struct type_info* typeinfo_follow_field(
 struct type_info* typeinfo_follow_field_off_idx(
 	struct type_info*		ti_parent,
 	const struct fsl_rtt_field*	ti_field,
-	size_t				off,
+	diskoff_t			off,
 	uint64_t			idx)
 {
 	struct type_desc		field_td;
@@ -531,9 +528,10 @@ struct type_info* typeinfo_follow_iter(
 	return ret;
 }
 
-void typeinfo_ref(struct type_info* ti)
+struct type_info* typeinfo_ref(struct type_info* ti)
 {
 	ti->ti_ref_c++;
+	return ti;
 }
 
 static unsigned int typeinfo_unref(struct type_info* ti)
@@ -662,10 +660,7 @@ struct type_info* typeinfo_lookup_follow_idx_all(
 				return NULL;
 			}
 
-		return typeinfo_follow_field_off(
-				ti_parent,
-				tf,
-				ti_field_off(ti_parent, tf, idx));
+		return typeinfo_follow_field_idx(ti_parent, tf, idx);
 	}
 	pt = fsl_lookup_points(tt, fieldname);
 	if (pt != NULL)
@@ -695,8 +690,7 @@ static struct type_info* typeinfo_follow_name_tf(
 
 	max_idx = tf->tf_elemcount(&ti_clo(ti));
 	for (idx = 0; idx <= max_idx; idx++) {
-		ret = typeinfo_follow_field_off_idx(
-			ti, tf,	ti_field_off(ti, tf, idx), idx);
+		ret = typeinfo_follow_field_idx(ti, tf, idx);
 		if (ret == NULL) continue;
 		if (	typeinfo_getname(ret, name_buf, 255) == NULL ||
 			strcmp(name_buf, name) != 0)
@@ -712,9 +706,7 @@ done:
 	return ret;
 }
 
-
-
-static struct type_info* typeinfo_follow_name_pt(
+struct type_info* typeinfo_follow_name_pt(
 	struct type_info		*ti,
 	const struct fsl_rtt_pointsto	*pt,
 	const char			*fieldname)
@@ -799,7 +791,7 @@ struct type_info* typeinfo_follow_into_name(
 	const char*		fieldname,
 	const char*		name)
 {
-	struct type_info		*ret;
+	struct type_info		*ret = NULL;
 	const struct fsl_rtt_field	*tf;
 	const struct fsl_rtt_type	*tt;
 	const struct fsl_rtt_pointsto	*pt;
@@ -843,10 +835,8 @@ struct type_info* typeinfo_reindex(
 		/* exceeded number of elements */
 		if (max_idx <= idx) return NULL;
 
-		return typeinfo_follow_field_off_idx(
-			ti_p->ti_prev, ti_p->ti_field,
-			ti_field_off(ti_p->ti_prev, ti_p->ti_field, idx),
-			idx);
+		return typeinfo_follow_field_idx(
+			ti_p->ti_prev, ti_p->ti_field, idx);
 	} else if ((pt = ti_p->ti_points) != NULL) {
 		uint64_t		it_min;
 		it_min = pt->pt_iter.it_min(&ti_clo(ti_p->ti_prev));

@@ -57,6 +57,9 @@ code-clean:
 tests: code tools
 	tests/do_all_tests.sh
 
+tests-kern:
+	tests/do_tests_kernel.sh
+
 paper: paper-gen paper-tests paper-draw
 paper-gen: tests
 paper-tests: tests-extra tests-extra-oprof tests-extra-stack tests-depth-stack
@@ -125,7 +128,11 @@ tests-clean:
 	rm -f tests/scantool-*/*
 	rm -f tests/relocate-*/*
 	rm -f tests/defragtool-*/*
-
+	rm -f tests/thrashcopy-*/*
+	rm -f tests/smushtool-*/*
+	rm -f tests/scattertool-*/*
+	rm -f tests/fusebrowse-*/*
+	rm -f tests/kernel-*/*
 
 libs-clean:
 	make -C lib clean

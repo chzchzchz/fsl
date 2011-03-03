@@ -1,13 +1,13 @@
 ifndef CFLAGS
-    $(error No CFLAGS. Run from top level.)
+ $(error No CFLAGS. Run from top level.)
 endif
 
 ifndef OBJDIR
-	$(error No OBJDIR. Run from top level.)
+ $(error No OBJDIR. Run from top level.)
 endif
 
 ifndef BINDIR
-	$(error No OBJDIR. Run from top level.)
+ $(error No OBJDIR. Run from top level.)
 endif
 
 all: kern $(BINDIR)/fslcmd

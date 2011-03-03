@@ -2,82 +2,23 @@
 #include <linux/file.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
-#include "runtime.h"
-#include "io.h"
 #include "fsl_ioctl.h"
-#include "alloc.h"
+#include "rt.h"
 
-MODULE_LICENSE("BSD");	/* fuck the haters */
+MODULE_LICENSE("GPL");	/* necessary for sync_filesystem. asshats */
 MODULE_AUTHOR("ANTONY ROMANO");
 
 #define FSL_DEVNAME		"fslctl"
 
-static bool is_inited = false;
-
-extern uint64_t fsl_num_types;
-
-static int init_rt(unsigned long fd)
-{
-	struct fsl_rt_ctx	*fsl_ctx;
-	struct fsl_rt_io	*fsl_io;
-
-	fsl_io = fsl_io_alloc_fd(fd);
-	if (fsl_io == NULL) return -EBADF;
-
-	fsl_ctx = fsl_alloc(sizeof(struct fsl_rt_ctx));
-	if (fsl_ctx == NULL) {
-		fsl_io_free(fsl_io);
-		return -ENOMEM;
-	}
-	memset(fsl_ctx, 0, sizeof(struct fsl_rt_ctx));
-
-	fsl_ctx->fctx_io = fsl_io;
-	fsl_ctx->fctx_num_types = fsl_num_types;
-	memset(&fsl_ctx->fctx_stat, 0, sizeof(struct fsl_rt_stat));
-	fsl_vars_from_env(fsl_ctx);
-
-	fsl_env = fsl_ctx;
-	fsl_load_memo();
-
-	return 0;
-}
-
-static void uninit_rt(void)
-{
-	if (is_inited == false) return;
-	fsl_rt_uninit(fsl_env);
-	is_inited = false;
-}
-
-static long fsl_ioctl_blkdevput(void)
-{
-	if (is_inited == false) return -ENXIO;
-	uninit_rt();
-	return 0;
-}
-
-static long fsl_ioctl_blkdevget(struct file* filp, unsigned long fd)
-{
-	int		ret;
-
-	/* one blkdev at a time, please! */
-	if (is_inited) return -EBUSY;
-
-	ret = init_rt(fd);
-	if (ret == 0) is_inited = true;
-
-	return ret;
-}
-
-extern int scatter_entry(int argc, char* argv[]);
 extern int defrag_entry(int argc, char* argv[]);
 extern int smush_entry(int argc, char* argv[]);
+extern int scatter_entry(int argc, char* argv[]);
 
 static long fsl_ioctl_dotool(unsigned long arg)
 {
 	int	ret;
 
-	if (is_inited == false) return -ENXIO;
+	if (kfsl_rt_inited() == false) return -ENXIO;
 
 	/* do the tool stuff here */
 	switch (arg) {
@@ -97,10 +38,8 @@ static long fsl_dev_ioctl(
 {
 	long ret = -ENOSYS;
 	switch (ioctl) {
-	case FSL_IOCTL_BLKDEVGET:
-		ret = fsl_ioctl_blkdevget(filp, arg);
-		break;
-	case FSL_IOCTL_BLKDEVPUT: ret = fsl_ioctl_blkdevput(); break;
+	case FSL_IOCTL_BLKDEVGET: ret = kfsl_rt_init_fd(arg); break;
+	case FSL_IOCTL_BLKDEVPUT: ret = kfsl_rt_uninit(); break;
 	case FSL_IOCTL_DOTOOL: ret = fsl_ioctl_dotool(arg); break;
 	default: printk("WHHHHHHAT %x\n", ioctl);
 	}
@@ -121,7 +60,8 @@ static struct miscdevice fsl_dev =
 	.fops = &fsl_dev_fops
 };
 
-/* TODO: create ioctl files! */
+extern int kernbrowser_entry(int argc, char* argv[]);
+extern int kernbrowser_exit(void);
 static int __init init_fsl_mod(void)
 {
 	int	err;
@@ -132,6 +72,10 @@ static int __init init_fsl_mod(void)
 		goto done;
 	}
 	printk("fsl: Hello.\n");
+	err = kernbrowser_entry(0, NULL);
+	if (err) {
+		printk(KERN_ERR "fsl: could not register fs");
+	}
 done:
 	return err;
 }
@@ -140,7 +84,8 @@ static void __exit exit_fsl_mod(void)
 {
 	int	err;
 
-	uninit_rt();
+	kernbrowser_exit();
+	kfsl_rt_uninit();
 	err = misc_deregister(&fsl_dev);
 	if (err)
 		printk(KERN_ERR "fsl: failed to unregister misc dev\n");

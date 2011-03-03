@@ -85,7 +85,7 @@ typesize_t ti_field_off(
 	const struct type_info* ti, const struct fsl_rtt_field* tf,
 	unsigned int idx);
 poff_t ti_phys_offset(const struct type_info* ti);
-void typeinfo_ref(struct type_info* ti);
+struct type_info* typeinfo_ref(struct type_info* ti);
 #define ti_params(x)	td_params(ti_to_td(x))
 #define ti_xlate(x)	td_xlate(ti_to_td(x))
 #define ti_clo(x)	(ti_to_td(x))->td_clo
@@ -128,6 +128,7 @@ struct type_info* typeinfo_follow_into_name(
 #define TI_ERR_BADALLOC		-3	/* could not allocate typeinfo */
 #define TI_ERR_BADVERIFY	-4	/* loop and/or assertions failed */
 #define TI_ERR_EOF		-5	/* out of bounds access */
+#define ti_err_continue(x)	(((x) == 0 || (x) == TI_ERR_BADVIRT))
 
 struct type_info* typeinfo_alloc_virt_idx(
 	const struct fsl_rtt_virt* virt,
@@ -140,8 +141,13 @@ struct type_info* typeinfo_virt_next(struct type_info* ti, int* err_code);
 struct type_info* typeinfo_follow_field_off_idx(
 	struct type_info*		ti_parent,
 	const struct fsl_rtt_field* ti_field,
-	size_t				offset,
+	diskoff_t			offset,
 	uint64_t			idx);
+
+#define typeinfo_follow_field_idx(tip,tif,idx)				\
+	 typeinfo_follow_field_off_idx(					\
+		tip, tif, ti_field_off(tip, tif, idx), idx)
+
 #define typeinfo_follow_field_off(tip,tif,off)			\
 		typeinfo_follow_field_off_idx(tip,tif,off,0)
 struct type_info* typeinfo_follow_field(
@@ -164,6 +170,11 @@ struct type_info* typeinfo_lookup_follow_idx_all(
 	const char*		fieldname,
 	uint64_t		idx,
 	bool			accept_names);
+struct type_info* typeinfo_follow_name_pt(
+	struct type_info		*ti,
+	const struct fsl_rtt_pointsto	*pt,
+	const char			*fieldname);
+
 
 void typeinfo_phys_copy(struct type_info* dst, struct type_info* src);
 unsigned int typeinfo_to_buf(struct type_info* src, void* buf, unsigned int bytes);

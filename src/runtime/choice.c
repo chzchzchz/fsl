@@ -1,7 +1,4 @@
 //#define DEBUG_CHOICE
-#include <inttypes.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include "alloc.h"
 #include "type_info.h"
 #include "choice.h"

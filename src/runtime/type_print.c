@@ -1,7 +1,5 @@
 //#define DEBUG_TYPEINFO
 //#define PRINT_BITS
-#include <inttypes.h>
-#include <unistd.h>
 #include "runtime.h"
 #include "io.h"
 #include "debug.h"

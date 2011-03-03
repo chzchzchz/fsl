@@ -1,7 +1,5 @@
 /* try to smush as close to the top as possible */
 //#define DEBUG_TOOL
-#include <stdint.h>
-#include <string.h>
 #include "runtime.h"
 #include "tool.h"
 #include "info.h"

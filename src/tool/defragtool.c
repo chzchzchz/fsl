@@ -1,6 +1,4 @@
 //#define DEBUG_TOOL
-#include <inttypes.h>
-#include <string.h>
 #include "tool.h"
 #include "debug.h"
 #include "info.h"

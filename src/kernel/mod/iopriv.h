@@ -13,10 +13,12 @@
 #define io_bitoff_to_page(y)	io_boff_to_page((y)/8)
 
 struct fsl_rt_io_priv {
-	struct file		*iop_file;
+	struct file		*iop_file;	/* NULL if bdev alloced */
 	struct inode		*iop_ino;
 	struct block_device	*iop_bdev;	/* from file */
 	struct fsl_io_cache	iop_cache;
 };
+
+extern struct fsl_rt_io* fsl_io_alloc_bdev(struct block_device* bd);
 
 #endif
