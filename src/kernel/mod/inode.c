@@ -1,5 +1,6 @@
 #define DEBUG_TOOL
 #include <linux/fs.h>
+#include <linux/pagemap.h>
 #include <linux/namei.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -8,6 +9,7 @@
 #include "debug.h"
 #include "inode.h"
 #include "alloc.h"
+#include "io.h"
 
 struct file_priv
 {
@@ -342,8 +344,51 @@ static struct dentry* fsl_type_lookup(
 
 int fsl_prim_readpage(struct file *file, struct page *page)
 {
-	/* XXX STUB */
-	return -ENOSYS;
+	int			err = 0;
+	loff_t			pg_offset, read_size, offset;
+	char			*buffer;
+	struct fsl_bridge_node	*fbn;
+	diskoff_t		clo_off;
+	struct inode		*inode;
+	unsigned int		i;
+
+	inode = page->mapping->host;
+	BUG_ON(!PageLocked(page));
+
+	fbn = fbn_by_ino(inode);
+
+	buffer = kmap(page);
+	pg_offset = page_offset(page);
+
+	offset = file->f_pos + pg_offset;
+
+	/* nothing to read */
+	if (offset >= inode->i_size) {
+		memset(buffer, 0, PAGE_CACHE_SIZE-pg_offset);
+		goto done;
+	}
+
+	read_size = PAGE_CACHE_SIZE;
+	if ((read_size + offset) > inode->i_size)
+		read_size = inode->i_size - offset;
+
+	/* XXX SLOW-- adapt ti_to_buf to do offsets */
+	clo_off = ti_offset(fbn->fbn_prim_ti);
+	for (i = 0; i < read_size; i++) {
+		buffer[i] = __getLocal(
+			&ti_clo(fbn->fbn_prim_ti),
+			clo_off+(offset+i)*8,
+			8);
+	}
+
+	memset(buffer + read_size, 0, PAGE_CACHE_SIZE - read_size);
+	flush_dcache_page(page);
+	SetPageUptodate(page);
+
+done:
+	kunmap(page);
+	unlock_page(page);
+	return err;
 }
 
 /* inode is given ownership of 'ti' if successful */

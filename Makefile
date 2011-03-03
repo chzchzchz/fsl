@@ -57,8 +57,11 @@ code-clean:
 tests: code tools
 	tests/do_all_tests.sh
 
-tests-kern:
-	tests/do_tests_kernel.sh
+#TESTS_KERN=$(FSNAMES:%=tests-kern-%)
+TESTS_KERN=tests-kern-ext2
+tests-kern: $(TESTS_KERN)
+tests-kern-%:
+	FSNAME=`echo $@ | cut -f3 -d'-'` tests/do_tests_kernel.sh
 
 paper: paper-gen paper-tests paper-draw
 paper-gen: tests
