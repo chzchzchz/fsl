@@ -1,38 +1,65 @@
 #!/bin/sh
 
-if [ -z $FSNAME ]; then
+LOGINUSER=chz
+LOGINHOST=10.0.0.10
+LOGINSSH=$LOGINUSER@$LOGINHOST
+LOGINFSLROOT=/home/chz/fs/
+
+if [ -z "$FSNAME" ]; then
 	echo FSNAME env var not given.
 	exit 1
 fi
 
+case $FSNAME in
+ext2)		DEVNAME=/dev/sdb 	;;
+vfat)		DEVNAME=/dev/sdc	;;
+iso9660)	DEVNAME=/dev/sdd	;;
+reiserfs)	DEVNAME=/dev/sde	;;
+xfs)		DEVNAME=/dev/sdf	;;
+*)
+		echo "WHICH DEV FOR $FSNAME??"
+		exit 100
+		;;
+esac
+
+if [ -z "$DEVNAME" ]; then
+	echo NO DEVNAME
+	exit 2
+fi
+
 echo "Test Mode: $FSNAME"
 
-rm -f fsl.ko
+rm -f fsl$FSNAME.ko
 rm -f fslcmd
-rm *.test
-scp chz@10.0.0.10:/home/chz/src/research/fs/util/get_mod.sh ./
-scp chz@10.0.0.10:/home/chz/src/research/fs/tests/tests_kern.run.$FSNAME.sh ./
-scp chz@10.0.0.10:/home/chz/src/research/fs/src/kernel/mod/fsl.ko ./
-scp chz@10.0.0.10:/home/chz/src/research/fs/bin/fslcmd ./
+rm -f *.test
+scp $LOGINSSH:$LOGINFSLROOT/util/get_mod.sh ./
+scp $LOGINSSH:$LOGINFSLROOT/tests/tests_kern.run.$FSNAME.sh ./
+scp $LOGINSSH:$LOGINFSLROOT/src/kernel/mod/fsl$FSNAME.ko ./
+scp $LOGINSSH:$LOGINFSLROOT/bin/fslcmd ./
 
-sudo insmod ./fsl.ko
+sudo insmod ./fsl$FSNAME.ko
+if [ -z $? ]; then
+	dmesg
+	exit 1
+fi
+
 sudo chmod 666 /dev/fslctl
 
 echo "==========TOOLS=========="
-sudo ./fslcmd get /dev/sdb
+sudo ./fslcmd get $DEVNAME
 sudo ./fslcmd scatter
-sudo fsck.$FSNAME -v -f -n /dev/sdb 2>fsck.scatter.err.test >fsck.scatter.out.test
 sudo ./fslcmd defrag
 sudo ./fslcmd smush
 sudo ./fslcmd put
 
-grep fsl /proc/filesystems >proc.test
+cat /proc/filesystems >proc.test
+cat /proc/modules >modules.test
 
-sudo mount -t fslfs-$FSNAME /dev/sdb /mnt/fslfs
+sudo mount -t fslfs-$FSNAME $DEVNAME /mnt/fslfs
 ./tests_kern.run.$FSNAME.sh
-scp *.test chz@10.0.0.10:/home/chz/src/research/fs/tests/kernel-$FSNAME/
+scp *.test $LOGINSSH:$LOGINFSLROOT/tests/kernel-$FSNAME/
 sudo umount /mnt/fslfs
-sudo rmmod fsl
+sudo rmmod fsl$FSNAME
 
 echo "=============DMESG============"
 dmesg | tail -n200

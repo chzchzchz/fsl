@@ -66,16 +66,23 @@ static int __init init_fsl_mod(void)
 {
 	int	err;
 
+	/* ensure no competing fsl instances installed */
+	/* XXX TODO */
+
+	/* setup /dev/fslctl */
 	err = misc_register(&fsl_dev);
 	if (err) {
 		printk(KERN_ERR "fsl: misc dev register failed\n");
 		goto done;
 	}
-	printk("fsl: Hello.\n");
+
+	/* setup vfs hooks */
 	err = kernbrowser_entry(0, NULL);
 	if (err) {
 		printk(KERN_ERR "fsl: could not register fs");
 	}
+
+	printk("fsl: Hello.\n");
 done:
 	return err;
 }

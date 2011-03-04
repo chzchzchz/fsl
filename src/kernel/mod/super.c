@@ -118,9 +118,12 @@ static int fslfs_get_sb(struct file_system_type *fs_type,
 	return err;
 }
 
+#define FSNAMEMAX	20
+static char		fsl_fs_type_name[7+FSNAMEMAX];
+
 static struct file_system_type fsl_fs_type = {
 	.owner		= THIS_MODULE,
-	.name		= "fslfs-ext2",
+	.name		= fsl_fs_type_name,
 	.get_sb		= fslfs_get_sb,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV
@@ -130,6 +133,15 @@ TOOL_ENTRY(kernbrowser)
 {
 	DEBUG_WRITE("INIT FS REGISTER...");
 	FSL_ASSERT(fsl_num_types < 255);
+
+	/* set name to match fs module */
+	if (strlen(fsl_rt_fsname) > FSNAMEMAX) {
+		printk(KERN_INFO ">20 char fsname?");
+		return -EINVAL;
+	}
+	strcpy(fsl_fs_type_name, "fslfs-");
+	strcpy(fsl_fs_type_name + 6, fsl_rt_fsname);
+	printk("fsl: Registering filesystem %s.", fsl_fs_type_name);
 
 	return register_filesystem(&fsl_fs_type);
 }

@@ -58,7 +58,10 @@ tests: code tools
 	tests/do_all_tests.sh
 
 #TESTS_KERN=$(FSNAMES:%=tests-kern-%)
-TESTS_KERN=tests-kern-ext2
+TESTS_KERN=	tests-kern-ext2		\
+		tests-kern-vfat 	\
+		tests-kern-iso9660	\
+		tests-kern-reiserfs
 tests-kern: $(TESTS_KERN)
 tests-kern-%:
 	FSNAME=`echo $@ | cut -f3 -d'-'` tests/do_tests_kernel.sh

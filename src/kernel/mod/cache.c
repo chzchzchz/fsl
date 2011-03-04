@@ -65,6 +65,7 @@ static const uint8_t* fsl_io_cache_put(struct fsl_rt_io* io, uint64_t cache_line
 
 	file_offset = cache_line * FSL_IO_CACHE_BYTES;
 
+	FSL_ASSERT(io_bdev(io) != NULL);
 	bh = __getblk(io_bdev(io),  io_boff_to_blk(io, file_offset), PAGE_SIZE);
 	FSL_ASSERT (bh != NULL);
 	lock_buffer(bh);
