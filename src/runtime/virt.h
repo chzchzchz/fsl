@@ -37,6 +37,6 @@ uint64_t fsl_virt_xlate_safe(
 diskoff_t fsl_virt_get_nth(const struct fsl_rt_mapping* rtm, unsigned int idx);
 void fsl_virt_free(struct fsl_rt_mapping*);
 void fsl_virt_unref(struct fsl_rt_closure* clo);
-void fsl_virt_ref(struct fsl_rt_closure* clo);
+struct fsl_rt_mapping* fsl_virt_ref(struct fsl_rt_closure* clo);
 
 #endif

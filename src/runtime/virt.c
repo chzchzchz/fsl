@@ -144,14 +144,12 @@ void fsl_virt_free(struct fsl_rt_mapping* rtm)
 	DEBUG_VIRT_LEAVE();
 }
 
-void fsl_virt_ref(struct fsl_rt_closure* clo)
+struct fsl_rt_mapping* fsl_virt_ref(struct fsl_rt_closure* clo)
 {
 	struct fsl_rt_mapping	*rtm;
-
 	rtm = clo->clo_xlate;
-	if (rtm == NULL) return;
-
-	rtm->rtm_ref_c++;
+	if (rtm != NULL) rtm->rtm_ref_c++;
+	return rtm;
 }
 
 void fsl_virt_unref(struct fsl_rt_closure* clo)

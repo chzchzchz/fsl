@@ -20,7 +20,7 @@ void typeinfo_free(struct type_info* ti)
 {
 	if (typeinfo_unref(ti)) return;
 
-	if (ti->ti_virt && ti_xlate(ti) != NULL) {
+	if (/* ti->ti_virt && */ ti_xlate(ti) != NULL) {
 		fsl_virt_unref(&ti_clo(ti));
 		ti_xlate(ti) = NULL;
 	}
@@ -103,7 +103,8 @@ static struct type_info* typeinfo_alloc_generic(
 
 	/* set xlate -- if this is a virt type, its xlate is already
 	 * allocated by typeinfo_alloc_virt.. */
-	ret->ti_td.td_clo.clo_xlate = td_xlate(ti_td);
+	ret->ti_td.td_clo.clo_xlate = fsl_virt_ref(
+		(struct fsl_rt_closure*)&ti_td->td_clo);
 
 	typeinfo_ref(ret);
 	if (ti_prev != NULL) typeinfo_ref(ti_prev);
@@ -245,8 +246,7 @@ struct type_info* typeinfo_alloc_by_field(
 	ret->ti_print_name = (ti_field) ? ti_field->tf_fieldname : "disk";
 	ret->ti_print_idxval = TI_INVALID_IDXVAL;
 	if (ti_prev &&  (rtm = ti_xlate(ti_prev)) != NULL) {
-		ret->ti_td.td_clo.clo_xlate = rtm;
-		fsl_virt_ref(&ti_clo(ret));
+		ret->ti_td.td_clo.clo_xlate = fsl_virt_ref(&ti_clo(ret));
 	}
 
 	DEBUG_TYPEINFO_WRITE("Verifying");
@@ -271,6 +271,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 {
 	struct type_desc	td;
 	struct type_info*	ret;
+	struct fsl_rt_mapping	*rtm;
 	typesize_t		array_bit_off;
 
 	DEBUG_TYPEINFO_ENTER();
@@ -285,16 +286,16 @@ struct type_info* typeinfo_alloc_virt_idx(
 		ti_offset(ti_prev),
 		tt_by_num(virt->vt_type_virttype)->tt_name,
 		virt->vt_name);
-	td_vinit(&td,
-		virt->vt_type_virttype, 0, NULL,
-		fsl_virt_alloc(&ti_to_td(ti_prev)->td_clo, virt));
 
-	if (td_xlate(&td) == NULL) {
+	rtm = fsl_virt_alloc(&ti_to_td(ti_prev)->td_clo, virt);
+	if (rtm == NULL) {
 		/* could not allocate virt */
 		set_err_code(err_code, TI_ERR_BADVIRT);
 		ret = NULL;
 		goto done;
 	}
+
+	td_vinit(&td, virt->vt_type_virttype, 0, NULL, rtm);
 
 	if (idx != 0) {
 		DEBUG_TYPEINFO_WRITE("alloc_virt_idx: idx = %d", idx);
@@ -302,10 +303,8 @@ struct type_info* typeinfo_alloc_virt_idx(
 		array_bit_off = fsl_virt_get_nth(td_xlate(&td), idx);
 		FSL_ASSERT (array_bit_off != 0 && "Type must be at non-zero voff");
 		if (offset_is_bad(array_bit_off)) {
-			fsl_virt_free(td_xlate(&td));
 			set_err_code(err_code, TI_ERR_BADIDX);
-			ret = NULL;
-			goto done;
+			goto err;
 		}
 
 		td_offset(&td) = array_bit_off;
@@ -316,9 +315,7 @@ struct type_info* typeinfo_alloc_virt_idx(
 	/* verify we have a valid offset into disk */
 	if (!offset_in_range(fsl_virt_xlate_safe(&td.td_clo, td_offset(&td)))) {
 		DEBUG_TYPEINFO_WRITE("Bad poff in virt.");
-		fsl_virt_free(td_xlate(&td));
-		ret = NULL;
-		goto done;
+		goto err;
 	}
 
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: alloc_gen voff=%"PRIu64,
@@ -327,9 +324,12 @@ struct type_info* typeinfo_alloc_virt_idx(
 	ret = typeinfo_alloc_generic(&td, ti_prev);
 	if (ret == NULL) {
 		set_err_code(err_code, TI_ERR_BADALLOC);
-		ret = NULL;
-		goto done;
+		goto err;
 	}
+
+	/* NOTE: virt is double refed by ret, remove extra ref */
+	fsl_virt_unref(&ti_clo(ret));
+	rtm = NULL;
 
 	DEBUG_TYPEINFO_WRITE("virt_alloc_idx: poff=%"PRIu64,
 		ti_phys_offset(ret));
@@ -357,6 +357,10 @@ done:
 
 	DEBUG_TYPEINFO_LEAVE();
 	return ret;
+err:
+	DEBUG_TYPEINFO_LEAVE();
+	fsl_virt_free(rtm);
+	return NULL;
 }
 
 /* move typeinfo to next virtual type */
