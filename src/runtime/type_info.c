@@ -678,7 +678,7 @@ struct type_info* typeinfo_lookup_follow_idx_all(
 	return typeinfo_follow_name(ti_parent, fieldname);
 }
 
-static struct type_info* typeinfo_follow_name_tf(
+struct type_info* typeinfo_follow_name_tf(
 	struct type_info		*ti,
 	const struct fsl_rtt_field	*tf,
 	const char			*name)

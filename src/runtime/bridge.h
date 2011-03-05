@@ -38,6 +38,9 @@ struct fsl_bridge_node
 #define fbn_is_array_vt(x)	(((x)->fbn_arr_vt) != NULL)
 #define fbn_is_prim(x)		(((x)->fbn_f_parent) != NULL)
 #define ti_by_fbn(x) 		((x)->fbn_ti)
+struct fsl_bridge_node* fsl_bridge_fbn_follow_name(
+	struct fsl_bridge_node* fbn,
+	const char* child_path);
 
 uint64_t fbn_bytes(const struct fsl_bridge_node* fbn);
 uint64_t fbn_max_idx(const struct fsl_bridge_node* fbn);
@@ -58,5 +61,6 @@ struct fsl_bridge_node* fsl_bridge_follow_tf(
 /* gives ownership of ti to returned node */
 struct fsl_bridge_node* fsl_bridge_from_ti(struct type_info* ti);
 void fsl_bridge_free(struct fsl_bridge_node* fbn);
+struct fsl_bridge_node* fsl_bridge_up_array(struct fsl_bridge_node* fbn);
 
 #endif

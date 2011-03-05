@@ -40,10 +40,11 @@ struct fsl_bridge_node* fsl_bridge_follow_tf(
 		/* array type */
 		fbn->fbn_arr_parent = typeinfo_ref(ti_p);
 		fbn->fbn_arr_max = elems;
-		if (tf->tf_typenum == TYPENUM_INVALID)
+		if (tf->tf_typenum == TYPENUM_INVALID) {
 			fbn->fbn_arr_prim_field = tf;
-		else
+		} else {
 			fbn->fbn_arr_field = tf;
+		}
 	}
 
 	return fbn;
@@ -56,7 +57,12 @@ struct fsl_bridge_node* fsl_bridge_follow_pretty_name(
 	struct fsl_bridge_node	*ret_fbn;
 	struct type_info	*ret_ti = NULL;
 
-	if (fbn_is_array_pt(fbn)) {
+	if (fbn_is_array_field(fbn)) {
+		ret_ti = typeinfo_follow_name_tf(
+			fbn->fbn_arr_parent,
+			fbn->fbn_arr_field,
+			pretty_name);
+	} else if (fbn_is_array_pt(fbn)) {
 		ret_ti = typeinfo_follow_name_pt(
 			fbn->fbn_arr_parent,
 			fbn->fbn_arr_pt,
@@ -72,6 +78,23 @@ struct fsl_bridge_node* fsl_bridge_follow_pretty_name(
 
 	ret_fbn = fsl_bridge_from_ti(ret_ti);
 	return ret_fbn;
+}
+
+struct fsl_bridge_node* fsl_bridge_fbn_follow_name(
+	struct fsl_bridge_node* fbn,
+	const char* child_path)
+{
+	if (fbn_is_array(fbn)) {
+		struct fsl_bridge_node	*fbn_tmp, *ret;
+		int			err;
+		fbn_tmp = fsl_bridge_idx_into(fbn, 0, &err);
+		if (fbn_tmp == NULL) return NULL;
+		ret = fsl_bridge_fbn_follow_name(fbn_tmp, child_path);
+		fsl_bridge_free(fbn_tmp);
+		return ret;
+	}
+
+	return fsl_bridge_follow_name(ti_by_fbn(fbn), child_path);
 }
 
 struct fsl_bridge_node* fsl_bridge_follow_name(
@@ -90,6 +113,7 @@ struct fsl_bridge_node* fsl_bridge_follow_name(
 	fbn->fbn_arr_max = ~0;
 	if ((pt = fsl_lookup_points(tt_by_ti(ti_p), child_path))) {
 		uint64_t	pt_min, pt_max;
+
 		pt_min = pt->pt_iter.it_min(&ti_clo(ti_p));
 		if (pt_min == ~0) goto fail;
 		pt_max = pt->pt_iter.it_max(&ti_clo(ti_p));
@@ -197,4 +221,33 @@ uint64_t fbn_bytes(const struct fsl_bridge_node* fbn)
 	}
 
 	return 0;
+}
+
+struct fsl_bridge_node* fsl_bridge_up_array(struct fsl_bridge_node* fbn)
+{
+	struct type_info		*ti_parent, *ti;
+	const struct fsl_rtt_field	*tf;
+	struct fsl_bridge_node		*new_fbn;
+
+	/* from parent, resolve array type */
+	ti_parent = ti_by_fbn(fbn)->ti_prev;
+	if (ti_parent == NULL) return NULL;
+
+	new_fbn = fbn_alloc();
+	ti = ti_by_fbn(fbn);
+	if ((tf = ti->ti_field) != NULL) {
+		if (tf->tf_elemcount(&ti_clo(ti_parent)) == 1)
+			goto err;
+		new_fbn->fbn_arr_field = tf;
+	} else if (ti->ti_points != NULL) {
+		new_fbn->fbn_arr_pt = ti->ti_points;
+	} else if (ti->ti_virt != NULL) {
+		new_fbn->fbn_arr_vt = ti->ti_virt;
+	} else goto err;
+
+	new_fbn->fbn_arr_parent = typeinfo_ref(ti_parent);
+	return new_fbn;
+err:
+	fsl_bridge_free(new_fbn);
+	return NULL;
 }

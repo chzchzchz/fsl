@@ -170,6 +170,10 @@ struct type_info* typeinfo_lookup_follow_idx_all(
 	const char*		fieldname,
 	uint64_t		idx,
 	bool			accept_names);
+struct type_info* typeinfo_follow_name_tf(
+	struct type_info		*ti,
+	const struct fsl_rtt_field	*tf,
+	const char			*name);
 struct type_info* typeinfo_follow_name_pt(
 	struct type_info		*ti,
 	const struct fsl_rtt_pointsto	*pt,

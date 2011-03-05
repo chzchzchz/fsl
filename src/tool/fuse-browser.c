@@ -21,10 +21,14 @@ static uid_t		our_uid;
 static gid_t		our_gid;
 time_t			open_time;
 
+#define get_fnode(x)	((struct fsl_bridge_node*)(((x))->fh))
+#define set_fnode(x,y)	((x))->fh = (uint64_t)((void*)(y))
+
+
 struct array_ops
 {
-	uint64_t (*ao_elems)(struct fsl_fuse_node* fn);
-	struct type_info* (*ao_get)(struct fsl_fuse_node* fn, unsigned int);
+	uint64_t (*ao_elems)(struct fsl_bridge_node* fbn);
+	struct type_info* (*ao_get)(struct fsl_bridge_node* fbn, unsigned int);
 };
 
 static int fslfuse_getattr_type(struct type_info* ti, struct stat* stbuf)
@@ -36,52 +40,37 @@ static int fslfuse_getattr_type(struct type_info* ti, struct stat* stbuf)
 	return 0;
 }
 
-static int fslfuse_getattr_array(struct fsl_fuse_node* fn, struct stat* stbuf)
+static int fslfuse_getattr_array(
+	struct fsl_bridge_node* fbn, struct stat* stbuf)
 {
-	const struct fsl_rtt_field	*tf;
-	uint64_t			num_elems;
-	size_t				sz;
-
-	tf = fn->fn_arr_field;
-	if (tf != NULL)
-		sz = ti_field_size(fn->fn_arr_parent, tf, &num_elems)/8;
-	else
-		sz = 0;
-
 	stbuf->st_nlink = 2;
 	stbuf->st_mode = S_IFDIR | 0500;
 	stbuf->st_blksize = 512;
-	stbuf->st_size = sz;
-
+	stbuf->st_size = fbn_bytes(fbn);
 	return 0;
 }
 
-static int fslfuse_getattr_prim(struct fsl_fuse_node* fn, struct stat *stbuf)
+static int fslfuse_getattr_prim(struct fsl_bridge_node* fbn, struct stat *stbuf)
 {
-	const struct fsl_rtt_field	*tf;
-	uint64_t			num_elems;
-
-	tf = fn->fn_field;
-	assert (tf != NULL);
-
 	stbuf->st_nlink = 1;
 	stbuf->st_mode = S_IFREG | 0600;
-	stbuf->st_size = ti_field_size(fn->fn_parent, tf, &num_elems)/8;
 	stbuf->st_blksize = 512;
+	stbuf->st_size = fbn_bytes(fbn);
 	return 0;
 }
 
-static int fslfuse_getattr_fn(struct fsl_fuse_node* fn, struct stat * stbuf)
+static int fslfuse_getattr_fn(struct fsl_bridge_node* fbn, struct stat * stbuf)
 {
 	stbuf->st_uid = our_uid;
 	stbuf->st_gid = our_gid;
-	if (fn_is_type(fn)) {
-		fslfuse_getattr_type(fn->fn_ti, stbuf);
-	} else if (fn_is_prim(fn)) {
-		fslfuse_getattr_prim(fn, stbuf);
-	} else if (fn_is_array(fn)) {
-		fslfuse_getattr_array(fn, stbuf);
+	if (fbn_is_type(fbn)) {
+		fslfuse_getattr_type(ti_by_fbn(fbn), stbuf);
+	} else if (fbn_is_prim(fbn)) {
+		fslfuse_getattr_prim(fbn, stbuf);
+	} else if (fbn_is_array(fbn)) {
+		fslfuse_getattr_array(fbn, stbuf);
 	} else {
+		DEBUG_WRITE("TYPE: %d", fsl_bridge_type(fbn));
 		assert (0 == 1);
 	}
 
@@ -95,21 +84,20 @@ static int fslfuse_getattr_fn(struct fsl_fuse_node* fn, struct stat * stbuf)
 static int fslfuse_getattr_ti(const char *path, struct stat *stbuf)
 {
 	int			ret;
-	struct fsl_fuse_node	*fn;
+	struct fsl_bridge_node	*fbn;
 
-	fn = fslnode_by_path(path);
+	fbn = fslnode_by_path(path);
+	if (fbn == NULL) return -ENOENT;
+	ret = fslfuse_getattr_fn(fbn, stbuf);
 
-	DEBUG_WRITE("GETATTR: %s", path);
-	if (fn == NULL) return -ENOENT;
-	ret = fslfuse_getattr_fn(fn, stbuf);
-
-	fslnode_free(fn);
+	fsl_bridge_free(fbn);
 
 	return ret;
 }
 
 static int fslfuse_getattr(const char *path, struct stat *stbuf)
 {
+	DEBUG_WRITE("GETATTR %s", path);
 	memset(stbuf, 0, sizeof(struct stat));
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0755;
@@ -123,13 +111,12 @@ static int fslfuse_getattr(const char *path, struct stat *stbuf)
 static int fslfuse_fgetattr(
 	const char * path, struct stat * stbuf, struct fuse_file_info * fi)
 {
-	struct fsl_fuse_node	*fn;
+	struct fsl_bridge_node	*fbn;
 
-	fn = get_fnode(fi);
-	if (fn == NULL) return -ENOENT;
+	fbn = get_fnode(fi);
+	if (fbn == NULL) return -ENOENT;
 
-	DEBUG_WRITE("GETATTR: %s", path);
-	fslfuse_getattr_fn(fn, stbuf);
+	fslfuse_getattr_fn(fbn, stbuf);
 
 	return 0;
 }
@@ -192,47 +179,48 @@ static int read_ti_dir(
 #define TYPEINFO_NOMORE		((void*)((intptr_t)~0))
 #define ti_is_nomore(x)		((x) == TYPEINFO_NOMORE)
 
-static uint64_t ao_elems_field(struct fsl_fuse_node* fn)
+static uint64_t ao_elems_field(struct fsl_bridge_node* fbn)
 {
-	return fn->fn_arr_field->tf_elemcount(&ti_clo(fn->fn_arr_parent));
+	return fbn->fbn_arr_field->tf_elemcount(
+		&ti_clo(fbn->fbn_arr_parent));
 }
 
-static struct type_info* ao_get_field(struct fsl_fuse_node* fn, unsigned int i)
+static struct type_info* ao_get_field(struct fsl_bridge_node* fbn, unsigned int i)
 {
-	ti_field_off(fn->fn_arr_parent, fn->fn_arr_field, i);
+	ti_field_off(fbn->fbn_arr_parent, fbn->fbn_arr_field, i);
 	return typeinfo_follow_field_off_idx(
-			fn->fn_arr_parent, fn->fn_arr_field,
-			ti_field_off(fn->fn_arr_parent, fn->fn_arr_field, i),
+			fbn->fbn_arr_parent, fbn->fbn_arr_field,
+			ti_field_off(fbn->fbn_arr_parent, fbn->fbn_arr_field, i),
 			i);
 }
 
-static uint64_t ao_elems_pt(struct fsl_fuse_node* fn)
+static uint64_t ao_elems_pt(struct fsl_bridge_node* fbn)
 {
 	uint64_t	it_min, it_max;
-	it_min = fn->fn_arr_pt->pt_iter.it_min(&ti_clo(fn->fn_arr_parent));
+	it_min = fbn->fbn_arr_pt->pt_iter.it_min(&ti_clo(fbn->fbn_arr_parent));
 	if (it_min == ~0) return 0;
-	it_max = fn->fn_arr_pt->pt_iter.it_max(&ti_clo(fn->fn_arr_parent));
+	it_max = fbn->fbn_arr_pt->pt_iter.it_max(&ti_clo(fbn->fbn_arr_parent));
 	if (it_min > it_max) return 0;
 	return (it_max-it_min)+1;
 }
 
-static struct type_info* ao_get_pt(struct fsl_fuse_node* fn, unsigned int i)
+static struct type_info* ao_get_pt(struct fsl_bridge_node* fbn, unsigned int i)
 {
 	uint64_t	min;
-	min = fn->fn_arr_pt->pt_iter.it_min(&ti_clo(fn->fn_arr_parent));
+	min = fbn->fbn_arr_pt->pt_iter.it_min(&ti_clo(fbn->fbn_arr_parent));
 	if (min == ~0) return NULL;
 	return typeinfo_follow_pointsto(
-		fn->fn_arr_parent, fn->fn_arr_pt, i+min);
+		fbn->fbn_arr_parent, fbn->fbn_arr_pt, i+min);
 }
 
-static uint64_t ao_elems_vt(struct fsl_fuse_node* fn) { return ~0; }
+static uint64_t ao_elems_vt(struct fsl_bridge_node* fbn) { return ~0; }
 
-static struct type_info* ao_get_vt(struct fsl_fuse_node* fn, unsigned int i)
+static struct type_info* ao_get_vt(struct fsl_bridge_node* fbn, unsigned int i)
 {
 	int			err;
 	struct type_info	*ti;
 
-	ti = typeinfo_follow_virt(fn->fn_arr_parent, fn->fn_arr_vt, i, &err);
+	ti = typeinfo_follow_virt(fbn->fbn_arr_parent, fbn->fbn_arr_vt, i, &err);
 	if (ti) return ti;
 	if (err == TI_ERR_BADVERIFY) return NULL;
 	return TYPEINFO_NOMORE;
@@ -245,7 +233,7 @@ struct array_ops ao_vt_ops = { .ao_elems = ao_elems_vt, .ao_get = ao_get_vt};
 
 static int read_array_dir(
 	void *buf, fuse_fill_dir_t filler,
-	struct fsl_fuse_node* fn,
+	struct fsl_bridge_node* fbn,
 	struct array_ops* ao)
 {
 	unsigned int			i;
@@ -254,12 +242,12 @@ static int read_array_dir(
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
 
-	elem_c = ao->ao_elems(fn);
+	elem_c = ao->ao_elems(fbn);
 	for (i = 0; i < elem_c; i++) {
 		char				name[256];
 		struct type_info		*cur_ti;
 
-		cur_ti = ao->ao_get(fn, i);
+		cur_ti = ao->ao_get(fbn, i);
 		if (cur_ti == NULL) {
 			continue;
 		} else if (cur_ti == TYPEINFO_NOMORE)
@@ -283,20 +271,20 @@ static int fslfuse_readdir(
 	const char *path, void *buf, fuse_fill_dir_t filler,
 	off_t offset, struct fuse_file_info *fi)
 {
-	struct fsl_fuse_node	*fn;
+	struct fsl_bridge_node	*fbn;
 
 	DEBUG_WRITE("READDIR %s", path);
 
-	fn = get_fnode(fi);
-	if (fn_is_type(fn)) {
-		return read_ti_dir(buf, filler, get_fnode(fi)->fn_ti);
-	} else if (fn_is_array_field(fn)) {
+	fbn = get_fnode(fi);
+	if (fbn_is_type(fbn)) {
+		return read_ti_dir(buf, filler, get_fnode(fi)->fbn_ti);
+	} else if (fbn_is_array_field(fbn)) {
 		return read_array_dir(buf, filler, get_fnode(fi), &ao_field_ops);
-	} else if (fn_is_array_pt(fn)) {
+	} else if (fbn_is_array_pt(fbn)) {
 		return read_array_dir(buf, filler, get_fnode(fi), &ao_pt_ops);
-	} else if (fn_is_array_vt(fn)) {
+	} else if (fbn_is_array_vt(fbn)) {
 		return read_array_dir(buf, filler, get_fnode(fi), &ao_vt_ops);
-	}else if (fn_is_prim(fn)) {
+	}else if (fbn_is_prim(fbn)) {
 		// fprintf(out_file, "ENOENT\n"); fflush(out_file);
 		return -ENOENT;
 	}
@@ -306,43 +294,42 @@ static int fslfuse_readdir(
 
 static int fslfuse_close(const char *path, struct fuse_file_info *fi)
 {
-	if (fi->fh) fslnode_free(get_fnode(fi));
+	if (fi->fh) fsl_bridge_free(get_fnode(fi));
 	return 0;
 }
 
 static int fslfuse_opendir(const char *path, struct fuse_file_info *fi)
 {
-	struct fsl_fuse_node	*fn;
+	struct fsl_bridge_node	*fbn;
 
-	fprintf(out_file, "OD %s\n", path);
-	fflush(out_file);
+	DEBUG_WRITE("OD %s", path);
 
-	fn = fslnode_by_path(path);
-	if (fn == NULL) return -ENOENT;
-	if (fn_is_prim(fn)) {
-		fslnode_free(fn);
+	fbn = fslnode_by_path(path);
+	if (fbn == NULL) return -ENOENT;
+	if (fbn_is_prim(fbn)) {
+		fsl_bridge_free(fbn);
 		return -ENOENT;
 	}
 
-	set_fnode(fi, fn);
+	set_fnode(fi, fbn);
 
 	return 0;
 }
 
 static int fslfuse_open(const char *path, struct fuse_file_info *fi)
 {
-	struct fsl_fuse_node	*fn;
+	struct fsl_bridge_node	*fbn;
 
 	if ((fi->flags & 3) != O_RDONLY) return -EACCES;
-	fn = fslnode_by_path(path);
-	if (fn == NULL) return -ENOENT;
+	fbn = fslnode_by_path(path);
+	if (fbn == NULL) return -ENOENT;
 
-	if (!fn_is_prim(fn)) {
-		fslnode_free(fn);
+	if (!fbn_is_prim(fbn)) {
+		fsl_bridge_free(fbn);
 		return -ENOENT;
 	}
 
-	set_fnode(fi, fn);
+	set_fnode(fi, fbn);
 
 	return 0;
 }
@@ -350,28 +337,27 @@ static int fslfuse_open(const char *path, struct fuse_file_info *fi)
 static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi)
 {
-	struct fsl_fuse_node	*fn;
+	struct fsl_bridge_node	*fbn;
 	diskoff_t		clo_off;
-	uint64_t		num_elems;
 	size_t 			len;
 	int			i;
 
-	fn = get_fnode(fi);
-	if (fn == NULL) return -ENOENT;
-	if (!fn_is_prim(fn)) return -ENOENT;
+	fbn = get_fnode(fi);
+	if (fbn == NULL) return -ENOENT;
+	if (!fbn_is_prim(fbn)) return -ENOENT;
 
-	len = ti_field_size(fn->fn_parent, fn->fn_field, &num_elems)/8;
+	len = fbn_bytes(fbn);
 	if (offset >= len) return 0;
 
 	assert (offset < len);
 
-	clo_off = ti_offset(fn->fn_prim_ti);
+	clo_off = ti_offset(fbn->fbn_prim_ti);
 	if ((size + offset) > len) size = len - offset;
 
 	/* XXX SLOW-- adapt ti_to_buf to do offsets */
 	for (i = 0; i < size; i++) {
 		buf[i] = __getLocal(
-			&ti_clo(fn->fn_prim_ti), clo_off+(offset+i)*8, 8);
+			&ti_clo(fbn->fbn_prim_ti), clo_off+(offset+i)*8, 8);
 	}
 
 	return size;
