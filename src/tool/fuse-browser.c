@@ -382,16 +382,21 @@ static struct fuse_operations fslfuse_oper = {
 
 TOOL_ENTRY(fusebrowser)
 {
+	char	outfile_name[64];
 #ifdef DEBUG_FUSE
 #define NUM_ARGS	4
 	char	*args[4] = {"fusebrowse", "-s", "-d", argv[0]};
 #else
-#define NUM_ARGS	3
-	char	*args[3] = {"fusebrowse", "-s", argv[0]};
+#define NUM_ARGS	5
+	char	*args[NUM_ARGS] = {"fusebrowse",
+		"-o", "allow_other",  /* permit non-mounting users to access */
+		"-s", /* single threaded */
+		argv[0]};
 #endif
 	assert (argc == 1 && "NEEDS MOUNT POINT");
 	open_time = time(0);
-	out_file = fopen("fusebrowse.err", "w");
+	sprintf(outfile_name, "fusebrowse.%s.err", fsl_rt_fsname);
+	out_file = fopen(outfile_name, "w");
 	if (out_file != NULL) {
 		setlinebuf(out_file);
 		fsl_debug_set_file(out_file);
