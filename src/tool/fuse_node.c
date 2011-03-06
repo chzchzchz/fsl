@@ -92,7 +92,6 @@ static struct fsl_bridge_node* fbn_from_relpath(
 	return ret;
 }
 
-
 struct fsl_bridge_node* fslnode_by_path(const char* path)
 {
 	return fbn_from_rootpath(path);

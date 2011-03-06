@@ -160,6 +160,9 @@ struct fsl_bridge_node* fsl_bridge_idx_into(
 			fbn->fbn_arr_vt,
 			idx,
 			err);
+	} else if (fbn->fbn_arr_prim_field) {
+		/* don't index into prim fields */
+		ret_ti = NULL;
 	} else {
 		FSL_ASSERT (0 == 1 && "BOGUS BRIDGE VAL");
 		ret_ti = NULL;

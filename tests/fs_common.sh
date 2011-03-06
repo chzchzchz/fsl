@@ -179,6 +179,40 @@ function fs_scan_startup_img
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname"
 }
 
+function fs_fuse_failcmd_img
+{
+	fs="$1"
+	imgname="$2"
+	cmd="$3"
+	cmdname="$4"
+	outfile="${src_root}"/tests/fusebrowse-${fs}/${imgname}-"$cmdname".out
+	fusermount -u tmp 2>/dev/null
+	${TOOL_BINDIR}/fusebrowse-${fs} img/${imgname} tmp
+	cd ${src_root}/tmp/
+	ret=$?
+	if [ $ret -ne 0 ]; then
+		fusermount -u tmp
+		echo "FuseCmd Init Oops. $cmd"
+		exit $ret
+	fi
+
+	$cmd >"$outfile" 2>&1
+	ret=$?
+	errline=`grep "Software caused connection abort" "$outfile"`
+	cd ..
+	fusermount -u tmp
+	# ECONNABORTED
+	if [ $ret -eq 0 ]; then
+		echo 'FUSE should have failed! $cmd'
+		exit 1
+	fi
+
+	if [ ! -z "$errline" ]; then
+		echo "FUSE blew up! $cmd"
+		exit $ret
+	fi
+}
+
 function fs_fuse_cmd_img
 {
 	fs="$1"

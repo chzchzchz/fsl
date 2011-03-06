@@ -24,7 +24,6 @@ time_t			open_time;
 #define get_fnode(x)	((struct fsl_bridge_node*)(((x))->fh))
 #define set_fnode(x,y)	((x))->fh = (uint64_t)((void*)(y))
 
-
 struct array_ops
 {
 	uint64_t (*ao_elems)(struct fsl_bridge_node* fbn);

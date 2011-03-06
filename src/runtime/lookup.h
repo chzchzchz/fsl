@@ -7,4 +7,5 @@ const struct fsl_rtt_pointsto* fsl_lookup_points(
 	const struct fsl_rtt_type* tt, const char* fname);
 const struct fsl_rtt_virt* fsl_lookup_virt(
 	const struct fsl_rtt_type* tt, const char* fname);
+bool fsl_lookup_has(const struct fsl_rtt_type* tt, const char*);
 #endif

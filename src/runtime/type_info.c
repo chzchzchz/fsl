@@ -691,6 +691,10 @@ struct type_info* typeinfo_follow_name_tf(
 	uint64_t 		idx, max_idx;
 	char			*name_buf = fsl_alloc(256);
 
+	if (tf->tf_typenum == TYPENUM_INVALID) return NULL;
+	if (!fsl_lookup_has(tt_by_num(tf->tf_typenum), "name"))
+		return NULL;
+
 	max_idx = tf->tf_elemcount(&ti_clo(ti));
 	for (idx = 0; idx <= max_idx; idx++) {
 		ret = typeinfo_follow_field_idx(ti, tf, idx);
@@ -717,6 +721,9 @@ struct type_info* typeinfo_follow_name_pt(
 	struct type_info	*ret = NULL;
 	uint64_t 		idx, max_idx;
 	char			*name_buf = fsl_alloc(256);
+
+	if (!fsl_lookup_has(tt_by_num(pt->pt_iter.it_type_dst), "name"))
+		return NULL;
 
 	/* scan all members of points */
 	idx = pt->pt_iter.it_min(&ti_clo(ti));
@@ -749,6 +756,9 @@ struct type_info* typeinfo_follow_name_vt(
 	uint64_t 		idx;
 	char			*name_buf = fsl_alloc(256);
 	int			err;
+
+	if (!fsl_lookup_has(tt_by_num(vt->vt_type_virttype), "name"))
+		return NULL;
 
 	idx = vt->vt_iter.it_min(&ti_clo(ti));
 	if (idx == ~0) goto done;

@@ -41,3 +41,11 @@ const struct fsl_rtt_virt* fsl_lookup_virt(
 	}
 	return NULL;
 }
+
+bool fsl_lookup_has(const struct fsl_rtt_type* tt, const char* fname)
+{
+	if (fsl_lookup_field(tt, fname)) return true;
+	if (fsl_lookup_points(tt, fname)) return true;
+	if (fsl_lookup_virt(tt, fname)) return true;
+	return false;
+}
