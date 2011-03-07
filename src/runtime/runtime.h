@@ -226,7 +226,7 @@ static inline bool iter_is_ok(
 }
 
 #define pt_is_ok(p,c)	iter_is_ok(&(p)->pt_iter, c)
-#define rt_is_ok(v,c)	iter_is_ok(&(v)->vt_iter, c)
+#define vt_is_ok(v,c)	iter_is_ok(&(v)->vt_iter, c)
 
 struct fsl_rtt_field
 {

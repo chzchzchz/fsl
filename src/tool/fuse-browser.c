@@ -117,7 +117,6 @@ static int read_ti_dir(
 	void *buf, fuse_fill_dir_t filler, struct type_info* ti)
 {
 	const struct fsl_rtt_type*	tt;
-	struct type_info		*cur_ti;
 	unsigned int			i;
 
 	filler(buf, ".", NULL, 0);
@@ -143,26 +142,20 @@ static int read_ti_dir(
 		const struct fsl_rtt_pointsto*	pt = &tt->tt_pointsto[i];
 
 		if (pt->pt_name == NULL) continue;
-		cur_ti = typeinfo_follow_pointsto(
-			ti, pt, pt->pt_iter.it_min(&ti_clo(ti)));
-		if (cur_ti == NULL) continue;
+		if (pt_is_ok(pt, &ti_clo(ti)) == false) continue;
 
 		if (filler(buf, pt->pt_name, NULL, 0) == 1)
 			DEBUG_WRITE("ALGRG FULLBUFF PT");
-		typeinfo_free(cur_ti);
 	}
 
 	for (i = 0; i < tt->tt_virt_c; i++) {
 		const struct fsl_rtt_virt	*vt = &tt->tt_virt[i];
-		int				err;
 
 		if (vt->vt_name == NULL) continue;
-		cur_ti = typeinfo_follow_virt(ti, vt, 0, &err);
-		if (cur_ti == NULL) continue;
+		if (vt_is_ok(vt, &ti_clo(ti)) == false) continue;
 
 		if (filler(buf, vt->vt_name, NULL, 0) == 1)
 			DEBUG_WRITE("ALGRG FULLBUFF VT");
-		typeinfo_free(cur_ti);
 	}
 
 	return 0;

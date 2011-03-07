@@ -17,9 +17,11 @@ echo Testing fusebrowse-vfat
 fs_fuse_cmd_img vfat vfat.img "ls -la" "ls"
 fs_fuse_cmd_img vfat vfat.img "ls -la d_bpb" "ls_bpb"
 fs_fuse_cmd_img vfat vfat.img "ls -la root_dir" "ls_rootdir"
+fs_fuse_cmd_img vfat vfat-postmark.img 'ls -la root_dir/S3*' 'ls_rootdir_s3'
 
 p=`cat tests/fusebrowse-vfat/vfat.img-ls.out | awk '{ print $5 " " $9; }'`
 p_bpb=`cat tests/fusebrowse-vfat/vfat.img-ls_bpb.out | awk '{ print $5 " " $9; }'`
+
 
 sb_str=`echo "$p" | grep "62 d_bpb"`
 if [ -z "$sb_str" ]; then
@@ -49,4 +51,13 @@ if [ -z "$rootdirls_str" ]; then
 	echo "NO ROOTDIR LISTING?"
 	echo "$rootdirs"
 	exit 3
+fi
+
+
+rootdir_s3=`cat tests/fusebrowse-vfat/vfat-postmark.img-ls_rootdir_s3.out | awk '{ print $1 " " $5 " " $9; }'`
+rootdir_s3_str=`echo $rootdir_s3 | grep vdir`
+if [ -z "$rootdir_s3_str" ] ; then
+	echo "NO S3 VDIR!!!"
+	echo "$rootdir_s3"
+	exit 4
 fi

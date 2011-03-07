@@ -146,15 +146,12 @@ static int fsl_type_readdir_ti(struct file *file, void *buf, filldir_t filler)
 		const struct fsl_rtt_pointsto*  pt = &tt->tt_pointsto[i];
 
 		if (pt->pt_name == NULL) continue;
-		cur_ti = typeinfo_follow_pointsto(
-			ti, pt, pt->pt_iter.it_min(&ti_clo(ti)));
-		if (cur_ti == NULL) continue;
+		if (pt_is_ok(pt, &ti_clo(ti)) == false) continue;
 
 		full = filler(
 			buf, pt->pt_name,
 			strlen(pt->pt_name),
 			pos++, -1, DT_DIR);
-		typeinfo_free(cur_ti);
 		if (full) goto is_full;
 	}
 	i -= tt->tt_pointsto_c;
@@ -165,12 +162,10 @@ static int fsl_type_readdir_ti(struct file *file, void *buf, filldir_t filler)
 		int				err;
 
 		if (vt->vt_name == NULL) continue;
-		cur_ti = typeinfo_follow_virt(ti, vt, 0, &err);
-		if (cur_ti == NULL) continue;
+		if (vt_is_ok(vt, &ti_clo(ti)) == false) continue;
 		full = filler(
 			buf, vt->vt_name,
 			strlen(vt->vt_name), pos++, -1, DT_DIR);
-		typeinfo_free(cur_ti);
 		if (full) goto is_full;
 	}
 
