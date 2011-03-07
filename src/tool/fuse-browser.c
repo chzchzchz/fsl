@@ -80,10 +80,18 @@ static int fslfuse_getattr_fn(struct fsl_bridge_node* fbn, struct stat * stbuf)
 	return 0;
 }
 
-static int fslfuse_getattr_ti(const char *path, struct stat *stbuf)
+static int fslfuse_getattr(const char *path, struct stat *stbuf)
 {
 	int			ret;
 	struct fsl_bridge_node	*fbn;
+
+	DEBUG_WRITE("GETATTR %s", path);
+	memset(stbuf, 0, sizeof(struct stat));
+	if (strcmp(path, "/") == 0) {
+		stbuf->st_mode = S_IFDIR | 0755;
+		stbuf->st_nlink = 2;
+		return 0;
+	}
 
 	fbn = fslnode_by_path(path);
 	if (fbn == NULL) return -ENOENT;
@@ -94,19 +102,6 @@ static int fslfuse_getattr_ti(const char *path, struct stat *stbuf)
 	return ret;
 }
 
-static int fslfuse_getattr(const char *path, struct stat *stbuf)
-{
-	DEBUG_WRITE("GETATTR %s", path);
-	memset(stbuf, 0, sizeof(struct stat));
-	if (strcmp(path, "/") == 0) {
-		stbuf->st_mode = S_IFDIR | 0755;
-		stbuf->st_nlink = 2;
-		return 0;
-	}
-
-	return fslfuse_getattr_ti(path, stbuf);
-}
-
 static int fslfuse_fgetattr(
 	const char * path, struct stat * stbuf, struct fuse_file_info * fi)
 {
@@ -115,9 +110,7 @@ static int fslfuse_fgetattr(
 	fbn = get_fnode(fi);
 	if (fbn == NULL) return -ENOENT;
 
-	fslfuse_getattr_fn(fbn, stbuf);
-
-	return 0;
+	return fslfuse_getattr_fn(fbn, stbuf);
 }
 
 static int read_ti_dir(

@@ -23,6 +23,7 @@ fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_bl
 fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_blkbmp_ptr"
 fs_fuse_cmd_img ext2 ext2.img 'ls -la grp_desc_table/8/grp_ino_bmp/0/' 'ls_grp8_inobmp'
 fs_fuse_failcmd_img ext2 ext2.img "stat blocks/.htaccess" "stat_blocks_bogus"
+fs_fuse_failcmd_img ext2 ext2.img "ls -la root_ino/0/direct/.htaccess" "ls_direct_htaccess_bogus"
 #fs_fuse_cmd_img ext2 ext2.img  "ls -la root_ino/vdir" "ls_grp3_blkbmp_ptr"
 
 p=`cat tests/fusebrowse-ext2/ext2.img-ls.out | awk '{ print $5 " " $9; }'`

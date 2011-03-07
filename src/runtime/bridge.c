@@ -87,6 +87,7 @@ struct fsl_bridge_node* fsl_bridge_fbn_follow_name(
 	if (fbn_is_array(fbn)) {
 		struct fsl_bridge_node	*fbn_tmp, *ret;
 		int			err;
+
 		fbn_tmp = fsl_bridge_idx_into(fbn, 0, &err);
 		if (fbn_tmp == NULL) return NULL;
 		ret = fsl_bridge_fbn_follow_name(fbn_tmp, child_path);
@@ -153,7 +154,9 @@ struct fsl_bridge_node* fsl_bridge_idx_into(
 			fbn->fbn_arr_parent, fbn->fbn_arr_field, idx);
 	} else if (fbn->fbn_arr_pt) {
 		ret_ti = typeinfo_follow_pointsto(
-			fbn->fbn_arr_parent, fbn->fbn_arr_pt, idx);
+			fbn->fbn_arr_parent, fbn->fbn_arr_pt,
+			idx+fbn->fbn_arr_pt->pt_iter.it_min(
+				&ti_clo(fbn->fbn_arr_parent)));
 	} else if (fbn->fbn_arr_vt) {
 		ret_ti = typeinfo_follow_virt(
 			fbn->fbn_arr_parent,
