@@ -20,6 +20,8 @@ fs_fuse_cmd_img ext2 ext2.img  "ls -la root_ino/vdir/5.aaa/ent_ino/0/vfile/0" "l
 fs_fuse_cmd_img ext2 ext2-many.img  "ls -la root_ino/vdir/" "ls_rootino"
 fs_fuse_cmd_img ext2 ext2-many.img  "ls -la root_ino/vdir/1d" "ls_rootino_1d"
 fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_blkbmp_ptr"
+fs_fuse_cmd_img ext2 ext2.img  "ls -la grp_desc_table/3/grp_blk_bmp" "ls_grp3_blkbmp_ptr"
+fs_fuse_cmd_img ext2 ext2.img 'ls -la grp_desc_table/8/grp_ino_bmp/0/' 'ls_grp8_inobmp'
 fs_fuse_failcmd_img ext2 ext2.img "stat blocks/.htaccess" "stat_blocks_bogus"
 #fs_fuse_cmd_img ext2 ext2.img  "ls -la root_ino/vdir" "ls_grp3_blkbmp_ptr"
 
@@ -29,6 +31,7 @@ grp3=`cat tests/fusebrowse-ext2/ext2.img-ls_grp3.out | awk '{ print $5 " " $9; }
 rootino=`cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino.out | awk '{ print $5 " " $9; }'`
 rootino_1d=`cat tests/fusebrowse-ext2/ext2-many.img-ls_rootino_1d.out | awk '{ print $5 " " $9; }'`
 vfile=`cat tests/fusebrowse-ext2/ext2.img-ls_vfile.out | awk '{ print $5 " " $9; }'`
+grp8_inobmp=`cat tests/fusebrowse-ext2/ext2.img-ls_grp8_inobmp.out | awk '{ print $1 " " $5 " " $9; }'`
 
 sb_str=`echo "$p" | grep "1024 sb"`
 if [ -z "$sb_str" ]; then
@@ -87,5 +90,11 @@ if [ -z "$od_str" ]; then
 	exit 4
 fi
 
+grp8_inobmp_str=`echo "$grp8_inobmp" | grep '\-rw------- 1024 data'`
+if [ -z "$grp8_inobmp_str" ]; then
+	echo "Failed to get data file in inobmp"
+	cat tests/fusebrowse-ext2/ext2.img-ls_grp8_inobmp.out
+	exit 5
+fi
 
 exit 0

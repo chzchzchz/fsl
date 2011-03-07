@@ -64,7 +64,7 @@ static int fslfuse_getattr_fn(struct fsl_bridge_node* fbn, struct stat * stbuf)
 	stbuf->st_gid = our_gid;
 	if (fbn_is_type(fbn)) {
 		fslfuse_getattr_type(ti_by_fbn(fbn), stbuf);
-	} else if (fbn_is_prim(fbn)) {
+	} else if (fbn_is_prim(fbn) || fbn_is_array_prim(fbn)) {
 		fslfuse_getattr_prim(fbn, stbuf);
 	} else if (fbn_is_array(fbn)) {
 		fslfuse_getattr_array(fbn, stbuf);
@@ -323,7 +323,7 @@ static int fslfuse_open(const char *path, struct fuse_file_info *fi)
 	fbn = fslnode_by_path(path);
 	if (fbn == NULL) return -ENOENT;
 
-	if (!fbn_is_prim(fbn)) {
+	if (!fbn_is_prim(fbn) && !fbn_is_array_prim(fbn)) {
 		fsl_bridge_free(fbn);
 		return -ENOENT;
 	}
@@ -339,25 +339,34 @@ static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
 	struct fsl_bridge_node	*fbn;
 	diskoff_t		clo_off;
 	size_t 			len;
+	struct type_info	*ti;
 	int			i;
 
 	fbn = get_fnode(fi);
 	if (fbn == NULL) return -ENOENT;
-	if (!fbn_is_prim(fbn)) return -ENOENT;
+	if (!fbn_is_prim(fbn) && !fbn_is_array_prim(fbn)) return -ENOENT;
 
 	len = fbn_bytes(fbn);
 	if (offset >= len) return 0;
 
 	assert (offset < len);
 
-	clo_off = ti_offset(fbn->fbn_prim_ti);
+	if (fbn_is_array_prim(fbn))
+		ti = typeinfo_follow_field_idx(
+			fbn->fbn_arr_parent,
+			fbn->fbn_arr_prim_field,
+			0);
+	else
+		ti = fbn->fbn_prim_ti;
+
+	clo_off = ti_offset(ti);
 	if ((size + offset) > len) size = len - offset;
 
 	/* XXX SLOW-- adapt ti_to_buf to do offsets */
-	for (i = 0; i < size; i++) {
-		buf[i] = __getLocal(
-			&ti_clo(fbn->fbn_prim_ti), clo_off+(offset+i)*8, 8);
-	}
+	for (i = 0; i < size; i++)
+		buf[i] = __getLocal(&ti_clo(ti), clo_off+(offset+i)*8, 8);
+
+	if (fbn_is_array_prim(fbn)) typeinfo_free(ti);
 
 	return size;
 }
