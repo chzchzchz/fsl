@@ -16,15 +16,43 @@ u32 get_blkbmp_base()
 	return REISERFS_OLD_DISK_OFFSET_IN_BYTES + get_bsz();
 }
 
-bool is_old() { if (is_new() == true) return false; return true; }
-
 bool is_new()
 {
 	if (is_any_reiserfs_magic(disk.sb_new)) return true;
 	return false;
 }
 
-bool is_bmap_spread() { if (is_new() == true) return true; DEBUG_WRITE=12345; return false; }
+bool is_old() { if (is_new() == true) return false; return true; }
+
+bool is_bmap_spread() { if (is_new() == true) return true; return false; }
+u32 get_sb_bmap_nr() { return get_sb().s_v1.s_bmap_nr; }
+u32 get_journal_blks() { return get_sb().s_v1.s_journal.jp_journal_size; }
+
+u32 get_journal_old_start_must()
+{
+	u32	blk_off = (REISERFS_OLD_DISK_OFFSET_IN_BYTES/get_bsz()) + 1;
+	blk_off += get_sb_bmap_nr();
+	return get_bsz()*blk_off;
+}
+
+u32 get_journal_new_start_must()
+{
+	u32 blk_off = (REISERFS_DISK_OFFSET_IN_BYTES/get_bsz())+2;
+	return get_bsz()*blk_off;
+}
+
+u32 get_journal_base()
+{
+	if (is_old() == true)
+		return get_journal_old_start_must();
+	return get_journal_new_start_must();
+}
+
+
+u32 get_journal_base1()
+{
+	return get_bsz()*(get_sb().s_v1.s_journal.jp_journal_1st_block);
+}
 
 bool is_any_reiserfs_magic(reiserfs_sb sb)
 {

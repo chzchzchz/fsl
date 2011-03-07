@@ -333,7 +333,7 @@ type reiser_bmpblk_spread(int k)
 type reiser_blkbmp
 {
 	reiser_bmpblk_spread(0)		bmp1;
-	reiser_bmpblk_spread(@+1)	bmp_rest[get_sb().s_v1.s_bmap_nr-1] fixed;
+	reiser_bmpblk_spread(@+1)	bmp_rest[get_sb_bmap_nr()-1] fixed;
 }
 
 type reiser_rawblk { u8	dat[get_bsz()]; }
@@ -347,18 +347,17 @@ points_cast(internal_node, raw_blocks[get_sb().s_v1.s_root_block]) as tree_root
 	reiserfs_sb	sb_old;
 	set_bytes(REISERFS_DISK_OFFSET_IN_BYTES);
 //	if (is_valid_sb(sb_old) == false) {
-	reiserfs_sb sb_new;
+	reiserfs_sb	sb_new;
 //	}
+
+	/* journal XXX WRONG WRONG WRONG */
+	skip_bytes(get_journal_base());
+	//reiserfs_journal_desc(0) j_header;
+	reiser_rawblk	j_blocks[get_journal_blks()] fixed nofollow;
 
 	/* bitmap */
 	set_bytes(get_blkbmp_base());
 	reiser_blkbmp	bmap;
-
-	/* journal */
-	set_bytes(get_sb().s_v1.s_journal.jp_journal_1st_block*get_bsz());
-	//reiser_rawblk	journal_header;
-	reiserfs_journal_desc(0) j_header;
-	reiser_rawblk	j_blocks[get_sb().s_v1.s_journal.jp_journal_size] fixed nofollow;
 
 	/* ugly raw blocks */
 	set_bytes(0);

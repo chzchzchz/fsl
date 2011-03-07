@@ -26,18 +26,22 @@ struct fsl_bridge_node* fsl_bridge_follow_tf(
 	elems = tf->tf_elemcount(&ti_clo(ti_p));
 	if (elems == 0) return NULL;
 
-	fbn = fbn_alloc();
 	if (elems == 1) {
 		struct type_info	*ti;
 		ti = typeinfo_follow_field(ti_p, tf);
+		if (ti == NULL) return NULL;
+
+		fbn = fbn_alloc();
 		if (tf->tf_typenum == TYPENUM_INVALID) {
 			fbn->fbn_f_parent = typeinfo_ref(ti_p);
 			fbn->fbn_f_field  = tf;
 			fbn->fbn_prim_ti = ti;
 		} else
 			fbn->fbn_ti = ti;
+
 	} else {
 		/* array type */
+		fbn = fbn_alloc();
 		fbn->fbn_arr_parent = typeinfo_ref(ti_p);
 		fbn->fbn_arr_max = elems;
 		if (tf->tf_typenum == TYPENUM_INVALID) {
@@ -204,6 +208,11 @@ enum fsl_node_t fsl_bridge_type(const struct fsl_bridge_node* fbn)
 	if (fbn_is_array_pt(fbn)) return FSL_NODE_POINTSTO;
 	if (fbn_is_array_vt(fbn)) return FSL_NODE_VIRT;
 	if (fbn_is_array_prim(fbn)) return FSL_NODE_PRIMARRAY;
+	DEBUG_WRITE("%p %p %p %p",
+		fbn->fbn_ti,
+		fbn->fbn_arr_parent,
+		fbn->fbn_f_parent,
+		fbn->fbn_prim_ti);
 	FSL_ASSERT (0 == 1 && "UNKNOWN BRIDGE TYPE");
 	return FSL_NODE_TYPE;
 }
