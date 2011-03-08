@@ -15,7 +15,7 @@ public:
 		const Expr* to_rewrite, const Expr* replacement) = 0;
 
 	virtual CondExpr* copy(void) const = 0;
-	virtual void print(std::ostream& os) const = 0;
+	virtual std::ostream& print(std::ostream& os) const = 0;
 protected:
 	CondExpr() {}
 };
@@ -29,10 +29,7 @@ public:
 		assert (cexpr != NULL);
 	}
 
-	virtual ~CondNot()
-	{
-		delete cexpr;
-	}
+	virtual ~CondNot() { delete cexpr; }
 
 	const CondExpr* getExpr(void) const { return cexpr; }
 	virtual void expr_rewrite(
@@ -42,20 +39,14 @@ public:
 		cexpr->expr_rewrite(to_rewrite, replacement);
 	}
 
-	virtual CondNot* copy(void) const
-	{
-		return new CondNot(cexpr->copy());
-	}
+	virtual CondNot* copy(void) const { return new CondNot(cexpr->copy()); }
 
-	virtual void print(std::ostream& os) const {
-		os << "!(";
-		cexpr->print(os);
-		os << ")";
+	virtual std::ostream& print(std::ostream& os) const {
+		return os << "!(" << cexpr->print(os) <<  ")";
 	}
 private:
 	CondExpr	*cexpr;
 	CondNot() {}
-
 };
 
 class BinBoolOp : public CondExpr
@@ -84,34 +75,26 @@ public:
 	}
 
 	virtual BinBoolOp* copy(void) const = 0;
-
-	virtual void print(std::ostream& os) const = 0;
+	virtual std::ostream& print(std::ostream& os) const = 0;
 
 protected:
 	CondExpr	*cond_lhs;
 	CondExpr	*cond_rhs;
 };
 
+#define BOP_COPY(x)	virtual x* copy() const				\
+	{ return new x(cond_lhs->copy(), cond_rhs->copy()); }
+#define BOP_PRINT(x) virtual std::ostream& print(std::ostream& os) const	\
+	{ return os << "(" <<						\
+		cond_lhs->print(os) << x << cond_rhs->print(os)<< ")"; }
+
 class BOPAnd : public BinBoolOp
 {
 public:
 	BOPAnd(CondExpr* lhs, CondExpr* rhs) : BinBoolOp(lhs, rhs) {}
 	virtual ~BOPAnd() {}
-	virtual BOPAnd* copy(void) const
-	{
-		return new BOPAnd(
-			cond_lhs->copy(),
-			cond_rhs->copy());
-	}
-
-	virtual void print(std::ostream& os) const
-	{
-		os << "(";
-		cond_lhs->print(os);
-		os << " && ";
-		cond_rhs->print(os);
-		os << ")";
-	}
+	BOP_COPY(BOPAnd)
+	BOP_PRINT(" && ")
 };
 
 class BOPOr : public BinBoolOp
@@ -119,21 +102,8 @@ class BOPOr : public BinBoolOp
 public:
 	BOPOr(CondExpr* lhs, CondExpr* rhs) : BinBoolOp(lhs, rhs) {}
 	virtual ~BOPOr() {}
-	virtual BOPOr* copy(void) const
-	{
-		return new BOPOr(
-			cond_lhs->copy(),
-			cond_rhs->copy());
-	}
-
-	virtual void print(std::ostream& os) const
-	{
-		os << "(";
-		cond_lhs->print(os);
-		os << " || ";
-		cond_rhs->print(os);
-		os << ")";
-	}
+	BOP_COPY(BOPOr);
+	BOP_PRINT(" || ");
 };
 
 class CmpOp : public CondExpr {
@@ -175,7 +145,7 @@ public:
 
 	virtual CmpOp* copy(void) const = 0;
 
-	virtual void print(std::ostream& os) const
+	virtual std::ostream& print(std::ostream& os) const
 	{
 		os << "(";
 		lhs->print(os);
@@ -190,93 +160,35 @@ public:
 		}
 		rhs->print(os);
 		os << ")";
+		return os;
 	}
 
 protected:
-	Expr	*lhs;
-	Expr	*rhs;
+	Expr	*lhs, *rhs;
 private:
 	CmpOp() {}
 };
 
-class CmpEQ : public CmpOp
-{
-public:
-	CmpEQ(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {}
-	virtual ~CmpEQ() {}
-
-	Op getOp(void) const { return EQ; }
-	virtual CmpEQ* copy(void) const
-	{
-		return new CmpEQ(lhs->copy(), rhs->copy());
-	}
+#define CMP_COPY(x) virtual x* copy(void) const 	\
+{ 							\
+	return new x(lhs->copy(), rhs->copy()); 	\
+}
+#define CMP_GETOP(x) Op getOp(void) const { return x; }
+#define CMP_CLASS(x,y) class x : public CmpOp		\
+{							\
+public:							\
+	x(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {}	\
+	virtual ~x() {}					\
+	CMP_GETOP(y)					\
+	CMP_COPY(x)					\
 };
 
-class CmpNE : public CmpOp
-{
-public:
-	CmpNE(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {}
-	virtual ~CmpNE() {}
-	Op getOp(void) const { return NE; }
-	virtual CmpNE* copy(void) const
-	{
-		return new CmpNE(lhs->copy(), rhs->copy());
-	}
-};
-
-class CmpLE : public CmpOp
-{
-public:
-	CmpLE(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {}
-	virtual ~CmpLE() {}
-
-	Op getOp(void) const { return LE; }
-	virtual CmpLE* copy(void) const
-	{
-		return new CmpLE(lhs->copy(), rhs->copy());
-	}
-};
-
-class CmpGE : public CmpOp
-{
-public:
-	CmpGE(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {}
-	virtual ~CmpGE() {}
-
-	Op getOp(void) const { return GE; }
-
-	virtual CmpGE* copy(void) const
-	{
-		return new CmpGE(lhs->copy(), rhs->copy());
-	}
-};
-
-class CmpLT : public CmpOp
-{
-public:
-	CmpLT(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {}
-	virtual ~CmpLT() {}
-
-	Op getOp(void) const { return LT; }
-
-	virtual CmpLT* copy(void) const
-	{
-		return new CmpLT(lhs->copy(), rhs->copy());
-	}
-};
-
-class CmpGT : public CmpOp
-{
-public:
-	CmpGT(Expr* lhs, Expr* rhs) : CmpOp(lhs, rhs) {}
-	virtual ~CmpGT() {}
-	Op getOp(void) const { return GT; }
-
-	virtual CmpGT* copy(void) const
-	{
-		return new CmpGT(lhs->copy(), rhs->copy());
-	}
-};
+CMP_CLASS(CmpEQ, EQ);
+CMP_CLASS(CmpNE, NE);
+CMP_CLASS(CmpLE, LE);
+CMP_CLASS(CmpGE, GE);
+CMP_CLASS(CmpLT, LT);
+CMP_CLASS(CmpGT, GT);
 
 class FuncCond : public CondExpr
 {
@@ -286,14 +198,10 @@ public:
 	void expr_rewrite(const Expr*, const Expr*) { assert (0 == 1); }
 	const FCall* getFC(void) const { return fc; }
 
-	virtual FuncCond* copy(void) const
+	virtual FuncCond* copy(void) const { return new FuncCond(fc->copy()); }
+	virtual std::ostream& print(std::ostream& os) const
 	{
-		return new FuncCond(fc->copy());
-	}
-
-	virtual void print(std::ostream& os) const
-	{
-		fc->print(os);
+		return fc->print(os);
 	}
 private:
 	FCall*	fc;

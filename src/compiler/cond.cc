@@ -169,15 +169,11 @@ llvm::Value* cond_bop_codeGen(const EvalCtx* ctx, const BinBoolOp* bop)
 	cond_rhs = bop->getRHS();
 
 	bop_and = dynamic_cast<const BOPAnd*>(bop);
-	if (bop_and != NULL) {
-		/* if LHS evaluates to true, go ahead and do RHS */
-		return cond_bop_and_codeGen(ctx, bop_and);
-	}
+	/* if LHS evaluates to true, go ahead and do RHS */
+	if (bop_and != NULL) return cond_bop_and_codeGen(ctx, bop_and);
 
 	bop_or = dynamic_cast<const BOPOr*>(bop);
-	if (bop_or != NULL) {
-		return cond_bop_or_codeGen(ctx, bop_or);
-	}
+	if (bop_or != NULL)  return cond_bop_or_codeGen(ctx, bop_or);
 
 	/* should not happen */
 	assert (0 == 1);

@@ -43,14 +43,11 @@ private:
 		const_map::const_iterator	it;
 
 		it = constants.find(id->getName());
-		if (it == constants.end())
-			return NULL;
-
+		if (it == constants.end()) return NULL;
 		return ((*it).second)->copy();
 	}
 
 	const const_map& constants;
-
 };
 
 class ExprResolveIds : public ExprRewriteAll

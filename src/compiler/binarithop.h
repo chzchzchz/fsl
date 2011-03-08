@@ -14,21 +14,18 @@ public:
 		delete e_rhs;
 	}
 
-	void print(std::ostream& out) const
+	std::ostream& print(std::ostream& out) const
 	{
-		out << '(';
-		e_lhs->print(out);
-		out << ' ' << getOpSymbol() << ' ';
-		e_rhs->print(out);
-		out << ')';
+		return out << '(' <<
+			e_lhs->print(out) << ' ' << getOpSymbol() << ' ' <<
+			e_rhs->print(out) << ')';
 	}
 
 	void simplifySides(void)
 	{
 		Expr	*new_lhs, *new_rhs;
 
-		if (simplified == true)
-			return;
+		if (simplified == true) return;
 
 		new_lhs = e_lhs->simplify();
 		new_rhs = e_rhs->simplify();
@@ -136,192 +133,38 @@ protected:
 		assert (e_lhs != NULL);
 		assert(e_rhs != NULL);
 	}
-	virtual char getOpSymbol() const = 0;
+	virtual const char* getOpSymbol() const = 0;
 	virtual ulong doOp(ulong lhs, ulong rhs) const = 0;
-
-	Expr	*e_lhs;
-	Expr	*e_rhs;
+	Expr	*e_lhs, *e_rhs;
 private:
 	BinArithOp() {}
 	bool	simplified;
 };
 
-class AOPOr : public BinArithOp
-{
-public:
-	AOPOr(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
-	virtual ~AOPOr() {}
+#define AOP_COPY(x)	\
+Expr* copy(void) const { return new x(e_lhs->copy(), e_rhs->copy()); }
+#define AOP_CLASS(x,y)						\
+class x : public BinArithOp					\
+{								\
+public:								\
+	x(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }		\
+	virtual ~x() {}						\
+	AOP_COPY(x)						\
+	llvm::Value* codeGen() const;				\
+protected:							\
+	ulong doOp(ulong lhs, ulong rhs) const { return (lhs y rhs); }	\
+	virtual const char* getOpSymbol() const { return #y; }	\
+private:							\
+}
 
-	Expr* copy(void) const {
-		return new AOPOr(e_lhs->copy(), e_rhs->copy());
-	}
-
-	llvm::Value* codeGen() const;
-
-protected:
-	ulong doOp(ulong lhs, ulong rhs) const { return (lhs | rhs); }
-	virtual char getOpSymbol() const { return '|'; }
-
-private:
-};
-
-class AOPAnd : public BinArithOp
-{
-public:
-	AOPAnd(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
-	virtual ~AOPAnd() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPAnd(e_lhs->copy(), e_rhs->copy());
-	}
-
-	llvm::Value* codeGen() const;
-
-protected:
-	ulong doOp(ulong lhs, ulong rhs) const { return (lhs & rhs); }
-	virtual char getOpSymbol() const { return '&'; }
-private:
-};
-
-
-
-class AOPAdd : public BinArithOp
-{
-public:
-	AOPAdd(Expr* e1, Expr* e2) : BinArithOp(e1, e2) {}
-
-	virtual ~AOPAdd() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPAdd(e_lhs->copy(), e_rhs->copy());
-	}
-
-	llvm::Value* codeGen() const;
-
-protected:
-	ulong doOp(ulong lhs, ulong rhs) const { return (lhs + rhs); }
-	virtual char getOpSymbol() const { return '+'; }
-private:
-};
-
-class AOPSub : public BinArithOp
-{
-public:
-	AOPSub(Expr* e1, Expr* e2) : BinArithOp(e1, e2) {}
-
-	virtual ~AOPSub() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPSub(e_lhs->copy(), e_rhs->copy());
-	}
-
-	llvm::Value* codeGen() const;
-
-protected:
-	ulong doOp(ulong lhs, ulong rhs) const { return (lhs - rhs); }
-	virtual char getOpSymbol() const { return '-'; }
-private:
-};
-
-class AOPDiv : public BinArithOp
-{
-public:
-	AOPDiv(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
-
-	virtual ~AOPDiv() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPDiv(e_lhs->copy(), e_rhs->copy());
-	}
-
-	llvm::Value* codeGen() const;
-
-protected:
-	ulong doOp(ulong lhs, ulong rhs) const {
-		assert (rhs != 0);
-		return (lhs / rhs);
-	}
-	virtual char getOpSymbol() const { return '/'; }
-private:
-};
-
-class AOPMul : public BinArithOp
-{
-public:
-	AOPMul(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
-
-	virtual ~AOPMul() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPMul(e_lhs->copy(), e_rhs->copy());
-	}
-
-	llvm::Value* codeGen() const;
-protected:
-	ulong doOp(ulong lhs, ulong rhs) const { return (lhs*rhs); }
-	virtual char getOpSymbol() const { return '*'; }
-private:
-};
-
-class AOPLShift : public BinArithOp
-{
-public:
-	AOPLShift(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
-
-	virtual ~AOPLShift() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPLShift(e_lhs->copy(), e_rhs->copy());
-	}
-
-	llvm::Value* codeGen() const;
-protected:
-	ulong doOp(ulong lhs, ulong rhs) const { return (lhs<<rhs); }
-virtual char getOpSymbol() const { return '<'; }
-private:
-};
-
-class AOPRShift : public BinArithOp
-{
-public:
-	AOPRShift(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
-
-	virtual ~AOPRShift() {}
-
-	Expr* copy(void) const
-	{
-		return new AOPRShift(e_lhs->copy(), e_rhs->copy());
-	}
-
-	llvm::Value* codeGen() const;
-protected:
-	ulong doOp(ulong lhs, ulong rhs) const { return (lhs>>rhs); }
-	virtual char getOpSymbol() const { return '>'; }
-private:
-};
-
-class AOPMod : public BinArithOp
-{
-public:
-	AOPMod(Expr* e1, Expr* e2) : BinArithOp(e1, e2) { }
-
-	virtual ~AOPMod() {}
-
-	Expr* copy(void) const {
-		return new AOPMod(e_lhs->copy(), e_rhs->copy());
-	}
-
-	llvm::Value* codeGen() const;
-protected:
-	ulong doOp(ulong lhs, ulong rhs) const { return (lhs%rhs); }
-	virtual char getOpSymbol() const { return '%'; }
-};
-
+AOP_CLASS(AOPAnd, &);
+AOP_CLASS(AOPOr, |);
+AOP_CLASS(AOPAdd, +);
+AOP_CLASS(AOPSub, -);
+AOP_CLASS(AOPDiv, /);
+AOP_CLASS(AOPMul, *);
+AOP_CLASS(AOPLShift, <<);
+AOP_CLASS(AOPRShift, >>);
+AOP_CLASS(AOPMod, %);
 
 #endif

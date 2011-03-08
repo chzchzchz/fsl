@@ -69,13 +69,11 @@ static void load_primitive_ptypes(void)
 	const char *prim_name[] = {"bool", "int", "uint"};
 	int	prim_bits[] = {1, 64, 64};
 
-	for (unsigned int i = 0; i < PRIM_NUM; i++) {
+	for (unsigned int i = 0; i < PRIM_NUM; i++)
 		ctypes_map[prim_name[i]] = prim_bits[i];
-	}
 
-	for (unsigned int i = 1; i <= 64; i++) {
+	for (unsigned int i = 1; i <= 64; i++)
 		ctypes_map["u"+int_to_string(i)] = i;
-	}
 }
 
 static void load_detached_preambles(const GlobalBlock* gb)
@@ -87,8 +85,7 @@ static void load_detached_preambles(const GlobalBlock* gb)
 		Type			*t;
 
 		dp = dynamic_cast<DetachedPreamble*>(*it);
-		if (dp == NULL)
-			continue;
+		if (dp == NULL) continue;
 
 		t = types_map[dp->getTypeName()];
 		if (t == NULL) {
@@ -110,8 +107,7 @@ static void load_def_types(const GlobalBlock* gb)
 		DefType		*dt;
 
 		dt = dynamic_cast<DefType*>(*it);
-		if (dt == NULL)
-			continue;
+		if (dt == NULL) continue;
 
 		if (ctypes_map.count(dt->getName()) != 0) {
 			cerr << "Trying to remap primitive type." << endl;
@@ -195,10 +191,7 @@ static void load_user_funcs(const GlobalBlock* gb)
 	for (	func_list::const_iterator it = funcs_list.begin();
 		it != funcs_list.end();
 		it++)
-	{
-		Func	*f = *it;
-		f->genCode();
-	}
+		(*it)->genCode();
 }
 
 /**
@@ -209,10 +202,9 @@ static void build_symtabs(void)
 	type_list::iterator	it;
 
 	for (it = types_list.begin(); it != types_list.end(); it++) {
-		Type		*t;
+		Type		*t = *it;
 		SymbolTable	*syms;
 
-		t = *it;
 		assert (t != NULL);
 
 		cout << "Building symtab for " << t->getName() << endl;
@@ -234,9 +226,7 @@ static void load_constants(const GlobalBlock* gb)
 		ConstVar	*c;
 
 		c = dynamic_cast<ConstVar*>(*it);
-		if (c == NULL)
-			continue;
-
+		if (c == NULL) continue;
 		constants[c->getName()] = (c->getExpr())->copy();
 	}
 }
@@ -251,8 +241,7 @@ static void load_enums(const GlobalBlock* gb)
 		unsigned long	n;
 
 		e = dynamic_cast<Enum*>(*it);
-		if (e == NULL)
-			continue;
+		if (e == NULL) continue;
 
 		/* map values to enum */
 		n = 0;
@@ -263,11 +252,10 @@ static void load_enums(const GlobalBlock* gb)
 
 			ent = *eit;
 			ent_num = ent->getNumber();
-			if (ent_num == NULL) {
+			if (ent_num == NULL)
 				num = new Number(n);
-			} else {
+			else
 				num = ent_num->copy();
-			}
 
 			constants[ent->getName()] = num;
 			n++;
@@ -306,9 +294,7 @@ static void simplify_constants(void)
 
 	pass = 0;
 	while (pass < MAX_PASSES) {
-		if (!apply_consts_to_consts()) {
-			return;
-		}
+		if (!apply_consts_to_consts()) return;
 		pass++;
 	}
 
@@ -322,7 +308,6 @@ static void simplify_constants(void)
 
 static bool apply_consts_to_consts(void)
 {
-
 	const_map::iterator	it;
 	bool			updated;
 
@@ -355,7 +340,6 @@ static void gen_thunk_code(void)
 		const ThunkType		*thunk_type;
 
 		st = (*it).second;
-
 		thunk_type = st->getThunkType();
 		thunk_type->genCode();
 	}

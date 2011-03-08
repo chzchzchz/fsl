@@ -36,11 +36,7 @@ public:
 		return type_name->getName();
 	}
 
-	Preamble* getPreamble(void) const
-	{
-		return preamble;
-	}
-
+	Preamble* getPreamble(void) const { return preamble; }
 private:
 	DetachedPreamble() {}
 	Id		*type_name;

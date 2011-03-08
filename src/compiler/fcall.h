@@ -34,17 +34,13 @@ public:
 	}
 
 	const std::string& getName(void) const { return id->getName(); }
-	void print(std::ostream& out) const
+	std::ostream& print(std::ostream& out) const
 	{
-		out << "[ fcall " << getName() << "(";
-		exprs->print(out);
-		out << ") ]";
+		return out << "[ fcall " << getName() << "(" <<
+			exprs->print(out) << ") ]";
 	}
 
-	FCall* copy(void) const
-	{
-		return new FCall(id->copy(), exprs->copy());
-	}
+	FCall* copy(void) const { return new FCall(id->copy(), exprs->copy()); }
 
 	bool operator==(const Expr* e) const
 	{

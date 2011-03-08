@@ -172,7 +172,6 @@ private:
 	bool		fixed_array;
 };
 
-
 class TypeCond: public TypeStmt
 {
 public:
@@ -294,7 +293,6 @@ private:
 	IdArray		*array;
 };
 
-
 class TypeFunc : public TypeStmt
 {
 public:
@@ -304,10 +302,7 @@ public:
 		assert (fcall != NULL);
 	}
 
-	virtual ~TypeFunc()
-	{
-		delete fcall;
-	}
+	virtual ~TypeFunc() { delete fcall; }
 
 	void print(std::ostream& out) const { fcall->print(out); }
 
@@ -318,7 +313,6 @@ public:
 		char		tmp_str[tmp_str_bufsz];
 
 		snprintf(tmp_str, tmp_str_bufsz, "%s_%p", s.c_str(), this);
-
 		return std::string(tmp_str);
 	}
 
@@ -328,7 +322,6 @@ public:
 private:
 	FCall*	fcall;
 };
-
 
 class Type : public GlobalStmt
 {
@@ -421,7 +414,6 @@ public:
 	}
 	virtual void visit(const TypeParamDecl* tpd) { return; }
 
-
 	virtual void visit(const TypeBlock* tb)
 	{
 		for (	TypeBlock::const_iterator it = tb->begin();
@@ -435,9 +427,8 @@ public:
 	virtual void visit(const TypeCond* tc)
 	{
 		tc->getTrueStmt()->accept(this);
-		if (tc->getFalseStmt() != NULL) {
+		if (tc->getFalseStmt() != NULL)
 			tc->getFalseStmt()->accept(this);
-		}
 	}
 
 	virtual void visit(const TypeFunc* tf) { return; }
@@ -445,7 +436,6 @@ public:
 protected:
 	TypeVisitAll() {}
 };
-
 
 std::ostream& operator<<(std::ostream& in, const Type& t);
 

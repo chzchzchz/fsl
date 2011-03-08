@@ -490,19 +490,13 @@ void SymTabThunkBuilder::visit(const TypeFunc* tf)
 	fcall_name = tf->getFCall()->getName();
 
 	thunkf = NULL;
-	if (fcall_name == "align_bits") {
-		thunkf = alignBits(tf);
-	} else if (fcall_name == "align_bytes") {
-		thunkf = alignBytes(tf);
-	} else if (fcall_name == "skip_bits") {
-		thunkf = skipBits(tf);
-	} else if (fcall_name == "skip_bytes") {
-		thunkf = skipBytes(tf);
-	} else if (fcall_name == "set_bits") {
-		thunkf = setBits(tf);
-	} else if (fcall_name == "set_bytes") {
-		thunkf = setBytes(tf);
-	} else {
+	if (fcall_name == "align_bits") 	thunkf = alignBits(tf);
+	else if (fcall_name == "align_bytes")	thunkf = alignBytes(tf);
+	else if (fcall_name == "skip_bits")	thunkf = skipBits(tf);
+	else if (fcall_name == "skip_bytes")	thunkf = skipBytes(tf);
+	else if (fcall_name == "set_bits")	thunkf = setBits(tf);
+	else if (fcall_name == "set_bytes")	thunkf = setBytes(tf);
+	else {
 		cerr << "Symtab: Unknown function call: ";
 		tf->print(cerr);
 		cerr << endl;
@@ -510,8 +504,7 @@ void SymTabThunkBuilder::visit(const TypeFunc* tf)
 		return;
 	}
 
-	if (thunkf == NULL)
-		return;
+	if (thunkf == NULL) return;
 
 	setLastThunk(thunkf);
 
@@ -760,17 +753,12 @@ CondExpr* SymTabThunkBuilder::getConds(void) const
 	CondExpr			*ret;
 	cond_list::const_iterator	it;
 
-	if (cond_stack.size() == 0)
-		return NULL;
+	if (cond_stack.size() == 0) return NULL;
 
 	it = cond_stack.begin();
 	ret = (*it)->copy();
-	for (	++it;
-		it != cond_stack.end();
-		it++)
-	{
+	for (++it; it != cond_stack.end(); it++)
 		ret = new BOPAnd(ret, (*it)->copy());
-	}
 
 	return ret;
 }

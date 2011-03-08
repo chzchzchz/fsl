@@ -21,16 +21,9 @@ extern type_map		types_map;
 extern const FuncBlock	*gen_func_block;
 extern const Func	*gen_func;
 
-static bool gen_func_code_args(
-	const Func* f,
-	vector<const llvm::Type*>& llvm_args);
-
 Func* FuncStmt::getFunc(void) const
 {
-	if (f_owner == NULL)
-		return owner->getFunc();
-
-	return f_owner;
+	return (f_owner) ? f_owner : owner->getFunc();
 }
 
 void Func::genLoadArgs(void) const
@@ -134,8 +127,7 @@ Value* FuncAssign::codeGen(void) const
 
 	/* send data to runtime for debugging purposes */
 	/* awful awful syntax abuse */
-	if (genDebugAssign())
-		return NULL;
+	if (genDebugAssign()) return NULL;
 
 	e_v = evalAndGen(ectx, expr);
 	if (e_v == NULL) {
@@ -326,9 +318,8 @@ Value* FuncWhileStmt::codeGen(void) const
 Value* FuncBlock::codeGen(void) const
 {
 	for (const_iterator it = begin(); it != end(); it++) {
-		FuncStmt	*fstmt = *it;
 		gen_func_block = this;
-		fstmt->codeGen();
+		(*it)->codeGen();
 	}
 
 	return NULL;
@@ -336,26 +327,24 @@ Value* FuncBlock::codeGen(void) const
 
 AllocaInst* FuncBlock::getVar(const std::string& s) const
 {
+	FuncBlock	*owner;
 	AllocaInst	*ret;
 
-	if ((ret = vscope.getVar(s)) == NULL) {
-		FuncBlock	*owner;
-		if ((owner = getOwner()) == NULL) return NULL;
-		return owner->getVar(s);
-	}
-	return ret;
+	if ((ret = vscope.getVar(s)) != NULL) return ret;
+
+	if ((owner = getOwner()) == NULL) return NULL;
+	return owner->getVar(s);
 }
 
 const ::Type* FuncBlock::getVarType(const std::string& s) const
 {
+	FuncBlock	*owner;
 	const ::Type	*ret;
 
-	if ((ret = vscope.getVarType(s)) == NULL) {
-		FuncBlock	*owner;
-		if ((owner = getOwner()) == NULL) return NULL;
-		return owner->getVarType(s);
-	}
-	return ret;
+	if ((ret = vscope.getVarType(s)) != NULL) return ret;
+
+	if ((owner = getOwner()) == NULL) return NULL;
+	return owner->getVarType(s);
 }
 
 Function* Func::getFunction(void) const
@@ -363,10 +352,7 @@ Function* Func::getFunction(void) const
 	return code_builder->getModule()->getFunction(getName());
 }
 
-Function* FuncStmt::getFunction() const
-{
-	return getFunc()->getFunction();
-}
+Function* FuncStmt::getFunction() const { return getFunc()->getFunction(); }
 
 void Func::genProto(void) const
 {
@@ -398,8 +384,7 @@ void Func::genProto(void) const
 		t_ret = llvm::Type::getVoidTy(llvm::getGlobalContext());
 	}
 
-
-	if (gen_func_code_args(this, f_args) == false) {
+	if (genFuncCodeArgs(f_args) == false) {
 		cerr << "Bailing on generating " << getName() << endl;
 		return;
 	}
@@ -417,15 +402,14 @@ void Func::genProto(void) const
 	}
 }
 
-static bool gen_func_code_args(
-	const Func* f, vector<const llvm::Type*>& llvm_args)
+bool Func::genFuncCodeArgs(vector<const llvm::Type*>& llvm_args) const
 {
 	const ArgsList	*args;
 	bool		is_ret_user_type;
 
-	is_ret_user_type = (types_map.count(f->getRet()) != 0);
+	is_ret_user_type = (types_map.count(getRet()) != 0);
 
-	args = f->getArgs();
+	args = getArgs();
 	assert (args != NULL);
 
 	llvm_args.clear();
@@ -436,22 +420,19 @@ static bool gen_func_code_args(
 		const llvm::Type	*t;
 
 		cur_type = (((args->get(i)).first)->getName());
-		if (types_map.count(cur_type) != 0) {
-			is_user_type = true;
-		} else if (ctypes_map.count(cur_type) != 0) {
-			is_user_type = false;
-		} else {
-			cerr << f->getName() <<
+		if (types_map.count(cur_type) != 0) is_user_type = true;
+		else if (ctypes_map.count(cur_type) != 0) is_user_type = false;
+		else {
+			cerr << getName() <<
 				": Could not resolve argument type for \"" <<
 				cur_type << '"' << endl;
 			return false;
 		}
 
-		if (is_user_type) {
+		if (is_user_type)
 			t = code_builder->getClosureTyPtr();
-		} else {
+		else
 			t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
-		}
 
 		llvm_args.push_back(t);
 	}

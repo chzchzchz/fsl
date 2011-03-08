@@ -17,24 +17,6 @@ TypeClosure::TypeClosure(llvm::Value* in_clo)
 	assert (clo_ptr->getType() == code_builder->getClosureTyPtr());
 }
 
-llvm::Value* TypeClosure::getOffset(void) const
-{
-	return builder->CreateExtractValue(
-		load(), RT_CLO_IDX_OFFSET, "t_offset");
-}
-
-llvm::Value* TypeClosure::getParamBuf(void) const
-{
-	return builder->CreateExtractValue(
-		load(), RT_CLO_IDX_PARAMS, "t_params");
-}
-
-llvm::Value* TypeClosure::getXlate(void) const
-{
-	return builder->CreateExtractValue(
-		load(), RT_CLO_IDX_XLATE, "t_virt");
-}
-
 llvm::Value* TypeClosure::load(void) const
 {
 	return builder->CreateLoad(clo_ptr);

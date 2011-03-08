@@ -198,62 +198,6 @@ Expr* RTInterface::getLocalArray(
 	return new FCall(new Id("__getLocalArray"), exprs);
 }
 
-
-Expr* RTInterface::getThunkClosure(void)
-{
-	return new Id(getThunkClosureName());
-}
-
-Expr* RTInterface::getThunkArgOffset(void)
-{
-	return new Id(getThunkArgOffsetName());
-}
-
-Expr* RTInterface::getThunkArgParamPtr(void)
-{
-	return new Id(getThunkArgParamPtrName());
-}
-
-Expr* RTInterface::getThunkArgVirt(void)
-{
-	return new Id(getThunkArgVirtName());
-}
-
-Expr* RTInterface::getThunkArgIdx(void)
-{
-	return new Id(getThunkArgIdxName());
-}
-
-const std::string RTInterface::getThunkArgIdxName(void)
-{
-	return "__thunkparamsf_idx";
-}
-
-const std::string RTInterface::getThunkClosureName(void)
-{
-	return "__thunk_closure";
-}
-
-const std::string RTInterface::getThunkArgVirtName(void)
-{
-	return "__thunk_virt";
-}
-
-const std::string RTInterface::getThunkArgOffsetName(void)
-{
-	return "__thunk_arg_off";
-}
-
-const std::string RTInterface::getThunkArgParamPtrName(void)
-{
-	return "__thunk_arg_params";
-}
-
-const std::string RTInterface::getMemoTabName(void) const
-{
-	return "__fsl_memotab";
-}
-
 Expr* RTInterface::maxValue(ExprList* exprs)
 {
 	assert (exprs != NULL);

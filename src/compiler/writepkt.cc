@@ -23,30 +23,23 @@ using namespace std;
 
 std::ostream& WritePktId::print(std::ostream& out) const
 {
-	out << "(writepkt-id ";
-	id->print(out);
-	out << ' ';
-	e->print(out);
-	out << ")";
-	return out;
+	return out <<
+		"(writepkt-id " <<
+		id->print(out) << ' ' << e->print(out) << ")";
 }
 
 std::ostream& WritePktArray::print(std::ostream& out) const
 {
-	out << "(writepkt-array ";
-	a->print(out);
-	out << ' ';
-	e->print(out);
-	out << ")";
-	return out;
+	return out <<
+		"(writepkt-array " <<
+		a->print(out) << ' ' << e->print(out) << ")";
 }
 
 std::ostream& WritePktBlk::print(std::ostream& out) const
 {
 	out << "(writepkt-blk ";
-	for (const_iterator it = begin(); it != end(); it++) {
+	for (const_iterator it = begin(); it != end(); it++)
 		(*it)->print(out) << "\n";
-	}
 	out << ")";
 	return out;
 }
@@ -195,8 +188,7 @@ string WritePktStmt::getFuncName(void) const
 
 std::ostream& WritePktAnon::print(std::ostream& out) const
 {
-	out << "(writepkt-anon " << wpb->print(out) << ")";
-	return out;
+	return out << "(writepkt-anon " << wpb->print(out) << ")";
 }
 
 WritePkt::WritePkt(Id* in_name, ArgsList* in_args, const wblk_list& wbs)
@@ -401,22 +393,17 @@ void WritePkt::genExterns(TableGen* tg) const
 
 unsigned int WritePktBlk::getNumFuncs(void) const
 {
-	unsigned int	ret;
-	ret = 0;
-	for (const_iterator it = begin(); it != end(); it++) {
-		if (dynamic_cast<WritePktStruct*>((*it)) != NULL)
-			ret++;
-	}
+	unsigned int	ret = 0;
+	for (const_iterator it = begin(); it != end(); it++)
+		if (dynamic_cast<WritePktStruct*>((*it)) != NULL) ret++;
 	return ret;
 }
 
 unsigned int WritePktBlk::getNumCalls(void) const
 {
-	unsigned int	ret;
-	ret = 0;
+	unsigned int	ret = 0;
 	for (const_iterator it = begin(); it != end(); it++) {
-		if (dynamic_cast<WritePktCall*>((*it)) != NULL)
-			ret++;
+		if (dynamic_cast<WritePktCall*>((*it)) != NULL) ret++;
 	}
 	return ret;
 }

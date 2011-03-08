@@ -17,9 +17,15 @@ public:
 	TypeClosure(llvm::Value* in_clo);
 	TypeClosure(llvm::Function::arg_iterator arg_it);
 
-	llvm::Value* getOffset(void) const;
-	llvm::Value* getParamBuf(void) const;
-	llvm::Value* getXlate(void) const;
+#define CLO_GET_FUNC(x, y, z)			\
+llvm::Value* get##x(void) const			\
+{						\
+	return builder->CreateExtractValue(load(), y, z);	\
+}
+	CLO_GET_FUNC(Offset, RT_CLO_IDX_OFFSET, "t_offset")
+	CLO_GET_FUNC(ParamBuf, RT_CLO_IDX_PARAMS, "t_params")
+	CLO_GET_FUNC(Xlate, RT_CLO_IDX_XLATE, "t_virt")
+
 	llvm::Value* setOffset(llvm::Value* v);
 	llvm::Value* setParamBuf(llvm::Value* v);
 	llvm::Value* setXlate(llvm::Value* v);

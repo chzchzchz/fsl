@@ -76,23 +76,19 @@ ThunkParams* ThunkParams::copy(void) const
 
 bool ThunkParams::genCodeEmpty(void)
 {
-	if (::has_gen_empty_code)
-		return true;
+	if (::has_gen_empty_code) return true;
 
 	code_builder->genCodeEmpty(THUNKPARAM_EMPTYNAME);
 	::has_gen_empty_code = true;
-
 	return true;
 }
 
 bool ThunkParams::genProtoEmpty(void)
 {
-	if (::has_gen_empty_proto)
-		return true;
+	if (::has_gen_empty_proto) return true;
 
 	genProtoByName(THUNKPARAM_EMPTYNAME);
 	::has_gen_empty_proto = true;
-
 	return true;
 }
 
@@ -124,7 +120,6 @@ bool ThunkParams::genProtoByName(const string& name)
 bool ThunkParams::genProto(void) const
 {
 	if (no_params) return genProtoEmpty();
-
 	return genProtoByName(getFCallName());
 }
 
@@ -257,13 +252,8 @@ ThunkParams* ThunkParams::createSTUB(void)
 
 const std::string ThunkParams::getFCallName(void) const
 {
-	if (no_params)
-		return THUNKPARAM_EMPTYNAME;
-
+	if (no_params) return THUNKPARAM_EMPTYNAME;
 	return ThunkFieldFunc::getFCallName();
 }
 
-ThunkParams::~ThunkParams(void)
-{
-	if (exprs != NULL) delete exprs;
-}
+ThunkParams::~ThunkParams(void) { if (exprs != NULL) delete exprs; }

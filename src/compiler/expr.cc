@@ -40,10 +40,8 @@ Value* Id::codeGen() const
 	AllocaInst		*ai = NULL;
 	GlobalVariable		*gv;
 
-	if (getName() == "__NULLPTR")
-		return code_builder->getNullPtrI64();
-	if (getName() == "__NULLPTR8")
-		return code_builder->getNullPtrI8();
+	if (getName() == "__NULLPTR") return code_builder->getNullPtrI64();
+	if (getName() == "__NULLPTR8") return code_builder->getNullPtrI8();
 
 	if (gen_vscope != NULL) {
 		if ((ai = gen_vscope->getVar(getName())) != NULL)
@@ -84,65 +82,27 @@ Value* IdStruct::codeGen() const
 	return ErrorV("XXX: STUB: IdStruct");
 }
 
-Value* IdArray::codeGen() const
-{
-	return ErrorV("XXX: STUB: IdArray");
+Value* IdArray::codeGen() const { return ErrorV("XXX: STUB: IdArray"); }
+Value* ExprParens::codeGen() const { return expr->codeGen(); }
+
+#define AOP_CODEGEN(x,y) 						\
+Value* x::codeGen() const { 						\
+	return get_builder()->y(e_lhs->codeGen(), e_rhs->codeGen());	\
 }
 
-Value* ExprParens::codeGen() const
-{
-	return expr->codeGen();
-}
+AOP_CODEGEN(AOPOr, CreateOr);
+AOP_CODEGEN(AOPAnd, CreateAnd);
+AOP_CODEGEN(AOPAdd, CreateAdd);
+AOP_CODEGEN(AOPSub, CreateSub);
+AOP_CODEGEN(AOPDiv, CreateUDiv);
+AOP_CODEGEN(AOPMul, CreateMul);
+AOP_CODEGEN(AOPLShift, CreateShl);
+AOP_CODEGEN(AOPRShift, CreateLShr);
+AOP_CODEGEN(AOPMod, CreateURem);
 
 Value* Number::codeGen() const
 {
 	return ConstantInt::get(getGlobalContext(), APInt(64, n, false));
-}
-
-Value* AOPOr::codeGen() const
-{
-	return get_builder()->CreateOr(e_lhs->codeGen(), e_rhs->codeGen());
-}
-
-Value* AOPAnd::codeGen() const
-{
-	return get_builder()->CreateAnd(e_lhs->codeGen(), e_rhs->codeGen());
-}
-
-Value* AOPAdd::codeGen() const
-{
-	return get_builder()->CreateAdd(e_lhs->codeGen(), e_rhs->codeGen());
-}
-
-Value* AOPSub::codeGen() const
-{
-	return get_builder()->CreateSub(e_lhs->codeGen(), e_rhs->codeGen());
-}
-
-Value* AOPDiv::codeGen() const
-{
-	return get_builder()->CreateUDiv(e_lhs->codeGen(), e_rhs->codeGen());
-}
-
-Value* AOPMul::codeGen() const
-{
-	return get_builder()->CreateMul(e_lhs->codeGen(), e_rhs->codeGen());
-}
-
-Value* AOPLShift::codeGen() const
-{
-	return get_builder()->CreateShl(
-		e_lhs->codeGen(), e_rhs->codeGen());
-}
-
-Value* AOPRShift::codeGen() const
-{
-	return get_builder()->CreateLShr(e_lhs->codeGen(), e_rhs->codeGen());
-}
-
-Value* AOPMod::codeGen() const
-{
-	return get_builder()->CreateURem(e_lhs->codeGen(), e_rhs->codeGen());
 }
 
 Value* Boolean::codeGen() const

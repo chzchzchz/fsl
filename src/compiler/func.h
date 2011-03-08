@@ -216,6 +216,8 @@ public:
 		delete block;
 	}
 
+	bool genFuncCodeArgs(std::vector<const llvm::Type*>& llvm_args) const;
+
 	void print(std::ostream& out) const { out << "Func"; }
 
 	const std::string& getName() const { return name->getName(); }

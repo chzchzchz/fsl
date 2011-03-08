@@ -435,7 +435,7 @@ bool EvalCtx::toName(const Expr* e, std::string& in_str, Expr* &idx) const
 	}
 
 	ida = dynamic_cast<const IdArray*>(e);
-	 if (ida != NULL) {
+	if (ida != NULL) {
 		in_str = ida->getName();
 		idx = (ida->getIdx())->simplify();
 		return true;

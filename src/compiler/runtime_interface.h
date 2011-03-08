@@ -19,22 +19,23 @@ public:
 
 	Expr*	writeVal(const Expr* loc, const Expr* sz, const Expr* val);
 
-	Expr*	getThunkClosure(void);
-	Expr*	getThunkArgOffset(void);
-	Expr*	getThunkArgParamPtr(void);
-	Expr*	getThunkArgVirt(void);
-	Expr*	getThunkArgIdx(void);
-
 	Expr	*getDebugCall(Expr* pass_val);
-
 	Expr	*getDebugCallTypeInstance(const Type* clo_type, Expr* clo_expr);
 
-	const std::string getThunkClosureName(void);
-	const std::string getThunkArgOffsetName(void);
-	const std::string getThunkArgParamPtrName(void);
-	const std::string getThunkArgVirtName(void);
-	const std::string getThunkArgIdxName(void);
-	const std::string getMemoTabName(void) const;
+#define RT_GET_EXPR(x)	Expr* get##x(void) \
+	{ return new Id(get##x##Name()); }
+	RT_GET_EXPR(ThunkClosure)
+	RT_GET_EXPR(ThunkArgOffset)
+	RT_GET_EXPR(ThunkArgParamPtr)
+	RT_GET_EXPR(ThunkArgVirt)
+	RT_GET_EXPR(ThunkArgIdx)
+#define RT_GET_NAME(x,y) const std::string get##x##Name(void) { return y; }
+	RT_GET_NAME(ThunkArgIdx, "__thunkparamsf_idx")
+	RT_GET_NAME(ThunkClosure, "__thunk_closure")
+	RT_GET_NAME(ThunkArgVirt, "__thunk_virt")
+	RT_GET_NAME(ThunkArgOffset, "__thunk_arg_off")
+	RT_GET_NAME(ThunkArgParamPtr, "__thunk_arg_params")
+	RT_GET_NAME(MemoTab, "__fsl_memotab")
 
 	Expr	*toPhys(const Expr* clo, const Expr* off);
 
@@ -52,8 +53,6 @@ public:
 		const Expr* num_elems);
 	Expr	*fail(void);
 private:
-
-
 };
 
 #endif

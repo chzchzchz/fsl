@@ -166,8 +166,7 @@ llvm::AllocaInst* VarScope::getTmpAllocaInst(const std::string& s) const
 	var_map::const_iterator	it;
 
 	it = vars_map.find(s);
-	if (it == vars_map.end())
-		return NULL;
+	if (it == vars_map.end()) return NULL;
 
 	return ((*it).second).tv_ai;
 }

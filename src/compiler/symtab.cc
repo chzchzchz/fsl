@@ -43,13 +43,11 @@ void SymbolTable::copyInto(const SymbolTable& st)
 {
 	sym_list::const_iterator	it;
 
-	if (&st == this)
-		return;
+	if (&st == this) return;
 
 	freeData();
 
 	owner = (st.owner)->copy();
-
 	for (it = st.sl.begin(); it != st.sl.end(); it++) {
 		const SymbolTableEnt	*st_ent;
 
@@ -124,9 +122,7 @@ void SymbolTable::freeData(void)
 {
 	sym_list::iterator	it;
 
-	for (it = sl.begin(); it != sl.end(); it++) {
-		delete (*it);
-	}
+	for (it = sl.begin(); it != sl.end(); it++) delete (*it);
 
 	sm.clear();
 	sl.clear();
