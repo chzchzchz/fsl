@@ -1,6 +1,7 @@
 #include "typeclosure.h"
 #include "type.h"
 #include "args.h"
+#include "util.h"
 
 using namespace std;
 
@@ -131,4 +132,12 @@ int ArgsList::find(const std::string& name) const
 			return i;
 
 	return -1;
+}
+
+ArgsList::ArgsList(unsigned int c)
+{
+	for (unsigned i = 0; i < c; i++) {
+		string	vname(string("v")+int_to_string(i));
+		add(new Id("u64"), new Id(vname));
+	}
 }

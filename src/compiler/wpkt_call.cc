@@ -18,9 +18,9 @@ void WritePktCall::printExterns(TableGen* tg) const
 	const string args_c[] = {"const uint64_t*"};
 
 	tg->printExternFunc(
-		getFuncName(), vector<string>(args_w2w, args_w2w+2), "void");
+		getFuncName(), "void", vector<string>(args_w2w, args_w2w+2));
 	tg->printExternFunc(
-		getCondFuncName(), vector<string>(args_c, args_c+1), "bool");
+		getCondFuncName(), "bool", vector<string>(args_c, args_c+1));
 }
 
 /**
@@ -30,55 +30,18 @@ void WritePktCall::printExterns(TableGen* tg) const
  */
 void WritePktCall::genProto(void) const
 {
-	llvm::Function			*f;
-	llvm::FunctionType		*ft;
-	string				funcname;
-	vector<const llvm::Type*>	args;
+	/* two args: params in, params out */
+	code_builder->genProto(
+		getFuncName(),
+		NULL,
+		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()),
+		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
 
-	funcname = getFuncName();
-	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-
-	/* writepkt call function calls take two arguments:
-	 * 	1. params in
-	 * 	2. params out
-	 */
-	ft = llvm::FunctionType::get(
-		llvm::Type::getVoidTy(llvm::getGlobalContext()),
-		args,
-		false);
-
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage,
-		funcname,
-		code_builder->getModule());
-
-	/* should not be redefinitions.. */
-	if (f->getName() != funcname) {
-		cerr << "Expected name " << funcname <<" got " <<
-		f->getNameStr() << endl;
-	}
-
-	assert (f->getName() == funcname);
-	assert (f->arg_size() == 2);
-
-	funcname = getCondFuncName();
-	args.clear();
-	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-	ft = llvm::FunctionType::get(
+	/* one arg: just the params */
+	code_builder->genProto(
+		getCondFuncName(),
 		llvm::Type::getInt1Ty(llvm::getGlobalContext()),
-		args,
-		false);
-
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage,
-		funcname,
-		code_builder->getModule());
-
-	assert (f->getName() == funcname);
-	assert (f->arg_size() == 1);
+		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
 }
 
 std::string WritePktCall::getCondFuncName(void) const

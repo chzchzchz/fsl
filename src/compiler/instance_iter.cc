@@ -235,43 +235,21 @@ void InstanceIter::genCodeLookup(void) const
 
 void InstanceIter::genProto(void) const
 {
-	const ThunkType	*tt;
-
-	tt = symtabs[src_type->getName()]->getThunkType();
-	{
-	llvm::Function			*f;
-	llvm::FunctionType		*ft;
+	const ThunkType			*tt;
 	vector<const llvm::Type*>	args;
 
-	/* closure */
+	tt = symtabs[src_type->getName()]->getThunkType();
+
+	/* closure, binding sym, parambuf out, virt out */
 	args.push_back(code_builder->getClosureTyPtr());
-
-	/* binding sym */
 	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
-
-	/* parambuf_t out */
 	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-
-	/* virt out */
 	args.push_back(code_builder->getVirtTyPtr());
 
-	ft = llvm::FunctionType::get(
-		llvm::Type::getInt64Ty(llvm::getGlobalContext()), args, false);
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage,
+	code_builder->genProtoV(
 		getLookupFCallName(),
-		code_builder->getModule());
-
-	/* should not be redefinitions.. */
-	if (f->getName() != getLookupFCallName()) {
-		cerr << "Expected name " << getLookupFCallName() <<" got " <<
-		f->getNameStr() << endl;
-	}
-
-	assert (f->getName() == getLookupFCallName());
-	assert (f->arg_size() == args.size());
-	}
+		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
+		args);
 
 	code_builder->genThunkProto(getMinFCallName());
 	code_builder->genThunkProto(getMaxFCallName());
@@ -304,16 +282,16 @@ void InstanceIter::printExterns(TableGen* tg) const
 
 	tg->printExternFunc(
 		getLookupFCallName(),
-		vector<string>(args_pr,args_pr+4),
-		"uint64_t");
+		"uint64_t",
+		vector<string>(args_pr,args_pr+4));
 
 	tg->printExternFunc(
 		getMinFCallName(),
-		vector<string>(args_bound,args_bound+1),
-		"uint64_t");
+		"uint64_t",
+		vector<string>(args_bound,args_bound+1));
 
 	tg->printExternFunc(
 		getMaxFCallName(),
-		vector<string>(args_bound,args_bound+1),
-		"uint64_t");
+		"uint64_t",
+		vector<string>(args_bound,args_bound+1));
 }

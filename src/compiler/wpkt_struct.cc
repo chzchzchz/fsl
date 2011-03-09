@@ -12,12 +12,9 @@ extern const VarScope	*gen_vscope;
 
 std::ostream& WritePktStruct::print(std::ostream& out) const
 {
-	out << "(writepkt-ids ";
-	ids->print(out);
-	out << ' ';
-	e->print(out);
-	out << ")";
-	return out;
+	return out <<
+		"(writepkt-ids " <<
+		ids->print(out) << ' ' << e->print(out) << ')';
 }
 
 void WritePktStruct::genCode(void) const
@@ -74,43 +71,16 @@ void WritePktStruct::genCode(void) const
 
 void WritePktStruct::genProto(void) const
 {
-	llvm::Function		*f;
-	llvm::FunctionType	*ft;
-	std::string		f_name;
-
-	f_name = getFuncName();
-
-	/* write pkt function calls take a single argument, a pointer */
-	vector<const llvm::Type*>	args(
-		1,
+	/* write pkt function calls take a single argument: pointer to args */
+	code_builder->genProto(
+		getFuncName(),
+		NULL,
 		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-
-	ft = llvm::FunctionType::get(
-		llvm::Type::getVoidTy(llvm::getGlobalContext()),
-		args,
-		false);
-
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage,
-		f_name,
-		code_builder->getModule());
-
-	/* should not be redefinitions.. */
-	if (f->getName() != f_name) {
-		cerr << "Expected name " << f_name <<" got " <<
-		f->getNameStr() << endl;
-	}
-
-	assert (f->getName() == f_name);
-	assert (f->arg_size() == 1);
 }
 
 void WritePktStruct::printExterns(class TableGen* tg) const
 {
 	const string args[] = {"const uint64_t*"};
 	tg->printExternFunc(
-		getFuncName(),
-		vector<string>(args, args+1),
-		"void");
+		getFuncName(), "void", vector<string>(args, args+1));
 }

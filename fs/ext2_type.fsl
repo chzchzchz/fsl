@@ -158,6 +158,7 @@ relocate(
 	block_alloc(bn2bmpidx(i)),
 	block_relink(this, (j-1), i),
 	block_replace(bn2bmpidx(get_nth_blknum(this, j-1)))) as reloc
+stat(i_mode, i_uid, i_gid, i_size, i_ctime)
 {
 	u16	i_mode;	/* file mode */
 	u16	i_uid;	/* low 16 bits of owner uid */

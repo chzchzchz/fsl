@@ -95,24 +95,13 @@ bool ThunkParams::genProtoEmpty(void)
 bool ThunkParams::genProtoByName(const string& name)
 {
 	llvm::Function			*f;
-	llvm::FunctionType		*ft;
-	vector<const llvm::Type*>	args;
 
-	/* parent type instance, type's array idx, out params */
-	args.push_back(code_builder->getClosureTyPtr());
-	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
-	args.push_back(llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
-
-	ft = llvm::FunctionType::get(
-		llvm::Type::getVoidTy(llvm::getGlobalContext()),
-		args,
-		false);
-
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage,
+	f = code_builder->genProto(
 		name,
-		code_builder->getModule());
+		NULL,
+		code_builder->getClosureTyPtr(),
+		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
+		llvm::Type::getInt64PtrTy(llvm::getGlobalContext()));
 
 	return (f->getName() == name);
 }

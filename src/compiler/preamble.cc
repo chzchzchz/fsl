@@ -24,11 +24,26 @@ Preamble::Preamble(Id* in_name, Id* in_as_name, PtrList<Id>* in_when_ids)
 	assert (name != NULL);
 }
 
-
 Preamble::~Preamble()
 {
 	delete name;
 	if (args != NULL) delete args;
 	if (when_ids != NULL) delete when_ids;
 	if (as_name != NULL) delete as_name;
+}
+
+ExprList* Preamble::toExprList(void) const
+{
+	ExprList	*ret = new ExprList();
+
+	for (	preamble_args::const_iterator it = args->begin();
+		it != args->end();
+		it++)
+	{
+		const Expr	*expr = (*it)->getExpr();
+		assert (expr != NULL && "Expected Expr in Preamble");
+		ret->add(expr->copy());
+	}
+
+	return ret;
 }

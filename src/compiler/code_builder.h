@@ -30,7 +30,24 @@ public:
 #define createGlobalMutable(x, y) createGlobal(x, y, false)
 
 	/* number of args = # of 64-bit ents */
-	void genProto(const std::string& name, uint64_t num_args);
+	llvm::Function* genProto(const std::string& name, uint64_t num_args);
+	llvm::Function* genProto(
+		const std::string& 	name,
+		const llvm::Type	*ret_type,
+		const llvm::Type	*t1);
+	llvm::Function* genProto(
+		const std::string& 	name,
+		const llvm::Type	*ret_type,
+		const llvm::Type *t1, const llvm::Type *t2);
+	llvm::Function* genProto(
+		const std::string& 	name,
+		const llvm::Type	*ret_type,
+		const llvm::Type *t1, const llvm::Type *t2,
+		const llvm::Type *t3);
+	llvm::Function* genProtoV(
+		const std::string& name,
+		const llvm::Type* ret_type,
+		const std::vector<const llvm::Type*>& args);
 	void genCode(
 		const class Type* t,
 		const std::string& name,
@@ -82,6 +99,7 @@ public:
 	llvm::Type* getClosureTy(void) { return closure_struct; }
 	llvm::Type* getClosureTyPtr(void);
 	llvm::Type* getVirtTyPtr(void);
+	const llvm::Type* getI64TyPtr(void);
 
 	void copyClosure(const Type* t,
 		llvm::Value *src, llvm::Value *dst_ptr);

@@ -26,6 +26,7 @@ public:
 	const preamble_args* getArgsList(void) const { return args; }
 	const PtrList<Id>* getWhenList(void) const { return when_ids; }
 	const Id* getAddressableName(void) const { return as_name; }
+	ExprList* toExprList(void) const;
 
 private:
 	Id		*name;

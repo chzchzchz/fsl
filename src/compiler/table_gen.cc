@@ -13,6 +13,7 @@
 #include "eval.h"
 #include "points.h"
 #include "asserts.h"
+#include "stat.h"
 #include "virt.h"
 #include "reloc.h"
 #include "writepkt.h"
@@ -30,6 +31,8 @@ extern pointing_list		points_list;
 extern pointing_map		points_map;
 extern assert_map		asserts_map;
 extern assert_list		asserts_list;
+extern stat_map			stats_map;
+extern stat_list		stats_list;
 extern typevirt_map		typevirts_map;
 extern typevirt_list		typevirts_list;
 extern writepkt_list		writepkts_list;
@@ -126,6 +129,9 @@ void TableGen::genInstanceType(const Type *t)
 	sw.write("tt_assert_c", asserts_map[tname]->getNumAsserts());
 	sw.write("tt_assert", "__rt_tab_asserts_" + tname);
 
+	sw.write("tt_stat_c", stats_map[tname]->getNumStat());
+	sw.write("tt_stat", "__rt_tab_stats_"+tname);
+
 	sw.write("tt_reloc_c", typerelocs_map[tname]->getNumRelocs());
 	sw.write("tt_reloc", "__rt_tab_reloc_" + tname);
 
@@ -150,21 +156,13 @@ void TableGen::genInstanceType(const Type *t)
 
 void TableGen::printExternFunc(
 	const string& fname,
-	const vector<string>& args,
-	const char* return_type)
+	const char* return_type,
+	const vector<string>& args)
 {
 	vector<string>::const_iterator it = args.begin();
 
-	out << "extern " << return_type << ' ' << fname << '(';
-
-	out << *it;
-	for (	it++;
-		it != args.end();
-		it++)
-	{
-		out << ", ";
-		out << *it;
-	}
+	out << "extern " << return_type << ' ' << fname << '(' << (*it);
+	for (it++; it != args.end(); it++) out << ", " << (*it);
 	out << ");\n";
 }
 
@@ -175,8 +173,8 @@ void TableGen::printExternFuncThunk(
 	const string args[] = {"const struct fsl_rt_closure*"};
 	printExternFunc(
 		funcname,
-		vector<string>(args, args+1),
-		return_type);
+		return_type,
+		vector<string>(args, args+1));
 }
 
 void TableGen::printExternFuncThunkParams(const ThunkParams* tp)
@@ -189,10 +187,7 @@ void TableGen::printExternFuncThunkParams(const ThunkParams* tp)
 	FCall	*fc;
 
 	fc = tp->copyFCall();
-	printExternFunc(
-		fc->getName(),
-		vector<string>(args, args+3),
-		"void");
+	printExternFunc(fc->getName(), "void", vector<string>(args, args+3));
 	delete fc;
 }
 
@@ -330,6 +325,7 @@ void TableGen::gen(const string& fname)
 	genTableWriters<Points>(points_list);
 	genTableWriters<Asserts>(asserts_list);
 	genTableWriters<VirtualTypes>(typevirts_list);
+	genTableWriters<Stat>(stats_list);
 	genWritePktTables();
 	genTableWriters<RelocTypes>(typerelocs_list);
 

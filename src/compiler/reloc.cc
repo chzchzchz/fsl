@@ -190,37 +190,11 @@ string Reloc::getCondFuncName(void) const
 
 void Reloc::genCondProto(void) const
 {
-	llvm::Function		*f;
-	llvm::FunctionType	*ft;
-	std::string		f_name;
-
-	f_name = getCondFuncName();
-
-	/* write pkt function calls take a single argument, a pointer */
-	vector<const llvm::Type*>	args;
-
-	args.push_back(code_builder->getClosureTyPtr());
-	args.push_back(llvm::Type::getInt64Ty(llvm::getGlobalContext()));
-
-	ft = llvm::FunctionType::get(
+	code_builder->genProto(
+		getCondFuncName(),
 		llvm::Type::getInt1Ty(llvm::getGlobalContext()),
-		args,
-		false);
-
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage,
-		f_name,
-		code_builder->getModule());
-
-	/* should not be redefinitions.. */
-	if (f->getName() != f_name) {
-		cerr << "Expected name " << f_name <<" got " <<
-		f->getNameStr() << endl;
-	}
-
-	assert (f->getName() == f_name);
-	assert (f->arg_size() == 2);
+		code_builder->getClosureTyPtr(),
+		llvm::Type::getInt64Ty(llvm::getGlobalContext()));
 }
 
 void RelocTypes::genExterns(TableGen* tg)
@@ -253,7 +227,6 @@ void RelocTypes::genTables(TableGen* tg)
 void Reloc::genTableInstance(TableGen* tg) const
 {
 	StructWriter		sw(tg->getOS());
-	const Id		*as_name(getName());
 
 	sw.write(".rel_sel = ");
 	sel_iter->genTableInstance(tg);
@@ -269,8 +242,7 @@ void Reloc::genTableInstance(TableGen* tg) const
 	sw.write(".rel_relink = ");
 	wpkt_relink->genTableInstance(tg);
 
-	if (as_name != NULL)	sw.writeStr("rel_name", as_name->getName());
-	else			sw.write("rel_name", "NULL");
+	writeName(sw, "rel_name");
 }
 
 void Reloc::genExterns(TableGen* tg) const
@@ -284,5 +256,5 @@ void Reloc::genExterns(TableGen* tg) const
 	vector<string>	cond_args;
 	cond_args.push_back("const struct fsl_rt_closure*");
 	cond_args.push_back("uint64_t idx");
-	tg->printExternFunc(getCondFuncName(), cond_args, "bool");
+	tg->printExternFunc(getCondFuncName(), "bool", cond_args);
 }

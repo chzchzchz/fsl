@@ -57,11 +57,8 @@ void Assertion::genProto(void) { code_builder->genThunkProto(getFCallName()); }
 void Assertion::genInstance(TableGen* tg) const
 {
 	StructWriter	sw(tg->getOS());
-	const Id	*name;
 	sw.write("as_assertf", getFCallName());
-	name = getName();
-	if (name != NULL)	sw.writeStr("as_name", name->getName());
-	else			sw.write("as_name", "NULL");
+	writeName(sw, "as_name");
 }
 
 void Asserts::genExterns(TableGen* tg)

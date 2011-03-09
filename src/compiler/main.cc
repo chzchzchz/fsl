@@ -12,6 +12,7 @@
 #include "asserts.h"
 #include "points.h"
 #include "virt.h"
+#include "stat.h"
 #include "table_gen.h"
 #include "detached_preamble.h"
 #include "runtime_interface.h"
@@ -50,6 +51,8 @@ pointing_list		points_list;
 pointing_map		points_map;
 assert_map		asserts_map;
 assert_list		asserts_list;
+stat_map		stats_map;
+stat_list		stats_list;
 RTInterface		rt_glue;
 typevirt_map		typevirts_map;
 typevirt_list		typevirts_list;
@@ -479,6 +482,9 @@ int main(int argc, char *argv[])
 
 	cout << "Generating relocations" << endl;
 	gen_notes<RelocTypes>(typerelocs_list, typerelocs_map);
+
+	cout << "Generating stats" << endl;
+	gen_notes<Stat>(stats_list, stats_map);
 
 	cout << "Writing out module's code" << endl;
 	code_builder->write(llvm_fname);

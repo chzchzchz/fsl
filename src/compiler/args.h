@@ -17,6 +17,7 @@ class ArgsList
 {
 public:
 	ArgsList() {}
+	ArgsList(unsigned int c);
 	virtual ~ArgsList();
 
 	void add(Id* type_name, Id* arg_name);

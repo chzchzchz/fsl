@@ -41,11 +41,6 @@ CodeBuilder::~CodeBuilder(void)
 	delete builder;
 }
 
-unsigned int CodeBuilder::getTmpVarCount(void) const
-{
-	return vscope->size();
-}
-
 void CodeBuilder::createGlobal(const char* str, uint64_t v, bool is_const)
 {
 	llvm::GlobalVariable	*gv;
@@ -63,53 +58,55 @@ void CodeBuilder::createGlobal(const char* str, uint64_t v, bool is_const)
 
 llvm::GlobalVariable* CodeBuilder::getGlobalVar(const std::string& varname) const
 {
-	llvm::GlobalVariable	*gv;
-
-	gv = mod->getGlobalVariable(varname);
-	if (gv == NULL)
-		return NULL;
-
-	return gv;
+	return mod->getGlobalVariable(varname);
 }
 
-void CodeBuilder::genProto(const string& name, uint64_t num_args)
+llvm::Function* CodeBuilder::genProto(const string& name, uint64_t num_args)
 {
-	llvm::Function		*f;
-	llvm::FunctionType	*ft;
-
-	vector<const llvm::Type*>	args(
-		num_args,
-		llvm::Type::getInt64Ty(llvm::getGlobalContext()));
-
-	ft = llvm::FunctionType::get(
-		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
-		args,
-		false);
-
-	f = llvm::Function::Create(
-		ft,
-		llvm::Function::ExternalLinkage,
-		name,
-		mod);
-
-	/* should not be redefinitions.. */
-	if (f->getName() != name) {
-		cerr << "Expected name " << name <<" got " <<
-		f->getNameStr() << endl;
-	}
-	assert (f->getName() == name);
-	assert (f->arg_size() == args.size());
+	const llvm::Type*		i64ty = builder->getInt64Ty();
+	vector<const llvm::Type*>	args(num_args, i64ty);
+	return genProtoV(name, i64ty, args);
 }
 
-void CodeBuilder::genThunkProto(
-	const std::string&	name,
-	const llvm::Type	*ret_type)
+llvm::Function* CodeBuilder::genProto(
+	const std::string& 	name,
+	const llvm::Type	*ret_type,
+	const llvm::Type	*t1)
+{
+	const llvm::Type*		args[] = {t1};
+	vector<const llvm::Type*>	args_v(args,args+1);
+	return genProtoV(name, ret_type, args_v);
+}
+
+llvm::Function* CodeBuilder::genProto(
+	const std::string& 	name,
+	const llvm::Type	*ret_type,
+	const llvm::Type *t1, const llvm::Type *t2)
+{
+	const llvm::Type*		args[] = {t1, t2};
+	vector<const llvm::Type*>	args_v(args,args+2);
+	return genProtoV(name, ret_type, args_v);
+}
+
+llvm::Function* CodeBuilder::genProto(
+	const std::string& 	name,
+	const llvm::Type	*ret_type,
+	const llvm::Type *t1, const llvm::Type *t2, const llvm::Type* t3)
+{
+	const llvm::Type*		args[] = {t1, t2, t3};
+	vector<const llvm::Type*>	args_v(args,args+3);
+	return genProtoV(name, ret_type, args_v);
+}
+
+llvm::Function* CodeBuilder::genProtoV(
+	const std::string& name,
+	const llvm::Type* ret_type,
+	const vector<const llvm::Type*>& args)
 {
 	llvm::Function			*f;
 	llvm::FunctionType		*ft;
-	vector<const llvm::Type*>	args;
 
-	args.push_back(getClosureTyPtr());
+	if (ret_type == NULL) ret_type = builder->getVoidTy();
 
 	ft = llvm::FunctionType::get(ret_type, args, false);
 	f = llvm::Function::Create(
@@ -126,6 +123,17 @@ void CodeBuilder::genThunkProto(
 
 	assert (f->getName() == name);
 	assert (f->arg_size() == args.size());
+	return f;
+}
+
+
+void CodeBuilder::genThunkProto(
+	const std::string&	name,
+	const llvm::Type	*ret_type)
+{
+	vector<const llvm::Type*>	args;
+	args.push_back(getClosureTyPtr());
+	genProtoV(name, ret_type, args);
 }
 
 /** generate the prototype for a thunkfunction
@@ -203,11 +211,6 @@ void CodeBuilder::genThunkHeaderArgs(
 	vscope->genTypeArgs(t);
 	if (extra_args != NULL)
 		vscope->loadArgs(ai, &tmpB, extra_args);
-}
-
-void CodeBuilder::loadArgsFromParamBuf(llvm::Value* ai, const ArgsList* args)
-{
-	vscope->loadArgsFromArray(ai, args);
 }
 
 void CodeBuilder::loadArgsFromParamBuf(
@@ -326,6 +329,11 @@ void CodeBuilder::makeClosureTy(void)
 	closure_struct = llvm::StructType::get(gctx, types, "closure");
 }
 
+const llvm::Type* CodeBuilder::getI64TyPtr(void)
+{
+	return llvm::Type::getInt64PtrTy(llvm::getGlobalContext());
+}
+
 llvm::Type* CodeBuilder::getVirtTyPtr(void)
 {
 	return llvm::PointerType::get(
@@ -343,14 +351,24 @@ llvm::AllocaInst* CodeBuilder::getTmpAllocaInst(const std::string& s) const
 	return vscope->getTmpAllocaInst(s);
 }
 
-void CodeBuilder::printTmpVars(void) const
+void CodeBuilder::printTmpVars(void) const { vscope->print(); }
+
+llvm::AllocaInst* CodeBuilder::createTmpClosure(
+	const Type* t, const std::string& name)
 {
-	vscope->print();
+	return vscope->createTmpClosure(t, name);
 }
 
 llvm::AllocaInst* CodeBuilder::createTmpI64(const std::string& name)
 {
 	return vscope->createTmpI64(name);
+}
+
+unsigned int CodeBuilder::getTmpVarCount(void) const { return vscope->size(); }
+
+void CodeBuilder::loadArgsFromParamBuf(llvm::Value* ai, const ArgsList* args)
+{
+	vscope->loadArgsFromArray(ai, args);
 }
 
 void CodeBuilder::emitMemcpy64(
@@ -363,9 +381,8 @@ void CodeBuilder::emitMemcpy64(
 		builder->getInt32Ty(),
 		builder->getInt32Ty()};
 	llvm::Value* args[] = {
-		/* dst */
+		/* dst, src */
 		builder->CreateBitCast(dst, builder->getInt8PtrTy(), "dst_ptr"),
-		/* src */
 		builder->CreateBitCast(src, builder->getInt8PtrTy(), "src_ptr"),
 
 		/* element bytes (8 per ...) */
@@ -389,8 +406,7 @@ llvm::Value* CodeBuilder::loadPtr(llvm::Value* ptr, unsigned int idx)
 	llvm::Value	*idx_val;
 
 	idx_val = llvm::ConstantInt::get(
-		llvm::getGlobalContext(),
-		llvm::APInt(32, idx));
+		llvm::getGlobalContext(), llvm::APInt(32, idx));
 	return builder->CreateGEP(builder->CreateLoad(ptr), idx_val);
 }
 
@@ -421,12 +437,6 @@ llvm::Value* CodeBuilder::getNullPtrI8(void)
 	return ret;
 }
 
-llvm::AllocaInst* CodeBuilder::createTmpClosure(
-	const Type* t, const std::string& name)
-{
-	return vscope->createTmpClosure(t, name);
-}
-
 llvm::AllocaInst* CodeBuilder::createPrivateTmpI64Array(
 	unsigned int num_elems,
 	const std::string& name)
@@ -434,8 +444,7 @@ llvm::AllocaInst* CodeBuilder::createPrivateTmpI64Array(
 	llvm::Value	*elem_count;
 
 	elem_count = llvm::ConstantInt::get(
-		llvm::getGlobalContext(),
-		llvm::APInt(32, num_elems));
+		llvm::getGlobalContext(), llvm::APInt(32, num_elems));
 
 	 return builder->CreateAlloca(
 		llvm::Type::getInt64Ty(llvm::getGlobalContext()),

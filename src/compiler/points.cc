@@ -372,13 +372,9 @@ void Points::genTables(TableGen* tg)
 void PointsRange::genTableInstance(TableGen* tg) const
 {
 	StructWriter		sw(tg->getOS());
-	const Id		*name(getName());
-
 	sw.write(".pt_iter = ");
 	iter->genTableInstance(tg);
-
-	if (name != NULL)	sw.writeStr("pt_name", name->getName());
-	else			sw.write("pt_name", "NULL");
+	writeName(sw, "pt_name");
 }
 
 void PointsRange::genExterns(TableGen* tg) const { iter->printExterns(tg); }

@@ -30,8 +30,8 @@ public:
 	void gen(const std::string& fname = "fsl.table.c");
 	void printExternFunc(
 		const std::string& fname,
-		const std::vector<std::string>& args,
-		const char* return_type);
+		const char* return_type,
+		const std::vector<std::string>& args);
 
 	void printExternFuncThunk(
 		const std::string& funcname,

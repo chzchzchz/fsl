@@ -119,27 +119,20 @@ static void rt_func_args(
  */
 void RTInterface::loadRunTimeFuncs(CodeBuilder* cb)
 {
-	vector<const llvm::Type*>	args;
-	llvm::FunctionType		*ft;
-	llvm::Function			*f;
-
 	for (unsigned int k = 0; rt_funcs[k].rtf_name != NULL; k++) {
-		rtftype_t	rtft;
+		vector<const llvm::Type*>	args;
+		rtftype_t			rtft;
+		llvm::Function			*f;
 
 		assert (rt_funcs[k].rtf_param_c <= RTF_MAX_PARAMS &&
 			"Too many params for func. Bump RTF_MAX_PARAMS.");
 		rt_func_args(&rt_funcs[k], args);
 		rtft = rt_funcs[k].rtf_ret;
-		ft = llvm::FunctionType::get(rtf_type2llvm(rtft), args, false);
-
-		f = llvm::Function::Create(
-			ft,
-			llvm::Function::ExternalLinkage,
+		f = code_builder->genProtoV(
 			rt_funcs[k].rtf_name,
-			cb->getModule());
-		if (rtft & RTF_FL_RO) {
-			f->setOnlyReadsMemory();
-		}
+			rtf_type2llvm(rtft),
+			args);
+		if (rtft & RTF_FL_RO) f->setOnlyReadsMemory();
 	/* breaks function unwinding in gdb, only use on release */
 #ifdef FSL_RELEASE
 		f->setDoesNotThrow();

@@ -8,6 +8,7 @@
 #include "preamble.h"
 #include "collection.h"
 #include "util.h"
+#include "struct_writer.h"
 
 typedef PtrList<class AnnotationEntry>		anno_ent_list;
 
@@ -51,6 +52,12 @@ public:
 			int_to_string(seq);
 	}
 
+	void writeName(StructWriter& sw, const char* out_name) const
+	{
+		const Id	*name = getName();
+		if (name != NULL)	sw.writeStr(out_name, name->getName());
+		else			sw.write(out_name, "NULL");
+	}
 protected:
 	AnnotationEntry();
 

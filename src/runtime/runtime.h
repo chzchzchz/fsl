@@ -156,6 +156,7 @@ typedef diskoff_t(*points_rangef_t)(
 typedef bool(*condf_t)(const struct fsl_rt_closure*);
 typedef bool(*condidxf_t)(const struct fsl_rt_closure*, uint64_t);
 typedef bool(*assertf_t)(const struct fsl_rt_closure*);
+typedef void(*statf_t)(const struct fsl_rt_closure*, uint64_t*);
 typedef void(*wpktf_t)(const uint64_t* params);
 typedef void(*wpkt2wpktf_t)(const uint64_t* params_in, uint64_t* params_out);
 typedef bool(*wpkt2wpktcond_t)(const uint64_t* params_in);
@@ -188,6 +189,9 @@ struct fsl_rtt_type
 
 	unsigned int			tt_reloc_c;
 	const struct fsl_rtt_reloc	*tt_reloc;
+
+	unsigned int			tt_stat_c;
+	const struct fsl_rtt_stat	*tt_stat;
 
 	/* all non-union fields */
 	unsigned int			tt_fieldall_c;
@@ -304,6 +308,12 @@ struct fsl_rtt_reloc
 	const struct fsl_rtt_wpkt_inst	rel_relink;
 
 	const char			*rel_name;
+};
+
+struct fsl_rtt_stat
+{
+	statf_t		st_statf;
+	const char*	st_name;
 };
 
 /* exported variables from types module.. */

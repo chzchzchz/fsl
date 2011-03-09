@@ -143,16 +143,12 @@ void VirtualType::genInstance(TableGen* tg) const
 {
 	StructWriter		sw(tg->getOS());
 	const InstanceIter	*ii;
-	const Id		*name = getName();
 
 	ii = getInstanceIter();
-
 	sw.write(".vt_iter = ");
 	ii->genTableInstance(tg);
 	sw.write("vt_type_virttype", getTargetType()->getTypeNum());
-
-	if (name != NULL)	sw.writeStr("vt_name", name->getName());
-	else			sw.write("vt_name", "NULL");
+	writeName(sw, "vt_name");
 }
 
 void VirtualTypes::genTables(TableGen* tg)
