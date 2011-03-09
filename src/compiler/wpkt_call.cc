@@ -64,11 +64,10 @@ void WritePktCall::genCodeWpkt2Wpkt(void) const
 	llvm::BasicBlock		*entry_bb;
 	llvm::IRBuilder<>		*builder;
 	llvm::Function::arg_iterator	arg_it;
-	llvm::AllocaInst		*pb_out_ptr;
+	llvm::AllocaInst		*pb_out;
 	const ArgsList			*args_out;
 	WritePkt			*call_pkt;
-	unsigned int			pb_idx, arg_idx;
-	EvalCtx				ectx(
+	EvalCtx				ec(
 		getParent()->getParent()->getVarScope());
 
 	if (writepkts_map.count(name->getName()) == 0) {
@@ -96,31 +95,11 @@ void WritePktCall::genCodeWpkt2Wpkt(void) const
 	/* 2. load up output parambuf */
 	arg_it = f->arg_begin();
 	arg_it++;
-	pb_out_ptr = code_builder->createTmpI64Ptr();
-	builder->CreateStore(arg_it, pb_out_ptr);
+	pb_out = code_builder->createTmpI64Ptr();
+	builder->CreateStore(arg_it, pb_out);
 
 	/* 3. dump expressions into parambuf */
-	pb_idx = 0;
-	arg_idx = 0;
-	for (	ExprList::const_iterator it = exprs->begin();
-		it != exprs->end();
-		it++, arg_idx++)
-	{
-		const Expr	*cur_expr = *it;
-		Expr		*evaled_cexpr;
-		int		elems_stored;
-
-		evaled_cexpr = eval(ectx, cur_expr);
-		elems_stored = code_builder->storeExprIntoParamBuf(
-			args_out->get(arg_idx), evaled_cexpr,
-			pb_out_ptr, pb_idx);
-		delete evaled_cexpr;
-		if (elems_stored <= 0) {
-			assert (0 == 1 && "FAILED TO STORE");
-			return;
-		}
-		pb_idx += elems_stored;
-	}
+	code_builder->storeExprListIntoParamBuf(&ec, args_out, exprs, pb_out);
 
 	builder->CreateRetVoid();
 }
@@ -169,12 +148,9 @@ string WritePktCall::getFuncName(void) const
 
 std::ostream& WritePktCall::print(std::ostream& out) const
 {
-	out << "(writepkt-call ";
-	name->print(out);
-	out << " ";
-	exprs->print(out);
-	out << ")";
-	return out;
+	return out <<
+		"(writepkt-call " << name->print(out) << ' ' <<
+		exprs->print(out) << ')';
 }
 
 WritePktCall::WritePktCall(Id* in_name, ExprList* in_exprs)
