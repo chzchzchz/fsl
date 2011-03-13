@@ -40,6 +40,10 @@ klee:
 	cd src && $(MAKECMD) klee && cd ..
 
 code:
+	mkdir -p obj/{compiler,fs,kernel,klee,runtime,tool}
+	mkdir -p obj/runtime/rt-mmap obj/runtime/rt-pread
+	mkdir -p obj/kernel/tool obj/klee/tool
+	mkdir -p obj/klee/runtime/{rt-mmap,rt-pread}
 	cd src && $(MAKECMD) && cd ..
 
 tools: code klee
