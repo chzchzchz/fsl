@@ -12,9 +12,9 @@ extern const VarScope	*gen_vscope;
 
 std::ostream& WritePktStruct::print(std::ostream& out) const
 {
-	return out <<
-		"(writepkt-ids " <<
-		ids->print(out) << ' ' << e->print(out) << ')';
+	out << "(writepkt-ids ";
+		ids->print(out); out << ' '; e->print(out); out << ')';
+	return out;
 }
 
 void WritePktStruct::genCode(void) const

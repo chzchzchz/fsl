@@ -9,6 +9,7 @@
 #include "symtab.h"
 #include "eval.h"
 #include "code_builder.h"
+#include "symtab_thunkbuilder.h"
 #include "asserts.h"
 #include "points.h"
 #include "virt.h"
@@ -429,6 +430,8 @@ int main(int argc, char *argv[])
 
 	fsl_src_fname = "TOP_FILE";
 	yyparse();
+
+	thunkbuilder_init_funcmap();
 
 	/* create prototypes for functions provided by the run-time */
 	rt_glue.loadRunTimeFuncs(code_builder);

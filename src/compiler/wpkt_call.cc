@@ -148,9 +148,9 @@ string WritePktCall::getFuncName(void) const
 
 std::ostream& WritePktCall::print(std::ostream& out) const
 {
-	return out <<
-		"(writepkt-call " << name->print(out) << ' ' <<
-		exprs->print(out) << ')';
+	out << "(writepkt-call ";
+	name->print(out); out << ' '; exprs->print(out); out << ')';
+	return out;
 }
 
 WritePktCall::WritePktCall(Id* in_name, ExprList* in_exprs)

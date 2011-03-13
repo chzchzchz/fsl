@@ -30,9 +30,8 @@ type iso_date {
 }
 
 type iso_vol_desc
-//assert (? chksum[0] == 0x67 && chksum[1] == 0x68 && chksum[2] == 0x48) TODO
+/* TODO: CHKSUM */
 assert (? resv1 == 1 && resv2 == 0)
-//assert (? resv3[0] == 0 && resv3[1] == 0 /* ... need array ops */)
 assert (? sizeof_bytes(this) == 2048)
 {
 	u8			resv1;		/*should equal 1*/

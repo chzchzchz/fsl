@@ -37,7 +37,7 @@ public:
 	RT_GET_NAME(ThunkArgParamPtr, "__thunk_arg_params")
 	RT_GET_NAME(MemoTab, "__fsl_memotab")
 
-	Expr	*toPhys(const Expr* clo, const Expr* off);
+	Expr	*toPhys(Expr* clo, Expr* off);
 
 	Expr	*maxValue(ExprList* exprs);
 	Expr	*computeArrayBits(const class ThunkField* tf, const Expr* idx);

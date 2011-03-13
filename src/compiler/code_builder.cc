@@ -12,7 +12,6 @@
 #include "symtab.h"
 #include "expr.h"
 #include "func.h"
-#include "cond.h"
 #include "runtime_interface.h"
 #include "code_builder.h"
 #include "varscope.h"
@@ -272,7 +271,7 @@ void CodeBuilder::genCodeCond(
 	builder->SetInsertPoint(bb_entry);
 	genThunkHeaderArgs(f, t);
 
-	cond_v = cond_codeGen(&ectx, cond_expr);
+	cond_v = cond_expr->codeGen(&ectx);
 	if (cond_v == NULL) {
 		cerr << func_name << ": could not gen condition" << endl;
 		return;

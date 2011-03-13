@@ -2,7 +2,6 @@
 #include "evalctx.h"
 #include "code_builder.h"
 #include "util.h"
-#include "cond.h"
 #include "writepkt.h"
 #include "type.h"
 #include "symtab.h"
@@ -23,23 +22,27 @@ using namespace std;
 
 std::ostream& WritePktId::print(std::ostream& out) const
 {
-	return out <<
-		"(writepkt-id " <<
-		id->print(out) << ' ' << e->print(out) << ")";
+	out << "(writepkt-id ";
+	id->print(out); out << ' '; e->print(out);
+	out << ")";
+	return out;
 }
 
 std::ostream& WritePktArray::print(std::ostream& out) const
 {
-	return out <<
-		"(writepkt-array " <<
-		a->print(out) << ' ' << e->print(out) << ")";
+	out << "(writepkt-array ";
+	a->print(out); out << ' '; e->print(out);
+	out << ")";
+	return out;
 }
 
 std::ostream& WritePktBlk::print(std::ostream& out) const
 {
 	out << "(writepkt-blk ";
-	for (const_iterator it = begin(); it != end(); it++)
-		(*it)->print(out) << "\n";
+	for (const_iterator it = begin(); it != end(); it++) {
+		(*it)->print(out);
+		out << "\n";
+	}
 	out << ")";
 	return out;
 }
@@ -117,7 +120,7 @@ bool WritePktStmt::genCodeHeader(
 		builder->SetInsertPoint(entry_bb);
 
 		/* generate conditional jump */
-		cond_v = cond_codeGen(&ectx, ce);
+		cond_v = ce->codeGen(&ectx);
 		if (cond_v == NULL) {
 			cerr <<  "WpktStmt: could not gen condition" << endl;
 			return false;

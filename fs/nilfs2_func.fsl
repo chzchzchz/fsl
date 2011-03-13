@@ -1,7 +1,17 @@
-uint get_bsz(nilfs_sb nsb)
+/* XXX we need a mechanism in FSL to get a type if and only if some preamble
+ * properties are satisfied */
+nilfs_sb get_current_sb()
 {
-	return (1 << (nsb.s_log_block_size + 10));
+	if (nilfs_sb_is_valid(disk.nsb)) return disk.nsb;
+	return disk.nsb2;
 }
+
+uint get_bsz() { return get_bsz_sb(get_current_sb()); }
+uint get_inosz() { return get_current_sb().s_inode_size; }
+uint get_segbase() { return get_current_sb().s_first_data_block * get_bsz(); }
+uint get_bsz_sb(nilfs_sb nsb) { return (1 << (nsb.s_log_block_size+10)); }
+uint get_numsegs() { return get_current_sb().s_nsegments; }
+uint get_blks_per_seg() { return get_current_sb().s_blocks_per_segment; }
 
 int segsum_len(nilfs_segment_summary_header ss)
 {
@@ -9,21 +19,27 @@ int segsum_len(nilfs_segment_summary_header ss)
 	return ss.ss_bytes;
 }
 
-nilfs_segment get_segment(segnum_t segnum)
+nilfs_segment get_segment(segnum_t segnum) { return disk.segs[segnum]; }
+u64 nilfs_sb2_offset_bytes(u64 devsize) { return (((devsize) >> 12)-1) << 12; }
+
+bool nilfs_sb_is_valid(nilfs_sb nsb)
 {
-	return disk.segs[segnum];
+	if (nsb.s_magic != NILFS_SUPER_MAGIC) return false;
+	if (nsb.s_bytes > NILFS_MAX_SB_SIZE) return false;
+	/* XXX add CRC check */
+	return true;
 }
 
-u64 nilfs_sb2_offset_bytes(u64 devsize)
-{
-	return (((devsize) >> 12) - 1) << 12;
+bool debug_fff(u64 x) {
+	DEBUG_WRITE = x;
+	return true;
 }
 
 nilfs_block nilfs_get_block(blocknum_t bn)
 {
 	nilfs_segment	seg;
 	seg = get_segment(block_to_segnum(bn));
-	return seg.seg_blocks[bn % get_valid_sb().s_blocks_per_segment];
+	return seg.seg_blocks[bn % get_blks_per_seg()];
 }
 
 /* get actual block from vblock value */
@@ -67,6 +83,30 @@ vblknum_t nilfs_get_inode_vblock(inonum_t ino, blkoff_t boff)
 	return 0;
 }
 
+bool fi_has_boff(nilfs_finfo fi, inonum_t inum, blkoff_t boff)
+{
+	int	blk_i;
+	int	max_blk_i;
+
+	blk_i = 0;
+	if (inum == NILFS_INO_DAT) {
+		max_blk_i = fi.fi_nblocks - fi.fi_ndatablk;
+		while (blk_i < max_blk_i) {
+			if (fi.fi_dat_node[blk_i].bi_blkoff == blk_i)
+				return true;
+			blk_i++;
+		}
+	} else {
+		max_blk_i = fi.fi_ndatablk;
+		while (blk_i < max_blk_i) {
+			if (fi.fi_file_data[blk_i].bi_blkoff == boff)
+				return true;
+			blk_i++;
+		}
+	}
+	return false;
+}
+
 /* finds finfo corresponding to block we want */
 nilfs_finfo nilfs_get_inode_block_finfo(inonum_t inum, blkoff_t boff)
 {
@@ -75,7 +115,7 @@ nilfs_finfo nilfs_get_inode_block_finfo(inonum_t inum, blkoff_t boff)
 	int			i;
 
 	i = 0;
-	num_segs = get_valid_sb().s_nsegments;
+	num_segs = get_current_sb().s_nsegments;
 	// iterate over every segment
 	while (i < num_segs)  {
 		nilfs_segment		cur_seg;
@@ -89,27 +129,8 @@ nilfs_finfo nilfs_get_inode_block_finfo(inonum_t inum, blkoff_t boff)
 		finfo_i = 0;
 		while (finfo_i < finfo_max) {
 			fi = cur_segsum.ss_finfo[finfo_i];
-			if (fi.fi_ino == inum) {
-				int	blk_i;
-				int	max_blk_i;
-
-				blk_i = 0;
-				if (inum == NILFS_INO_DAT) {
-					max_blk_i = fi.fi_nblocks - fi.fi_ndatablk;
-					while (blk_i < max_blk_i) {
-						if (fi.fi_dat_node[i].bi_blkoff == blk_i)
-							return fi;
-						blk_i++;
-					}
-				} else {
-					max_blk_i = fi.fi_ndatablk;
-					while (blk_i < max_blk_i) {
-						if (fi.fi_file_data[i].bi_blkoff == boff)
-							return fi;
-						blk_i++;
-					}
-				}
-			}
+			if (fi_has_boff(fi, inum, boff) == true)
+				return fi;
 			finfo_i++;
 		}
 		i++;
@@ -122,7 +143,7 @@ nilfs_finfo nilfs_get_inode_block_finfo(inonum_t inum, blkoff_t boff)
 blocknum_t nilfs_segblock_first(segnum_t segnum)
 {
 	nilfs_sb	nsb;
-	nsb = get_valid_sb();
+	nsb = get_current_sb();
 	if (segnum == 0) return nsb.s_first_data_block;
 	return nsb.s_blocks_per_segment * segnum;
 }
@@ -130,7 +151,7 @@ blocknum_t nilfs_segblock_first(segnum_t segnum)
 blocknum_t nilfs_segblock_last(segnum_t segnum)
 {
 	u64	fake_start;
-	fake_start = get_valid_sb().s_blocks_per_segment * segnum;
+	fake_start = get_current_sb().s_blocks_per_segment * segnum;
 	return fake_start + (nilfs_segblock_first(segnum+1) - 1);
 }
 
@@ -139,17 +160,9 @@ blockcount_t nilfs_seg_blocks(segnum_t segnum)
 	return (nilfs_segblock_last(segnum) - nilfs_segblock_first(segnum))+1;
 }
 
-/* XXX we need a mechanism in FSL to get a type if and only if some preamble
- * properties are satisfied */
-nilfs_sb get_valid_sb()
-{
-	/* XXX-- use nilfs_valid_sb algorithm */
-	return disk.nsb;
-}
-
 segnum_t block_to_segnum(blocknum_t blocknr)
 {
-	return blocknr / get_valid_sb().s_blocks_per_segment;
+	return blocknr/get_current_sb().s_blocks_per_segment;
 }
 
 int is_ino_dat(nilfs_finfo fi)
@@ -167,22 +180,5 @@ int get_segoff(nilfs_segment_summary ss, int fi_idx)
 		ret += ss.ss_finfo[i].fi_nblocks;
 		i++;
 	}
-	return ret;
-}
-
-int get_finfo_blocks(nilfs_segment seg, int n_finfo)
-{
-	nilfs_segment_summary	ss;
-	int			i;
-	int			ret;
-
-	i = 0;
-	ret = 0;
-	ss = seg.seg_sum;
-	while (i < n_finfo) {
-		ret += ss.ss_finfo[i].fi_nblocks;
-		i++;
-	}
-
 	return ret;
 }

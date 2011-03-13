@@ -22,7 +22,7 @@ extern const_map	constants;
 extern RTInterface	rt_glue;
 
 static Expr* expr_resolve_ids(const EvalCtx& ectx, const Expr* expr);
-static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits);
+static Expr* eval_rewrite_sizeof(const EvalCtx&, const FCall* fc, bool bits);
 
 class ExprRewriteConsts : public ExprRewriteAll
 {
@@ -58,37 +58,28 @@ public:
 
 	virtual Expr* visit(const Id* id)
 	{
-		Expr	*result;
-		result = ectx.resolveVal(id);
+		Expr	*result = ectx.resolveVal(id);
 		return (result == NULL) ? id->copy() : result;
 	}
 
 	virtual Expr* visit(const IdStruct* ids)
 	{
-		Expr	*result;
-		result = ectx.resolveVal(ids);
+		Expr	*result = ectx.resolveVal(ids);
 		return (result == NULL) ? ids->copy() : result;
 	}
 
 	virtual Expr* visit(const IdArray* ida)
 	{
-		Expr	*result;
-		result = ectx.resolveVal(ida);
+		Expr	*result = ectx.resolveVal(ida);
 		return (result == NULL) ? ida->copy() : result;
 	}
 
 	virtual Expr* visit(const FCall* fc)
 	{
-		if (fc->getName() == "sizeof_bits") {
-			Expr	*ret;
-			ret = eval_rewrite_sizeof(ectx, fc, true);
-			return ret;
-		} else if (fc->getName() == "sizeof_bytes") {
-			Expr*	ret;
-			ret = eval_rewrite_sizeof(ectx, fc, false);
-			return ret;
-		}
-
+		if (fc->getName() == "sizeof_bits")
+			return eval_rewrite_sizeof(ectx, fc, true);
+		else if (fc->getName() == "sizeof_bytes")
+			return eval_rewrite_sizeof(ectx, fc, false);
 		return ExprRewriteAll::visit(fc);
 	}
 
@@ -131,7 +122,7 @@ static Expr* eval_sizeof_type(const EvalCtx& ectx, const Id* id)
 	/* st = symbol table for type to get size of */
 	st = symtabs[t->getName()];
 
-	/* get typified size expression,  fill in closure param with dynamic type */
+	/* get typified size expr,  fill in closure param with dynamic type */
 	ret_size = st->getThunkType()->getSize()->copyFCall();
 	ret_size = Expr::rewriteReplace(
 		ret_size, rt_glue.getThunkClosure(), resolved_closure);
@@ -223,9 +214,7 @@ Expr* eval(const EvalCtx& ectx, const Expr* expr)
 		our_expr = tmp_expr;
 	}
 
-	if (*our_expr != expr) {
-		our_expr = evalReplace(ectx, our_expr);
-	}
+	if (*our_expr != expr) our_expr = evalReplace(ectx, our_expr);
 
 	return our_expr;
 }

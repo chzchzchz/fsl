@@ -27,6 +27,16 @@ public:
 	virtual void visit(const TypeCond* tb);
 	virtual void visit(const TypeFunc* tf);
 
+	ThunkType* getCurThunkType(void) const { return cur_thunk_type; }
+	unsigned int getCondDepth(void) const { return cond_stack.size(); }
+	unsigned int getFieldCount(void) const { return field_count; }
+	Expr* copyFromBase(void) const;
+	Expr* copyCurrentOffset(void) const;
+	void addToCurrentSymTab(
+		const std::string&	type_str,
+		const std::string&	field_name,
+		ThunkField* 		tfield);
+
 private:
 	void setLastThunk(ThunkField* last_tf);
 	void addUnionToSymTab(
@@ -39,15 +49,7 @@ private:
 		bool			no_follow,
 		const ExprList*		exprs = NULL);
 
-	void addToCurrentSymTab(
-		const std::string&	type_str,
-		const std::string&	field_name,
-		ThunkField* 		tfield);
-
 	CondExpr* getConds(void) const;
-
-	Expr* copyFromBase(void) const;
-	Expr* copyCurrentOffset(void) const;
 
 	const Type* getTypeFromUnionSyms(const std::string& field_name) const;
 	void rebaseByCond(
@@ -55,14 +57,6 @@ private:
 		const CondExpr*		cond_expr,
 		const ThunkField*	last_tf_true,
 		const ThunkField*	last_tf_false);
-
-	ThunkField* alignBits(const TypeFunc* tf);
-	ThunkField* alignBytes(const TypeFunc* tf);
-	ThunkField* skipBits(const TypeFunc* tf);
-	ThunkField* skipBytes(const TypeFunc* tf);
-	ThunkField* setBits(const TypeFunc* tf);
-	ThunkField* setBytes(const TypeFunc* tf);
-
 
 	SymbolTable		*cur_symtab;
 	ThunkType		*cur_thunk_type;
@@ -78,5 +72,40 @@ private:
 	unsigned int		weak_c;
 	unsigned int		field_count;
 };
+
+class ThunkBuilderFunc
+{
+public:
+	virtual ~ThunkBuilderFunc() {}
+	ThunkField* apply(const SymTabThunkBuilder*, const TypeFunc*) const;
+protected:
+	ExprList* setupArgs(
+		const SymTabThunkBuilder* sb, const TypeFunc* tf) const;
+	virtual ThunkField* doIt(
+		const SymTabThunkBuilder* sb, const ExprList* args) const = 0;
+	std::string getFuncName(const SymTabThunkBuilder*) const;
+	ThunkBuilderFunc(const char* pf) : num_args(0), func_prefix(pf) {}
+	unsigned int	num_args;
+	const char	*func_prefix;
+};
+
+#define TBF_DECL(name, arg_c, fname)			\
+class TBF##name : public ThunkBuilderFunc		\
+{							\
+public: TBF##name() : ThunkBuilderFunc(fname) { num_args = arg_c; }	\
+	virtual ~TBF##name() {}				\
+protected: virtual ThunkField* doIt(			\
+	const SymTabThunkBuilder* sb, const ExprList* args) const;	\
+}
+
+TBF_DECL(SetBytes, 1, "set_bytes");
+TBF_DECL(SetBits, 1, "set_bits");
+TBF_DECL(SkipBytes, 1, "skip_bytes");
+TBF_DECL(SkipBits, 1, "skip_bits");
+TBF_DECL(AlignBits, 1, "align_bits");
+TBF_DECL(AlignBytes, 1, "align_bytes");
+TBF_DECL(PadPhysBytes, 2, "padphys_bytes");
+
+void thunkbuilder_init_funcmap(void);
 
 #endif

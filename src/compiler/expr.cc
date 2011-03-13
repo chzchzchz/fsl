@@ -35,7 +35,7 @@ Value* Expr::ErrorV(const string& s) const
 	return NULL;
 }
 
-Value* Id::codeGen() const
+Value* Id::codeGen(void) const
 {
 	AllocaInst		*ai = NULL;
 	GlobalVariable		*gv;
@@ -61,11 +61,10 @@ Value* Id::codeGen() const
 		return get_builder()->CreateLoad(gv, getName());
 
 	/* create variable, if one does not already exist */
-	if (ai == NULL)
-		ai = code_builder->getTmpAllocaInst(getName());
+	if (ai == NULL) ai = code_builder->getTmpAllocaInst(getName());
 
 	if (ai == NULL) {
-		cerr << "OH NO: EXPR ERROR" << endl;
+		cerr << "Could not alloc tmp inst" << endl;
 		code_builder->printTmpVars();
 		return ErrorV(
 			string("Could not find variable ") +
@@ -75,18 +74,18 @@ Value* Id::codeGen() const
 	return get_builder()->CreateLoad(ai, getName());
 }
 
-Value* IdStruct::codeGen() const
+Value* IdStruct::codeGen(void) const
 {
 	print(cerr);
 	cerr << endl;
 	return ErrorV("XXX: STUB: IdStruct");
 }
 
-Value* IdArray::codeGen() const { return ErrorV("XXX: STUB: IdArray"); }
-Value* ExprParens::codeGen() const { return expr->codeGen(); }
+Value* IdArray::codeGen(void) const { return ErrorV("IdArray"); }
+Value* ExprParens::codeGen(void) const { return expr->codeGen(); }
 
 #define AOP_CODEGEN(x,y) 						\
-Value* x::codeGen() const { 						\
+Value* x::codeGen(void) const { 					\
 	return get_builder()->y(e_lhs->codeGen(), e_rhs->codeGen());	\
 }
 
@@ -108,4 +107,54 @@ Value* Number::codeGen() const
 Value* Boolean::codeGen() const
 {
 	return ConstantInt::get(getGlobalContext(), APInt(1, b, false));
+}
+
+Value* CondVal::codeGen(void) const
+{
+	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin;
+	llvm::PHINode		*pn;
+	llvm::Function		*f;
+	llvm::IRBuilder<>	*builder;
+	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
+	llvm::Value		*c_v, *e_t_v, *e_f_v;
+
+	builder = code_builder->getBuilder();
+	bb_origin = builder->GetInsertBlock();
+	f = bb_origin->getParent();
+
+	bb_then = llvm::BasicBlock::Create(gctx, "cv_then", f);
+	bb_else = llvm::BasicBlock::Create(gctx, "cv_else", f);
+	bb_merge = llvm::BasicBlock::Create(gctx, "cv_merge", f);
+
+	builder->SetInsertPoint(bb_origin);
+
+	c_v = ce->codeGen();
+
+	builder->CreateCondBr(c_v, bb_then, bb_else);
+	builder->SetInsertPoint(bb_then);
+	e_t_v = e_t->codeGen();
+	builder->CreateBr(bb_merge);
+
+	builder->SetInsertPoint(bb_else);
+	e_f_v = e_f->codeGen();
+	builder->CreateBr(bb_merge);
+
+	builder->SetInsertPoint(bb_merge);
+	pn = builder->CreatePHI(llvm::Type::getInt64Ty(gctx), "cv_iftmp");
+	pn->addIncoming(e_t_v, bb_then);
+	pn->addIncoming(e_f_v, bb_else);
+
+	return pn;
+}
+
+CondVal::~CondVal(void)
+{
+	delete ce;
+	delete e_t;
+	delete e_f;
+}
+
+CondVal* CondVal::copy(void) const
+{
+	return new CondVal(ce->copy(), e_t->copy(), e_f->copy());
 }

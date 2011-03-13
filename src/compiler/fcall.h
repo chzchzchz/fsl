@@ -34,10 +34,11 @@ public:
 	}
 
 	const std::string& getName(void) const { return id->getName(); }
-	std::ostream& print(std::ostream& out) const
+	void print(std::ostream& out) const
 	{
-		return out << "[ fcall " << getName() << "(" <<
-			exprs->print(out) << ") ]";
+		out << "(fcall " << getName() << " (";
+		exprs->print(out);
+		out << ")";
 	}
 
 	FCall* copy(void) const { return new FCall(id->copy(), exprs->copy()); }

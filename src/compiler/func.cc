@@ -4,7 +4,6 @@
 #include <llvm/Analysis/Verifier.h>
 #include <llvm/Support/IRBuilder.h>
 
-#include "cond.h"
 #include "func.h"
 #include "eval.h"
 #include "evalctx.h"
@@ -230,7 +229,7 @@ Value* FuncCondStmt::codeGen(void) const
 
 	/* generate conditional jump */
 	builder->SetInsertPoint(bb_origin);
-	cond_v = cond_codeGen(&ectx, cond);
+	cond_v = cond->codeGen(&ectx);
 	if (cond_v == NULL) {
 		cerr << getLineNo() << ": could not gen condition" << endl;
 		return NULL;
@@ -289,7 +288,7 @@ Value* FuncWhileStmt::codeGen(void) const
 
 	/* while condition */
 	builder->SetInsertPoint(bb_cond);
-	cond_v = cond_codeGen(&ectx, cond);
+	cond_v = cond->codeGen(&ectx);
 	if (cond_v == NULL) {
 		cerr << getLineNo() << ": could not gen condition" << endl;
 		return NULL;

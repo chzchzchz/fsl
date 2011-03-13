@@ -6,24 +6,22 @@
 #include <assert.h>
 
 #include "expr.h"
-#include "cond.h"
+#include "eval.h"
 #include "code_builder.h"
 
 extern CodeBuilder*		code_builder;
 
 using namespace std;
 
-llvm::Value* cond_cmpop_codeGen(const EvalCtx* ctx, const CmpOp* cmpop)
+llvm::Value* CmpOp::codeGen(const EvalCtx* ctx) const
 {
-	llvm::Value			*lhs, *rhs;
+	llvm::Value			*v_lhs, *v_rhs;
 	llvm::CmpInst::Predicate	pred;
 
-	assert (cmpop != NULL);
+	v_lhs = (ctx) ? evalAndGen(*ctx, getLHS()) : getLHS()->codeGen();
+	v_rhs = (ctx) ? evalAndGen(*ctx, getRHS()) : getRHS()->codeGen();
 
-	lhs = evalAndGen(*ctx, cmpop->getLHS());
-	rhs = evalAndGen(*ctx, cmpop->getRHS());
-
-	switch (cmpop->getOp()) {
+	switch (getOp()) {
 	case CmpOp::EQ: pred = llvm::CmpInst::ICMP_EQ; break;
 	case CmpOp::NE: pred = llvm::CmpInst::ICMP_NE; break;
 	case CmpOp::LE: pred = llvm::CmpInst::ICMP_ULE; break;
@@ -34,12 +32,11 @@ llvm::Value* cond_cmpop_codeGen(const EvalCtx* ctx, const CmpOp* cmpop)
 		pred = llvm::CmpInst::ICMP_EQ;
 		assert (0 == 1 && "Bad CmpOP");
 	}
-	return code_builder->getBuilder()->CreateICmp(pred, lhs, rhs);
+	return code_builder->getBuilder()->CreateICmp(pred, v_lhs, v_rhs);
 }
 
-llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
+llvm::Value* BOPAnd::codeGen(const EvalCtx* ctx) const
 {
-	const CondExpr		*lhs, *rhs;
 	llvm::Value		*lhs_v, *rhs_v;
 	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin;
 	llvm::BasicBlock	*bb_rhs_merge;
@@ -51,9 +48,6 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 	builder = code_builder->getBuilder();
 	bb_origin = builder->GetInsertBlock();
 	f = bb_origin->getParent();
-
-	lhs = bop_and->getLHS();
-	rhs = bop_and->getRHS();
 
 	bb_then = llvm::BasicBlock::Create(gctx, "and_then", f);
 	bb_else = llvm::BasicBlock::Create(gctx, "and_else", f);
@@ -70,11 +64,11 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 	 * merge:
 	 */
 	builder->SetInsertPoint(bb_origin);
-	lhs_v = cond_codeGen(ctx, lhs);
+	lhs_v = cond_lhs->codeGen(ctx);
 	builder->CreateCondBr(lhs_v, bb_then, bb_else);
 
 	builder->SetInsertPoint(bb_then);
-	rhs_v = cond_codeGen(ctx, rhs);
+	rhs_v = cond_rhs->codeGen(ctx);
 	bb_rhs_merge = builder->GetInsertBlock();
 	builder->CreateBr(bb_merge);
 
@@ -96,9 +90,8 @@ llvm::Value* cond_bop_and_codeGen(const EvalCtx* ctx, const BOPAnd* bop_and)
 	return pn;
 }
 
-llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
+llvm::Value* BOPOr::codeGen(const EvalCtx* ctx) const
 {
-	const CondExpr		*lhs, *rhs;
 	llvm::Value		*lhs_v, *rhs_v;
 	llvm::BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin;
 	llvm::BasicBlock	*bb_rhs_merge;
@@ -111,32 +104,20 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	bb_origin = builder->GetInsertBlock();
 	f = bb_origin->getParent();
 
-	lhs = bop_or->getLHS();
-	rhs = bop_or->getRHS();
-
 	bb_then = llvm::BasicBlock::Create(gctx, "or_then", f);
 	bb_else = llvm::BasicBlock::Create(gctx, "or_else", f);
 	bb_merge = llvm::BasicBlock::Create(gctx, "or_merge", f);
 
-	/*
-	 * if (lhs_v) {
-	 * 	(bb_then)
-	 * 	jmp merge
-	 * } else {
-	 * 	(bb_else)
-	 * 	jmp merge
-	 * }
-	 * merge:
-	 */
+	/* see BOPAnd for explanation of jmps and merging */
 	builder->SetInsertPoint(bb_origin);
-	lhs_v = cond_codeGen(ctx, lhs);
+	lhs_v = cond_lhs->codeGen(ctx);
 	builder->CreateCondBr(lhs_v, bb_then, bb_else);
 
 	builder->SetInsertPoint(bb_then);
 	builder->CreateBr(bb_merge);
 
 	builder->SetInsertPoint(bb_else);
-	rhs_v = cond_codeGen(ctx, rhs);
+	rhs_v = cond_rhs->codeGen(ctx);
 	bb_rhs_merge = builder->GetInsertBlock();
 	builder->CreateBr(bb_merge);
 
@@ -151,68 +132,18 @@ llvm::Value* cond_bop_or_codeGen(const EvalCtx* ctx, const BOPOr* bop_or)
 	/* otherwise, try the next stmt, if might be true.. */
 	pn->addIncoming(rhs_v, bb_rhs_merge);
 
-
 	return pn;
 }
 
-llvm::Value* cond_bop_codeGen(const EvalCtx* ctx, const BinBoolOp* bop)
+llvm::Value* CondNot::codeGen(const EvalCtx* ctx) const
 {
-	const BOPAnd*	bop_and;
-	const BOPOr*	bop_or;
-
-	const CondExpr*	cond_lhs;
-	const CondExpr*	cond_rhs;
-
-	assert (bop != NULL);
-
-	cond_lhs = bop->getLHS();
-	cond_rhs = bop->getRHS();
-
-	bop_and = dynamic_cast<const BOPAnd*>(bop);
-	/* if LHS evaluates to true, go ahead and do RHS */
-	if (bop_and != NULL) return cond_bop_and_codeGen(ctx, bop_and);
-
-	bop_or = dynamic_cast<const BOPOr*>(bop);
-	if (bop_or != NULL)  return cond_bop_or_codeGen(ctx, bop_or);
-
-	/* should not happen */
-	assert (0 == 1);
-	return NULL;
+	llvm::Value	*in_v = cexpr->codeGen(ctx);
+	if (in_v == NULL) return NULL;
+	return code_builder->getBuilder()->CreateNot(in_v);
 }
 
-/**
- * generates boolean value for given condition
- */
-llvm::Value* cond_codeGen(const EvalCtx* ctx, const CondExpr* cond)
+llvm::Value* FuncCond::codeGen(const EvalCtx* ctx) const
 {
-	const CmpOp	*cmpop;
-	const CondNot	*cnot;
-	const BinBoolOp	*bop;
-	const FuncCond	*fcond;
-	llvm::Value	*ret;
-
-	cnot = dynamic_cast<const CondNot*>(cond);
-	if (cnot != NULL) {
-		const CondExpr	*inner_cond;
-
-		inner_cond = cnot->getExpr();
-		ret = cond_codeGen(ctx, inner_cond);
-		if (ret == NULL)
-			return ret;
-		return code_builder->getBuilder()->CreateNot(ret);
-	}
-
-
-	if ((cmpop = dynamic_cast<const CmpOp*>(cond)) != NULL) {
-		ret = cond_cmpop_codeGen(ctx, cmpop);
-	} else if ((bop = dynamic_cast<const BinBoolOp*>(cond)) != NULL) {
-		ret = cond_bop_codeGen(ctx, bop);
-	} else if ((fcond = dynamic_cast<const FuncCond*>(cond)) != NULL) {
-		ret = evalAndGen(*ctx, fcond->getFC());
-	} else {
-		assert (0 == 1 && "Unknown CondType");
-		ret = NULL;
-	}
-
-	return ret;
+	if (ctx == NULL) return getFC()->codeGen();
+	return evalAndGen(*ctx, getFC());
 }

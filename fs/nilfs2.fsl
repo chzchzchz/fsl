@@ -40,6 +40,7 @@ const NILFS_INO_USER	= 11;	/* Fisrt user's file inode number */
 
 const NILFS_SB_OFFSET_BYTES	= 1024; /* byte offset of nilfs superblock */
 const NILFS_SUPER_MAGIC		= 0x3434; /* NILFS filesystem  magic number */
+const NILFS_MAX_SB_SIZE		= 1024;
 const NILFS_SEG_MIN_BLOCKS	= 16;	/* Minimum number of blocks in
 					   a full segment */
 const NILFS_PSEG_MIN_BLOCKS	= 2;	/* Minimum number of blocks in
@@ -68,6 +69,7 @@ typedef segnum_t = u64;
 typedef vblknum_t = u64;
 typedef inonum_t = u64;
 typedef blkoff_t = u64;
+typedef crc32_t = u32;
 
 include "nilfs2_func.fsl"
 include "nilfs2_type.fsl"

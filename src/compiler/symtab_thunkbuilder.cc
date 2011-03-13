@@ -13,6 +13,7 @@ extern type_map			types_map;
 extern ctype_map		ctypes_map;
 extern const_map		constants;
 extern void			dump_ptypes();
+map<string, ThunkBuilderFunc*>	tbf_map;
 static FCall			from_base_fc(new Id("from_base_bits"), new ExprList());
 
 extern RTInterface		rt_glue;
@@ -328,10 +329,7 @@ void SymTabThunkBuilder::addUnionToSymTab(
 		field_offset, field_size, field_elems,
 		ThunkParams::createNoParams());
 
-	addToCurrentSymTab(
-		union_t->getName(),
-		field_name,
-		field_thunk);
+	addToCurrentSymTab(union_t->getName(), field_name, field_thunk);
 }
 
 void SymTabThunkBuilder::visit(const TypeDecl* td)
@@ -405,7 +403,6 @@ void SymTabThunkBuilder::rebaseByCond(
 	ThunkField		*rebase_tf;
 	ThunkFieldSize		*field_size;
 	ThunkFieldOffset	*field_offset;
-	ThunkElements		*field_elements;
 	string			fieldname;
 
 	fieldname = "__rebase_" +
@@ -426,7 +423,6 @@ void SymTabThunkBuilder::rebaseByCond(
 		next_off_false = last_tf_false->copyNextOffset();
 
 	field_size = new ThunkFieldSize(0u);
-	field_elements = new ThunkElements(1);
 	field_offset = 	new ThunkFieldOffsetCond(
 		rebase_cond_expr,
 		next_off_true,
@@ -442,7 +438,7 @@ void SymTabThunkBuilder::rebaseByCond(
 
 void SymTabThunkBuilder::visit(const TypeUnion* tu)
 {
-	SymTabThunkBuilder	*sttb;
+	SymTabThunkBuilder	*sb;
 
 	/* TODO support nested unions */
 	assert (union_c <= 1);
@@ -459,9 +455,9 @@ void SymTabThunkBuilder::visit(const TypeUnion* tu)
 	weak_c--;
 
 	/* make 'union' type available for symtab reference */
-	sttb = new SymTabThunkBuilder();
-	union_symtabs.push_back(sttb->getSymTab(cur_thunk_type, tu));
-	delete sttb;
+	sb = new SymTabThunkBuilder();
+	union_symtabs.push_back(sb->getSymTab(cur_thunk_type, tu));
+	delete sb;
 
 	addUnionToSymTab(tu->getName(), tu->getArray());
 
@@ -480,35 +476,6 @@ void SymTabThunkBuilder::visit(const TypeParamDecl* tp)
 		tp->getArray(),
 		false,
 		tp->getType()->getExprs());
-}
-
-void SymTabThunkBuilder::visit(const TypeFunc* tf)
-{
-	string			fcall_name;
-	ThunkField		*thunkf;
-
-	fcall_name = tf->getFCall()->getName();
-
-	thunkf = NULL;
-	if (fcall_name == "align_bits") 	thunkf = alignBits(tf);
-	else if (fcall_name == "align_bytes")	thunkf = alignBytes(tf);
-	else if (fcall_name == "skip_bits")	thunkf = skipBits(tf);
-	else if (fcall_name == "skip_bytes")	thunkf = skipBytes(tf);
-	else if (fcall_name == "set_bits")	thunkf = setBits(tf);
-	else if (fcall_name == "set_bytes")	thunkf = setBytes(tf);
-	else {
-		cerr << "Symtab: Unknown function call: ";
-		tf->print(cerr);
-		cerr << endl;
-		cerr << "((" << fcall_name << "))" << endl;
-		return;
-	}
-
-	if (thunkf == NULL) return;
-
-	setLastThunk(thunkf);
-
-	field_count++;
 }
 
 Expr* SymTabThunkBuilder::copyFromBase(void) const
@@ -530,224 +497,6 @@ Expr* SymTabThunkBuilder::copyCurrentOffset(void) const
 	return ret;
 }
 
-ThunkField* SymTabThunkBuilder::alignBits(const TypeFunc* tf)
-{
-	ThunkField*	thunkf = NULL;
-	ExprList*	args;
-	Expr*		from_base;
-	Expr*		align_bits_pad;
-
-	from_base = copyFromBase();
-	args = (tf->getFCall()->getExprs())->simplify();
-	args->rewrite(&from_base_fc, from_base);
-
-
-	if (args->size() != 1) {
-		cerr << "align_bits takes one arg" << endl;
-		goto done;
-	}
-
-	align_bits_pad = new AOPMod(
-		new AOPSub(
-			(args->front())->simplify(),
-			from_base->simplify()),
-		(args->front())->simplify());
-
-	assert (cond_stack.size() == 0);
-
-	thunkf = ThunkField::createInvisible(
-		*cur_thunk_type,
-		"__align_bits_"+int_to_string(field_count),
-		new ThunkFieldOffset(copyCurrentOffset()),
-		new ThunkFieldSize(align_bits_pad)
-	);
-
-done:
-	delete args;
-	delete from_base;
-
-	return thunkf;
-}
-
-ThunkField* SymTabThunkBuilder::setBits(const TypeFunc* tf)
-{
-	ThunkField*	thunkf = NULL;
-	ExprList*	args;
-	Expr*		from_base;
-
-	from_base = copyFromBase();
-	args = (tf->getFCall()->getExprs())->simplify();
-	args->rewrite(&from_base_fc, from_base);
-
-	if (args->size() != 1) {
-		cerr << "set_bits takes one arg" << endl;
-		goto done;
-	}
-
-	assert (cond_stack.size() == 0);
-
-	thunkf = ThunkField::createInvisible(
-		*cur_thunk_type,
-		"__set_bits_"+int_to_string(field_count),
-		new ThunkFieldOffset(
-			new AOPAdd(
-				rt_glue.getThunkArgOffset(),
-				(args->front())->simplify())),
-		new ThunkFieldSize(new Number(0))
-	);
-
-done:
-	delete args;
-	delete from_base;
-
-	return thunkf;
-
-}
-
-ThunkField* SymTabThunkBuilder::setBytes(const TypeFunc* tf)
-{
-	ThunkField*	thunkf = NULL;
-	ExprList*	args;
-	Expr*		from_base;
-
-	from_base = copyFromBase();
-	args = (tf->getFCall()->getExprs())->simplify();
-	args->rewrite(&from_base_fc, from_base);
-
-	if (args->size() != 1) {
-		cerr << "set_bytes takes one arg" << endl;
-		goto done;
-	}
-
-	assert (cond_stack.size() == 0);
-
-	thunkf = ThunkField::createInvisible(
-		*cur_thunk_type,
-		"__set_bytes_"+int_to_string(field_count),
-		new ThunkFieldOffset(
-			new AOPAdd(
-				rt_glue.getThunkArgOffset(),
-				new AOPMul(
-					(args->front())->simplify(),
-					new Number(8)))),
-		new ThunkFieldSize(new Number(0))
-	);
-
-done:
-	delete args;
-	delete from_base;
-
-	return thunkf;
-}
-
-ThunkField* SymTabThunkBuilder::alignBytes(const TypeFunc* tf)
-{
-	ThunkField*	thunkf = NULL;
-	ExprList*	args;
-	Expr*		from_base;
-	Expr*		align_bytes_pad;
-
-	from_base = copyFromBase();
-	args = (tf->getFCall()->getExprs())->simplify();
-	args->rewrite(&from_base_fc, from_base);
-
-
-	if (args->size() != 1) {
-		cerr << "align_bytes takes one arg" << endl;
-		goto done;
-	}
-
-	align_bytes_pad = new AOPMod(
-		new AOPSub(
-			new AOPMul(
-				(args->front())->simplify(),
-				new Number(8)),
-			from_base->simplify()),
-		new AOPMul(
-			(args->front())->simplify(),
-			new Number(8)));
-
-	assert (cond_stack.size() == 0);
-
-	thunkf = ThunkField::createInvisible(
-		*cur_thunk_type,
-		"__align_bytes_"+int_to_string(field_count),
-		new ThunkFieldOffset(copyCurrentOffset()),
-		new ThunkFieldSize(align_bytes_pad)
-	);
-
-done:
-	delete args;
-	delete from_base;
-
-	return thunkf;
-}
-
-ThunkField* SymTabThunkBuilder::skipBits(const TypeFunc* tf)
-{
-	ThunkField*	thunkf = NULL;
-	ExprList*	args;
-	Expr*		from_base;
-
-	from_base = copyFromBase();
-	args = (tf->getFCall()->getExprs())->simplify();
-	args->rewrite(&from_base_fc, from_base);
-
-	if (args->size() != 1) {
-		cerr << "skip_bits takes one arg" << endl;
-		goto done;
-	}
-
-	assert (cond_stack.size() == 0);
-
-	thunkf = ThunkField::createInvisible(
-		*cur_thunk_type,
-		"__skip_bits_"+int_to_string(field_count),
-		new ThunkFieldOffset(copyCurrentOffset()),
-		new ThunkFieldSize((args->front())->simplify())
-	);
-
-done:
-	delete args;
-	delete from_base;
-
-	return thunkf;
-}
-
-ThunkField* SymTabThunkBuilder::skipBytes(const TypeFunc* tf)
-{
-	ThunkField*	thunkf = NULL;
-	ExprList*	args;
-	Expr*		from_base;
-
-	from_base = copyFromBase();
-	args = (tf->getFCall()->getExprs())->simplify();
-	args->rewrite(&from_base_fc, from_base);
-
-	if (args->size() != 1) {
-		cerr << "skip_bytes takes one arg" << endl;
-		goto done;
-	}
-
-	assert (cond_stack.size() == 0);
-
-	thunkf = ThunkField::createInvisible(
-		*cur_thunk_type,
-		"__skip_bytes_"+int_to_string(field_count),
-		new ThunkFieldOffset(copyCurrentOffset()),
-		new ThunkFieldSize(
-			new AOPMul(
-				(args->front())->simplify(),
-				new Number(8)))
-	);
-
-done:
-	delete args;
-	delete from_base;
-
-	return thunkf;
-}
-
 CondExpr* SymTabThunkBuilder::getConds(void) const
 {
 	CondExpr			*ret;
@@ -761,4 +510,207 @@ CondExpr* SymTabThunkBuilder::getConds(void) const
 		ret = new BOPAnd(ret, (*it)->copy());
 
 	return ret;
+}
+
+
+void SymTabThunkBuilder::visit(const TypeFunc* tf)
+{
+	string			fcall_name;
+	ThunkBuilderFunc	*tbf;
+	ThunkField		*thunkf;
+
+	tbf = tbf_map[tf->getFCall()->getName()];
+	if (tbf == NULL) {
+		cerr << "Symtab: Unknown function call: ";
+		tf->print(cerr);
+		cerr << endl;
+		return;
+	}
+
+	thunkf = tbf->apply(this, tf);
+	if (thunkf == NULL) return;
+	setLastThunk(thunkf);
+
+	field_count++;
+}
+
+ThunkField* TBFSetBits::doIt(
+	const SymTabThunkBuilder* sb, const ExprList* args) const
+{
+	assert (sb->getCondDepth() == 0);
+
+	return ThunkField::createInvisible(
+		*sb->getCurThunkType(),
+		getFuncName(sb),
+		new ThunkFieldOffset(
+			new AOPAdd(
+				rt_glue.getThunkArgOffset(),
+				(args->front())->simplify())),
+		new ThunkFieldSize(new Number(0)));
+}
+
+ThunkField* TBFSetBytes::doIt(
+	const SymTabThunkBuilder* sb, const ExprList* args) const
+{
+	assert (sb->getCondDepth() == 0);
+
+	return ThunkField::createInvisible(
+		*sb->getCurThunkType(),
+		getFuncName(sb),
+		new ThunkFieldOffset(
+			new AOPAdd(
+				rt_glue.getThunkArgOffset(),
+				new AOPMul(
+					(args->front())->simplify(),
+					new Number(8)))),
+		new ThunkFieldSize(new Number(0)));
+}
+
+ThunkField* TBFAlignBits::doIt(
+	const SymTabThunkBuilder* sb, const ExprList* args) const
+{
+	Expr	*align_bits_pad;
+
+	align_bits_pad = new AOPMod(
+		new AOPSub((args->front())->simplify(), sb->copyFromBase()),
+		(args->front())->simplify());
+
+	assert (sb->getCondDepth() == 0);
+
+	return ThunkField::createInvisible(
+		*sb->getCurThunkType(),
+		getFuncName(sb),
+		new ThunkFieldOffset(sb->copyCurrentOffset()),
+		new ThunkFieldSize(align_bits_pad));
+}
+
+ThunkField* TBFAlignBytes::doIt(
+	const SymTabThunkBuilder* sb, const ExprList* args) const
+{
+	Expr*		align_bytes_pad;
+
+	align_bytes_pad = new AOPMod(
+		new AOPSub(
+			new AOPMul((args->front())->simplify(), new Number(8)),
+			sb->copyFromBase()),
+		new AOPMul((args->front())->simplify(), new Number(8)));
+
+	assert (sb->getCondDepth() == 0);
+
+	return ThunkField::createInvisible(
+		*sb->getCurThunkType(),
+		getFuncName(sb),
+		new ThunkFieldOffset(sb->copyCurrentOffset()),
+		new ThunkFieldSize(align_bytes_pad));
+}
+
+ThunkField* TBFSkipBits::doIt(
+	const SymTabThunkBuilder* sb, const ExprList* args) const
+{
+	assert (sb->getCondDepth() == 0);
+	return ThunkField::createInvisible(
+		*sb->getCurThunkType(),
+		getFuncName(sb),
+		new ThunkFieldOffset(sb->copyCurrentOffset()),
+		new ThunkFieldSize((args->front())->simplify())
+	);
+}
+
+ThunkField* TBFSkipBytes::doIt(
+	const SymTabThunkBuilder* sb, const ExprList* args) const
+{
+	assert (sb->getCondDepth() == 0);
+	return ThunkField::createInvisible(
+		*sb->getCurThunkType(),
+		getFuncName(sb),
+		new ThunkFieldOffset(sb->copyCurrentOffset()),
+		new ThunkFieldSize(
+			new AOPMul(
+				(args->front())->simplify(),
+				new Number(8)))
+	);
+}
+
+ThunkField* TBFPadPhysBytes::doIt(
+	const SymTabThunkBuilder* sb, const ExprList* args) const
+{
+	Expr		*pad_bits, *rem_space;
+	Expr		*align_sz, *min_space;
+
+	assert (sb->getCondDepth() == 0);
+
+	/* arg1 = alignment size (e.g. a sector) */
+	/* arg2 = min space before no padding */
+	/* remaining = (arg1 - (cur_loc % arg1));
+	 * pad = (remaining < arg2) ? remaining : 0; */
+	align_sz = new AOPMul(args->getNth(0)->simplify(), new Number(8));
+	min_space = new AOPMul(args->getNth(1)->simplify(), new Number(8));
+	rem_space = new AOPSub(
+		align_sz->copy(),
+		new AOPMod(
+			rt_glue.toPhys(
+				rt_glue.getThunkClosure(),
+				sb->copyCurrentOffset()),
+			align_sz));
+
+	pad_bits= new CondVal(
+		new CmpLT(rem_space->copy(), min_space->copy()),
+		rem_space,
+		new Number(0));
+
+	return ThunkField::createInvisible(
+		*sb->getCurThunkType(),
+		getFuncName(sb),
+		new ThunkFieldOffset(sb->copyCurrentOffset()),
+		new ThunkFieldSize(pad_bits));
+}
+
+ThunkField* ThunkBuilderFunc::apply(
+	const SymTabThunkBuilder* sb, const TypeFunc* tf) const
+{
+	ExprList*	args = setupArgs(sb, tf);
+	ThunkField*	ret;
+
+	if (args == NULL) return NULL;
+	ret = doIt(sb, args);
+	delete args;
+
+	return ret;
+}
+
+ExprList* ThunkBuilderFunc::setupArgs(
+	const SymTabThunkBuilder* sb, const TypeFunc* tf) const
+{
+	ExprList*	args;
+	Expr*		from_base;
+
+	from_base = sb->copyFromBase();
+	args = (tf->getFCall()->getExprs())->simplify();
+	args->rewrite(&from_base_fc, from_base);
+	delete from_base;
+
+	if (args->size() != num_args) {
+		cerr << "Takes " << num_args << " args." << endl;
+		delete args;
+		args = NULL;
+	}
+
+	return args;
+}
+
+string ThunkBuilderFunc::getFuncName(const SymTabThunkBuilder* sb) const
+{
+	return string("__")+string(func_prefix)+string("_") +
+		int_to_string(sb->getFieldCount());
+}
+
+void thunkbuilder_init_funcmap(void)
+{
+	tbf_map["set_bytes"] = new TBFSetBytes();
+	tbf_map["set_bits"] = new TBFSetBits();
+	tbf_map["skip_bytes"] = new TBFSkipBytes();
+	tbf_map["skip_bits"] = new TBFSkipBits();
+	tbf_map["align_bits"] = new TBFAlignBits();
+	tbf_map["align_bytes"] = new TBFAlignBytes();
+	tbf_map["pad_phys_bytes"] = new TBFPadPhysBytes();
 }

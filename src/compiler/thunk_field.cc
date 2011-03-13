@@ -36,9 +36,7 @@ Expr* ThunkField::copyNextOffset(void) const
 
 	/* XXX */
 	return Expr::rewriteReplace(
-		ret,
-		rt_glue.getThunkArgIdx(),
-		new Number(0));
+		ret, rt_glue.getThunkArgIdx(), new Number(0));
 }
 
 ThunkField* ThunkField::copy(ThunkType& new_owner) const

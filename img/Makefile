@@ -98,11 +98,16 @@ vfat-linux-4gb.img:
 	./loopback_fs_teardown.sh
 	rm -rf linuxtmp
 
+# LOGFS IS BUSTED AS OF 2.6.37. DON'T BOTHER
+#logfs.img:
+#	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+#	../ext/logfsprogs*/mklogfs $@ <<<"yes"
+#	./loopback_fs_setup.sh $@ logfs  && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
 minix.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=50
 	yes | /sbin/mkfs.minix $@
-	./loopback_fs_setup.sh minix.img minix && ./gen_files.sh  && ./loopback_fs_teardown.sh
+	./loopback_fs_setup.sh $@ minix && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
 minix-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=50
@@ -200,7 +205,11 @@ vfat-postmark.img:
 nilfs2.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
 	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
-	./loopback_fs_setup.sh nilfs2.img nilfs2 && ./gen_files.sh  && ./loopback_fs_teardown.sh
+	./loopback_fs_setup.sh $@ nilfs2 && ./gen_files.sh  && ./loopback_fs_teardown.sh
+nilfs2-many.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
+	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
+	./loopback_fs_setup.sh $@ nilfs2 && ./gen_files.sh 100  && ./loopback_fs_teardown.sh
 
 xfs.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100

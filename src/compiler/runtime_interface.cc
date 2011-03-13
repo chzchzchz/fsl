@@ -230,14 +230,11 @@ Expr* RTInterface::computeArrayBits(const ThunkField* tf, const Expr* idx)
 	assert (tf->getElems()->isSingleton() == false);
 	assert (owner_type != NULL);
 
+	/* parent type num, parent clo, field idx, num elems */
 	exprs = new ExprList();
-	/* parent type num */
 	exprs->add(new Number(owner_type->getTypeNum()));
-	/* parent closure */
 	exprs->add(getThunkClosure());
-	/* field idx */
 	exprs->add(new Number(tf->getFieldNum()));
-	/* num elements */
 	exprs->add(idx->copy());
 
 	return new FCall(new Id("__computeArrayBits"), exprs);
@@ -276,8 +273,7 @@ Expr* RTInterface::writeVal(const Expr* loc, const Expr* sz, const Expr* val)
 	return new FCall(new Id("__writeVal"), exprs);
 }
 
-Expr* RTInterface::toPhys(const Expr* clo, const Expr* off)
+Expr* RTInterface::toPhys(Expr* clo, Expr* off)
 {
-	return new FCall(new Id("__toPhys"),
-		new ExprList(clo->copy(), off->copy()));
+	return new FCall(new Id("__toPhys"), new ExprList(clo, off));
 }

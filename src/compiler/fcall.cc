@@ -54,21 +54,20 @@ Expr* FCall::mkClosure(Expr* diskoff, Expr* params, Expr* virt)
 	return ret;
 }
 
-Expr* FCall::extractCloOff(const Expr* expr)
+Expr* FCall::extractCloOff(const Expr* e)
 {
-	const FCall	*fc = dynamic_cast<const FCall*>(expr);
-	if (fc != NULL && fc->getName() == string("__mkClosure")) {
+	const FCall	*fc = dynamic_cast<const FCall*>(e);
+	if (fc != NULL && fc->getName() == string("__mkClosure"))
 		return (fc->getExprs()->front())->simplify();
-	}
-	return new FCall(new Id("__extractOff"), new ExprList(expr->simplify()));
+	return new FCall(new Id("__extractOff"), new ExprList(e->simplify()));
 }
 
-Expr* FCall::extractCloParam(const Expr* expr)
+Expr* FCall::extractCloParam(const Expr* e)
 {
-	const FCall	*fc = dynamic_cast<const FCall*>(expr);
+	const FCall	*fc = dynamic_cast<const FCall*>(e);
 	if (fc != NULL && fc->getName() == "__mkClosure")
 		return (fc->getExprs()->getNth(1))->simplify();
-	return new FCall(new Id("__extractParam"), new ExprList(expr->simplify()));
+	return new FCall(new Id("__extractParam"), new ExprList(e->simplify()));
 }
 
 Expr* FCall::extractCloVirt(const Expr* expr)
@@ -97,9 +96,7 @@ llvm::Value* FCall::codeGenLet(void) const
 
 	/* special form XXX */
 	/* let(var_to_bind, value_to_bind_to_var, expr) */
-	if (exprs->size() != 3) {
-		return ErrorV(string("let takes 3 params"));
-	}
+	if (exprs->size() != 3) return ErrorV(string("let takes 3 params"));
 
 	it = exprs->begin();
 	to_bind_name = dynamic_cast<Id*>(*it);
@@ -381,9 +378,7 @@ Value* FCall::codeGenClosureRetCall(std::vector<llvm::Value*>& args) const
 		param_c, "BURRITOS");
 	TypeClosure	tc(tmp_tp);
 
-	builder->CreateStore(
-		tc.setParamBuf(tmp_params),
-		tmp_tp);
+	builder->CreateStore(tc.setParamBuf(tmp_params), tmp_tp);
 
 	args.push_back(tmp_tp);
 	ret = builder->CreateCall(
@@ -463,8 +458,7 @@ Value* FCall::codeGen() const
 		ret = codeGenPrimitiveRetCall(args);
 	}
 
-	if (params_ret != NULL)
-		return params_ret;
+	if (params_ret != NULL) return params_ret;
 
 	return ret;
 }

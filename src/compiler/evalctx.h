@@ -49,8 +49,7 @@ public:
 	virtual ~EvalCtx() {}
 
 	/* given an expression that is either a scalar id or an array id,
-	 * return the name and (if applicable) the index into the type
-	 */
+	 * return the name and (if applicable) the index into the type */
 	bool toName(const Expr* e, std::string& in_str, Expr* &idx) const;
 
 	Expr* resolveVal(const Id* id) const;
@@ -99,7 +98,6 @@ protected:
 	const VarScope*		cur_vscope;
 
 	const Type*		typeByName(const std::string& s) const;
-
 };
 
 #endif

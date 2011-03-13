@@ -297,10 +297,7 @@ class TypeFunc : public TypeStmt
 {
 public:
 	TypeFunc(FCall* in_fcall)
-		: fcall(in_fcall)
-	{
-		assert (fcall != NULL);
-	}
+		: fcall(in_fcall) { assert (fcall != NULL); }
 
 	virtual ~TypeFunc() { delete fcall; }
 
@@ -395,11 +392,7 @@ class TypeVisitAll : public TypeVisitor
 public:
 	virtual ~TypeVisitAll() {}
 
-	virtual void apply(const Type* t)
-	{
-		visit(t->getBlock());
-	}
-
+	virtual void apply(const Type* t) { visit(t->getBlock()); }
 	virtual void visit(const TypeDecl* td) { return; }
 
 	virtual void visit(const TypeUnion* tu)

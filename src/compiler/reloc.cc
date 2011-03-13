@@ -8,7 +8,6 @@
 #include "struct_writer.h"
 #include "code_builder.h"
 #include "evalctx.h"
-#include "cond.h"
 #include "util.h"
 
 using namespace std;
@@ -137,7 +136,7 @@ void Reloc::genCondCode(void) const
 	args.add(new Id("u64"), choice_iter->getBinding()->copy());
 	code_builder->genThunkHeaderArgs(f, parent->getType(), &args);
 
-	cond_v = cond_codeGen(&ectx, choice_cond);
+	cond_v = choice_cond->codeGen(&ectx);
 	if (cond_v == NULL) {
 		cerr << getCondFuncName() <<
 			": could not gen condition" << endl;

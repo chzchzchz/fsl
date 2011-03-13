@@ -410,14 +410,12 @@ Expr* EvalCtx::resolveLoc(const IdStruct* ids, Expr*& size) const
 
 	assert (parent_closure != NULL);
 	disk_off = ts->getTop()->getDiskOff();
-	loc = rt_glue.toPhys(parent_closure, disk_off);
 
+	loc = rt_glue.toPhys(parent_closure, disk_off);
 	thunk_field = ts->getTop()->getSym()->getFieldThunk();
 	size = thunk_field->getSize()->copyConstValue();
 
 	delete ts;
-	delete disk_off;
-	delete parent_closure;
 
 	return loc;
 }

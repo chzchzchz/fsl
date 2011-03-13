@@ -14,11 +14,12 @@ public:
 		delete e_rhs;
 	}
 
-	std::ostream& print(std::ostream& out) const
+	void print(std::ostream& out) const
 	{
-		return out << '(' <<
-			e_lhs->print(out) << ' ' << getOpSymbol() << ' ' <<
-			e_rhs->print(out) << ')';
+		out << '(';
+		e_lhs->print(out); out << ' ' << getOpSymbol() << ' ';
+		e_rhs->print(out);
+		out << ')';
 	}
 
 	void simplifySides(void)

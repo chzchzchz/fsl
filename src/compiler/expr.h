@@ -15,6 +15,7 @@ class FCall;
 class BinArithOp;
 class IdStruct;
 class ExprParens;
+class CondVal;
 
 class ExprVisitor
 {
@@ -29,6 +30,7 @@ public:
 	virtual Expr* visit(const BinArithOp* a) = 0;
 	virtual Expr* visit(const IdStruct* a) = 0;
 	virtual Expr* visit(const ExprParens* a) = 0;
+	virtual Expr* visit(const CondVal* a) = 0;
 
 	virtual ~ExprVisitor() {}
 protected:
@@ -38,7 +40,7 @@ protected:
 class Expr
 {
 public:
-	virtual std::ostream& print(std::ostream& out) const = 0;
+	virtual void print(std::ostream& out) const = 0;
 	virtual ~Expr() {}
 	virtual Expr* copy(void) const = 0;
 	virtual Expr* simplify(void) const { return this->copy(); }
@@ -80,7 +82,7 @@ public:
 
 	llvm::Value* ErrorV(const std::string& s) const;
 
-	virtual llvm::Value* codeGen() const = 0;
+	virtual llvm::Value* codeGen(void) const = 0;
 	virtual Expr* accept(ExprVisitor* ev) const = 0;
 protected:
 	Expr() {}
@@ -98,16 +100,17 @@ public:
 
 	ExprList(const PtrList<Expr>& p) : PtrList<Expr>(p) {}
 	virtual ~ExprList()  {}
-	std::ostream& print(std::ostream& out) const
+	void print(std::ostream& out) const
 	{
 		const_iterator	it = begin();
 
-		if (it == end()) return out;
+		if (it == end()) return;
 
-		(*it)->print(out);
-		it++;
-		for (; it != end(); it++) out << ", " << (*it)->print(out);
-		return out;
+		(*it)->print(out); it++;
+		for (; it != end(); it++) {
+			out << ", ";
+			(*it)->print(out);
+		}
 	}
 
 	ExprList* copy(void) const { return new ExprList(*this); }
@@ -161,18 +164,16 @@ public:
 		for (unsigned int i = 0; i < n; it++,i++);
 		return (*it);
 	}
-
 private:
 };
 
 class Id  : public Expr
 {
 public:
-	Id(const std::string& s) : id_name(s)
-	{ assert (s.size() > 0); }
+	Id(const std::string& s) : id_name(s) { assert (s.size() > 0); }
 	virtual ~Id() {}
 	const std::string& getName() const { return id_name; }
-	std::ostream& print(std::ostream& out) const { return out << id_name; }
+	void print(std::ostream& out) const { out << id_name; }
 	Id* copy(void) const { return new Id(id_name); }
 
 	bool operator==(const Expr* e) const
@@ -188,7 +189,6 @@ private:
 	const std::string id_name;
 };
 
-
 #include "fcall.h"
 
 class IdStruct : public Expr, public PtrList<Expr>
@@ -197,7 +197,7 @@ public:
 	IdStruct() { }
 	IdStruct(const PtrList<Expr>& p) : PtrList<Expr>(p) {}
 	virtual ~IdStruct() {}
-	std::ostream& print(std::ostream& out) const
+	void print(std::ostream& out) const
 	{
 		const_iterator	it = begin();
 
@@ -205,8 +205,10 @@ public:
 
 		(*it)->print(out);
 		it++;
-		for (; it != end(); it++) out << '.' << (*it)->print(out);
-		return out;
+		for (; it != end(); it++) {
+			out << '.';
+			(*it)->print(out);
+		}
 	}
 
 	IdStruct* copy(void) const { return new IdStruct(*this); }
@@ -232,7 +234,7 @@ public:
 		return true;
 	}
 
-	llvm::Value* codeGen() const;
+	llvm::Value* codeGen(void) const;
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 };
@@ -256,9 +258,12 @@ public:
 
 	const std::string& getName() const { return id->getName(); }
 
-	std::ostream& print(std::ostream& out) const
+	void print(std::ostream& out) const
 	{
-		return out << id->print(out) << '[' << idx->print(out) << ']';
+		id->print(out);
+		out << '[';
+		idx->print(out);
+		out << ']';
 	}
 
 	Id* getId(void) const { return id; }
@@ -304,7 +309,7 @@ public:
 		return Expr::rewrite(to_rewrite, new_expr);
 	}
 
-	llvm::Value* codeGen() const;
+	llvm::Value* codeGen(void) const;
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 
 	bool isFixed(void) const { return fixed; }
@@ -322,17 +327,14 @@ class ExprParens : public Expr
 {
 public:
 	ExprParens(Expr* in_expr)
-		: expr(in_expr)
-	{
-		assert (expr != NULL);
-	}
+		: expr(in_expr) { assert (expr != NULL); }
 
 
 	virtual ~ExprParens() { delete expr; }
 
-	std::ostream& print(std::ostream& out) const
+	void print(std::ostream& out) const
 	{
-		return out << '(' << expr->print(out) << ')';
+		out << '('; expr->print(out); out << ')';
 	}
 
 	Expr* copy(void) const { return new ExprParens(expr->copy()); }
@@ -371,7 +373,7 @@ public:
 		return NULL;
 	}
 
-	llvm::Value* codeGen() const;
+	llvm::Value* codeGen(void) const;
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 	Expr	*expr;
@@ -383,22 +385,20 @@ public:
 	Boolean(bool v) : b(v) {}
 	virtual ~Boolean() {}
 
-	std::ostream& print(std::ostream& out) const { return out << b; }
+	void print(std::ostream& out) const { out << b; }
 
 	Expr* copy(void) const { return new Boolean(b); }
 
 	bool operator==(const Expr* e) const
 	{
-		const Boolean	*in_num;
-
-		in_num = dynamic_cast<const Boolean*>(e);
+		const Boolean	*in_num = dynamic_cast<const Boolean*>(e);
 		if (in_num == NULL) return false;
 		return (b == in_num->isTrue());
 	}
 
 	bool isTrue(void) const { return b; }
 
-	llvm::Value* codeGen() const;
+	llvm::Value* codeGen(void) const;
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 	unsigned long b;
@@ -413,27 +413,60 @@ public:
 
 	unsigned long getValue() const { return n; }
 
-	std::ostream& print(std::ostream& out) const { return out << n; }
+	void print(std::ostream& out) const { out << n; }
 
 	Expr* copy(void) const { return new Number(n); }
 
 	bool operator==(const Expr* e) const
 	{
-		const Number	*in_num;
-
-		in_num = dynamic_cast<const Number*>(e);
+		const Number	*in_num = dynamic_cast<const Number*>(e);
 		if (in_num == NULL) return false;
 		return (n == in_num->getValue());
 	}
 
-	llvm::Value* codeGen() const;
+	llvm::Value* codeGen(void) const;
 	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
 private:
 	unsigned long n;
 };
 
 #include "binarithop.h"
-#include "cond_expr.h"
+#include "cond.h"
+
+/* not exposed to user.. placeholder for (cond_expr) ? a : b.. */
+class CondVal : public Expr
+{
+public:
+	CondVal(CondExpr* in_ce, Expr* in_e_t, Expr* in_e_f)
+	: ce(in_ce), e_t(in_e_t), e_f(in_e_f) {}
+
+	virtual ~CondVal();
+
+	void print(std::ostream& os) const
+	{
+		os	<< "(condval "; ce->print(os); os << "\n ";
+			e_t->print(os); os << "\n "; e_f->print(os); os << ")";
+	}
+
+	CondVal* copy(void) const;
+
+	bool operator==(const Expr* e) const
+	{
+		const CondVal*	cv = dynamic_cast<const CondVal*>(e);
+		if (cv == NULL) return false;
+		/* XXX need *ce == cv->ce, but condexpr doesn't have == !!!) */
+		return (*e_t == cv->e_t && *e_f == cv->e_f);
+	}
+
+	llvm::Value* codeGen(void) const;
+	virtual Expr* accept(ExprVisitor* ev) const { return ev->visit(this); }
+	const Expr* getTrue(void) const { return e_t; }
+	const Expr* getFalse(void) const { return e_f; }
+	const CondExpr* getCond(void) const { return ce; }
+private:
+	CondExpr	*ce;
+	Expr		*e_t, *e_f;
+};
 
 class CondOrExpr {
 public:
@@ -465,18 +498,14 @@ class ExprRewriteVisitor : public ExprVisitor
 public:
 	virtual Expr* applyReplace(Expr* &e)
 	{
-		Expr	*new_expr;
-
-		new_expr = apply(e);
+		Expr	*new_expr = apply(e);
 		delete e;
 		return new_expr;
 	}
 
 	virtual Expr* apply(const Expr* e)
 	{
-		Expr	*new_expr;
-
-		new_expr = e->accept(this);
+		Expr	*new_expr = e->accept(this);
 		if (new_expr == NULL) return e->simplify();
 		return new_expr;
 	}
@@ -488,6 +517,7 @@ public:
 	virtual Expr* visit(const BinArithOp* a) {return a->simplify();}
 	virtual Expr* visit(const IdStruct* a) {return a->simplify();}
 	virtual Expr* visit(const ExprParens* a) {return a->simplify();}
+	virtual Expr* visit(const CondVal* a) { return a->simplify(); }
 
 	virtual ~ExprRewriteVisitor() {}
 
@@ -547,11 +577,9 @@ public:
 		return new FCall(new Id(fc->getName()), new_el);
 	}
 
-
 	virtual Expr* visit(const IdArray* ida)
 	{
-		const Expr	*idx;
-		idx = ida->getIdx();
+		const Expr	*idx = ida->getIdx();
 		return new IdArray(new Id(ida->getName()), apply(idx));
 	}
 
@@ -559,9 +587,14 @@ public:
 	{
 		return new ExprParens(apply(epa->getExpr()));
 	}
+
+	virtual Expr* visit(const CondVal* cv)
+	{
+		return new CondVal(
+			cv->getCond()->copy(),
+			apply(cv->getTrue()),
+			apply(cv->getFalse()));
+	}
 };
-
-
-
 
 #endif

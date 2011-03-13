@@ -63,9 +63,7 @@ const SymbolTableEnt* SymbolTable::lookup(const std::string& name) const
 {
 	sym_map::const_iterator	it;
 
-	if (sm.count(name) == 0) {
-		return false;
-	}
+	if (sm.count(name) == 0) return false;
 
 	it = sm.find(name);
 	if (it == sm.end()) return false;
@@ -92,10 +90,8 @@ bool SymbolTable::add(
 {
 	SymbolTableEnt	*st_ent;
 
-	if (sm.count(name) != 0) {
-		/* exists */
-		return false;
-	}
+	/* exists? */
+	if (sm.count(name) != 0) return false;
 
 	/* all conditional bindings should be weak */
 	assert (!(weak_binding == false && cond_binding));
@@ -113,10 +109,7 @@ bool SymbolTable::add(
 	return true;
 }
 
-const Type* SymbolTable::getOwnerType(void) const
-{
-	return owner->getType();
-}
+const Type* SymbolTable::getOwnerType(void) const { return owner->getType(); }
 
 void SymbolTable::freeData(void)
 {
@@ -133,19 +126,12 @@ void SymbolTable::freeData(void)
 	}
 }
 
-const ThunkType* SymbolTable::getThunkType(void) const
-{
-	return owner->copy();
-}
-
-bool SymbolTableEnt::isUserType(void) const
-{
-	return (getType() != NULL);
-}
+const ThunkType* SymbolTable::getThunkType(void) const { return owner->copy(); }
+bool SymbolTableEnt::isUserType(void) const { return (getType() != NULL); }
 
 const Type* SymbolTableEnt::getType(void) const
 {
-	 return getFieldThunk()->getType();
+	return getFieldThunk()->getType();
 }
 
 const SymbolTable* symtabByName(const std::string& s)

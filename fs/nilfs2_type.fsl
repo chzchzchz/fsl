@@ -1,33 +1,35 @@
 type disk
+assert (? nilfs_sb_is_valid(get_current_sb())) as chk_sb
 {
 	skip_bytes(NILFS_SB_OFFSET_BYTES);
 	nilfs_sb	nsb;
 
 	/* no idea what would be here */
 
-	set_bytes(nsb.s_first_data_block * get_bsz(nsb));
+	set_bytes(get_segbase());
 
 	/* first segment does not take up entire segment */
-	nilfs_segment	segs[nsb.s_nsegments];
+	nilfs_segment	segs[get_numsegs()];
 
 	set_bytes(nilfs_sb2_offset_bytes(__FROM_OS_BDEV_BYTES));
 	nilfs_sb	nsb2;
 }
 
 type nilfs_segment
-assert(? seg_sum.ss_header.ss_magic == NILFS_SEGSUM_MAGIC)
-points(get_segment(block_to_segnum(seg_sum.ss_header.ss_next))) as p_nextseg
+assert (? seg_sum.ss_header.ss_magic == NILFS_SEGSUM_MAGIC) as chk_magic
+//points (get_segment(block_to_segnum(seg_sum.ss_header.ss_next))) as p_nextseg
 {
 	nilfs_segment_summary(this)	seg_sum;
-	/* XXX more needs to be done here */
-	nilfs_block			seg_blocks[seg_sum.ss_header.ss_nblocks-1] fixed;
+	nilfs_block			seg_blocks[
+		seg_sum.ss_header.ss_nblocks-
+		(seg_sum.ss_header.ss_sumbytes+get_bsz()-1)/get_bsz()] fixed nofollow;
 }
 
 type nilfs_segment_summary_header
-assert(? ss_magic == NILFS_SEGSUM_MAGIC)
+assert (? ss_magic == NILFS_SEGSUM_MAGIC) as chk_magic
 {
-	u32		ss_datasum;		/* checksum of data */
-	u32		ss_sumsum;		/* checksum of seg sum */
+	crc32_t		ss_datasum;		/* checksum of data */
+	crc32_t		ss_sumsum;		/* checksum of seg sum */
 	u32		ss_magic;		/* magic number */
 	u16		ss_bytes;		/* size of structure */
 	u16		ss_flags;		/* ... */
@@ -38,20 +40,38 @@ assert(? ss_magic == NILFS_SEGSUM_MAGIC)
 	u32		ss_nfinfo;		/* number of finfo entries */
 	u32		ss_sumbytes;		/* size of segment summary */
 	u32		ss_pad;			/* ... */
-	set_bytes(segsum_len(this));
+	set_bytes(ss_bytes);
 }
 
 type nilfs_segment_summary(nilfs_segment seg)
 {
 	nilfs_segment_summary_header	ss_header;
 	nilfs_finfo(seg, @)		ss_finfo[ss_header.ss_nfinfo];
-	align_bytes(get_bsz(disk.nsb));		/* takes up a block */
+	set_bytes(ss_header.ss_sumbytes);
+	align_bytes(get_bsz());		/* takes up a block on spill over */
 }
 
-type nilfs_block
+type nilfs_finfo(nilfs_segment seg, int idx)
+assert( ? fi_nblocks >= fi_ndatablk ) as chk_blocks
+//points_if( ? fi_ino >= NILFS_INO_ROOT, get_inode(fi_ino)) as p_ino
 {
-	u8	dat[get_bsz(get_valid_sb())];
+	inonum_t	fi_ino;			/* inode number */
+	u64 		fi_cno;			/* checkpoint number */
+	u32 		fi_nblocks;		/* number of blocks */
+	u32 		fi_ndatablk;		/* number of file data blocks */
+
+	if (fi_ino == NILFS_INO_DAT) {
+		u64		fi_dat_blkoff[fi_ndatablk]; /* blkoff */
+		nilfs_binfo_dat	fi_dat_node[fi_nblocks - fi_ndatablk];
+	} else {
+		/* file */
+		nilfs_binfo_v	fi_file_data[fi_ndatablk];
+		vblknum_t	fi_file_node[fi_nblocks - fi_ndatablk];
+	}
+	pad_phys_bytes(get_bsz(), 24);
 }
+
+type nilfs_block { u8	dat[get_bsz()]; }
 
 type nilfs_inode(inonum_t inum)
 virtual_if(
@@ -75,7 +95,7 @@ virtual_if(
 	u64  i_xattr;
 	u32  i_generation;
 	u32  i_pad;
-	set_bytes(get_valid_sb().s_inode_size);
+	set_bytes(get_inosz());
 }
 
 /* superroot */
@@ -90,7 +110,7 @@ type nilfs_sr {
 }
 
 type nilfs_sb
-assert(? s_magic == NILFS_SUPER_MAGIC)
+assert (? s_magic == NILFS_SUPER_MAGIC) as chk_magic
 {
 	u32	s_rev_level;		/* Revision level */
 	u16	s_minor_rev_level;	/* minor revision level */
@@ -101,7 +121,7 @@ assert(? s_magic == NILFS_SUPER_MAGIC)
 					 is excluded. */
 	u16	s_flags;		/* flags */
 	u32	s_crc_seed;		/* Seed value of CRC calculation */
-	u32	s_sum;			/* Check sum of super block */
+	crc32_t	s_sum;			/* Check sum of super block */
 
 	u32	s_log_block_size;	/* Block size represented as follows
 					 blocksize =
@@ -157,36 +177,16 @@ type nilfs_dir_entry {
 	u8		pad;
 }
 
-type nilfs_finfo(nilfs_segment seg, int idx)
-assert( ? fi_nblocks >= fi_ndatablk )
-points_range(
-	i, 1, fi_ndatablk,
-	seg.seg_blocks[get_finfo_blocks(seg, idx)+(i-1)]) as p_dat_blks
-//points_if( ? fi_ino >= NILFS_INO_ROOT, get_inode(fi_ino)) as p_ino
-{
-	inonum_t	fi_ino;			/* inode number */
-	u64 		fi_cno;			/* checkpoint number */
-	u32 		fi_nblocks;		/* number of blocks */
-	u32 		fi_ndatablk;		/* number of file data blocks */
-
-	if (fi_ino == NILFS_INO_DAT) {
-		u64		fi_dat_blkoff[fi_ndatablk]; /* blkoff */
-		nilfs_binfo_dat	fi_dat_node[fi_nblocks - fi_ndatablk] fixed;
-	} else {
-		/* file */
-		nilfs_binfo_v	fi_file_data[fi_ndatablk] fixed;
-		vblknum_t	fi_file_node[fi_nblocks - fi_ndatablk] fixed;
-	}
-}
-
 /* information for the block to which a virtual block number is assigned */
 type nilfs_binfo_v {
+	pad_phys_bytes(get_bsz(), 16);
 	vblknum_t	bi_vblocknr;		/* virtual block number */
 	blkoff_t	bi_blkoff;		/* block offset */
 }
 
 /* information for the block which belongs to the DAT file */
 type nilfs_binfo_dat {
+	pad_phys_bytes(get_bsz(), 16);
 	u64	bi_blkoff;	/* block offset */
 	u8	bi_level;
 	u8	bi_pad[7];
