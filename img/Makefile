@@ -1,13 +1,22 @@
-include Makefile.depth
-
-all: 	fill ext2.img vfat.img nilfs2.img testfs.img reiserfs.img \
-	ext2-small.img ext2-many.img vfat-many.img  reiserfs-many.img iso9660-many.img vfat-32-many.img \
+FSNAMES= ext2 xfs minix iso9660 reiserfs nilfs2 vfat
+all: 	fill mk_img mk_depth mk_many_img		\
+	ext2-small.img					\
 	reiserfs-many-blockfile.img			\
-	iso9660-depth.img ext2-depth.img vfat-depth.img reiserfs-depth.img \
-	vfat-postmark.img ext2-postmark.img reiserfs-postmark.img \
-	ext2-linux-4gb.img reiserfs-linux-4gb.img vfat-linux-4gb.img iso9660-linux-4gb.img	\
-	ext2-linux-1gb.img	\
-	minix,img
+	vfat-32-many.img				\
+	vfat-manymore.img				\
+	vfat-many-4097.img				\
+	postmark
+
+linux: 	ext2-linux-4gb.img reiserfs-linux-4gb.img vfat-linux-4gb.img iso9660-linux-4gb.img	\
+	ext2-linux-1gb.img
+
+TEST_EXTRA_MMAP=$(FSNAMES:%=tests-extra-mmap-%)
+tests-extra-mmap: $(TEST_EXTRA_MMAP)
+
+POSTMARKFS=ext2 xfs iso9660 reiserfs vfat
+postmark: $(POSTMARKFS:%=%-postmark.img)
+
+include Makefile.depth
 
 depth: $(DEPTH_IMGS)
 
@@ -16,6 +25,14 @@ fill: fill.c
 
 clean:
 	rm -f *.img fill
+
+MK_IMG_RULES=$(FSNAMES:%=%.img) testfs.img
+mk_img: $(MK_IMG_RULES)
+MK_MANY_RULES=$(FSNAMES:%=%-many.img)
+mk_many_img: $(MK_MANY_RULES)
+
+MK_DEPTH_RULES=$(FSNAMES:%=%-depth.img)
+mk_depth: $(MK_DEPTH_RULES)
 
 iso9660.img:
 	rm -rf tmp_iso9660
@@ -148,7 +165,6 @@ minix-depth.img:
 	yes | /sbin/mkfs.minix $@
 	./loopback_fs_setup.sh $@ minix && ./gen_depth.sh && ./loopback_fs_teardown.sh
 
-
 ext2-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.ext2 $@
@@ -201,6 +217,10 @@ vfat-postmark.img:
 	./gen_postmark.sh
 	./loopback_fs_teardown.sh
 
+nilfs2-depth.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
+	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
+	./loopback_fs_setup.sh $@ nilfs2 && ./gen_depth.sh && ./loopback_fs_teardown.sh
 
 nilfs2.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
