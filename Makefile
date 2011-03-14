@@ -68,9 +68,20 @@ TESTS_KERN=	tests-kern-ext2		\
 		tests-kern-vfat 	\
 		tests-kern-iso9660	\
 		tests-kern-reiserfs
+
+# KVM shutdown after run
+# should be ssh script??
 tests-kern: $(TESTS_KERN)
-tests-kern-%:
+	./util/qemu_shutdown.sh
+
+tests-kern-%: kvm-started
 	FSNAME=`echo $@ | cut -f3 -d'-'` tests/do_tests_kernel.sh
+
+kvm-kill:
+	killall -w qemu-system-x86_64
+
+kvm-started:
+	./util/run_qemu.sh &
 
 paper: paper-gen paper-tests paper-draw
 paper-gen: tests
