@@ -1,7 +1,9 @@
 FSNAMES= ext2 vfat iso9660 reiserfs xfs minix
 NUM_JOBS=6
 #LINUX_SRCDIR=/usr/src/linux/
-LINUX_SRCDIR=/home/chz/src/research/FSL_VM_LINUX/
+ifndef LINUX_SRCDIR
+	LINUX_SRCDIR:=/home/chz/src/research/FSL_VM_LINUX/
+endif
 MAKECMD=make -j$(NUM_JOBS)
 #CFLAGS=-O3 -DFSL_RELEASE -DNDEBUG -DFSL_LITTLE_ENDIAN
 OPT_FLAGS=-O3

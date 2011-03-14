@@ -8,7 +8,7 @@ if [ -z "$GEN_FILE_PATH" ]; then
 fi
 
 if [ -z "$MAX_FILE_BYTES" ]; then
-	MAX_FILE_SIZE=20000
+	MAX_FILE_BYTES=20000
 fi
 
 if [ -z "$MIN_FILE_BYTES" ]; then
