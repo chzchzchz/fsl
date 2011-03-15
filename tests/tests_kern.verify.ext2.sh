@@ -3,6 +3,8 @@
 TESTDIR=tests/kernel-ext2/
 SZ_AND_NAME="awk ' { print \$5 \" \" \$8; }'"
 
+echo "Kernel verify: ext2"
+
 chk_desc12=`cat $TESTDIR/ext2_grpdesc.test | eval "$SZ_AND_NAME" | grep '32 12'`
 lslah_fields=`cat $TESTDIR/ext2_ls_lah.test  | eval "$SZ_AND_NAME" | egrep '(blocks|grp_desc_table|root_ino|sb)'`
 chk_rootino=`cat $TESTDIR/ext2_rootino.test  | eval "$SZ_AND_NAME" | grep '128 0' `

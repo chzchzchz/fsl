@@ -14,12 +14,19 @@ if [ -z "$FSNAME" ]; then
 	exit 1
 fi
 
+ext2dev=`ls /sys/bus/scsi/devices/target*\:0\:2/*\:0\:2\:0/block/`
+vfatdev=`ls /sys/bus/scsi/devices/target*\:0\:3/*\:0\:3\:0/block/`
+iso9660dev=`ls /sys/bus/scsi/devices/target*\:0\:4/*\:0\:4\:0/block/`
+reiserfsdev=`ls /sys/bus/scsi/devices/target*\:0\:5/*\:0\:5\:0/block/`
+xfsdev=`ls /sys/bus/scsi/devices/target*\:0\:6/*\:0\:6\:0/block/`
+#dev=`ls /sys/bus/scsi/devices/target10\:0\:1/10\:0\:6\:0/block/`
+
 case $FSNAME in
-ext2)		DEVNAME=/dev/sdb 	;;
-vfat)		DEVNAME=/dev/sdc	;;
-iso9660)	DEVNAME=/dev/sdd	;;
-reiserfs)	DEVNAME=/dev/sde	;;
-xfs)		DEVNAME=/dev/sdf	;;
+ext2)		DEVNAME=/dev/$ext2dev 		;;
+vfat)		DEVNAME=/dev/$vfatdev		;;
+iso9660)	DEVNAME=/dev/$iso9660dev	;;
+reiserfs)	DEVNAME=/dev/$reiserfsdev	;;
+xfs)		DEVNAME=/dev/$xfsdev		;;
 *)
 		echo "WHICH DEV FOR $FSNAME??"
 		exit 100
