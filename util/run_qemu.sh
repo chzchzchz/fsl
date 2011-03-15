@@ -10,6 +10,12 @@ if [ -z $RAM_MB ]; then
 	RAM_MB=1024
 fi
 
+if [ -z "$GRAPHIC" ]; then
+	KVM_GRAPHICS="-nographic"
+else
+	KVM_GRAPHICS=" "
+fi
+
 TESTIMGS="ext2-postmark.img
 	vfat-postmark.img
 	iso9660-postmark.img
@@ -23,7 +29,7 @@ done
 
 #qemu-img convert -O qcow2 fsl-vm.img fsl-vm.img.qcow2
 kvm 										\
-	-nographic 								\
+	$KVM_GRAPHICS 								\
 	-usb -usbdevice mouse							\
 	-smp 4 -m $RAM_MB							\
 	-drive file=$VMIMG,if=ide,index=0,media=disk,boot=on			\
