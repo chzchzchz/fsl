@@ -106,6 +106,9 @@ tests-klee-%:
 tests-mmap:
 	TOOL_RT=mmap tests/do_all_tests.sh
 
+tests-misc:
+	tests/do_tests_misc.sh
+
 tests-linux-4gb: tests-linux-4gb-vfat tests-linux-4gb-ext2 tests-linux-4gb-reiserfs
 tests-linux-4gb-vfat:
 	FILESYSTEM=vfat USE_STATS="YES" tests/linux-4gb.sh

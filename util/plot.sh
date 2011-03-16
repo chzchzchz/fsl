@@ -137,6 +137,26 @@ tool_stat "iocache_hit" "${PLOTSDIR}/hits.dat"
 echo "Tool hit-miss..."
 stack_stat "iocache_miss iocache_hit" "Miss Hit" "${PLOTSDIR}/hit-miss.dat"
 
+echo "Scan comparison test..."
+echo "Filesystem	Native	FSL">${PLOTSDIR}/scan.dat
+for fs in $FSNAMES; do
+	if [ ! -f tests/misc/$fs-fsl.time ]; then
+		fsl_tots="-"
+		native_tots="-"
+	else
+		fsltime=`grep real tests/misc/$fs-fsl.time | cut -f2`
+		fslm=`echo $fsltime  | cut -f1 -d'm'`
+		fsls=`echo $fsltime  | cut -f2 -d'm' | cut -f1 -d's'`
+		nativetime=`grep real tests/misc/$fs-native.time | cut -f2`
+		nativem=`echo $nativetime  | cut -f1 -d'm'`
+		natives=`echo $nativetime  | cut -f2 -d'm' | cut -f1 -d's'`
+		fsl_tots=`bc <<< "$fslm * 60 + $fsls"`
+		native_tots=`bc <<< "$nativem*60 + $natives"`
+	fi
+	echo $fs $fsl_tots $native_tots
+done >>${PLOTSDIR}/scan.dat
+
+
 # MAKE FIGURES FOR PAPER
 echo "Make the figs..."
 gnuplot <util/plot/gnuplot/stack.gnu
