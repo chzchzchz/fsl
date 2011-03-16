@@ -1,5 +1,6 @@
 u64 assert_nonzero(u64 x) { if (x == 0) return fsl_fail(0); return x; }
 int blks_per_grp() { return assert_nonzero(disk.sb.s_blks_per_grp); }
+u32 get_ino_sz() { return disk.sb.s_inode_size; }
 int blknum_to_grp(blknum_t blknum) { return (blknum-1) / blks_per_grp(); }
 int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % blks_per_grp(); }
 
@@ -39,12 +40,10 @@ u32 indir_count(ext2_indir_block id)
 
 bool is_blk_avail(blknum_t blknum)
 {
-	int		grpnum;
-	int		bmpidx;
+	int		grpnum = blknum_to_grp(blknum);
+	int		bmpidx = blknum_to_bmpidx(blknum);
 	ext2_bmp_blk	bmpblk;
 
-	grpnum = blknum_to_grp(blknum);
-	bmpidx = blknum_to_bmpidx(blknum);
 	bmpblk = get_group_bmp(grpnum);
 	if (bmpblk.data[bmpidx] == 0) return true;
 	return false;
@@ -302,8 +301,8 @@ ext2_inode get_inode(uint ino_num_logical)
 	int	ino_num= ino_num_logical - 1;
 	int	grp_idx = ino_num / inos_per_grp();
 	int	ino_tab_idx = ino_num % inos_per_grp();
-	int	ino_tab_off = ino_tab_idx/(get_block_size()/EXT2_GOOD_OLD_INODE_SIZE);
-	int	ino_idx = ino_tab_idx % (get_block_size()/EXT2_GOOD_OLD_INODE_SIZE);
+	int	ino_tab_off = ino_tab_idx/(get_block_size()/get_ino_sz());
+	int	ino_idx = ino_tab_idx % (get_block_size()/get_ino_sz());
 	int	table_blk = disk.grp_desc_table[grp_idx].inode_table;
 	int	blk_num = (table_blk + ino_tab_off);
 	return disk.blocks[blk_num].ino_blk.ino[ino_idx];
@@ -335,7 +334,4 @@ u32 tri_count(ext2_triindir_block id)
 	return ret;
 }
 
-int bn2bmpidx(blknum_t bn)
-{
-	return bn + bit_add_offset();
-}
+int bn2bmpidx(blknum_t bn) { return bn + bit_add_offset(); }

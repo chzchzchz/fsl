@@ -21,7 +21,7 @@ fi
 function start_oprof
 {
 	if [ ! -z $USE_OPROF ]; then
-		sudo opcontrol --start --vmlinux=/usr/src/linux/vmlinux --event=CPU_CLK_UNHALTED:400000:0:1:1
+		sudo opcontrol --start --vmlinux=/usr/src/linux/vmlinux --event=CPU_CLK_UNHALTED:800000:0:1:1
 	fi
 }
 

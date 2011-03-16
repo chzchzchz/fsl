@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export FSL_BASE=`pwd`
-export FSNAMES="ext2 vfat reiserfs nilfs2 iso9660"
+export FSNAMES="iso9660 vfat ext2 reiserfs nilfs2"
 
 function get_display
 {

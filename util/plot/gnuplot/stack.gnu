@@ -15,3 +15,7 @@ set key off
 set ylabel 'Maximum Stack Use (bytes)' offset 1.5,0
 set bmargin 13
 plot 'plots/stack.dat' using 2:xtic(1) fs pattern 2
+
+set terminal png font "/usr/share/fonts/ttf-bitstream-vera/Vera.ttf"
+set output 'plots/stack.png'
+replot

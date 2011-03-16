@@ -14,3 +14,7 @@ set boxwidth 1
 set ylabel 'Time (Seconds)' offset 1.5,0
 set bmargin 10
 plot 'plots/scan.dat' using 2:xtic(1) ti col, '' u 3 ti col
+
+set terminal png font "/usr/share/fonts/ttf-bitstream-vera/Vera.ttf"
+set output 'plots/scan.png'
+plot 'plots/scan.dat' using 2:xtic(1) ti col, '' u 3 ti col

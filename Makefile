@@ -150,6 +150,7 @@ tests-extra-oprof-%:
 	TEST_CONFIG="EXTRA" USE_OPROF="YES" TEST_FS=`echo $@ | cut -f4 -d-`  tests/do_all_tests.sh
 
 tests-clean:
+	rm -f tests/misc/*
 	rm -f tests/scantool-*/*
 	rm -f tests/relocate-*/*
 	rm -f tests/defragtool-*/*

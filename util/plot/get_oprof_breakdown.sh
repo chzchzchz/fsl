@@ -1,7 +1,7 @@
 #!/bin/bash
 #!/bin/bash
 
-source "config.sh"
+source "util/plot/config.sh"
 
 function get_display
 {
@@ -19,18 +19,18 @@ function get_display
 function printstats
 {
 	if [ ! -e $fname ]; then
-		echo "COULD NOT GET $fname"
+#		echo "COULD NOT GET $fname"
 		return
 	fi
 	get_display
 
+	AWKSTR="BEGIN { x = 0 } { x += \$3 } END { print x }"
 	displayname=${displayname}-$tooltype
-	fslcodefrac=`grep types.s $fname | awk '{ x += $3; } END { print x }'`
-	virtfrac=`grep virt $fname | awk '{ x += $3; } END { print x }'`
-	iofrac=`egrep "(io.c|cache.c)" $fname | awk '{ x += $3; } END { print x }'`
-	typefrac=`egrep "(type_info.c|type_print.c)" $fname | awk '{ x += $3; } END { print x }'`
-	dynfrac=`egrep "(dyn.c|Dyn)" $fname | awk '{ x += $3; } END { print x }'`
-	typetotfrac=`bc -l <<< "$typefrac + $dynfrac"`
+	fslcodefrac=`grep types.s $fname | awk "$AWKSTR"`
+	virtfrac=`grep virt $fname | awk "$AWKSTR"`
+	iofrac=`egrep "(io.c|cache.c)" $fname | awk "$AWKSTR"`
+	typefrac=`egrep "(type_info.c|type_print.c)" $fname | awk "$AWKSTR"`
+	typetotfrac="$typefrac"
 	slopfrac=`bc -l <<< "100 - ($fslcodefrac + $virtfrac + $iofrac + $typetotfrac)"`
 	echo $displayname $iofrac $typetotfrac $virtfrac $fslcodefrac $slopfrac
 }
@@ -40,7 +40,7 @@ function header
 	echo Filesystem \"I/O Ops\" Types Xlate FS Other
 }
 
-header >oprof.dat
+header
 for fs in iso9660 vfat ext2 reiserfs; do
 	SUFFIX="-postmark.img.oprof"
 	tooltype=scan
@@ -68,4 +68,4 @@ for fs in iso9660 vfat ext2 reiserfs; do
 	fname=${FSL_BASE}/tests/smushtool-$fs/$fs$SUFFIX
 	printstats
 	echo "-"
-done >>oprof.dat
+done

@@ -1,4 +1,8 @@
 FSNAMES= ext2 xfs minix iso9660 reiserfs nilfs2 vfat
+ifndef LINUXTAR
+	LINUXTAR="/usr/src/linux-2.6.36.2.tar.bz2"
+endif
+
 all: 	fill mk_img mk_depth mk_many_img		\
 	ext2-small.img					\
 	reiserfs-many-blockfile.img			\
@@ -9,10 +13,6 @@ all: 	fill mk_img mk_depth mk_many_img		\
 
 linux: 	ext2-linux-4gb.img reiserfs-linux-4gb.img vfat-linux-4gb.img iso9660-linux-4gb.img	\
 	ext2-linux-1gb.img
-
-ifndef LINUX_TAR
-	LINUX_TAR:=/usr/src/linux-2.6.36.2.tar.bz2
-endif
 
 TEST_EXTRA_MMAP=$(FSNAMES:%=tests-extra-mmap-%)
 tests-extra-mmap: $(TEST_EXTRA_MMAP)
@@ -62,10 +62,10 @@ iso9660-linux-4gb.img:
 	rm -rf isolinuxtmp
 	mkdir isolinuxtmp
 	mkdir isolinuxtmp/{1,2,3,4}
-	tar jxvf  $(LINUX_TAR) -C isolinuxtmp/1
-	tar jxvf   -C isolinuxtmp/2
-	tar jxvf   -C isolinuxtmp/3
-	tar jxvf   -C isolinuxtmp/4
+	tar jxvf  $(LINUXTAR) -C isolinuxtmp/1
+	tar jxvf $(LINUXTAR)  -C isolinuxtmp/2
+	tar jxvf $(LINUXTAR)  -C isolinuxtmp/3
+	tar jxvf  $(LINUXTAR) -C isolinuxtmp/4
 	mkisofs -o iso9660-linux-4gb.img ./isolinuxtmp
 	rm -rf isolinuxtmp
 
@@ -78,19 +78,20 @@ ext2-linux-1gb.img:
 	yes | /sbin/mkfs.ext2 $@
 	./loopback_fs_setup.sh $@ ext2
 	mkdir /mnt/FSTEST/1
-	tar jxvf $(LINUX_TAR) -C /mnt/FSTEST/1
+	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/1
 	./loopback_fs_teardown.sh
 
 
 ext2-linux-4gb.img:
+	echo $(LINUXTAR)
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096
 	yes | /sbin/mkfs.ext2 $@
 	./loopback_fs_setup.sh $@ ext2
 	mkdir /mnt/FSTEST/{1,2,3,4}
-	tar jxvf $(LINUX_TAR) -C /mnt/FSTEST/1
-	tar jxvf $(LINUX_TAR) -C /mnt/FSTEST/2
-	tar jxvf $(LINUX_TAR) -C /mnt/FSTEST/3
-	tar jxvf $(LINUX_TAR) -C /mnt/FSTEST/4
+	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/1
+	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/2
+	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/3
+	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/4
 	./loopback_fs_teardown.sh
 
 reiserfs-linux-4gb.img:
@@ -98,10 +99,10 @@ reiserfs-linux-4gb.img:
 	yes | /sbin/mkfs.reiserfs -f $@
 	./loopback_fs_setup.sh $@ reiserfs
 	mkdir /mnt/FSTEST/{1,2,3,4}
-	tar jxvf $(LINUX_TAR) -C /mnt/FSTEST/1
-	tar jxvf $(LINUX_TAR) -C /mnt/FSTEST/2
-	tar jxvf $(LINUX_TAR) -C /mnt/FSTEST/3
-	tar jxvf $(LINUX_TAR) -C /mnt/FSTEST/4
+	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/1
+	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/2
+	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/3
+	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/4
 	./loopback_fs_teardown.sh
 
 # lack of perms and symlinks in vfat mean we need to untar to a unix fs first
@@ -111,7 +112,7 @@ vfat-linux-4gb.img:
 	./loopback_fs_setup.sh $@ vfat
 	rm -rf linuxtmp
 	mkdir linuxtmp
-	tar jxvf  $(LINUX_TAR) -C linuxtmp
+	tar jxvf  $(LINUXTAR) -C linuxtmp
 	mkdir /mnt/FSTEST/{1,2,3,4}
 	cp -f -r -L -u linuxtmp/* /mnt/FSTEST/1/; true
 	cp -f -r -L -u linuxtmp/* /mnt/FSTEST/2/; true
