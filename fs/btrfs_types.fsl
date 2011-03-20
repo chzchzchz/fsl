@@ -1,0 +1,412 @@
+type disk
+{
+	set_bytes(BTRFS_SUPER_INFO_OFFSET);
+	btrfs_super_block	sb;
+	//set_bytes(get_first_free_byte());
+	set_bytes(0);
+	btrfs_block		blocks[__FROM_OS_BDEV_BYTES/get_bsz()]
+		fixed nofollow;
+	set_bytes(0);
+	btrfs_node		leafs[__FROM_OS_BDEV_BYTES/get_bsz()]
+		fixed nofollow;
+}
+
+type btrfs_block { u8	dat[get_bsz()]; }
+
+type btrfs_header
+{
+	u8		csum[BTRFS_CSUM_SIZE];
+	u8		fsid[BTRFS_FSID_SIZE];	/* FS specific uuid */
+	bytenr_t	bytenr;			/* this byte number */
+	u64		flags;
+}
+
+/*
+ * the super block basically lists the main trees of the FS
+ * it currently lacks any block count etc etc
+ */
+type btrfs_super_block
+assert ( ? magic == BTRFS_MAGIC) as chk_magic
+assert ( ? dev_item.total_bytes <=  __FROM_OS_BDEV_BYTES) as chk_devsz
+assert ( ? sizeof_bytes(this) <= BTRFS_SUPER_INFO_SIZE) as chk_supersz
+points(disk.leafs[byte2blk(chunktree_xlate_offset(root))]) as root_tree
+points (get_chunktree()) as chunk_root_tree
+{
+	btrfs_header	hdr;
+
+	/* allowed to be different from the btrfs_header from here on down */
+	u64		magic;
+	u64		generation;
+	bytenr_t	root;
+	bytenr_t	chunk_root;
+	u64		log_root;
+
+	/* this will help find the new super based on the log root */
+	u64	log_root_transid;
+	u64	total_bytes;
+	u64	bytes_used;
+	objid_t	root_dir_objectid;
+	u64	num_devices;
+	u32	sectorsize;
+	u32	nodesize;
+	u32	leafsize;
+	u32	stripesize;
+	u32	sys_chunk_array_size;
+	u64	chunk_root_generation;
+	u64	compat_flags;
+	u64	compat_ro_flags;
+	u64	incompat_flags;
+	u16	csum_type;
+	u8	root_level;
+	u8	chunk_root_level;
+	u8	log_root_level;
+	btrfs_dev_item	dev_item;
+
+	u8	label[BTRFS_LABEL_SIZE];
+
+	/* future expansion */
+	u64 reserved[32];
+//	u8 sys_chunk_array[BTRFS_SYSTEM_CHUNK_ARRAY_SIZE];
+//	u8 sys_chunk_array[sys_chunk_array_size];
+	btrfs_chunk_item_key	sys_chunk_array[
+		sys_chunk_array_size/sizeof_bytes(btrfs_chunk_item_key)];
+
+	set_bytes(BTRFS_SUPER_INFO_SIZE);
+}
+
+type btrfs_chunk_item_key
+assert (? key.keytype == BTRFS_CHUNK_ITEM_KEY) as chk_type
+{
+	btrfs_disk_key	key;
+	btrfs_chunk_item	chunk;
+}
+
+/* every tree block (leaf or node) starts with this header. */
+type btrfs_tree_header {
+	/* these first four must match the super block */
+	btrfs_header	hdr;
+
+	/* allowed to be different from the super from here on down */
+	u8	chunk_tree_uuid[BTRFS_UUID_SIZE];
+	u64	generation;
+	objid_t	owner;
+	u32	nritems;
+	u8	level;
+}
+
+type btrfs_item_dat(btrfs_item_header item_hdr)
+points (item_hdr) as item_hdr
+{
+	if (item_hdr.key.keytype == BTRFS_CHUNK_ITEM_KEY) {
+		btrfs_chunk_item	chunk;
+	} else if (item_hdr.key.keytype == BTRFS_DEV_ITEM_KEY) {
+		btrfs_dev_item	dev_item;
+	} else if (item_hdr.key.keytype == BTRFS_INODE_REF_KEY) {
+		btrfs_inode_ref	ino_ref;
+	} else if (item_hdr.key.keytype == BTRFS_ROOT_ITEM_KEY) {
+		btrfs_root_item root_item;
+	} else if (item_hdr.key.keytype == BTRFS_BLOCK_GROUP_ITEM_KEY) {
+		btrfs_block_group_item	group_item;
+	} else if (item_hdr.key.keytype == BTRFS_EXTENT_ITEM_KEY) {
+		btrfs_extent_item	extent_item;
+	} else if (item_hdr.key.keytype == BTRFS_INODE_ITEM_KEY) {
+		btrfs_inode_item	inode_item;
+	} else if (item_hdr.key.keytype == BTRFS_DEV_EXTENT_KEY) {
+		btrfs_dev_extent	dev_extent;
+	} else if (item_hdr.key.keytype == BTRFS_DIR_ITEM_KEY) {
+		btrfs_dir_item		dir_item;
+	} else {
+		u8	dat[item_hdr.size];
+	}
+	set_bytes(item_hdr.size);
+}
+
+type btrfs_root_leaf
+{
+	btrfs_tree_header		hdr;
+	set_bytes(get_leafsz());
+}
+
+/*
+ * leaves have an item area and a data area:
+ * [item0, item1....itemN] [free space] [dataN...data1, data0]
+ *
+ * The data is separate from the items to get the keys closer together
+ * during searches.
+ */
+type btrfs_node
+assert (? hdr.nritems > 0) as chk_items
+assert (? sizeof_bytes(this) == get_leafsz()) as chk_sz
+{
+	btrfs_tree_header		hdr;
+	if (hdr.level == 0) {
+		btrfs_leaf(this)	leaf;
+	} else {
+		btrfs_internal(this)	internal;
+	}
+	set_bytes(get_leafsz());
+}
+
+type btrfs_leaf(btrfs_node n)
+assert (? n.hdr.level == 0) as chk_level
+{
+	btrfs_item_header		items[n.hdr.nritems] fixed;
+	set_bytes(items[n.hdr.nritems-1].offset); /* free space */
+	btrfs_item_dat(items[((n.hdr.nritems-1)-@)]) itemdat[n.hdr.nritems];
+}
+
+type btrfs_internal(btrfs_node n)
+assert (? n.hdr.level > 0) as chk_level
+{
+	btrfs_disk_key keys[n.hdr.nritems] fixed;
+}
+
+/*
+ * the key defines the order in the tree, and so it also defines (optimal)
+ * block layout.  objectid corresonds to the inode number.  The flags
+ * tells us things about the object, and is a kind of stream selector.
+ * so for a given inode, keys with flags of 1 might refer to the inode
+ * data, flags of 2 may point to file data in the btree and flags == 3
+ * may point to extents.
+ *
+ * offset is the starting byte offset for this key in the stream.
+ */
+type btrfs_disk_key {
+	objid_t		objectid;
+	keytype_t	keytype;
+	u64		offset;
+}
+
+/*
+ * A leaf is full of items. offset and size tell us where to find
+ * the item in the leaf (relative to the start of the data area)
+ */
+type btrfs_item_header {
+	btrfs_disk_key	key;
+	u32		offset;
+	u32		size;
+}
+
+type btrfs_stripe {
+	u64	devid;
+	u64	offset;
+	u8	dev_uuid[BTRFS_UUID_SIZE];
+}
+
+type btrfs_chunk_item
+assert ( ? sector_size == get_bsz()) as chk_sect_size
+points_range_cast(
+	i, 1, byte2blk(length),
+	get_chunk_nth_blk(this, i-1), btrfs_block) as chunk_data
+{
+	u64	length;	/* size of this chunk in bytes */
+	objid_t	owner;	/* objectid of the root referencing this chunk */
+	u64	stripe_len;
+	u64	chunktype;
+	u32	io_align;	/* optimal io alignment for this chunk */
+	u32	io_width;	/* optimal io width for this chunk */
+	u32	sector_size;	/* minimal io size for this chunk */
+	/* 2^16 stripes is quite a lot, a second limit is the size of a single
+	 * item in the btree  */
+	u16	num_stripes;
+	/* sub stripes only matter for raid10 */
+	u16		sub_stripes;
+	btrfs_stripe 	stripe[num_stripes] fixed;
+}
+
+type btrfs_extent_item {
+	u64	refs;
+	u64	generation;
+	u64	flags;
+}
+
+type btrfs_extent_item_v0 {
+	u32	refs;
+}
+
+type btrfs_tree_block_info
+{
+	btrfs_disk_key	key;
+	u8		level;
+}
+
+type btrfs_extent_data_ref {
+	u64	root;
+	objid_t	objectid;
+	u64	offset;
+	u32	count;
+}
+
+type btrfs_shared_data_ref { u32 count; }
+type btrfs_extent_inline_ref {
+	u8	exttype;
+	u64	offset;
+}
+
+type btrfs_extent_ref_v0 {
+	u64	root;
+	u64	generation;
+	objid_t objid;
+	u32	count;
+}
+
+/* dev extents record free space on individual devices.  The owner
+ * field points back to the chunk allocation mapping tree that allocated
+ * the extent.  The chunk tree uuid field is a way to double check the owner
+ */
+type btrfs_dev_extent {
+	u64	chunk_tree;
+	objid_t chunk_objid;
+	u64	chunk_offset;
+	u64	length;
+	u8	chunk_tree_uuid[BTRFS_UUID_SIZE];
+}
+
+type btrfs_inode_ref {
+	u64	index;
+	u16	name_len;
+	u8	name[name_len];
+}
+
+type btrfs_timespec {
+	u64 sec;
+	u32 nsec;
+}
+
+type btrfs_inode_item {
+	/* nfs style generation number */
+	u64		generation;
+	/* transid that last touched this inode */
+	u64		transid;
+	u64		size;
+	u64		nbytes;
+	u64		block_group;
+	u32		nlink;
+	u32		uid;
+	u32		gid;
+	u32		mode;
+	u64		rdev;
+	u64		flags;
+
+	/* modification sequence number for NFS */
+	u64		sequence;
+
+	/*
+	 * a little future expansion, for more than this we can
+	 * just grow the inode item and version it
+	 */
+	u64		reserved[4];
+	btrfs_timespec	atime;
+	btrfs_timespec	ctime;
+	btrfs_timespec	mtime;
+	btrfs_timespec	otime;
+}
+
+type btrfs_dir_log_item { u64 end; }
+type btrfs_dir_item
+
+{
+	btrfs_disk_key	location;
+	u64		transid;
+	u16		data_len;
+	u16		name_len;
+	u8		item_type;	/* XXX */
+	u8		name[name_len];
+}
+
+type btrfs_root_item
+points(disk.leafs[byte2blk(chunktree_xlate_offset(bytenr))]) as root_data
+{
+	btrfs_inode_item	inode;
+	u64			generation;
+	u64			root_dirid;
+	u64			bytenr;		/* ??? */
+	u64			byte_limit;
+	u64			bytes_used;
+	u64			last_snapshot;
+	u64			flags;
+	u32			refs;
+	btrfs_disk_key		drop_progress;
+	u8			drop_level;
+	u8			level;
+}
+
+/* this is used for both forward and backward root refs */
+type btrfs_root_ref {
+	u64 dirid;
+	u64 sequence;
+	u16 name_len;
+}
+
+type btrfs_file_extent_item {
+	u64	generation;	/* transaction id that created this extent */
+	/*
+	 * max number of bytes to hold this extent in ram
+	 * when we split a compressed extent we can't know how big
+	 * each of the resulting pieces will be.  So, this is
+	 * an upper limit on the size of the extent in ram instead of
+	 * an exact limit.
+	 */
+	u64	ram_bytes;
+
+	/*
+	 * 32 bits for the various ways we might encode the data,
+	 * including compression and encryption.  If any of these
+	 * are set to something a given disk format doesn't understand
+	 * it is treated like an incompat flag for reading and writing,
+	 * but not for stat.
+	 */
+	u8	compression;
+	u8	encryption;
+	u16	other_encoding; /* spare for later use */
+
+	/* are we inline data or a real extent? */
+	u8	exttype;
+
+	/*
+	 * disk space consumed by the extent, checksum blocks are included
+	 * in these numbers
+	 */
+	u64	disk_bytenr;
+	u64	disk_num_bytes;
+	/*
+	 * the logical offset in file blocks (no csums)
+	 * this extent record is for.  This allows a file extent to point
+	 * into the middle of an existing extent on disk, sharing it
+	 * between two snapshots (useful if some bytes in the middle of the
+	 * extent have changed
+	 */
+	u64 offset;
+	u64 num_bytes; /* logical number of file blocks (no csums included) */
+
+}
+
+type btrfs_csum_item { u8 csum; }
+
+type btrfs_block_group_item {
+	u64 used;
+	u64 chunk_objectid;
+	u64 flags;
+}
+
+type btrfs_dev_item {
+	u64	devid;		/* the internal btrfs device id */
+	u64	total_bytes;	/* size of the device */
+	u64	bytes_used;	/* bytes used */
+	u32	io_align;	/* optimal io alignment for this device */
+	u32	io_width;	/* optimal io width for this device */
+	u32	sector_size;	/* minimal io size for this device */
+	u64	devtype;	/* type and info about this device */
+	u64	generation;	/* expected generation for this device */
+
+	/* starting byte of this partition on the device,
+	 * to allowr for stripe alignment in the future */
+	u64	start_offset;
+
+	/* grouping information for allocation decisions */
+	u32	dev_group;
+	u8	seek_speed;	/* seek speed 0-100 where 100 is fastest */
+	u8	bandwidth;	/* bandwidth 0-100 where 100 is fastest */
+	u8	uuid[BTRFS_UUID_SIZE]; /* btrfs generated uuid for this device */
+	u8	fsid[BTRFS_UUID_SIZE]; /* uuid of FS who owns this device */
+}

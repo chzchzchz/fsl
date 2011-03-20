@@ -2,7 +2,7 @@
 # build
 
 src_root=`pwd`
-FILESYSTEMS="ext2 vfat nilfs2 testfs iso9660 reiserfs xfs minix"
+FILESYSTEMS="ext2 vfat nilfs2 testfs iso9660 reiserfs xfs minix btrfs"
 
 echo "Tests.."
 

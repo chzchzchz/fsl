@@ -1,0 +1,116 @@
+/* WHY NOT HAVE BTRFS??? WHY NOT GET FUCKED, USENIX */
+const __FSL_FSNAME = btrfs;
+
+typedef bytenr_t = u64;
+typedef blknum_t = u64;
+typedef physoff_t = u64;
+
+const BTRFS_SYSTEM_CHUNK_ARRAY_SIZE	= 2048;
+const BTRFS_LABEL_SIZE			= 256;
+const BTRFS_UUID_SIZE			= 16;
+const BTRFS_CSUM_SIZE			= 32;
+const BTRFS_FSID_SIZE			= 16;
+
+const BTRFS_ROOT_TREE_OBJID		= 1;
+const BTRFS_EXTENT_TREE_OBJID		= 2;
+const BTRFS_CHUNK_TREE_OBJID		= 3;
+const BTRFS_DEV_TREE_OBJID		= 4;
+const BTRFS_FS_TREE_OBJID		= 5;
+const BTRFS_ROOT_TREE_DIR_OBJECTID	= 6; /* dir objid inside root tree */
+const BTRFS_CSUM_TREE_OBJECTID		= 7; /* csums of all data exts */
+const BTRFS_FIRST_FREE_OBJECTID		= 256;
+/* oprhan objid for tracking unlinked/trunc files */
+const BTRFS_ORPHAN_OBJECTID		= 0-5;
+/* does write ahead logging to speed up fsyncs */
+const BTRFS_TREE_LOG_OBJECTID		= 0-6;
+const BTRFS_TREE_LOG_FIXUP_OBJECTID	= 0-7;
+/* space balancing */
+const BTRFS_TREE_RELOC_OBJECTID		= 0-8;
+const BTRFS_DATA_RELOC_TREE_OBJECTID	= 0-9;
+const BTRFS_MAGIC			= 0x4d5f53665248425f; /* _BHRfs_M */
+
+enum keytype_t= {
+BTRFS_INODE_ITEM_KEY	= 1,
+BTRFS_INODE_REF_KEY	= 12,
+BTRFS_XATTR_ITEM_KEY	= 24,
+BTRFS_ORPHAN_ITEM_KEY	= 48,
+
+BTRFS_DIR_LOG_ITEM_KEY	= 60,
+BTRFS_DIR_LOG_INDEX_KEY	= 72,
+/* dir items are the name -> inode pointers in a directory.  There is one
+ * for every name in a directory. */
+BTRFS_DIR_ITEM_KEY	= 84,
+BTRFS_DIR_INDEX_KEY	= 96,
+
+/* extent data is for file data */
+BTRFS_EXTENT_DATA_KEY	= 108,
+
+/* csum items have the checksums for data in the extents */
+BTRFS_CSUM_ITEM_KEY	= 120,
+/* extent csums are stored in a separate tree and hold csums for
+ * an entire extent on disk. */
+BTRFS_EXTENT_CSUM_KEY	= 128,
+
+/* root items point to tree roots.  There are typically in the root
+ * tree used by the super block to find all the other trees */
+BTRFS_ROOT_ITEM_KEY	= 132,
+
+/* root backrefs tie subvols and snapshots to the directory entries that
+ * reference them */
+BTRFS_ROOT_BACKREF_KEY	= 144,
+
+/* root refs make a fast index for listing all of the snapshots and
+ * subvolumes referenced by a given root.  They point directly to the
+ * directory item in the root that references the subvol */
+BTRFS_ROOT_REF_KEY	= 156,
+
+/* extent items are in the extent map tree.  These record which blocks
+ * are used, and how many references there are to each block */
+BTRFS_EXTENT_ITEM_KEY		= 168,
+BTRFS_TREE_BLOCK_REF_KEY	= 176,
+BTRFS_EXTENT_DATA_REF_KEY	= 178,
+
+/* old style extent backrefs */
+BTRFS_EXTENT_REF_V0_KEY		= 180,
+BTRFS_SHARED_BLOCK_REF_KEY	= 182,
+BTRFS_SHARED_DATA_REF_KEY	= 184,
+
+/* block groups give us hints into the extent allocation trees.  Which
+ * blocks are free etc etc */
+BTRFS_BLOCK_GROUP_ITEM_KEY= 192,
+BTRFS_DEV_EXTENT_KEY	= 204,
+BTRFS_DEV_ITEM_KEY	= 216,
+BTRFS_CHUNK_ITEM_KEY	= 228,
+
+/* string items are for debugging.  They just store a short string of
+ * data in the FS */
+BTRFS_STRING_ITEM_KEY	= 253
+} u8;
+
+
+/*
+ * extent checksums all have this objectid
+ * this allows them to share the logging tree
+ * for fsyncs
+ */
+const BTRFS_EXTENT_CSUM_OBJECTID	= 0-10;
+/* dummy objectid represents multiple objectids */
+const BTRFS_MULTIPLE_OBJECTIDS		= 0-255;
+/* All files have objectids in this range. */
+const BTRFS_FIRST_FREE_OBJECTID		= 256;
+const BTRFS_LAST_FREE_OBJECTID		= 0-256;
+const BTRFS_FIRST_CHUNK_TREE_OBJECTID	= 256;
+
+const BTRFS_SUPER_INFO_OFFSET = (64 * 1024);
+const BTRFS_SUPER_INFO_SIZE = 4096;
+
+/*
+ * the device items go into the chunk tree.  The key is in the form
+ * [ 1 BTRFS_DEV_ITEM_KEY device_id ]
+ */
+const BTRFS_DEV_ITEMS_OBJECTID		= 1;
+typedef objid_t				 = u64;
+
+include "assert.fsl"
+include "btrfs_funcs.fsl"
+include "btrfs_types.fsl"

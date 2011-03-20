@@ -1,0 +1,5 @@
+u64 assert_nonzero(u64 x) { if (x == 0) return fsl_fail(0); return x; }
+u64 assert_eq(u64 x, u64 y) { if (x == y) return y; return fsl_fail(1); }
+u64 assert_le(u64 x, u64 y) { if (x <= y) return x; return fsl_fail(2); }
+u64 assert_lt(u64 x, u64 y) { if (x < y) return x; return fsl_fail(3); }
+u64 assert_gt(u64 x, u64 y) { if (x > y) return x; return fsl_fail(4); }

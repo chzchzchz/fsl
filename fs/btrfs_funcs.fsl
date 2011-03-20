@@ -1,0 +1,76 @@
+u32 get_bsz() { return assert_nonzero(disk.sb.sectorsize); }
+u32 get_nodesz() { return assert_nonzero(disk.sb.nodesize); }
+u32 get_leafsz() { return assert_nonzero(disk.sb.leafsize); }
+
+btrfs_node get_chunktree() { return disk.leafs[byte2blk(disk.sb.chunk_root)]; }
+
+u64 get_first_free_byte()
+{
+	u64 first_free = BTRFS_SUPER_INFO_OFFSET + get_bsz()*2 - 1;
+	first_free = first_free & ~(get_bsz()-1);
+	return first_free;
+}
+
+blknum_t byte2blk(bytenr_t b) { return b / get_bsz(); }
+
+btrfs_block get_chunk_nth_bytenr(btrfs_chunk_item chunk, bytenr_t bn)
+{
+	return get_chunk_nth_blk(chunk, bn/get_bsz());
+}
+
+btrfs_block get_chunk_nth_blk(btrfs_chunk_item chunk, blknum_t bn)
+{
+	u64	blk_per_stripe = chunk.stripe_len / get_bsz();
+	u64	stripe_num = bn / blk_per_stripe;
+	blknum_t stripe_idx = bn % blk_per_stripe;
+	bytenr_t stripe_bytenr = chunk.stripe[stripe_num].offset;
+	blknum_t out_bn = byte2blk(stripe_bytenr)+stripe_idx;
+	return disk.blocks[out_bn];
+}
+
+btrfs_disk_key get_leaf_key_nth(btrfs_node l, u32 n)
+{
+	u32	nritems = assert_gt(l.hdr.nritems, n);
+	u32	level = assert_eq(l.hdr.level, 0);
+
+	/* 0th points to last itemdat (by joining on offsets) */
+	return l.leaf.items[n].key;
+}
+
+btrfs_item_dat get_leaf_dat_nth(btrfs_node l, u32 n)
+{
+	u32		nritems = assert_gt(l.hdr.nritems, n);
+	u32		level = assert_eq(l.hdr.level, 0);
+
+	/* 0th = last itemdat to match key */
+	return  l.leaf.itemdat[nritems-(n+1)];
+}
+
+/* translate offset into physical offset */
+/* TODO: change to binary search */
+physoff_t chunktree_xlate_offset(bytenr_t off)
+{
+	btrfs_node	l = get_chunktree();
+	u32		i = 0;
+	u32		itemnr = l.hdr.nritems;
+	u32		level = assert_eq(l.hdr.level, 0);
+
+	/* scan all elements in leaf for what we want */
+	while (i < itemnr) {
+		btrfs_disk_key	k = get_leaf_key_nth(l, i);
+		u64		k_off = k.offset;
+		if (k_off < off && k.keytype == BTRFS_CHUNK_ITEM_KEY) {
+			/* possible offset match! */
+			btrfs_item_dat		itd = get_leaf_dat_nth(l, i);
+			btrfs_chunk_item	chunk = itd.chunk;
+			u64			chunk_len = chunk.length;
+			if ((k_off + chunk_len) > off) {
+				/* XXX need better way to handle devices */
+				return (off-k_off)+chunk.stripe[0].offset;
+			}
+		}
+		i += 1;
+	}
+
+	return 0;
+}

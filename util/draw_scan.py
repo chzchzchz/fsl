@@ -3,6 +3,7 @@ import os
 import sys
 import Image
 import ImageColor
+import colorsys
 
 #Usage:
 # ./draw_scan.py scan_data disk_size img.png [dimx dimy]
@@ -10,7 +11,34 @@ import ImageColor
 color_cache = dict()
 colors = [	"orange", 'white', "red", "green", "blue",
 		"gray", "yellow", "purple", 'magenta', 'lime',
-		'teal', 'aqua', 'navy', 'olive']
+		'teal', 'aqua', 'navy', 'olive', 'maroon',
+		'fuschia', 'silver' ]
+
+def getColor(type_name):
+	global color_cache
+	global color_idx
+	global total_colors
+	if type_name not in color_cache:
+		if total_colors < len(colors):
+			color_cache[type_name] = ImageColor.getrgb(colors[color_idx])
+			color_idx = color_idx + 1
+		else:
+			rgb = colorsys.hls_to_rgb(float(color_idx)/total_colors,0.5,1.0)
+			rgb = (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255))
+			color_cache[type_name] = rgb
+			color_idx = color_idx + 1
+
+	return color_cache[type_name]
+
+def countTypes(fname):
+	typename_cache = dict()
+	f = open(sys.argv[ARG_IDX_DISKMAP], 'r')
+	for l in f.readlines():
+		e = eval(l)
+		typename_cache[e['name']] = 1
+	f.close()
+	return len(typename_cache)
+
 color_idx = 0
 ARG_IDX_DISKMAP = 1
 ARG_IDX_DISKSZ = 2
@@ -34,19 +62,13 @@ im = Image.new("RGB", out_size, ImageColor.getrgb('black'))
 
 print "BPP:" + str(bytes_per_pixel)
 
+total_colors = countTypes(sys.argv[ARG_IDX_DISKMAP])
+
 ents=list()
 f = open(sys.argv[ARG_IDX_DISKMAP], 'r')
 for l in f.readlines():
 	ents.append(eval(l))
 f.close()
-
-def getColor(type_name):
-	global color_cache
-	global color_idx
-	if type_name not in color_cache:
-		color_cache[type_name] = colors[color_idx]
-		color_idx = color_idx + 1
-	return color_cache[type_name]
 
 
 for e in ents:
@@ -64,11 +86,11 @@ for e in ents:
 		pixel_off=px_base+i
 		x = pixel_off % pixels_w
 		y = pixel_off / pixels_w
-		im.putpixel((x,y), ImageColor.getrgb(color))
+		im.putpixel((x,y), color)
 
 #	print str(poff_bytes)+" bytes/ ("+str(poff_bits)+")@num pixels: " + str(pixel_c)
 
 im.save(sys.argv[ARG_IDX_OUTIMG])
 
 for k in color_cache.keys():
-	print k +" : "+ color_cache[k]
+	print k +" : "+ str(color_cache[k])

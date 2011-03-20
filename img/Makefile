@@ -1,4 +1,4 @@
-FSNAMES= ext2 xfs minix iso9660 reiserfs nilfs2 vfat
+FSNAMES= ext2 xfs minix iso9660 reiserfs nilfs2 vfat btrfs
 ifndef LINUXTAR
 	LINUXTAR="/usr/src/linux-2.6.36.2.tar.bz2"
 endif
@@ -139,6 +139,15 @@ minix-many.img:
 	./gen_files.sh 100
 	./loopback_fs_teardown.sh
 
+btrfs-empty.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
+	/sbin/mkfs.btrfs $@
+
+btrfs.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
+	/sbin/mkfs.btrfs $@
+	./loopback_fs_setup.sh $@ btrfs  && ./gen_files.sh  && ./loopback_fs_teardown.sh
+
 ext2.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.ext2 $@
@@ -157,6 +166,16 @@ ext2-many.img:
 	./loopback_fs_setup.sh ext2-many.img ext2
 	./gen_files.sh 100
 	./loopback_fs_teardown.sh
+
+btrfs-postmark.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
+	/sbin/mkfs.btrfs $@
+	./loopback_fs_setup.sh $@ btrfs && ./gen_postmark.sh &&	./loopback_fs_teardown.sh
+
+btrfs-many.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
+	/sbin/mkfs.btrfs $@
+	./loopback_fs_setup.sh $@ btrfs && ./gen_files.sh 100 && ./loopback_fs_teardown.sh
 
 ext2-postmark.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
@@ -222,6 +241,11 @@ vfat-postmark.img:
 	./loopback_fs_setup.sh vfat-postmark.img vfat
 	./gen_postmark.sh
 	./loopback_fs_teardown.sh
+
+btrfs-depth.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
+	/sbin/mkfs.btrfs $@
+	./loopback_fs_setup.sh $@ btrfs && ./gen_depth.sh && ./loopback_fs_teardown.sh
 
 nilfs2-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256

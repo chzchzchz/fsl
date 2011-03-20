@@ -256,10 +256,8 @@ static void load_enums(const GlobalBlock* gb)
 
 			ent = *eit;
 			ent_num = ent->getNumber();
-			if (ent_num == NULL)
-				num = new Number(n);
-			else
-				num = ent_num->copy();
+			if (ent_num == NULL)	num = new Number(n);
+			else			num = ent_num->copy();
 
 			constants[ent->getName()] = num;
 			n++;

@@ -99,7 +99,7 @@ public:
 		if (num != NULL) delete num;
 	}
 
-	const Number* getNumber(void) const { return NULL; }
+	const Number* getNumber(void) const { return num; }
 	const std::string& getName(void) const
 	{
 		assert (id != NULL);
