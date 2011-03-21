@@ -122,6 +122,12 @@ tests-extra-mmap: $(TEST_EXTRA_MMAP)
 tests-extra-mmap-%:
 	TOOL_RT=mmap TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS=`echo $@ | cut -f4 -d-`  tests/do_all_tests.sh
 
+TEST_EXTRA=$(FSNAMES:%=tests-extra-draw-%)
+tests-extra-draw: $(TEST_EXTRA)
+tests-extra-draw-%:
+	TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS=`echo $@ | cut -f4 -d-` tests/do_all_tests.sh
+	./util/draw.`echo $@ | cut -f4 -d-`.sh
+
 TEST_EXTRA=$(FSNAMES:%=tests-extra-std-%)
 tests-extra: tests-extra-std
 tests-extra-std: $(TEST_EXTRA)
