@@ -2,7 +2,7 @@
 
 source util/draw.fs.sh
 
-BTRFS_REGEX="btrfs_[^b]"
+BTRFS_REGEX="btrfs_"
 
 function draw_scan_btrfs
 {

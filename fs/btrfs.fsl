@@ -1,9 +1,10 @@
 /* WHY NOT HAVE BTRFS??? WHY NOT GET FUCKED, USENIX */
 const __FSL_FSNAME = btrfs;
 
-typedef bytenr_t = u64;
-typedef blknum_t = u64;
-typedef physoff_t = u64;
+typedef bytenr_t	= u64;
+typedef blknum_t	= u64;
+typedef physoff_t	= u64;
+typedef objid_t		= u64;
 
 const BTRFS_SYSTEM_CHUNK_ARRAY_SIZE	= 2048;
 const BTRFS_LABEL_SIZE			= 256;
@@ -11,6 +12,7 @@ const BTRFS_UUID_SIZE			= 16;
 const BTRFS_CSUM_SIZE			= 32;
 const BTRFS_FSID_SIZE			= 16;
 
+const BTRFS_DEV_ITEMS_OBJECTID		= 1;
 const BTRFS_ROOT_TREE_OBJID		= 1;
 const BTRFS_EXTENT_TREE_OBJID		= 2;
 const BTRFS_CHUNK_TREE_OBJID		= 3;
@@ -28,6 +30,11 @@ const BTRFS_TREE_LOG_FIXUP_OBJECTID	= 0-7;
 const BTRFS_TREE_RELOC_OBJECTID		= 0-8;
 const BTRFS_DATA_RELOC_TREE_OBJECTID	= 0-9;
 const BTRFS_MAGIC			= 0x4d5f53665248425f; /* _BHRfs_M */
+
+enum exttype_t = {
+BTRFS_FILE_EXTENT_INLINE	= 0,
+BTRFS_FILE_EXTENT_REG		= 1,
+BTRFS_FILE_EXTENT_PREALLOC	= 2 } u8;
 
 enum keytype_t= {
 BTRFS_INODE_ITEM_KEY	= 1,
@@ -108,8 +115,6 @@ const BTRFS_SUPER_INFO_SIZE = 4096;
  * the device items go into the chunk tree.  The key is in the form
  * [ 1 BTRFS_DEV_ITEM_KEY device_id ]
  */
-const BTRFS_DEV_ITEMS_OBJECTID		= 1;
-typedef objid_t				 = u64;
 
 include "assert.fsl"
 include "btrfs_funcs.fsl"

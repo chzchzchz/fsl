@@ -8,7 +8,7 @@ source `pwd`/tests/fs_common.sh
 echo Testing fusebrowse-btrfs
 fs_fuse_cmd_img btrfs btrfs-empty.img "ls -la sb/root_tree/0/leaf/itemdat/3" "inoref"
 fs_fuse_cmd_img btrfs btrfs-empty.img "ls -la sb/root_tree/0/leaf/itemdat/2" "diritem"
-fs_fuse_cmd_img btrfs btrfs-empty.img "cat sb/root_tree/0/leaf/itemdat/2/dir_item/name" "dirname"
+fs_fuse_cmd_img btrfs btrfs-empty.img "cat sb/root_tree/0/leaf/itemdat/2/dir_item/dir_name/name" "dirname"
 fs_fuse_cmd_img btrfs btrfs.img "od -td sb/root_tree/0/leaf/itemdat/5/root_item/root_data/hdr/level" "rootlevel1"
 
 c_inoref=`cat $TESTBASE/btrfs-empty.img-inoref.out | awk '{ print $5 " " $9; }'`

@@ -29,7 +29,7 @@ type btrfs_super_block
 assert ( ? magic == BTRFS_MAGIC) as chk_magic
 assert ( ? dev_item.total_bytes <=  __FROM_OS_BDEV_BYTES) as chk_devsz
 assert ( ? sizeof_bytes(this) <= BTRFS_SUPER_INFO_SIZE) as chk_supersz
-points(disk.leafs[byte2blk(chunktree_xlate_offset(root))]) as root_tree
+points(disk.leafs[chunktree_xlate_off2blknum(root)]) as root_tree
 points (get_chunktree()) as chunk_root_tree
 {
 	btrfs_header	hdr;
@@ -110,13 +110,15 @@ points (item_hdr) as item_hdr
 	} else if (item_hdr.key.keytype == BTRFS_EXTENT_ITEM_KEY) {
 		btrfs_extent_item	extent_item;
 	} else if (item_hdr.key.keytype == BTRFS_INODE_ITEM_KEY) {
-		btrfs_inode_item	inode_item;
+		btrfs_inode_item(item_hdr.key.objectid)	inode_item;
 	} else if (item_hdr.key.keytype == BTRFS_DEV_EXTENT_KEY) {
 		btrfs_dev_extent	dev_extent;
 	} else if (item_hdr.key.keytype == BTRFS_DIR_ITEM_KEY) {
 		btrfs_dir_item		dir_item;
+	} else if (item_hdr.key.keytype == BTRFS_EXTENT_DATA_KEY) {
+		btrfs_file_extent_item	extent_data;
 	} else {
-		u8	dat[item_hdr.size];
+		u8	dat_unk[item_hdr.size];
 	}
 	set_bytes(item_hdr.size);
 }
@@ -158,7 +160,7 @@ assert (? n.hdr.level == 0) as chk_level
 type btrfs_internal(btrfs_node n)
 assert (? n.hdr.level > 0) as chk_level
 {
-	btrfs_disk_key keys[n.hdr.nritems] fixed;
+	btrfs_key_ptr keys[n.hdr.nritems] fixed;
 }
 
 /*
@@ -187,6 +189,15 @@ type btrfs_item_header {
 	u32		size;
 }
 
+/* used in internal nodes of b+tree */
+type btrfs_key_ptr
+points(disk.leafs[chunktree_xlate_off2blknum(blockptr)]) as child
+{
+	btrfs_disk_key	key;
+	u64		blockptr;
+	u64		generation;
+}
+
 type btrfs_stripe {
 	u64	devid;
 	u64	offset;
@@ -195,9 +206,6 @@ type btrfs_stripe {
 
 type btrfs_chunk_item
 assert ( ? sector_size == get_bsz()) as chk_sect_size
-points_range_cast(
-	i, 1, byte2blk(length),
-	get_chunk_nth_blk(this, i-1), btrfs_block) as chunk_data
 {
 	u64	length;	/* size of this chunk in bytes */
 	objid_t	owner;	/* objectid of the root referencing this chunk */
@@ -262,10 +270,14 @@ type btrfs_dev_extent {
 	u8	chunk_tree_uuid[BTRFS_UUID_SIZE];
 }
 
-type btrfs_inode_ref {
-	u64	index;
-	u16	name_len;
-	u8	name[name_len];
+type btrfs_fname(u16 len) { u8 name[len]; }
+
+type btrfs_inode_ref
+points (ino_name) as name
+{
+	u64			index;
+	u16			name_len;
+	btrfs_fname(name_len)	ino_name;
 }
 
 type btrfs_timespec {
@@ -273,11 +285,10 @@ type btrfs_timespec {
 	u32 nsec;
 }
 
-type btrfs_inode_item {
-	/* nfs style generation number */
-	u64		generation;
-	/* transid that last touched this inode */
-	u64		transid;
+type btrfs_inode_item(objid_t objid)
+{
+	u64		generation; /* nfs style generation number */
+	u64		transid; /* transid that last touched this inode */
 	u64		size;
 	u64		nbytes;
 	u64		block_group;
@@ -287,14 +298,10 @@ type btrfs_inode_item {
 	u32		mode;
 	u64		rdev;
 	u64		flags;
+	u64		sequence; /* modification sequence number for NFS */
 
-	/* modification sequence number for NFS */
-	u64		sequence;
-
-	/*
-	 * a little future expansion, for more than this we can
-	 * just grow the inode item and version it
-	 */
+	/* a little future expansion, for more than this we can
+	 * just grow the inode item and version it */
 	u64		reserved[4];
 	btrfs_timespec	atime;
 	btrfs_timespec	ctime;
@@ -304,22 +311,24 @@ type btrfs_inode_item {
 
 type btrfs_dir_log_item { u64 end; }
 type btrfs_dir_item
+points(dir_name) as name
 
 {
-	btrfs_disk_key	location;
-	u64		transid;
-	u16		data_len;
-	u16		name_len;
-	u8		item_type;	/* XXX */
-	u8		name[name_len];
+	btrfs_disk_key			location;
+	u64				transid;
+	u16				data_len;
+	u16				name_len;
+	u8				item_type;	/* XXX */
+	btrfs_fname(name_len)	dir_name;
 }
 
 type btrfs_root_item
-points(disk.leafs[byte2blk(chunktree_xlate_offset(bytenr))]) as root_data
+points(disk.leafs[chunktree_xlate_off2blknum(bytenr)]) as root_data
+points(disk.blocks[chunktree_xlate_off2blknum(bytenr)]) as root_data_blk
 {
-	btrfs_inode_item	inode;
+	btrfs_inode_item(0)	inode;		/* XXX, need to pull root_dirid */
 	u64			generation;
-	u64			root_dirid;
+	objid_t			root_dirid;
 	u64			bytenr;		/* ??? */
 	u64			byte_limit;
 	u64			bytes_used;
@@ -338,47 +347,50 @@ type btrfs_root_ref {
 	u16 name_len;
 }
 
-type btrfs_file_extent_item {
+u64 btrfs_fext_diskblks(btrfs_file_extent_item fe)
+{
+	if (fe.exttype != BTRFS_FILE_EXTENT_REG) return 0;
+	return byte2blk(fe.disk_num_bytes);
+}
+
+type btrfs_file_extent_item
+points_range(
+	i, 1, btrfs_fext_diskblks(this),
+	disk.blocks[chunktree_xlate_off2blknum(disk_bytenr+(i-1)*get_bsz())])
+	as ext_disk_blocks
+{
 	u64	generation;	/* transaction id that created this extent */
-	/*
-	 * max number of bytes to hold this extent in ram
+
+	/* max number of bytes to hold this extent in ram
 	 * when we split a compressed extent we can't know how big
 	 * each of the resulting pieces will be.  So, this is
 	 * an upper limit on the size of the extent in ram instead of
-	 * an exact limit.
-	 */
+	 * an exact limit. */
 	u64	ram_bytes;
 
-	/*
-	 * 32 bits for the various ways we might encode the data,
+	/* 32 bits for the various ways we might encode the data,
 	 * including compression and encryption.  If any of these
 	 * are set to something a given disk format doesn't understand
 	 * it is treated like an incompat flag for reading and writing,
-	 * but not for stat.
-	 */
+	 * but not for stat. */
 	u8	compression;
 	u8	encryption;
 	u16	other_encoding; /* spare for later use */
 
 	/* are we inline data or a real extent? */
-	u8	exttype;
+	exttype_t exttype;
 
-	/*
-	 * disk space consumed by the extent, checksum blocks are included
-	 * in these numbers
-	 */
+	/* disk space consumed by the extent, checksum blocks are included
+	 * in these numbers */
 	u64	disk_bytenr;
 	u64	disk_num_bytes;
-	/*
-	 * the logical offset in file blocks (no csums)
+	/* the logical offset in file blocks (no csums)
 	 * this extent record is for.  This allows a file extent to point
 	 * into the middle of an existing extent on disk, sharing it
 	 * between two snapshots (useful if some bytes in the middle of the
-	 * extent have changed
-	 */
+	 * extent have changed */
 	u64 offset;
 	u64 num_bytes; /* logical number of file blocks (no csums included) */
-
 }
 
 type btrfs_csum_item { u8 csum; }

@@ -13,26 +13,10 @@ u64 get_first_free_byte()
 
 blknum_t byte2blk(bytenr_t b) { return b / get_bsz(); }
 
-btrfs_block get_chunk_nth_bytenr(btrfs_chunk_item chunk, bytenr_t bn)
-{
-	return get_chunk_nth_blk(chunk, bn/get_bsz());
-}
-
-btrfs_block get_chunk_nth_blk(btrfs_chunk_item chunk, blknum_t bn)
-{
-	u64	blk_per_stripe = chunk.stripe_len / get_bsz();
-	u64	stripe_num = bn / blk_per_stripe;
-	blknum_t stripe_idx = bn % blk_per_stripe;
-	bytenr_t stripe_bytenr = chunk.stripe[stripe_num].offset;
-	blknum_t out_bn = byte2blk(stripe_bytenr)+stripe_idx;
-	return disk.blocks[out_bn];
-}
-
 btrfs_disk_key get_leaf_key_nth(btrfs_node l, u32 n)
 {
 	u32	nritems = assert_gt(l.hdr.nritems, n);
 	u32	level = assert_eq(l.hdr.level, 0);
-
 	/* 0th points to last itemdat (by joining on offsets) */
 	return l.leaf.items[n].key;
 }
@@ -41,9 +25,13 @@ btrfs_item_dat get_leaf_dat_nth(btrfs_node l, u32 n)
 {
 	u32		nritems = assert_gt(l.hdr.nritems, n);
 	u32		level = assert_eq(l.hdr.level, 0);
-
 	/* 0th = last itemdat to match key */
 	return  l.leaf.itemdat[nritems-(n+1)];
+}
+
+blknum_t chunktree_xlate_off2blknum(bytenr_t off)
+{
+	return byte2blk(chunktree_xlate_offset(off));
 }
 
 /* translate offset into physical offset */
