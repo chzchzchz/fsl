@@ -111,6 +111,7 @@ error_bad_blksz:
 void fsl_io_free(struct fsl_rt_io* io)
 {
 	assert (io != NULL);
+	fsl_io_cache_uninit(&io->io_priv->iop_cache);
 	close(io->io_priv->iop_fd);
 	free(io->io_priv);
 	free(io);

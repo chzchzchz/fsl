@@ -12,7 +12,7 @@ all: 	fill mk_img mk_depth mk_many_img		\
 	postmark
 
 linux: 	ext2-linux-4gb.img reiserfs-linux-4gb.img vfat-linux-4gb.img iso9660-linux-4gb.img	\
-	ext2-linux-1gb.img
+	ext2-linux-1gb.img xfs-linux-4gb.img nilfs2-linux-4gb.img
 
 TEST_EXTRA_MMAP=$(FSNAMES:%=tests-extra-mmap-%)
 tests-extra-mmap: $(TEST_EXTRA_MMAP)
@@ -93,6 +93,30 @@ ext2-linux-4gb.img:
 	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/3
 	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/4
 	./loopback_fs_teardown.sh
+
+xfs-linux-4gb.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096
+	yes | /sbin/mkfs.xfs  $@
+	./loopback_fs_setup.sh $@ xfs
+	sudo mkdir /mnt/FSTEST/{1,2,3,4}
+	sudo tar jxvf $(LINUXTAR) -C /mnt/FSTEST/1
+	sudo tar jxvf $(LINUXTAR) -C /mnt/FSTEST/2
+	sudo tar jxvf $(LINUXTAR) -C /mnt/FSTEST/3
+	sudo tar jxvf $(LINUXTAR) -C /mnt/FSTEST/4
+	./loopback_fs_teardown.sh
+
+nilfs2-linux-4gb.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096
+	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
+	./loopback_fs_setup.sh $@ nilfs2
+	sudo chown 777 /mnt/FSTEST/
+	sudo mkdir /mnt/FSTEST/{1,2,3,4}
+	sudo tar jxvf $(LINUXTAR) -C /mnt/FSTEST/1
+	sudo tar jxvf $(LINUXTAR) -C /mnt/FSTEST/2
+	sudo tar jxvf $(LINUXTAR) -C /mnt/FSTEST/3
+	sudo tar jxvf $(LINUXTAR) -C /mnt/FSTEST/4
+	./loopback_fs_teardown.sh
+
 
 reiserfs-linux-4gb.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096

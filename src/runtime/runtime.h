@@ -79,7 +79,8 @@ extern struct fsl_rt_ctx* 	fsl_env;
 #define FSL_STAT_XLATE_HIT		10
 #define FSL_STAT_IOCACHE_MISS		11
 #define FSL_STAT_IOCACHE_HIT		12
-#define FSL_NUM_STATS			13
+#define FSL_STAT_IOCACHE_DROP		13
+#define FSL_NUM_STATS			14
 #define FSL_STATS_GET(x,y)		((x)->s_counters[y])
 #define FSL_STATS_INC(x,y)		(x)->s_counters[y]++
 #define FSL_STATS_ADD(x,y,z)		(x)->s_counters[y] += (z)

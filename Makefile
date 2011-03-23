@@ -85,7 +85,7 @@ kvm-started:
 
 paper: paper-gen paper-tests paper-draw
 paper-gen: tests
-paper-tests: tests-extra tests-extra-oprof tests-extra-stack tests-depth-stack
+paper-tests: tests-extra tests-extra-oprof tests-extra-stack tests-depth-stack tests-misc
 paper-plot:
 	./util/plot.sh
 paper-draw: draw paper-plot

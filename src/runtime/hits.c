@@ -7,7 +7,8 @@
 #include "runtime.h"
 #include "io.h"
 
-#define HIT_BYTE_GRANULARITY	512
+/* this should probably always be equal to the cache line size ... */
+#define HIT_BYTE_GRANULARITY	32
 
 struct io_ev_log
 {

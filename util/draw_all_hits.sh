@@ -28,7 +28,7 @@ function draw_hits
 
 start_time=`date +%s`
 
-for fs in ext2 nilfs2 vfat iso9660 reiserfs xfs minix; do
+for fs in ext2 nilfs2 vfat iso9660 reiserfs xfs minix btrfs; do
 	cd img
 	dirdat=`ls ${fs}*.img`
 	cd ..

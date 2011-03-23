@@ -20,6 +20,19 @@ const uint8_t *fsl_io_cache_hitmiss(struct fsl_rt_io* io, uint64_t line_begin);
 static const uint8_t* fsl_io_cache_find(
 	struct fsl_io_cache* ioc, uint64_t cache_line);
 
+
+void fsl_io_cache_uninit(struct fsl_io_cache* ioc)
+{
+#if 0
+	unsigned int	i;
+	for (i = 0; i < FSL_IO_CACHE_ENTS; i++) {
+		const struct fsl_io_cache_ent *ce = &ioc->ioc_ents[i];
+		fprintf(stderr, "%d: %"PRIu64" %"PRIu64"\n",
+			i, ce->ce_hits, ce->ce_misses);
+	}
+#endif
+}
+
 void fsl_io_cache_init(struct fsl_io_cache* ioc)
 {
 	unsigned int	i;
@@ -39,9 +52,11 @@ static const uint8_t* fsl_io_cache_find(
 	ce = &ioc->ioc_ents[cache_line % FSL_IO_CACHE_ENTS];
 	if (ce->ce_addr == cache_line) {
 		ioc->ioc_hits++;
+		ce->ce_hits++;
 		return ce->ce_data;
 	}
 
+	ce->ce_misses++;
 	ioc->ioc_misses++;
 	return NULL;
 }
@@ -237,6 +252,7 @@ void fsl_io_cache_drop_bytes(
 		cache_idx = cur_line % FSL_IO_CACHE_ENTS;
 		cur_addr = ioc->ioc_ents[cache_idx].ce_addr;
 		if (cur_addr == cur_line) {
+			FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_IOCACHE_DROP);
 			ioc->ioc_ents[cache_idx].ce_addr = ~0;
 		}
 	}

@@ -23,8 +23,9 @@ const char* fsl_stat_fields[FSL_NUM_STATS] =
 	"writes",		/* FSL_STAT_WRITES */
 	"bw",			/* FSL_STAT_BITS_WRITTEN */
 	"xlate_hit",		/* FSL_STAT_XLATE_HIT */
-	"iocache_hit",		/* FSL_STAT_IOCACHE_MISS */
-	"iocache_miss"		/* FSL_STAT_IOCACHE_HIT */
+	"iocache_miss",		/* FSL_STAT_IOCACHE_MISS */
+	"iocache_hit",		/* FSL_STAT_IOCACHE_HIT */
+	"iocache_drop"		/* FSL_STAT_IOCACHE_DROP */
 };
 
 void __debugOutcall(uint64_t v)

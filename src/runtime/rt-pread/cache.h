@@ -2,6 +2,7 @@
 #define FSL_CACHE_H
 
 #define FSL_IO_CACHE_ENTS	512	/* 16KB */
+//#define FSL_IO_CACHE_ENTS	(4097)
 #define FSL_IO_CACHE_BYTES	32
 #define FSL_IO_CACHE_BITS	(FSL_IO_CACHE_BYTES*8)
 #define byte_to_line(x)		((x)/FSL_IO_CACHE_BYTES)
@@ -10,6 +11,8 @@
 struct fsl_io_cache_ent
 {
 	uint64_t	ce_addr;	/* line address */
+	uint64_t	ce_misses;
+	uint64_t	ce_hits;
 	uint8_t		ce_data[FSL_IO_CACHE_BYTES];
 };
 
@@ -20,6 +23,7 @@ struct fsl_io_cache
 	struct fsl_io_cache_ent	ioc_ents[FSL_IO_CACHE_ENTS];
 };
 
+void fsl_io_cache_uninit(struct fsl_io_cache* ioc);
 void fsl_io_cache_init(struct fsl_io_cache* ioc);
 uint64_t fsl_io_cache_get(struct fsl_rt_io* io, uint64_t bit_off, int num_bits);
 void fsl_io_cache_drop_bytes(

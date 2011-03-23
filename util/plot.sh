@@ -91,6 +91,24 @@ function tool_stat
 
 # $1 = fs
 # $2 = tool
+function test_misses_fname
+{
+	fs="$1"
+	tool="$2"
+	stat_fname="${FSL_BASE}/tests/${tool}*-$fs/${fs}-${tool}*.img.misses"
+	stat_pm1_fname="${FSL_BASE}/tests/${tool}*-$fs/${fs}-${tool}*postmark*.img.misses"
+	stat_pm_fname="${FSL_BASE}/tests/${tool}*-$fs/${fs}-postmark.img.misses"
+	if [ -f $stat_pm1_fname ]; then
+		echo -n $stat_pm1_fname
+	elif [ -f $stat_fname ]; then
+		echo -n $stat_fname
+	elif [ -f $stat_pm_fname ]; then
+		echo -n $stat_pm_fname
+	else
+		echo "NOTFOUND"
+	fi
+}
+
 function test_stat_fname
 {
 	fs="$1"
@@ -130,6 +148,65 @@ function stack_stat
 	done >>"$outfile"
 }
 
+function compulsory_stat
+{
+	TOOLNAMES="scan relocate scatter defrag"
+	statprettynames="$2"
+	outfile="${PLOTSDIR}/compulsory.dat"
+	echo "# COMPULSORY" >"$outfile"
+	echo "Filesystem Cold Conflict Compulsory Total">>"$outfile"
+	for fs in $FSNAMES; do
+		for tool in $TOOLNAMES; do
+			fname=`test_misses_fname $fs $tool`
+			statfname=`test_stat_fname $fs $tool`
+			echo -n "$fs-$tool "
+			if [ ! -e "$fname" ]; then
+				compulsory="0"
+				totalmiss="0"
+				conflict="0"
+				cold="0"
+			else
+				compulsory=`grep ": 1}" $fname | wc -l | cut -f1 -d' '`
+				totalmiss=`grab_stat iocache_miss $statfname`
+				cold=`wc -l $fname | cut -f1 -d' '`
+				conflict=`bc <<<"$totalmiss - ( - $compulsory + $cold )"`
+			fi
+			echo "$cold $conflict $compulsory $totalmiss"
+		#	echo $conflict
+		done
+		echo "-"
+	done >>"$outfile"
+}
+
+# arg1 = real/user/sys
+# arg2 = *.time file name
+function get_total_seconds
+{
+	timeprefix="$1"
+	benchtype="$2"
+	sec_fname="tests/misc/$fs-${benchtype}.time"
+	if [ ! -e "$sec_fname" ]; then
+		echo -n "0"
+		return
+	fi
+	timedat=`grep $timeprefix $sec_fname | cut -f2`
+	time_m=`echo $timedat | cut -f1 -d'm'`
+	time_s=`echo $timedat  | cut -f2 -d'm' | cut -f1 -d's'`
+	echo -n `bc <<< "$time_m* 60 + $time_s"`
+}
+
+function time_stat
+{
+	stype="$1"
+	echo "Filesystem	Native-fsck Native-du FSL-scan">${PLOTSDIR}/scan-$stype.dat
+	for fs in $FSNAMES; do
+		fsck_tots=`get_total_seconds "$stype" "fsck"`
+		du_tots=`get_total_seconds "$stype" "du"`
+		fsl_tots=`get_total_seconds "$stype" "fsl"`
+		echo $fs $fsck_tots $du_tots $fsl_tots
+	done >>${PLOTSDIR}/scan-$stype.dat
+}
+
 echo "Tool cache misses..."
 tool_stat "iocache_miss" "${PLOTSDIR}/misses.dat"
 echo "Tool cache hits..."
@@ -137,24 +214,13 @@ tool_stat "iocache_hit" "${PLOTSDIR}/hits.dat"
 echo "Tool hit-miss..."
 stack_stat "iocache_miss iocache_hit" "Miss Hit" "${PLOTSDIR}/hit-miss.dat"
 
+echo "Compulsory misses...."
+compulsory_stat
+
 echo "Scan comparison test..."
-echo "Filesystem	Native	FSL">${PLOTSDIR}/scan.dat
-for fs in $FSNAMES; do
-	if [ ! -f tests/misc/$fs-fsl.time ]; then
-		fsl_tots="-"
-		native_tots="-"
-	else
-		fsltime=`grep real tests/misc/$fs-fsl.time | cut -f2`
-		fslm=`echo $fsltime  | cut -f1 -d'm'`
-		fsls=`echo $fsltime  | cut -f2 -d'm' | cut -f1 -d's'`
-		nativetime=`grep real tests/misc/$fs-native.time | cut -f2`
-		nativem=`echo $nativetime  | cut -f1 -d'm'`
-		natives=`echo $nativetime  | cut -f2 -d'm' | cut -f1 -d's'`
-		fsl_tots=`bc <<< "$fslm * 60 + $fsls"`
-		native_tots=`bc <<< "$nativem*60 + $natives"`
-	fi
-	echo $fs $fsl_tots $native_tots
-done >>${PLOTSDIR}/scan.dat
+time_stat "real"
+time_stat "sys"
+time_stat "user"
 
 
 # MAKE FIGURES FOR PAPER

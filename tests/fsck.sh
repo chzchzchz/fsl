@@ -11,13 +11,15 @@ fi
 
 function fsck_get_lodev
 {
-	if [ $fs = "ext2" ]; then
-		FSCKLODEV=/dev/loop1
-	elif [ $fs = "reiserfs" ]; then
-		FSCKLODEV=/dev/loop2
-	else
-		FSCKLODEV=/dev/loop3
-	fi
+	case $fs in
+	"ext2")		FSCKLODEV=/dev/loop1	;;
+	"reiserfs")	FSCKLODEV=/dev/loop2	;;
+	"minix")	FSCKLODEV=/dev/loop3	;;
+	"xfs")		FSCKLODEV=/dev/loop4	;;
+	"vfat")		FSCKLODEV=/dev/loop6	;;
+	"btrfs")	FSCKLODEV=/dev/loop8	;;
+	*)		FSCKLODEV=/dev/loop9	;;
+	esac
 }
 
 function fsck_get_cmd
@@ -27,6 +29,7 @@ function fsck_get_cmd
 	"reiserfs")	FSCKCMD="sudo /sbin/fsck.reiserfs -f -y " ;;
 	"minix")	FSCKCMD="sudo /sbin/fsck.minix -v -s -f " ;;
 	"btrfs")	FSCKCMD="sudo /sbin/btrfsck " ;;
+	"xfs")		FSCKCMD="sudo /sbin/xfs_check " ;;
 	*)		FSCKCMD="sudo fsck " ;;
 	esac
 }
