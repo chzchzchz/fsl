@@ -1,5 +1,5 @@
 FILESYSTEMS := ext2 vfat nilfs2 iso9660 testfs reiserfs xfs minix btrfs
-TOOL_NAMES=browser scantool modify fragtool relocate defragtool scattertool smushtool
+TOOL_NAMES=browser scantool modify fragtool relocate defragtool scattertool smushtool fsck
 TOOLS_BROWSER := $(FILESYSTEMS:%=browser-%)
 TOOLS_SCAN := $(FILESYSTEMS:%=scantool-%)
 TOOLS_MODIFY := $(FILESYSTEMS:%=modify-%)

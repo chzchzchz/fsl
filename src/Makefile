@@ -96,8 +96,9 @@ KERN_RTOBJS=	runtime.o	\
 
 KERN_TOOLOBJS = smushtool.o scattertool.o defragtool.o
 
-TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o \
-		scattertool.o smushtool.o fuse-browser.o fuse_node.o thrashcopy.o
+TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o 	\
+		scattertool.o smushtool.o fuse-browser.o fuse_node.o thrashcopy.o	\
+		fsck.o
 
 RTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/runtime/%)
 KLEERTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/klee/runtime/%)

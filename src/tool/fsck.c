@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <assert.h>
+#include "info.h"
 #include "runtime.h"
 #include "debug.h"
 #include "type_info.h"
@@ -21,24 +22,11 @@ static int handle_ti(struct type_info* ti, void* aux)
 	poff = ti_phys_offset(ti);
 	size = ti_size(ti);
 
-	DEBUG_TOOL_WRITE("poff=%"PRIu64, poff);
 	assert (offset_in_range(poff) && "NOT ON DISK?");
 
-#ifdef DEBUG_TOOL
-	typeinfo_print_path(ti);
-	printf("\n");
-#endif
+	printf("fsck XXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
+	exit(-1);
 
-#ifndef USE_KLEE
-	printf("{ 'Mode' : 'Scan', 'voff' : %"PRIu64
-		", 'poff' : %"PRIu64
-		", 'size': %"PRIu64
-		", 'name' : '%s' "
-		", 'depth' : %d }\n",
-		voff, poff, size,
-		tt_by_ti(ti)->tt_name,
-		ti_depth(ti));
-#endif
 done:
 	DEBUG_TOOL_LEAVE();
 	return SCAN_RET_CONTINUE;
@@ -50,17 +38,14 @@ int tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
 
-	printf("Welcome to fsl scantool. Scan mode: \"%s\"\n", fsl_rt_fsname);
+	printf("Welcome to fsl fsck. FSCK mode: \"%s\"\n", fsl_rt_fsname);
 
-	DEBUG_TOOL_WRITE("Origin Type Allocating...\n");
 	origin_ti = typeinfo_alloc_origin();
 	if (origin_ti == NULL) {
-		printf("Could not open origin type\n");
-		printf("Failed assert: %s\n", fsl_env->fctx_failed_assert);
+		fsl_info_write("Could not open origin type\n");
+		fsl_info_write("Bad assert: %s\n", fsl_env->fctx_failed_assert);
 		return -1;
 	}
-
-	DEBUG_TOOL_WRITE("Origin Type Now Allocated");
 
 	scan_type(origin_ti, &ops, NULL);
 
