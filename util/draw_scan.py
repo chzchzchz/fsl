@@ -57,6 +57,11 @@ else:
 
 disk_bytes=int(sys.argv[ARG_IDX_DISKSZ])
 bytes_per_pixel=disk_bytes/(pixels_w*pixels_h)
+
+if bytes_per_pixel < 0:
+	print "Fewer bytes than one per pixel for " + sys.argv[ARG_IDX_DISKMAP]
+	sys.exit(0)
+
 out_size = pixels_w,pixels_h
 im = Image.new("RGB", out_size, ImageColor.getrgb('black'))
 

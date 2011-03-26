@@ -1,4 +1,4 @@
-FSNAMES= ext2 vfat iso9660 reiserfs xfs minix btrfs
+FSNAMES= ext2 vfat iso9660 reiserfs xfs minix btrfs nilfs2
 NUM_JOBS=6
 #LINUX_SRCDIR=/usr/src/linux/
 ifndef LINUX_SRCDIR
@@ -28,12 +28,6 @@ clean: code-clean tests-clean
 	rm -f bin/*-* bin/lang bin/*/*
 
 draw: draw-hits draw-scans draw-relocs
-
-draw-hits:
-	util/draw_all_hits.sh
-
-draw-scans:
-	util/draw_all_scans.sh
 
 draw-relocs:
 	util/draw_all_relocs.sh
@@ -171,3 +165,15 @@ tests-clean:
 
 libs-clean:
 	make -C lib clean
+
+
+DRAW_FS_HITS=$(FSNAMES:%=draw-hits-%)
+draw-hits: $(DRAW_FS_HITS)
+draw-hits-%:
+	FSNAME=`echo $@ | cut -f3 -d-` util/draw_all_hits.sh
+
+
+DRAW_FS_SCANS=$(FSNAMES:%=draw-scans-%)
+draw-scans: $(DRAW_FS_SCANS)
+draw-scans-%:
+	util/draw.`echo $@ | cut -f3 -d-`.sh

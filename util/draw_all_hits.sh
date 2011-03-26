@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ -z "$FSNAME" ]; then
+	echo Must set FSNAME
+	exit 1
+fi
+
 # $1 = fs, $2 = img
 function draw_hits
 {
@@ -28,13 +33,12 @@ function draw_hits
 
 start_time=`date +%s`
 
-for fs in ext2 nilfs2 vfat iso9660 reiserfs xfs minix btrfs; do
-	cd img
-	dirdat=`ls ${fs}*.img`
-	cd ..
-	for a in $dirdat; do
-		draw_hits ${fs} "$a"
-	done
+fs=$FSNAME
+cd img
+dirdat=`ls ${fs}*.img`
+cd ..
+for a in $dirdat; do
+	draw_hits ${fs} "$a"
 done
 
 end_time=`date +%s`
