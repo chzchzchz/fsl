@@ -1,0 +1,11 @@
+write repair_first_dblk() {disk.sb.s_first_data_block<-expected_first_dblk()!}
+u32 expected_first_dblk() { if (disk.sb.s_log_block_sz==0) return 1; return 0;}
+ext2_sb::repair(
+	? expected_first_dblk() != s_first_data_block, repair_first_dblk())
+	as chk_first_dblk;
+
+write repair_inode_c() { disk.sb.s_inodes_c <- expected_inodes()! }
+u32 expected_inodes() { return disk.sb.s_inos_per_grp*get_group_count(); }
+ext2_sb::repair(
+	? expected_inodes() != disk.sb.s_inodes_c,
+	repair_inode_c()) as chk_inode_count;

@@ -179,6 +179,19 @@ struct fsl_rtt_type
 	unsigned int			tt_fieldstrong_c;
 	const struct fsl_rtt_field	*tt_fieldstrong_table;
 
+	/* all non-union fields */
+	unsigned int			tt_fieldall_c;
+	const struct fsl_rtt_field	*tt_fieldall_thunkoff;
+
+	/* all types that are not strictly weak */
+	unsigned int			tt_fieldtypes_c;
+	const struct fsl_rtt_field	*tt_fieldtypes_thunkoff;
+
+	/* all fields (including union fields) */
+	unsigned int			tt_field_c;
+	const struct fsl_rtt_field	*tt_field_table;
+
+	/* annotations */
 	unsigned int			tt_pointsto_c;
 	const struct fsl_rtt_pointsto	*tt_pointsto;
 
@@ -194,23 +207,13 @@ struct fsl_rtt_type
 	unsigned int			tt_stat_c;
 	const struct fsl_rtt_stat	*tt_stat;
 
-	/* all non-union fields */
-	unsigned int			tt_fieldall_c;
-	const struct fsl_rtt_field	*tt_fieldall_thunkoff;
-
-	/* all types that are not strictly weak */
-	unsigned int			tt_fieldtypes_c;
-	const struct fsl_rtt_field	*tt_fieldtypes_thunkoff;
-
-	/* all fields (including union fields) */
-	unsigned int			tt_field_c;
-	const struct fsl_rtt_field	*tt_field_table;
+	unsigned int			tt_repair_c;
+	const struct fsl_rtt_repair	*tt_repair;
 };
 
 #define FIELD_FL_CONSTSIZE	0x1 /* size same for all elems in arrays */
 #define FIELD_FL_FIXED		0x2
 #define FIELD_FL_NOFOLLOW	0x4
-
 
 struct fsl_rt_iter
 {
@@ -288,7 +291,7 @@ struct fsl_rtt_wpkt
 struct fsl_rtt_wpkt2wpkt
 {
 	wpkt2wpktf_t			w2w_params_f;
-	wpkt2wpktcond_t			w2w_cond_f;
+	wpkt2wpktcond_t			w2w_cond_f;	/* should be called? */
 	const struct fsl_rtt_wpkt	*w2w_wpkt;
 };
 
@@ -309,6 +312,13 @@ struct fsl_rtt_reloc
 	const struct fsl_rtt_wpkt_inst	rel_relink;
 
 	const char			*rel_name;
+};
+
+struct fsl_rtt_repair
+{
+	condf_t				rep_cond;
+	const struct fsl_rtt_wpkt_inst	rep_wpkt;
+	const char			*rep_name;
 };
 
 struct fsl_rtt_stat

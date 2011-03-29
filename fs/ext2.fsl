@@ -10,6 +10,7 @@ const EXT2_MAGIC = 0xef53;
 include "modes.fsl"
 include "ext2_func.fsl"
 include "ext2_type.fsl"
+include "ext2_fsck.fsl"
 
 typedef blknum_t = u32;
 

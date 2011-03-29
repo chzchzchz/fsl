@@ -11,6 +11,7 @@
 #include "code_builder.h"
 #include "symtab_thunkbuilder.h"
 #include "asserts.h"
+#include "repair.h"
 #include "points.h"
 #include "virt.h"
 #include "stat.h"
@@ -31,15 +32,31 @@ extern GlobalBlock* global_scope;
 
 using namespace std;
 
-/* lots of "singletons" */
+/* annotations */
 typereloc_map		typerelocs_map;
 typereloc_list		typerelocs_list;
 func_map		funcs_map;
 func_list		funcs_list;
 writepkt_map		writepkts_map;
 writepkt_list		writepkts_list;
+pointing_list		points_list;
+pointing_map		points_map;
+assert_map		asserts_map;
+assert_list		asserts_list;
+stat_map		stats_map;
+stat_list		stats_list;
+typevirt_map		typevirts_map;
+typevirt_list		typevirts_list;
+repair_list		repairs_list;
+repair_map		repairs_map;
+
 const Func		*gen_func;
 const FuncBlock		*gen_func_block;
+const char		*fsl_src_fname;
+MemoTab			memotab;
+CodeBuilder		*code_builder;
+RTInterface		rt_glue;
+
 ctype_map		ctypes_map;
 type_map		types_map;
 type_list		types_list;
@@ -47,18 +64,6 @@ typenum_map		typenums_map;
 const_map		constants;
 symtab_map		symtabs;
 deftype_map		deftypes_map;
-CodeBuilder		*code_builder;
-pointing_list		points_list;
-pointing_map		points_map;
-assert_map		asserts_map;
-assert_list		asserts_list;
-stat_map		stats_map;
-stat_list		stats_list;
-RTInterface		rt_glue;
-typevirt_map		typevirts_map;
-typevirt_list		typevirts_list;
-const char		*fsl_src_fname;
-MemoTab			memotab;
 
 static void	load_detached_preambles(const GlobalBlock* gb);
 static void	load_user_types_list(const GlobalBlock* gb);
@@ -486,6 +491,9 @@ int main(int argc, char *argv[])
 
 	cout << "Generating stats" << endl;
 	gen_notes<Stat>(stats_list, stats_map);
+
+	cout << "Generating repairs" << endl;
+	gen_notes<Repairs>(repairs_list, repairs_map);
 
 	cout << "Writing out module's code" << endl;
 	code_builder->write(llvm_fname);

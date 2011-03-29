@@ -16,6 +16,7 @@
 #include "stat.h"
 #include "virt.h"
 #include "reloc.h"
+#include "repair.h"
 #include "writepkt.h"
 #include "table_gen.h"
 #include "thunk_fieldoffset_cond.h"
@@ -38,6 +39,9 @@ extern typevirt_list		typevirts_list;
 extern writepkt_list		writepkts_list;
 extern typereloc_map		typerelocs_map;
 extern typereloc_list		typerelocs_list;
+extern repair_list		repairs_list;
+extern repair_map		repairs_map;
+
 extern MemoTab			memotab;
 
 using namespace std;
@@ -146,6 +150,9 @@ void TableGen::genInstanceType(const Type *t)
 
 	sw.write("tt_field_c", st_complete->size());
 	sw.write("tt_field_table", "__rt_tab_thunkcomplete_" + tname);
+
+	sw.write("tt_repair_c", repairs_map[tname]->getNumRepairs());
+	sw.write("tt_repair", "__rt_tab_repair_" + tname);
 
 	delete size_fc;
 	delete st_complete;
@@ -328,6 +335,7 @@ void TableGen::gen(const string& fname)
 	genTableWriters<Stat>(stats_list);
 	genWritePktTables();
 	genTableWriters<RelocTypes>(typerelocs_list);
+	genTableWriters<Repairs>(repairs_list);
 
 	memotab.genTables(this);
 

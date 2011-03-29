@@ -12,7 +12,7 @@ public:
 	const std::string& getFuncName(void) const { return funcname; }
 	const WritePkt* getParent(void) const { return parent; }
 	unsigned int getParamBufEntries(void) const;
-	void genCode(const ArgsList* args_in) const;
+	void genCode(const ArgsList* args_in = NULL) const;
 	void genProto(void) const;
 	void genExterns(TableGen* tg) const;
 	void genTableInstance(TableGen* tg) const;

@@ -86,7 +86,8 @@ void WritePktInstance::genCode(const ArgsList* args_in /* bindings */) const
 	/* 1.5. pull in input parambuf */
 	arg_it = f->arg_begin();
 	arg_it++;
-	code_builder->loadArgsFromParamBuf(arg_it, args_in);
+	if (args_in != NULL)
+		code_builder->loadArgsFromParamBuf(arg_it, args_in);
 
 	/* 2. load up output parambuf */
 	arg_it++;

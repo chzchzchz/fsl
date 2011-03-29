@@ -47,6 +47,7 @@ LANGOBJS=	lex.yy.o		\
 		typeclosure.o		\
 		type_stack.o		\
 		reloc.o			\
+		repair.o		\
 		varscope.o		\
 		wpkt_inst.o		\
 		wpkt_struct.o		\
