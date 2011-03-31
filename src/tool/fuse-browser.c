@@ -305,7 +305,6 @@ static int fslfuse_open(const char *path, struct fuse_file_info *fi)
 {
 	struct fsl_bridge_node	*fbn;
 
-	if ((fi->flags & 3) != O_RDONLY) return -EACCES;
 	fbn = fslnode_by_path(path);
 	if (fbn == NULL) return -ENOENT;
 
@@ -319,21 +318,30 @@ static int fslfuse_open(const char *path, struct fuse_file_info *fi)
 	return 0;
 }
 
-static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
-                      struct fuse_file_info *fi)
+static struct type_info* fslfuse_prep_io(
+	struct fuse_file_info* fi, off_t offset,
+	diskoff_t* clo_off, size_t* len_out, int* err)
 {
 	struct fsl_bridge_node	*fbn;
-	diskoff_t		clo_off;
 	size_t 			len;
 	struct type_info	*ti;
-	int			i;
 
 	fbn = get_fnode(fi);
-	if (fbn == NULL) return -ENOENT;
-	if (!fbn_is_prim(fbn) && !fbn_is_array_prim(fbn)) return -ENOENT;
+	if (fbn == NULL) {
+		*err = -ENOENT;
+		return NULL;
+	}
+
+	if (!fbn_is_prim(fbn) && !fbn_is_array_prim(fbn)) {
+		*err = -ENOENT;
+		return NULL;
+	}
 
 	len = fbn_bytes(fbn);
-	if (offset >= len) return 0;
+	if (offset >= len) {
+		*err = 0;
+		return NULL;
+	}
 
 	assert (offset < len);
 
@@ -345,22 +353,72 @@ static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
 	else
 		ti = fbn->fbn_prim_ti;
 
-	clo_off = ti_offset(ti);
+	*len_out = len;
+	*clo_off = ti_offset(ti);
+
+	return ti;
+}
+
+static int fslfuse_read(const char *path, char *buf, size_t size, off_t offset,
+                      struct fuse_file_info *fi)
+{
+	struct type_info	*ti;
+	struct fsl_bridge_node	*fbn;
+	size_t			len;
+	diskoff_t		clo_off;
+	int			err, i;
+
+	ti = fslfuse_prep_io(fi, offset, &clo_off, &len, &err);
+	if (ti == NULL) return err;
 	if ((size + offset) > len) size = len - offset;
 
 	/* XXX SLOW-- adapt ti_to_buf to do offsets */
 	for (i = 0; i < size; i++)
 		buf[i] = __getLocal(&ti_clo(ti), clo_off+(offset+i)*8, 8);
 
+	fbn = get_fnode(fi);
 	if (fbn_is_array_prim(fbn)) typeinfo_free(ti);
 
 	return size;
 }
 
-static int fslfuse_access(const char* path, int i)
+static int fslfuse_access(const char* path, int i) { return 0; }
+
+static int fslfuse_write(const char* path, const char* buf, size_t size,
+	off_t offset, struct fuse_file_info *fi)
 {
-	return F_OK;
+	struct type_info	*ti;
+	struct fsl_bridge_node	*fbn;
+	size_t			len;
+	diskoff_t		clo_off;
+	int			err, i;
+
+	DEBUG_WRITE("BEGINNING WRITE. %d %d", size, offset);
+
+	ti = fslfuse_prep_io(fi, offset, &clo_off, &len, &err);
+
+	DEBUG_WRITE("LEN IS %d", len);
+
+	if (ti == NULL) return err;
+	if ((size + offset) > len) size = len - offset;
+
+	/* XXX SLOW-- needs */
+	FSL_WRITE_START();
+	for (i = 0; i < size; i++) __writeVal(clo_off+(offset+i)*8, 8, buf[i]);
+	FSL_WRITE_COMPLETE();
+
+	fbn = get_fnode(fi);
+	if (fbn_is_array_prim(fbn)) typeinfo_free(ti);
+
+	return size;
 }
+
+/* lip service */
+int fslfuse_utime(const char * path, struct utimbuf * ub) { return 0; }
+int fslfuse_chown(const char *p, uid_t u, gid_t g) { return 0; }
+int fslfuse_chmod(const char *p, mode_t m) { return 0; }
+int fslfuse_ftruncate (const char *p, off_t o, struct fuse_file_info *f) { return 0; }
+int fslfuse_truncate(const char *p, off_t o) { return 0; }
 
 static struct fuse_operations fslfuse_oper = {
 	.getattr	= fslfuse_getattr,
@@ -370,8 +428,14 @@ static struct fuse_operations fslfuse_oper = {
 	.release	= fslfuse_close,
 	.releasedir	= fslfuse_close,
 	.read		= fslfuse_read,
+	.write		= fslfuse_write,
 	.access		= fslfuse_access,
-	.fgetattr	= fslfuse_fgetattr
+	.fgetattr	= fslfuse_fgetattr,
+	.chmod		= fslfuse_chmod,
+	.chown		= fslfuse_chown,
+	.utime		= fslfuse_utime,
+	.ftruncate	= fslfuse_ftruncate,
+	.truncate	= fslfuse_truncate
 };
 
 TOOL_ENTRY(fusebrowser)

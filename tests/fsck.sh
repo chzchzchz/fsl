@@ -34,23 +34,49 @@ function fsck_get_cmd
 	esac
 }
 
-function fsck_img
+function fsck_img_setup
 {
 	if [ -z $1 ]; then
 		echo "NO IMAGENAME GIVEN"
 		exit -2
 	fi
 
-	fsck_imgname="$1"
 	fsck_get_lodev
 	fsck_get_cmd
+}
+
+function fsck_img
+{
+	fsck_img_setup "$1"
+	fsck_imgname="$1"
 	echo "FSCKING ${fsck_imgname}"
+
 	sudo /sbin/losetup $FSCKLODEV ${src_root}/img/${fsck_imgname}
-	$FSCKCMD $FSCKLODEV 2>${src_root}/fsck.fail.$fs.stderr  >${src_root}/fsck.fail.$fs.stdout
+	$FSCKCMD $FSCKLODEV 				\
+		2>${src_root}/fsck.fail.$fs.stderr	\
+		>${src_root}/fsck.fail.$fs.stdout
 	retval=$?
 	sudo /sbin/losetup -d $FSCKLODEV
 	if [ $retval -ne 0 ]; then
 		echo "FSCK FAILED ON ${fsck_imgname}. EXITCODE=$retval"
+		exit $retval
+	fi
+}
+
+# expect fsck to fail
+function fsck_img_fail
+{
+	fsck_img_setup "$1"
+	fsck_imgname="$1"
+	echo "FSCKING ${fsck_imgname}"
+	sudo /sbin/losetup $FSCKLODEV ${src_root}/img/${fsck_imgname}
+	$FSCKCMD $FSCKLODEV 				\
+		2>${src_root}/fsck.fail.$fs.stderr	\
+		>${src_root}/fsck.fail.$fs.stdout
+	retval=$?
+	sudo /sbin/losetup -d $FSCKLODEV
+	if [ $retval -eq 0 ]; then
+		echo "FSCK OK ON ${fsck_imgname}. But should fail!"
 		exit $retval
 	fi
 }

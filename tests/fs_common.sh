@@ -158,6 +158,15 @@ function fs_thrashcopy_startup_img
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
 }
 
+function fs_fsck_startup_img
+{
+	fs="$1"
+	imgname="$2"
+	echo "Testing fsck-$fs startup (${imgname})."
+	cmd="${TOOL_BINDIR}/fsck-$fs ${src_root}/img/$imgname"
+	outdir="${src_root}/tests/fsck-$fs"
+	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
+}
 
 function fs_defrag_startup_img
 {
@@ -229,7 +238,12 @@ function fs_fuse_cmd_img
 		exit $ret
 	fi
 
-	$cmd  >"${src_root}"/tests/fusebrowse-${fs}/${imgname}-"$cmdname".out
+	outfile="/dev/null"
+	if [ ! -z "$cmdname" ]; then
+	outfile="${src_root}"/tests/fusebrowse-${fs}/${imgname}-"$cmdname".out
+	fi
+
+	eval "$cmd" >"$outfile"
 	ret=$?
 	cd ..
 	fusermount -u tmp

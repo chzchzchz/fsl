@@ -74,7 +74,7 @@ tests-kern-%: kvm-started
 kvm-kill:
 	killall -w qemu-system-x86_64
 
-kvm-started:
+kvm-started: kern
 	./util/run_qemu.sh &
 
 paper: paper-gen paper-tests paper-draw
@@ -171,7 +171,6 @@ DRAW_FS_HITS=$(FSNAMES:%=draw-hits-%)
 draw-hits: $(DRAW_FS_HITS)
 draw-hits-%:
 	FSNAME=`echo $@ | cut -f3 -d-` util/draw_all_hits.sh
-
 
 DRAW_FS_SCANS=$(FSNAMES:%=draw-scans-%)
 draw-scans: $(DRAW_FS_SCANS)
