@@ -4,8 +4,8 @@ ext2_sb::repair(
 	? expected_first_dblk() != s_first_data_block, repair_first_dblk())
 	as chk_first_dblk;
 
-write repair_inode_c() { disk.sb.s_inodes_c <- expected_inodes()! }
-u32 expected_inodes() { return disk.sb.s_inos_per_grp*get_group_count(); }
+write repair_inode_c() { disk.sb.s_inodes_c <- expected_inodes(disk.sb)! }
+u32 expected_inodes(ext2_sb sb) { return sb.s_inos_per_grp*get_group_count(); }
 ext2_sb::repair(
-	? expected_inodes() != disk.sb.s_inodes_c,
+	? expected_inodes(this) != s_inodes_c,
 	repair_inode_c()) as chk_inode_count;

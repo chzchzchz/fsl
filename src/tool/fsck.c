@@ -8,24 +8,34 @@
 #include "debug.h"
 #include "type_info.h"
 #include "scan.h"
+#include "writepkt.h"
+
+static void do_repair(struct type_info* ti, const struct fsl_rtt_repair* rep)
+{
+	/* did we data to repair? */
+	if (rep->rep_cond(&ti_clo(ti)) == 0) return;
+
+	/* doit */
+	FSL_INFO("Repairing %s::%s\n", tt_by_ti(ti)->tt_name, rep->rep_name);
+	wpkt_do(ti, &rep->rep_wpkt);
+	/* and reload memo table */
+	/* XXX: this should be smarter-- handle in runtime! */
+	fsl_load_memo();
+}
 
 static int handle_ti(struct type_info* ti, void* aux)
 {
-	typesize_t	size;
-	voff_t		voff;
-	poff_t		poff;
+	const struct fsl_rtt_type*	tt;
+	unsigned int			i;
 
 	DEBUG_TOOL_ENTER();
 	if (ti_typenum(ti) == TYPENUM_INVALID) goto done;
 
-	voff = ti_offset(ti);
-	poff = ti_phys_offset(ti);
-	size = ti_size(ti);
+	tt = tt_by_ti(ti);
+	if (tt->tt_repair_c == 0) goto done;
 
-	assert (offset_in_range(poff) && "NOT ON DISK?");
-
-	printf("fsck XXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n");
-	exit(-1);
+	for (i = 0; i < tt->tt_repair_c; i++)
+		do_repair(ti, &tt->tt_repair[i]);
 
 done:
 	DEBUG_TOOL_LEAVE();
@@ -38,12 +48,12 @@ int tool_entry(int argc, char* argv[])
 {
 	struct type_info	*origin_ti;
 
-	printf("Welcome to fsl fsck. FSCK mode: \"%s\"\n", fsl_rt_fsname);
+	FSL_INFO("Welcome to fsl fsck. FSCK mode: \"%s\"\n", fsl_rt_fsname);
 
 	origin_ti = typeinfo_alloc_origin();
 	if (origin_ti == NULL) {
-		fsl_info_write("Could not open origin type\n");
-		fsl_info_write("Bad assert: %s\n", fsl_env->fctx_failed_assert);
+		FSL_INFO("Could not open origin type\n");
+		FSL_INFO("Bad assert: %s\n", fsl_env->fctx_failed_assert);
 		return -1;
 	}
 

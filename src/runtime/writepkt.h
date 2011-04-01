@@ -8,5 +8,8 @@ void wpkt_relocate(
 	unsigned int sel_idx,
 	unsigned int choice_idx);
 
+void wpkt_do(
+	struct type_info* parent,
+	const struct fsl_rtt_wpkt_inst* wpkt);
 
 #endif

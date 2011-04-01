@@ -10,6 +10,19 @@
 #include "choice.h"
 #include "writepkt.h"
 
+/* do wpkt which doesn't take any params */
+void wpkt_do(
+	struct type_info* ti,
+	const struct fsl_rtt_wpkt_inst* wpkt_inst)
+{
+	uint64_t	wpkt_params[wpkt_inst->wpi_wpkt->wpkt_param_c];
+
+	FSL_WRITE_START();
+	wpkt_inst->wpi_params(&ti_clo(ti), NULL, wpkt_params);
+	fsl_io_do_wpkt(wpkt_inst->wpi_wpkt, wpkt_params);
+	FSL_WRITE_COMPLETE();
+}
+
 /* relocation procedure:
  * 1. allocate
  * 2. copy rel_sel_ti into newly allocated

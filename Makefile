@@ -27,6 +27,12 @@ all: code tools tests draw
 clean: code-clean tests-clean
 	rm -f bin/*-* bin/lang bin/*/*
 
+clean-root:
+	rm -f cur_test*
+	rm -f fsck*
+	rm -f fuse*
+	rm -f err pin.log pintool.log run_test.out tests.log
+
 draw: draw-hits draw-scans draw-relocs
 
 draw-relocs:
