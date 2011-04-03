@@ -6,6 +6,7 @@
 # USE_SYNC
 # XFM_PIN_STACK
 # XFM_MEM
+# IGNORE_FAIL	-- do not exit on failure
 
 if [ -z $src_root ]; then
 	echo "Source root not defined!"
@@ -158,6 +159,14 @@ function fs_thrashcopy_startup_img
 	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
 }
 
+function fs_fsck_startup_img_failable
+{
+	old_ignfail="$IGNORE_FAIL"
+	IGNORE_FAIL="Y"
+	fs_fsck_startup_img "$1" "$2"
+	IGNORE_FAIL="$old_ignfail"
+}
+
 function fs_fsck_startup_img
 {
 	fs="$1"
@@ -285,7 +294,7 @@ function fs_cmd_startup_img
 	unset_statfiles
 	stop_oprof "$fprefix" `echo $cmd | cut -f1 -d' ' `
 
-	if [ $retval -ne 0 ]; then
+	if [ $retval -ne 0 ] && [ -z "$IGNORE_FAIL" ]; then
 		echo "Test failed: $fs."
 		echo "Output: "
 		echo "-------------"

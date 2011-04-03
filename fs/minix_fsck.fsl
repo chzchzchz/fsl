@@ -1,0 +1,30 @@
+u32 get_zone_size() {
+	if (get_version() == MINIX_V3) return disk.sb3.s_log_zone_size;
+	return disk.sb.s_log_zone_size;
+}
+
+u32 get_sb_imap_blks() {
+	if (get_version() == MINIX_V3) return disk.sb3.s_imap_blocks;
+	return disk.sb.s_imap_blocks;
+}
+
+u32 get_sb_zmap_blks() {
+	if (get_version() == MINIX_V3) return disk.sb3.s_zmap_blocks;
+	return disk.sb.s_zmap_blocks;
+}
+
+/* XXX: eventually sizeof_bytes should be able to take parameterized types */
+type fsck_inode { minix_inode(1) dat; }
+type fsck_inode2 { minix2_inode(1) dat; }
+
+/* some sanity checks-- can't be triggered by bad data/ */
+disk::assert(? (BLK_SZ % sizeof_bytes(fsck_inode)) == 0) as chk_v1_ino_sz;
+disk::assert(? (BLK_SZ % sizeof_bytes(fsck_inode2)) == 0) as chk_v2_ino_sz;
+/* read_superblock checks */
+disk::assert(? get_zone_size() == 0 && BLK_SZ == 1024) as chk_1k_zones;
+disk::assert(? get_sb_imap_blks()*BLK_SZ*8 >= minix_ino_cnt()+1)
+	as chk_bad_s_imap_blocks;
+disk::assert(? get_sb_zmap_blks()*BLK_SZ*8 >= (get_blkcnt()-get_first_bnum()+1))
+	as chk_bad_s_zmap_blocks;
+
+/* TODO: all checks after read_superblock() call */

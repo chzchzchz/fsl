@@ -24,6 +24,7 @@ typedef blknum_t = u32;
 include "modes.fsl"
 include "minix_type.fsl"
 include "minix_func.fsl"
+include "minix_fsck.fsl"
 
 write minix_block_alloc(blknum_t bnum) { disk.zmap.bits[bnum_to_zonebit(bnum)]<-1! }
 write minix_block_replace(blknum_t bnum) { disk.zmap.bits[bnum_to_zonebit(bnum)]<-0! }

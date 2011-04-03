@@ -12,8 +12,7 @@ bool is_valid_magic()
 	u16	m = get_magic();
 	if (	m == MINIX_SUPER_MAGIC || m == MINIX_SUPER_MAGIC2 ||
 		m == MINIX2_SUPER_MAGIC || m == MINIX2_SUPER_MAGIC2 ||
-		m == MINIX3_SUPER_MAGIC)
-		return true;
+		m == MINIX3_SUPER_MAGIC) return true;
 	return false;
 }
 
@@ -31,7 +30,7 @@ u32 get_namelen()
 	if (m == MINIX_SUPER_MAGIC || m == MINIX2_SUPER_MAGIC) return 14;
 	if (m == MINIX_SUPER_MAGIC2 || m == MINIX2_SUPER_MAGIC2) return 30;
 	if (m == MINIX3_SUPER_MAGIC) return 60;
-	DEBUG_WRITE=999999;
+	DEBUG_WRITE=999999; /* XXX */
 	return 1;
 }
 
@@ -77,8 +76,7 @@ minix2_inode get_inode_v2(u32 ino) { return disk.inov2[ino-1]; }
 u32 get_bmp_blks(u32 elems) { return (elems+8*BLK_SZ-1)/(8*BLK_SZ); }
 minix_block get_blk(u32 blkno) { return disk.blocks[blkno]; }
 
-minix_block get_nth_v1(minix_inode ino, u32 blkoff)
-{
+minix_block get_nth_v1(minix_inode ino, u32 blkoff) {
 	return get_blk(get_nth_meta_v1_bnum(
 		ino, blkoff+get_file_meta(blkoff*BLK_SZ)));
 }
@@ -96,7 +94,6 @@ minix_block get_nth_meta_v1(minix_inode ino, u32 blkoff) {
 minix_block get_nth_meta_v2(minix2_inode ino, u32 blkoff) {
 	return get_blk(get_nth_meta_v2_bnum(ino, blkoff));
 }
-
 
 u32 get_nth_meta_v2_bnum(minix2_inode ino, u32 blkoff)
 {

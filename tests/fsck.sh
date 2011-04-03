@@ -9,6 +9,35 @@ if [ -z $fs ]; then
 	echo "NO FS DECLARED"
 fi
 
+function do_fsck_test
+{
+	cmd="$1"
+	teststr="$2"
+	imgname=$fs-fsck.img
+	srcimgname=$fs-postmark.img
+	if [ ! -z "$3" ]; then
+		srcimgname="$3"
+	fi
+
+	cmdimgname=$fs-"$teststr".img
+	cp ${src_root}/img/$srcimgname ${src_root}/img/$imgname
+	mv ${src_root}/img/$imgname ${src_root}/img/$cmdimgname
+	fs_fuse_cmd_img $fs "$cmdimgname" "$cmd"
+	fsck_img_fail "$cmdimgname"
+	fs_fsck_startup_img_failable $fs $cmdimgname
+	outfile="${src_root}/tests/fsck-$fs/${cmdimgname}.out"
+	grep_str=`grep "$teststr" "$outfile"`
+	if [ -z "$grep_str" ]; then
+		echo "Did not find expected string $teststr in $cmdimgname"
+		echo "Output contents ($outfile):"
+		cat "$outfile"
+		exit 1
+	fi
+
+	imgname=$fs-fsck.img
+	mv ${src_root}/img/$cmdimgname  ${src_root}/img/$imgname
+}
+
 function fsck_get_lodev
 {
 	case $fs in
