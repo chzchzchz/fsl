@@ -222,7 +222,6 @@ time_stat "real"
 time_stat "sys"
 time_stat "user"
 
-
 # MAKE FIGURES FOR PAPER
 echo "Make the figs..."
 gnuplot <util/plot/gnuplot/stack.gnu
@@ -235,3 +234,6 @@ gnuplot <util/plot/gnuplot/misses.gnu
 gnuplot <util/plot/gnuplot/hit-miss.gnu
 
 echo OK
+
+echo "Building git stat chart."
+util/gitgraph.sh

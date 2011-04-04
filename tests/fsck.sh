@@ -59,6 +59,8 @@ function fsck_get_cmd
 	"minix")	FSCKCMD="sudo /sbin/fsck.minix -v -s -f " ;;
 	"btrfs")	FSCKCMD="sudo /sbin/btrfsck " ;;
 	"xfs")		FSCKCMD="sudo /sbin/xfs_check " ;;
+	"vfat")		FSCKCMD="sudo /sbin/dosfsck -n " ;;
+	"nilfs2")	FSCKCMD="true " ;; # no fsck for nilfs2!
 	*)		FSCKCMD="sudo fsck " ;;
 	esac
 }

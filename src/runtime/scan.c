@@ -4,66 +4,59 @@
 #include "type_info.h"
 #include "scan.h"
 
+#define SCAN_FL_DEEP	(1 << 0)
+
 struct scan_ctx {
 	struct type_info		*sctx_ti;
 	const struct scan_ops		*sctx_ops;
 	void				*sctx_aux;
+	uint32_t			sctx_flags;
 };
 
-#define ctx_init(ctx,x,y,z)		\
+#define ctx_init(ctx,x,y,z,fl)		\
 	do {				\
 		(ctx)->sctx_ti = x;	\
 		(ctx)->sctx_ops = y;	\
 		(ctx)->sctx_aux = z;	\
+		(ctx)->sctx_flags = fl;	\
 	} while (0)
 
 static int scan_pointsto_all(struct scan_ctx* ctx);
 static int scan_virt_all(struct scan_ctx* ctx);
-static int scan_strongtype_all(struct scan_ctx* ctx);
+static int scan_fieldstrong_all(struct scan_ctx* ctx);
 static int scan_cond_all(struct scan_ctx* ctx);
 static int scan_pointsto(struct scan_ctx* ctx, const struct fsl_rtt_pointsto*);
 static int scan_virt(struct scan_ctx*, const struct fsl_rtt_virt*);
-static int scan_strongtype(struct scan_ctx*, const struct fsl_rtt_field*);
+static int scan_fieldstrong(struct scan_ctx*, const struct fsl_rtt_field*);
 static int scan_cond(struct scan_ctx*, const struct fsl_rtt_field*);
 static int scan_field_array(
 	struct scan_ctx* ctx, const struct fsl_rtt_field* field);
+static int scan_type_fl(
+	struct type_info* ti, const struct scan_ops* sops, void* aux,
+	uint32_t fl);
 
-static int scan_virt_all(struct scan_ctx* ctx)
-{
-	const struct fsl_rtt_type	*tt;
-	unsigned int			i;
-	int				ret;
-
-	DEBUG_SCAN_ENTER();
-	tt = tt_by_ti(ctx->sctx_ti);
-	for (i = 0; i < tt->tt_virt_c; i++) {
-		ret = scan_virt(ctx, &tt->tt_virt[i]);
-		if (is_ret_done(ret))
-			goto done;
-	}
-	ret = SCAN_RET_CONTINUE;
-done:
-	DEBUG_SCAN_LEAVE();
-	return ret;
+#define SCAN_TABLE_ALL(n)				\
+static int scan_##n##_all(struct scan_ctx* ctx)		\
+{							\
+	const struct fsl_rtt_type	*tt;		\
+	unsigned int			i;		\
+	int				ret;		\
+							\
+	DEBUG_SCAN_ENTER();				\
+	tt = tt_by_ti(ctx->sctx_ti);			\
+	for (i = 0; i < tt->tt_##n##_c; i++) {		\
+		ret = scan_##n(ctx, &tt->tt_##n [i]);	\
+		if (is_ret_done(ret)) goto done;	\
+	}						\
+	ret = SCAN_RET_CONTINUE;			\
+done:							\
+	DEBUG_SCAN_LEAVE();				\
+	return ret;					\
 }
 
-static int scan_strongtype_all(struct scan_ctx* ctx)
-{
-	const struct fsl_rtt_type	*tt;
-	unsigned int			i;
-	int				ret;
-
-	tt = tt_by_ti(ctx->sctx_ti);
-	for (i = 0; i < tt->tt_fieldstrong_c; i++) {
-		ret = scan_strongtype(ctx, &tt->tt_fieldstrong_table[i]);
-		if (is_ret_done(ret))
-			goto done;
-	}
-
-	ret = SCAN_RET_CONTINUE;
-done:
-	return ret;
-}
+SCAN_TABLE_ALL(virt)
+SCAN_TABLE_ALL(fieldstrong)
+SCAN_TABLE_ALL(pointsto)
 
 static int scan_cond_all(struct scan_ctx* ctx)
 {
@@ -77,24 +70,6 @@ static int scan_cond_all(struct scan_ctx* ctx)
 		tf = &tt->tt_fieldtypes_thunkoff[i];
 		if (tf->tf_cond == NULL) continue;
 		ret = scan_cond(ctx, tf);
-		if (is_ret_done(ret))
-			goto done;
-	}
-
-	ret = SCAN_RET_CONTINUE;
-done:
-	return ret;
-}
-
-static int scan_pointsto_all(struct scan_ctx* ctx)
-{
-	const struct fsl_rtt_type	*tt;
-	unsigned int			i;
-	int				ret;
-
-	tt = tt_by_ti(ctx->sctx_ti);
-	for (i = 0; i < tt->tt_pointsto_c; i++) {
-		ret = scan_pointsto(ctx, &tt->tt_pointsto[i]);
 		if (is_ret_done(ret))
 			goto done;
 	}
@@ -158,7 +133,8 @@ static int scan_pointsto(
 
 		DEBUG_SCAN_WRITE("Followng points-to");
 
-		ret = scan_type(new_ti, ctx->sctx_ops, ctx->sctx_aux);
+		ret = scan_type_fl(
+			new_ti, ctx->sctx_ops, ctx->sctx_aux, ctx->sctx_flags);
 		typeinfo_free(new_ti);
 
 		if (is_ret_done(ret))
@@ -208,7 +184,8 @@ static int scan_virt(struct scan_ctx* ctx, const struct fsl_rtt_virt* vt)
 
 		DEBUG_SCAN_WRITE("Following virtual %s[%d]", vt->vt_name, i);
 
-		ret = scan_type(ti_cur, ctx->sctx_ops, ctx->sctx_aux);
+		ret = scan_type_fl(ti_cur, ctx->sctx_ops, ctx->sctx_aux,
+			ctx->sctx_flags);
 
 		DEBUG_SCAN_WRITE("virt done");
 		typeinfo_free(ti_cur);
@@ -243,7 +220,8 @@ static int scan_field_array(
 	num_elems = field->tf_elemcount(&ti_clo(ti));
 	off = field->tf_fieldbitoff(&ti_clo(ti));
 	if (field->tf_typenum == TYPENUM_INVALID) goto done_ok;
-	if ((field->tf_flags & FIELD_FL_NOFOLLOW) != 0) goto done_ok;
+	if (	(ctx->sctx_flags & SCAN_FL_DEEP) == 0 &&
+		(field->tf_flags & FIELD_FL_NOFOLLOW) != 0) goto done_ok;
 
 	for (i = 0; i < num_elems; i++) {
 		struct type_info*		new_ti;
@@ -268,7 +246,8 @@ static int scan_field_array(
 		DEBUG_SCAN_WRITE("SFA: Following field %s[%d] %x",
 			field->tf_fieldname, i, field->tf_flags);
 
-		ret = scan_type(new_ti, ctx->sctx_ops, ctx->sctx_aux);
+		ret = scan_type_fl(new_ti, ctx->sctx_ops, ctx->sctx_aux,
+			ctx->sctx_flags);
 		typeinfo_free(new_ti);
 		if (is_ret_done(ret))
 			goto done;
@@ -312,7 +291,7 @@ done:
 	return ret;
 }
 
-static int scan_strongtype(
+static int scan_fieldstrong(
 	struct scan_ctx* ctx, const struct fsl_rtt_field* field)
 {
 	struct type_info		*ti;
@@ -331,44 +310,59 @@ done:
 	return ret;
 }
 
-int scan_type(struct type_info* ti, const struct scan_ops* sops, void* aux)
+static int scan_type_ctx(struct scan_ctx* ctx)
+{
+	int	ret = SCAN_RET_CONTINUE;
+
+	DEBUG_SCAN_ENTER();
+
+	if (ctx->sctx_ops->so_ti) {
+		ret = ctx->sctx_ops->so_ti(ctx->sctx_ti, ctx->sctx_aux);
+		if (is_ret_done(ret)) goto done;
+	}
+
+	DEBUG_SCAN_WRITE("do strongtypes_all.");
+	ret = scan_fieldstrong_all(ctx);
+	if (is_ret_done(ret)) goto done;
+
+	DEBUG_SCAN_WRITE("do condscan");
+	ret = scan_cond_all(ctx);
+	if (is_ret_done(ret)) goto done;
+
+	DEBUG_SCAN_WRITE("do pointsto_all.");
+	ret = scan_pointsto_all(ctx);
+	if (is_ret_done(ret)) goto done;
+
+	DEBUG_SCAN_WRITE("do scan virts.");
+	ret = scan_virt_all(ctx);
+	if (is_ret_done(ret)) goto done;
+
+done:
+	DEBUG_SCAN_LEAVE();
+	return ret;
+}
+
+static int scan_type_fl(
+	struct type_info* ti, const struct scan_ops* sops, void* aux,
+	uint32_t fl)
 {
 	struct scan_ctx		ctx;
-	int			ret;
 
 	FSL_ASSERT (sops != NULL);
 
 	if (ti == NULL) return SCAN_RET_CONTINUE;
 	if (ti_typenum(ti) == TYPENUM_INVALID) return SCAN_RET_CONTINUE;
 
-	DEBUG_SCAN_ENTER();
+	ctx_init(&ctx, ti, sops, aux, fl);
+	return scan_type_ctx(&ctx);
+}
 
-	ctx_init(&ctx, ti, sops, aux);
+int scan_type_deep(struct type_info* ti, const struct scan_ops* sops, void* aux)
+{
+	return scan_type_fl(ti, sops, aux, SCAN_FL_DEEP);
+}
 
-	if (ctx.sctx_ops->so_ti) {
-		ret = ctx.sctx_ops->so_ti(ti, aux);
-		if (is_ret_done(ret))
-			goto done;
-	}
-
-	DEBUG_SCAN_WRITE("do strongtypes_all.");
-	ret = scan_strongtype_all(&ctx);
-	if (is_ret_done(ret)) goto done;
-
-	DEBUG_SCAN_WRITE("do condscan");
-	ret = scan_cond_all(&ctx);
-	if (is_ret_done(ret)) goto done;
-
-	DEBUG_SCAN_WRITE("do pointsto_all.");
-	ret = scan_pointsto_all(&ctx);
-	if (is_ret_done(ret)) goto done;
-
-	DEBUG_SCAN_WRITE("do scan virts.");
-	ret = scan_virt_all(&ctx);
-	if (is_ret_done(ret)) goto done;
-
-	ret = SCAN_RET_CONTINUE;
-done:
-	DEBUG_SCAN_LEAVE();
-	return ret;
+int scan_type(struct type_info* ti, const struct scan_ops* sops, void* aux)
+{
+	return scan_type_fl(ti, sops, aux, 0);
 }

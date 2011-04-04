@@ -57,7 +57,7 @@ int tool_entry(int argc, char* argv[])
 		return -1;
 	}
 
-	scan_type(origin_ti, &ops, NULL);
+	scan_type_deep(origin_ti, &ops, NULL);
 
 	typeinfo_free(origin_ti);
 

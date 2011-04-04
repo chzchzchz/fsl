@@ -3,6 +3,7 @@
 fs="vfat"
 source ${src_root}/tests/test_common.sh
 source ${src_root}/tests/fs_common.sh
+source ${src_root}/tests/fsck.sh
 
 imgname=${fs}-32-many.img
 fs_scan_startup_img $fs ${fs}-32-many.img
@@ -38,7 +39,6 @@ if [ "$fcount" -ne 27561 ]; then
 	echo "BADCOUNT $fcount != 27561 for ${src_root}/tests/scantool-$fs/$imgname.out"
 	exit -2
 fi
-
 
 imgname=$fs-relocate.img
 cp ${src_root}/img/$fs-many.img ${src_root}/img/$imgname
@@ -97,3 +97,6 @@ if [ "$fcount" -ne 27561 ]; then
 	echo "BADCOUNT $fcount != 27561"
 	exit -2
 fi
+
+do_fsck_test "printf '\xf0\xf0' >fats/0/ent16/1326/cluster_num && printf '\xf0\xf0' >fats/1/ent16/1326/cluster_num " "repair_fat16_bad_range"
+do_fsck_test "printf '\xf0\xf0' >fats/0/ent16/1326/cluster_num && printf '\xf0\xf0' >fats/1/ent16/1326/cluster_num " "repair_trunc_file"

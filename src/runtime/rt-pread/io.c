@@ -185,11 +185,11 @@ void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 	/* 1. write to file */
 	/* 2. flush cache */
 	if ((bit_off % 8)) {
-		printf("ARGH");
+		printf("ARGH! UNALIGNED ACCESS %"PRIu64"\n", bit_off);
 		assert (0 == 1 && "UNALIGNED ACCESS");
 	}
 	if ((num_bits % 8)) {
-		printf("WHRG");
+		printf("WHRG! NON-BYTE BITS", num_bits);
 		assert (0 == 1 && "NON-BYTE BITS");
 	}
 

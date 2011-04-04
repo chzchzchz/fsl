@@ -125,7 +125,7 @@ void TableGen::genInstanceType(const Type *t)
 	sw.write("tt_arg_c", t->getNumArgs());
 	sw.write("tt_size", size_fc->getName());
 	sw.write("tt_fieldstrong_c", st->size());
-	sw.write("tt_fieldstrong_table", "__rt_tab_thunks_" + tname);
+	sw.write("tt_fieldstrong", "__rt_tab_thunks_" + tname);
 
 	sw.write("tt_pointsto_c", points_map[tname]->getNumPointing());
 	sw.write("tt_pointsto", "__rt_tab_pointsto_" + tname);

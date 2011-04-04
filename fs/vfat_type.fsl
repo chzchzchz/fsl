@@ -29,7 +29,7 @@ assert (? is_deleted(this) == false) as chk_not_del
 assert (? is_lfn(this) == false) as chk_not_lfn
 assert (? is_back_ref(this) == false) as not_backref
 virtual_if(
-	? file_size != 0xffffffff && ((DIR_MASK & attr) == 0),
+	? is_de_file(this),
 	file_cluster,
 	i, 1, de_cluster_count(this), get_nth(this, i)) as vfile
 virtual_if(
@@ -40,16 +40,16 @@ relocate(
 	j, 1, de_cluster_count(this), get_nth(this, j),
 	i, FAT_START_ENT, get_cluster_count(),
 		get_cluster(i), ? is_cluster_avail(i),
-	block_alloc(i, get_fat_type()),
-	block_relink(this, j, i, get_fat_type()),
-	block_replace(get_nth_cnum(this, j), get_fat_type())) as reloc
+	block_alloc(i),
+	block_relink(this, j, i),
+	block_replace(get_nth_cnum(this, j))) as reloc
 relocate(
 	j, 1, de_cluster_count(this), get_nth(this, j),
 	i, FAT_START_ENT, get_cluster_count(),
 		get_cluster(i), ? is_cluster_avail(i),
-	block_alloc(i, get_fat_type()),
-	block_relink(this, j, i, get_fat_type()),
-	block_replace(get_nth_cnum(this, j), get_fat_type())) as defrag
+	block_alloc(i),
+	block_relink(this, j, i),
+	block_replace(get_nth_cnum(this, j))) as defrag
 points(fname) as name
 {
 	fat_short_name	fname nofollow;	/* name + ext */
@@ -137,20 +137,13 @@ type fat_ent32 { u32	cluster_num; }
 type fat
 {
 	if (is_fat32()) {
-		fat_ent32	ent32[FAT_START_ENT+get_cluster_count()] fixed nofollow;
+		fat_ent32 ent32[FAT_START_ENT+get_cluster_count()] fixed nofollow;
 	} else if (is_fat16()) {
-		fat_ent16	ent16[FAT_START_ENT+get_cluster_count()] fixed nofollow;
+		fat_ent16 ent16[FAT_START_ENT+get_cluster_count()] fixed nofollow;
 	} else if (is_fat12()) {
-		fat_ent12	ent12[FAT_START_ENT+get_cluster_count()] fixed nofollow;
+		fat_ent12 ent12[FAT_START_ENT+get_cluster_count()] fixed nofollow;
 	} else {
 		fsl_fail(2);
 	}
-	set_bytes(0);
-	fat_ent32 _ent32[FAT_START_ENT+get_cluster_count()] fixed nofollow;
-	set_bytes(0);
-	fat_ent16 _ent16[FAT_START_ENT+get_cluster_count()] fixed nofollow;
-	set_bytes(0);
-	fat_ent12 _ent12[FAT_START_ENT+get_cluster_count()] fixed nofollow;
-
 	set_bytes(get_fat_sectors()*bytes_per_sector());
 }

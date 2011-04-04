@@ -1,0 +1,30 @@
+//TODO:
+// 1. check whether FATs differ-- overwrite FATs if one looks bad
+// 2. reclaim / save orphaned clusters
+
+bool cluster_bad_range(u32 v)
+{
+	if (v == 1) return true;
+	if (v >= get_cluster_count()+FAT_START_ENT && v < get_fatmax())
+		return true;
+	return false;
+}
+
+write set_eof12(fat_ent12 f) { f.cluster_num <- get_eof()! }
+write set_eof16(fat_ent16 f) { f.cluster_num <- get_eof()! }
+write set_eof32(fat_ent32 f) { f.cluster_num <- get_eof()! }
+
+fat_ent12::repair(? cluster_bad_range(cluster_num), set_eof12(this))
+	as repair_fat12_bad_range;
+fat_ent16::repair(? cluster_bad_range(cluster_num), set_eof16(this))
+	as repair_fat16_bad_range;
+fat_ent32::repair(? cluster_bad_range(cluster_num), set_eof32(this))
+	as repair_fat32_bad_range;
+
+/* eof is already set here so we don't know which blocks have
+   been lost in the chain. Orphaned blocks are handled later. */
+write de_truncate(fat_de de, u32 fsz) { de.file_size <- fsz ! }
+u32 get_max_bytes(fat_de de) { return de_force_ccount(de)*bytes_per_cluster(); }
+fat_de::repair(
+	? get_max_bytes(this) < file_size,
+	de_truncate(this, get_max_bytes(this))) as repair_trunc_file;

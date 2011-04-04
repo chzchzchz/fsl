@@ -32,5 +32,6 @@ struct scan_ops {
 };
 
 int scan_type(struct type_info* ti, const struct scan_ops* sf, void* aux);
+int scan_type_deep(struct type_info* ti, const struct scan_ops* sf, void* aux);
 
 #endif

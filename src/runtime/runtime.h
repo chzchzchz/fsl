@@ -177,7 +177,7 @@ struct fsl_rtt_type
 
 	/* strong user-types */
 	unsigned int			tt_fieldstrong_c;
-	const struct fsl_rtt_field	*tt_fieldstrong_table;
+	const struct fsl_rtt_field	*tt_fieldstrong;
 
 	/* all non-union fields */
 	unsigned int			tt_fieldall_c;
