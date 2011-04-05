@@ -27,11 +27,8 @@ Func* FuncStmt::getFunc(void) const
 
 void Func::genLoadArgs(void) const
 {
-	Function			*f;
-	Function::arg_iterator		ai;
-
-	f = getFunction();
-	ai = f->arg_begin();
+	Function			*f = getFunction();
+	Function::arg_iterator		ai = f->arg_begin();
 	IRBuilder<>			tmpB(
 		&f->getEntryBlock(),
 		f->getEntryBlock().begin());
@@ -41,13 +38,13 @@ void Func::genLoadArgs(void) const
 	/* handle return value if passing type */
 	if (f->getReturnType() == tmpB.getVoidTy()) {
 		block->vscope.createTmpClosurePtr(
-			types_map[getRet()], "__ret_closure", ai, tmpB);
+			getRetType(), "__ret_closure", ai, tmpB);
 	}
 }
 
 Value* FuncDecl::codeGen(void) const
 {
-	FuncBlock		*scope;
+	FuncBlock		*scope = getOwner();
 	Function		*f = getFunc()->getFunction();
 	const ::Type		*user_type;
 	IRBuilder<>	tmpB(&f->getEntryBlock(), f->getEntryBlock().begin());
@@ -55,7 +52,6 @@ Value* FuncDecl::codeGen(void) const
 	/* XXX no support for arrays yet */
 	assert (array == NULL);
 
-	scope = getOwner();
 	if (scope->getVar(scalar->getName()) != NULL) {
 		cerr << "Already added variable " << scalar->getName() << endl;
 		return NULL;
@@ -74,7 +70,6 @@ Value* FuncDecl::codeGen(void) const
 
 	return NULL;
 }
-
 
 bool FuncAssign::genDebugAssign(void) const
 {
@@ -115,10 +110,8 @@ bool FuncAssign::genDebugAssign(void) const
 	return false;
 }
 
-
 Value* FuncAssign::codeGen(void) const
 {
-
 	Value			*e_v;
 	llvm::AllocaInst*	var_loc;
 	EvalCtx			ectx(getOwner());
@@ -193,9 +186,7 @@ Value* FuncRet::codeGen(void) const
 		tp_elem_ptr = builder->CreateLoad(allocai);
 
 		code_builder->copyClosure(
-			types_map[getFunc()->getRet()],
-			e_v, tp_elem_ptr);
-
+			getFunc()->getRetType(), e_v, tp_elem_ptr);
 		builder->CreateRetVoid();
 
 		return NULL;
@@ -209,14 +200,12 @@ Value* FuncRet::codeGen(void) const
 
 Value* FuncCondStmt::codeGen(void) const
 {
-	Function	*f;
+	Function	*f = getFunction();
+	IRBuilder<>	*builder = code_builder->getBuilder();
+
 	BasicBlock	*bb_then, *bb_else, *bb_merge, *bb_origin, *bb_cur;
 	Value		*cond_v;
-	IRBuilder<>	*builder;
 	EvalCtx		ectx(getOwner());
-
-	builder = code_builder->getBuilder();
-	f = getFunction();
 
 	/* setup allocate BBs */
 	bb_origin = builder->GetInsertBlock();
@@ -268,15 +257,13 @@ Value* FuncCondStmt::codeGen(void) const
 
 Value* FuncWhileStmt::codeGen(void) const
 {
-	Function	*f;
+	Function	*f = getFunction();
+	IRBuilder<>	*builder = code_builder->getBuilder();
+
 	BasicBlock	*bb_begin, *bb_cond, *bb_end, *bb_origin;
 	BasicBlock	*bb_after_body;
 	Value		*cond_v;
-	IRBuilder<>	*builder;
 	EvalCtx		ectx(getOwner());
-
-	builder = code_builder->getBuilder();
-	f = getFunction();
 
 	bb_origin = builder->GetInsertBlock();
 	bb_cond = BasicBlock::Create(getGlobalContext(), "while_cond", f);
@@ -361,7 +348,7 @@ void Func::genProto(void) const
 	const llvm::Type		*t_ret;
 	bool				is_user_type;
 
-	if (types_map.count(getRet()) != 0) {
+	if (getRetType() != NULL) {
 		is_user_type = true;
 	} else if (ctypes_map.count(getRet()) != 0) {
 		is_user_type = false;
@@ -403,14 +390,12 @@ void Func::genProto(void) const
 
 bool Func::genFuncCodeArgs(vector<const llvm::Type*>& llvm_args) const
 {
-	const ArgsList	*args;
+	const ArgsList	*args = getArgs();
 	bool		is_ret_user_type;
 
-	is_ret_user_type = (types_map.count(getRet()) != 0);
-
-	args = getArgs();
 	assert (args != NULL);
 
+	is_ret_user_type = (getRetType() != NULL);
 	llvm_args.clear();
 
 	for (unsigned int i = 0; i < args->size(); i++) {
@@ -440,7 +425,6 @@ bool Func::genFuncCodeArgs(vector<const llvm::Type*>& llvm_args) const
 		/* hidden return value */
 		llvm_args.push_back(code_builder->getClosureTyPtr());
 	}
-
 
 	return true;
 }
@@ -476,4 +460,10 @@ void Func::genCode(void) const
 
 	gen_func = NULL;
 	gen_func_block = NULL;
+}
+
+const ::Type* Func::getRetType(void) const
+{
+	if (types_map.count(ret_type->getName()) == 0) return NULL;
+	return types_map[ret_type->getName()];
 }

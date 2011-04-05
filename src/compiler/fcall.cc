@@ -32,9 +32,7 @@ Expr* FCall::mkBaseClosure(const ::Type* t)
 {
 	assert (t->getNumArgs() == 0 && "STUB >0 args");
 	return mkClosure(
-		new Number(0),
-		new Id("__NULLPTR"),
-		new Id("__NULLPTR8"));
+		new Number(0), new Id("__NULLPTR"), new Id("__NULLPTR8"));
 }
 
 Expr* FCall::mkClosure(Expr* diskoff, Expr* params, Expr* virt)
@@ -284,9 +282,7 @@ llvm::Value* FCall::codeGenParamsAllocaByCount(void) const
 	return parambuf;
 }
 
-/**
- * generate paramters to pass into the function call
- */
+/* generate paramters to pass into the function call */
 llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 {
 	ExprList::const_iterator	it;
@@ -362,26 +358,29 @@ Value* FCall::codeGenClosureRetCall(std::vector<llvm::Value*>& args) const
 {
 	const Func		*callee_func;
 	IRBuilder<>		*builder;
-	Value			*ret;
-	AllocaInst		*tmp_tp;
-	AllocaInst		*tmp_params;
+	AllocaInst		*tmp_tp, *tmp_params;
 	unsigned int		param_c;
 
 	builder = code_builder->getBuilder();
 	callee_func = funcs_map[id->getName()];
 	assert (callee_func != NULL);
 
-	param_c = types_map[callee_func->getRet()]->getParamBufEntryCount();
+	if (memotab.canMemoize(callee_func))
+		return memotab.memoFuncCall(callee_func);
 
+	/* create temporary storage for closure */
+	param_c = callee_func->getRetType()->getParamBufEntryCount();
 	tmp_tp = builder->CreateAlloca(code_builder->getClosureTy());
-	tmp_params = code_builder->createPrivateTmpI64Array(
-		param_c, "BURRITOS");
-	TypeClosure	tc(tmp_tp);
+	tmp_params = code_builder->createPrivateTmpI64Array(param_c, "RETCLO");
 
+	TypeClosure	tc(tmp_tp);
 	builder->CreateStore(tc.setParamBuf(tmp_params), tmp_tp);
 
+	/* pass in temporary storage */
 	args.push_back(tmp_tp);
-	ret = builder->CreateCall(
+
+	/* doit */
+	builder->CreateCall(
 		code_builder->getModule()->getFunction(id->getName()),
 		args.begin(), args.end());
 
@@ -402,10 +401,8 @@ llvm::Value* FCall::codeGenPrimitiveRetCall(vector<llvm::Value*>& args) const
 	if (funcs_map.count(call_name) != 0)
 		callee_func = funcs_map[call_name];
 
-	if (memotab.canMemoize(callee_func)) {
-		/* idempotent function */
+	if (memotab.canMemoize(callee_func))
 		return memotab.memoFuncCall(callee_func);
-	}
 
 	return builder->CreateCall(callee, args.begin(), args.end());
 }
@@ -433,7 +430,7 @@ Value* FCall::codeGen() const
 
 	if (funcs_map.count(call_name) != 0) {
 		callee_func = funcs_map[call_name];
-		is_ret_closure = (types_map.count(callee_func->getRet()) > 0);
+		is_ret_closure = (callee_func->getRetType() != NULL);
 	} else {
 		callee_func = NULL;
 		is_ret_closure = false;

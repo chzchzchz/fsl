@@ -146,18 +146,32 @@ void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 	__FROM_OS_SB_BLOCKSIZE_BYTES = fctx->fctx_io->io_blksize;
 }
 
+/* TODO: track accesses for write filter */
+static void fsl_do_memo(struct fsl_memo_t* m)
+{
+	struct fsl_rt_closure	*clo;
+
+	if (m->m_typenum == TYPENUM_INVALID) {
+		/* primitive */
+		__fsl_memotab[m->m_tabidx] = m->m_f.f_prim();
+		return;
+	}
+
+	clo = (struct fsl_rt_closure*)(&__fsl_memotab[m->m_tabidx]);
+	clo->clo_params = (parambuf_t)(clo+1);	/* params immediately follow */
+	m->m_f.f_type(clo);
+}
+
 void fsl_load_memo(void)
 {
-	int	i;
+	unsigned int	i;
 	FSL_ASSERT (fsl_env != NULL);
-	for (i = 0; i < __fsl_memotab_sz; i++)
-		__fsl_memotab[i] = __fsl_memotab_funcs[i]();
-
+	for (i = 0; i < __fsl_memof_c; i++)
+		fsl_do_memo(&__fsl_memotab_funcs[i]);
 }
 
 uint64_t __getLocal(
-	const struct fsl_rt_closure* clo,
-	uint64_t bit_off, uint64_t num_bits)
+	const struct fsl_rt_closure* clo, uint64_t bit_off, uint64_t num_bits)
 {
 	uint64_t		ret;
 

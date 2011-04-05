@@ -92,9 +92,11 @@ u32 get_eof()
 	return EOF_FAT32;
 }
 
+fat get_fat0() { return disk.fats[0]; }
+
 clusternum_t fat_next(clusternum_t cn)
 {
-	fat		f = disk.fats[0];
+	fat		f = get_fat0();
 
 	if (is_fat32()) return f.ent32[cn].cluster_num;
 	else if (is_fat16()) return f.ent16[cn].cluster_num;

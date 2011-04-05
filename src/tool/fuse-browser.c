@@ -393,11 +393,7 @@ static int fslfuse_write(const char* path, const char* buf, size_t size,
 	diskoff_t		clo_off;
 	int			err, i;
 
-	DEBUG_WRITE("BEGINNING WRITE. %d %d", size, offset);
-
 	ti = fslfuse_prep_io(fi, offset, &clo_off, &len, &err);
-
-	DEBUG_WRITE("LEN IS %d", len);
 
 	if (ti == NULL) return err;
 	if ((size + offset) > len) size = len - offset;

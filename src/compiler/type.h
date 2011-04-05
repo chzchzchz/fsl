@@ -352,11 +352,8 @@ public:
 		type_num = new_type_num;
 	}
 
-	int getTypeNum(void) const
-	{
-		/* if type has not been set yet, invisiblet! */
-		return type_num;
-	}
+	/* if type has not been set yet, invisible! */
+	int getTypeNum(void) const { return type_num; }
 
 	unsigned int getNumArgs(void) const
 	{

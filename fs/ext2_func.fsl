@@ -123,7 +123,6 @@ ext2_indir_block ext2_indir_in_bi_lookup(ext2_inode ino, uint n)
 	blknum_t		indir_blknum;
 	indir_blknum = ext2_indir_in_bi_lookupblk(ino, n);
 	return ext2_indir_lookup(indir_blknum);
-
 }
 
 u32 biindir_indir_offset(uint n)

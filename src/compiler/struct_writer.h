@@ -23,16 +23,11 @@ public:
 	: out(in_out), first_elem(true), is_toplevel(true)
 	{
 		assert (out.good() == true);
-		if (isStatic) {
-			out << "static ";
-		}
+		if (isStatic) out << "static ";
 		out << "const struct " << type_name << " " << name << " = {\n";
 	}
 
-	virtual ~StructWriter(void)
-	{
-		out << ((is_toplevel) ? "};\n" : "}\n");
-	}
+	virtual ~StructWriter(void) { out << ((is_toplevel) ? "};\n" : "}\n"); }
 
 	void writeStr(const std::string& fieldname, const std::string& val)
 	{
@@ -67,19 +62,15 @@ public:
 	void write(const std::string& name)
 	{
 		writeComma();
-		out  << name;
+		out << name;
 	}
 
-	void beginWrite(void)
-	{
-		writeComma();
-	}
+	void beginWrite(void) { writeComma(); }
 
 private:
 	void writeComma(void)
 	{
-		if (first_elem == false)
-			out << ",\n";
+		if (first_elem == false) out << ",\n";
 		first_elem = false;
 	}
 

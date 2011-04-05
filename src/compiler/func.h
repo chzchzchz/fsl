@@ -222,6 +222,7 @@ public:
 
 	const std::string& getName() const { return name->getName(); }
 	const std::string& getRet() const { return ret_type->getName(); }
+	const Type* getRetType() const;
 	llvm::Function* getFunction(void) const;
 
 	const ArgsList* getArgs() const { return args; }

@@ -236,8 +236,13 @@ void TableGen::genExternsUserFuncs(void)
 	{
 		const Func	*f = *it;
 		if (!memotab.canMemoize(f)) continue;
-		out <<	"extern uint64_t " << (*it)->getName() <<
-			"(void);" << endl;
+		out << "extern ";
+		if (f->getRetType() == NULL)
+			out <<	"uint64_t " << f->getName() << "(void)";
+		else
+			out	<< "void " << f->getName()
+				<< "(struct fsl_rt_closure*)";
+		out << ';' << endl;
 	}
 }
 

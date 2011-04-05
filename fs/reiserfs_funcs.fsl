@@ -1,13 +1,13 @@
 u64 assert_nonzero(u64 x) { if (x == 0) return fsl_fail(0); return x; }
 
-int get_bsz() { return assert_nonzero(get_sb().s_v1.s_blocksize); }
-u32 get_block_count() { return assert_nonzero(get_sb().s_v1.s_block_count); }
-
 reiserfs_sb get_sb()
 {
 	if (is_any_reiserfs_magic(disk.sb_new)) return disk.sb_new;
 	return disk.sb_old;
 }
+
+int get_bsz() { return assert_nonzero(get_sb().s_v1.s_blocksize); }
+u32 get_block_count() { return assert_nonzero(get_sb().s_v1.s_block_count); }
 
 u32 get_blkbmp_base()
 {
@@ -47,7 +47,6 @@ u32 get_journal_base()
 		return get_journal_old_start_must();
 	return get_journal_new_start_must();
 }
-
 
 u32 get_journal_base1()
 {
