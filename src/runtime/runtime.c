@@ -147,7 +147,7 @@ void fsl_vars_from_env(struct fsl_rt_ctx* fctx)
 }
 
 /* TODO: track accesses for write filter */
-static void fsl_do_memo(struct fsl_memo_t* m)
+static void fsl_do_memo(const struct fsl_memo_t* m)
 {
 	struct fsl_rt_closure	*clo;
 

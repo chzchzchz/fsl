@@ -1,4 +1,4 @@
-/* XXX we need a mechanism in FSL to get a type if and only if some preamble
+/* xxx WE need a mechanism in FSL to get a type if and only if some preamble
  * properties are satisfied */
 nilfs_sb get_current_sb()
 {
@@ -6,12 +6,12 @@ nilfs_sb get_current_sb()
 	return disk.nsb2;
 }
 
-uint get_bsz() { return get_bsz_sb(get_current_sb()); }
-uint get_inosz() { return get_current_sb().s_inode_size; }
-uint get_segbase() { return get_current_sb().s_first_data_block * get_bsz(); }
-uint get_bsz_sb(nilfs_sb nsb) { return (1 << (nsb.s_log_block_size+10)); }
-uint get_numsegs() { return get_current_sb().s_nsegments; }
-uint get_blks_per_seg() { return get_current_sb().s_blocks_per_segment; }
+uint get_bsz() = get_bsz_sb(get_current_sb());
+uint get_inosz() = get_current_sb().s_inode_size;
+uint get_segbase() = get_current_sb().s_first_data_block * get_bsz();
+uint get_bsz_sb(nilfs_sb nsb) = (1 << (nsb.s_log_block_size+10));
+uint get_numsegs() = get_current_sb().s_nsegments;
+uint get_blks_per_seg() = get_current_sb().s_blocks_per_segment;
 
 int segsum_len(nilfs_segment_summary_header ss)
 {
@@ -19,8 +19,8 @@ int segsum_len(nilfs_segment_summary_header ss)
 	return ss.ss_bytes;
 }
 
-nilfs_segment get_segment(segnum_t segnum) { return disk.segs[segnum]; }
-u64 nilfs_sb2_offset_bytes(u64 devsize) { return (((devsize) >> 12)-1) << 12; }
+nilfs_segment get_segment(segnum_t segnum) = disk.segs[segnum];
+u64 nilfs_sb2_offset_bytes(u64 devsize) = (((devsize) >> 12)-1) << 12;
 
 bool nilfs_sb_is_valid(nilfs_sb nsb)
 {
@@ -30,15 +30,9 @@ bool nilfs_sb_is_valid(nilfs_sb nsb)
 	return true;
 }
 
-bool debug_fff(u64 x) {
-	DEBUG_WRITE = x;
-	return true;
-}
-
 nilfs_block nilfs_get_block(blocknum_t bn)
 {
-	nilfs_segment	seg;
-	seg = get_segment(block_to_segnum(bn));
+	nilfs_segment	seg = get_segment(block_to_segnum(bn));
 	return seg.seg_blocks[bn % get_blks_per_seg()];
 }
 
@@ -111,11 +105,9 @@ bool fi_has_boff(nilfs_finfo fi, inonum_t inum, blkoff_t boff)
 nilfs_finfo nilfs_get_inode_block_finfo(inonum_t inum, blkoff_t boff)
 {
 	nilfs_finfo		fi;
-	int			num_segs;
-	int			i;
+	int			num_segs = get_current_sb().s_nsegments;
+	int			i = 0;
 
-	i = 0;
-	num_segs = get_current_sb().s_nsegments;
 	// iterate over every segment
 	while (i < num_segs)  {
 		nilfs_segment		cur_seg;
@@ -142,16 +134,14 @@ nilfs_finfo nilfs_get_inode_block_finfo(inonum_t inum, blkoff_t boff)
 
 blocknum_t nilfs_segblock_first(segnum_t segnum)
 {
-	nilfs_sb	nsb;
-	nsb = get_current_sb();
+	nilfs_sb	nsb = get_current_sb();
 	if (segnum == 0) return nsb.s_first_data_block;
 	return nsb.s_blocks_per_segment * segnum;
 }
 
 blocknum_t nilfs_segblock_last(segnum_t segnum)
 {
-	u64	fake_start;
-	fake_start = get_current_sb().s_blocks_per_segment * segnum;
+	u64	fake_start = get_blks_per_seg() * segnum;
 	return fake_start + (nilfs_segblock_first(segnum+1) - 1);
 }
 
@@ -160,10 +150,7 @@ blockcount_t nilfs_seg_blocks(segnum_t segnum)
 	return (nilfs_segblock_last(segnum) - nilfs_segblock_first(segnum))+1;
 }
 
-segnum_t block_to_segnum(blocknum_t blocknr)
-{
-	return blocknr/get_current_sb().s_blocks_per_segment;
-}
+segnum_t block_to_segnum(blocknum_t blocknr) = blocknr/get_blks_per_seg();
 
 int is_ino_dat(nilfs_finfo fi)
 {
@@ -172,10 +159,8 @@ int is_ino_dat(nilfs_finfo fi)
 
 int get_segoff(nilfs_segment_summary ss, int fi_idx)
 {
-	int	i;
-	int	ret;
-	i = 0;
-	ret = 0;
+	int	i = 0;
+	int	ret = 0;
 	while (i < fi_idx) {
 		ret += ss.ss_finfo[i].fi_nblocks;
 		i++;

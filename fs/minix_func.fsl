@@ -60,21 +60,21 @@ u32 get_first_bnum()
 	return disk.sb.s_firstdatazone;
 }
 
-u32 minix_imap_blkcnt() { return get_bmp_blks(minix_ino_cnt()); }
-u32 minix_zmap_blkcnt() { return get_bmp_blks(get_blkcnt()); }
+u32 minix_imap_blkcnt() = get_bmp_blks(minix_ino_cnt());
+u32 minix_zmap_blkcnt() = get_bmp_blks(get_blkcnt());
 
-blkoff_t bindir_base_v1() { return 7+1+(BLK_SZ/2)+1; }
-blkoff_t bindir_base_v2() { return 7+1+(BLK_SZ/4)+1; }
-blkoff_t bnum_to_zonebit(blknum_t bnum) { return (bnum-get_first_bnum())+1; }
+blkoff_t bindir_base_v1() = 7+1+(BLK_SZ/2)+1;
+blkoff_t bindir_base_v2() = 7+1+(BLK_SZ/4)+1;
+blkoff_t bnum_to_zonebit(blknum_t bnum) = (bnum-get_first_bnum())+1;
 
 bool is_imap_set(int ino) { if (disk.imap.bits[ino+1]==1) return true; return false; }
 bool is_zmap_set(int blk) { if (disk.zmap.bits[bnum_to_zonebit(blk)]==1) return true; return false; }
 
-minix_inode get_inode_v1(u32 ino) { return disk.inov1[ino-1]; }
-minix2_inode get_inode_v2(u32 ino) { return disk.inov2[ino-1]; }
+minix_inode get_inode_v1(u32 ino) = disk.inov1[ino-1];
+minix2_inode get_inode_v2(u32 ino) = disk.inov2[ino-1];
 
-u32 get_bmp_blks(u32 elems) { return (elems+8*BLK_SZ-1)/(8*BLK_SZ); }
-minix_block get_blk(u32 blkno) { return disk.blocks[blkno]; }
+u32 get_bmp_blks(u32 elems) = (elems+8*BLK_SZ-1)/(8*BLK_SZ);
+minix_block get_blk(u32 blkno) = disk.blocks[blkno];
 
 minix_block get_nth_v1(minix_inode ino, u32 blkoff) {
 	return get_blk(get_nth_meta_v1_bnum(
@@ -163,8 +163,8 @@ u32 get_nth_meta_v1_bnum(minix_inode ino, u32 blkoff)
 	return 0;
 }
 
-u32 get_file_blks(u32 sz) { return (sz+BLK_SZ-1)/BLK_SZ; }
-u32 get_file_all(u32 sz) { return get_file_meta(sz) + get_file_blks(sz); }
+u32 get_file_blks(u32 sz) = (sz+BLK_SZ-1)/BLK_SZ;
+u32 get_file_all(u32 sz) = get_file_meta(sz) + get_file_blks(sz);
 u32 get_file_meta(u32 sz)
 {
 	int	ret;

@@ -94,7 +94,6 @@ BTRFS_CHUNK_ITEM_KEY	= 228,
 BTRFS_STRING_ITEM_KEY	= 253
 } u8;
 
-
 /*
  * extent checksums all have this objectid
  * this allows them to share the logging tree
@@ -115,7 +114,6 @@ const BTRFS_SUPER_INFO_SIZE = 4096;
  * the device items go into the chunk tree.  The key is in the form
  * [ 1 BTRFS_DEV_ITEM_KEY device_id ]
  */
-
 include "assert.fsl"
 include "btrfs_funcs.fsl"
 include "btrfs_types.fsl"

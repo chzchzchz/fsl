@@ -1,8 +1,8 @@
-u32 get_bsz() { return assert_nonzero(disk.sb.sectorsize); }
-u32 get_nodesz() { return assert_nonzero(disk.sb.nodesize); }
-u32 get_leafsz() { return assert_nonzero(disk.sb.leafsize); }
+u32 get_bsz() = assert_nonzero(disk.sb.sectorsize);
+u32 get_nodesz() = assert_nonzero(disk.sb.nodesize);
+u32 get_leafsz() = assert_nonzero(disk.sb.leafsize);
 
-btrfs_node get_chunktree() { return disk.leafs[byte2blk(disk.sb.chunk_root)]; }
+btrfs_node get_chunktree() = disk.leafs[byte2blk(disk.sb.chunk_root)];
 
 u64 get_first_free_byte()
 {
@@ -11,7 +11,7 @@ u64 get_first_free_byte()
 	return first_free;
 }
 
-blknum_t byte2blk(bytenr_t b) { return b / get_bsz(); }
+blknum_t byte2blk(bytenr_t b) = b / get_bsz();
 
 btrfs_disk_key get_leaf_key_nth(btrfs_node l, u32 n)
 {

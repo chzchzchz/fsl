@@ -214,6 +214,12 @@ program_stmt	: TOKEN_CONST ident TOKEN_ASSIGN expr TOKEN_SEMI
 		{
 			$$ = new Func((Id*)$1, (Id*)$2, $3, (FuncBlock*)$4);
 		}
+		| ident ident type_args TOKEN_ASSIGN expr TOKEN_SEMI
+		{
+			FuncBlock	*fb = new FuncBlock();
+			fb->add(new FuncRet($5));
+			$$ = new Func((Id*)$1, (Id*)$2, $3, fb);
+		}
 		| TOKEN_WRITE ident type_args write_blocks
 		{
 			wblk_list	*wblist = $4;

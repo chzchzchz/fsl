@@ -6,8 +6,8 @@ reiserfs_sb get_sb()
 	return disk.sb_old;
 }
 
-int get_bsz() { return assert_nonzero(get_sb().s_v1.s_blocksize); }
-u32 get_block_count() { return assert_nonzero(get_sb().s_v1.s_block_count); }
+int get_bsz() = assert_nonzero(get_sb().s_v1.s_blocksize);
+u32 get_block_count() = assert_nonzero(get_sb().s_v1.s_block_count);
 
 u32 get_blkbmp_base()
 {
@@ -25,8 +25,8 @@ bool is_new()
 bool is_old() { if (is_new() == true) return false; return true; }
 
 bool is_bmap_spread() { if (is_new() == true) return true; return false; }
-u32 get_sb_bmap_nr() { return get_sb().s_v1.s_bmap_nr; }
-u32 get_journal_blks() { return get_sb().s_v1.s_journal.jp_journal_size; }
+u32 get_sb_bmap_nr() = get_sb().s_v1.s_bmap_nr;
+u32 get_journal_blks() = get_sb().s_v1.s_journal.jp_journal_size;
 
 u32 get_journal_old_start_must()
 {
@@ -64,7 +64,7 @@ bool is_any_reiserfs_magic(reiserfs_sb sb)
 	return false;
 }
 
-bool is_valid_sb(reiserfs_sb sb) { return is_any_reiserfs_magic(sb); }
+bool is_valid_sb(reiserfs_sb sb) = is_any_reiserfs_magic(sb);
 
 bool is_journal_magic(reiserfs_journal_desc jd)
 {
@@ -82,7 +82,7 @@ u32 get_key_type(reiserfs_key k)
 	return get_key_type_v2(k.u.k_offset_v2);
 }
 
-keytype_t get_key_type_v2(offset_v2 v) { return (v.v & 0xf000000000000000) >> 60; }
+keytype_t get_key_type_v2(offset_v2 v) = (v.v & 0xf000000000000000) >> 60;
 keytype_t key1_to_type(offset_v1 v)
 {
 	u32	u = v.k_uniqueness;
@@ -127,10 +127,10 @@ int internal_int_children_count(internal_node n)
 	return hdr.blk2_nr_item+1;
 }
 
-itemtype_t get_item_type(item_head ih) { return ih.ih_version & 0xf000; }
-u32 get_item_format(item_head ih) { return ih.ih_version & 0xfff; }
+itemtype_t get_item_type(item_head ih) = ih.ih_version & 0xf000;
+u32 get_item_format(item_head ih) = ih.ih_version & 0xfff;
 
-reiser_rawblk get_rawblk(blknum_t bn) { return disk.raw_blocks[bn]; }
+reiser_rawblk get_rawblk(blknum_t bn) = disk.raw_blocks[bn];
 
 reiser_bmpblk get_bmpblk(blknum_t bn)
 {

@@ -5,7 +5,7 @@ uint bytes_per_cluster() {
 	return assert_nonzero(b.sectors_per_cluster*b.bytes_per_sector);
 }
 
-uint bytes_per_sector() { return disk.d_bpb.bytes_per_sector; }
+uint bytes_per_sector() = disk.d_bpb.bytes_per_sector;
 
 uint get_total_sectors()
 {
@@ -25,9 +25,7 @@ uint get_fat_sectors()
 	return assert_nonzero(sects);
 }
 
-uint get_fat_bytes() {
-	return assert_nonzero(get_fat_sectors()*bytes_per_sector());
-}
+uint get_fat_bytes() = assert_nonzero(get_fat_sectors()*bytes_per_sector());
 
 uint get_cluster_count()
 {
@@ -92,7 +90,7 @@ u32 get_eof()
 	return EOF_FAT32;
 }
 
-fat get_fat0() { return disk.fats[0]; }
+fat get_fat0() = disk.fats[0];
 
 clusternum_t fat_next(clusternum_t cn)
 {

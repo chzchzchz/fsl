@@ -1,26 +1,22 @@
-uint get_bsz() { return disk.aggr[0].sb.sb_blocksize; }
-uint get_numblks() { return disk.aggr[0].sb.sb_dblocks+disk.aggr[0].sb.sb_rblocks;}
-uint get_sectsz() { return disk.aggr[0].sb.sb_sectsize; }
-uint get_agcount() { return disk.aggr[0].sb.sb_agcount; }
-uint get_agblocks() { return disk.aggr[0].sb.sb_agblocks; }
-uint xfs_agfl_size() { return get_sectsz() / 4; }
-uint xfs_fsb_to_bb(uint fsbno) { return ((fsbno) * get_sectsz()); }
-uint xfs_inode_size() { return disk.aggr[0].sb.sb_inodesize; }
+xfs_sb get_sb() = disk.aggr[0].sb;
+uint get_bsz() = get_sb().sb_blocksize;
+uint get_numblks() = get_sb().sb_dblocks+get_sb().sb_rblocks;
+uint get_sectsz() = get_sb().sb_sectsize;
+uint get_agcount() = get_sb().sb_agcount;
+uint get_agblocks() = get_sb().sb_agblocks;
+uint xfs_agfl_size() = get_sectsz() / 4;
+uint xfs_inode_size() = get_sb().sb_inodesize;
 uint xfs_agb_to_daddr(uint agno, uint agbno)
 {
-	return xfs_fsb_to_bb(agno * get_agblocks() + agbno);
+	return xfs_fsb_to_bb(agno*get_agblocks()+agbno);
 }
-u16 xfs_ino_per_blk() { return disk.aggr[0].sb.sb_inopblock; }
-uint xfs_ag_daddr(uint agno, uint d) { return d + xfs_agb_to_daddr(agno, 0); }
+u16 xfs_ino_per_blk() = get_sb().sb_inopblock;
+u64 xfs_agino_bits() = get_sb().sb_inopblog+get_sb().sb_agblklog;
+uint xfs_ino_offset_bits() = get_sb().sb_inopblog;
 
-u64 xfs_agino_bits() { return disk.aggr[0].sb.sb_inopblog+disk.aggr[0].sb.sb_agblklog; }
-uint xfs_ino_offset_bits() { return disk.aggr[0].sb.sb_inopblog; }
-xfs_agnumber_t xfs_ino_to_agnum(xfs_ino_t ino) { return ino >> xfs_agino_bits(); }
-xfs_agino_t xfs_ino_to_agino(xfs_ino_t ino) { return ino & ((1 << xfs_agino_bits())-1); }
-uint xfs_agino_to_agbno(xfs_agino_t ino) { return ino >> xfs_ino_offset_bits(); }
-uint xfs_inos_per_ag() {
-	u64	ret;
-	ret = 1 << xfs_agino_bits();
+uint xfs_inos_per_ag()
+{
+	u64	ret = 1 << xfs_agino_bits();
 	if (ret > (xfs_ino_per_blk() * get_agblocks()))
 		ret = xfs_ino_per_blk() * get_agblocks();
 	return ret;
@@ -28,14 +24,13 @@ uint xfs_inos_per_ag() {
 
 uint xfs_litino()
 {
-	return	disk.aggr[0].sb.sb_inodesize - (sizeof_bytes(xfs_dinode_core) +
+	return	get_sb().sb_inodesize - (sizeof_bytes(xfs_dinode_core) +
 		sizeof_bytes(xfs_agino_t));
 }
 
 uint xfs_dfork_size(xfs_dinode di)
 {
-	u32	forkoff;
-	forkoff = di.di_core.di_forkoff;
+	u32	forkoff = di.di_core.di_forkoff;
 	if (forkoff != 0) return forkoff << 3;
 	return xfs_litino();
 }
@@ -49,3 +44,9 @@ xfs_dinode xfs_get_inode(xfs_ino_t ino)
 {
 	return disk.aggr[xfs_ino_to_agnum(ino)].inodes[xfs_ino_to_agino(ino)];
 }
+
+uint xfs_fsb_to_bb(uint fsbno) = ((fsbno) * get_sectsz());
+uint xfs_ag_daddr(uint agno, uint d) = d + xfs_agb_to_daddr(agno, 0);
+xfs_agnumber_t xfs_ino_to_agnum(xfs_ino_t ino) = ino >> xfs_agino_bits();
+xfs_agino_t xfs_ino_to_agino(xfs_ino_t ino) = ino & ((1<<xfs_agino_bits())-1);
+uint xfs_agino_to_agbno(xfs_agino_t ino) = ino >> xfs_ino_offset_bits();

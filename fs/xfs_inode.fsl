@@ -16,10 +16,6 @@ assert (? di_core.di_magic == XFS_DINODE_MAGIC) as di_chk_magic
 	u8				di_dump[xfs_inode_size()];
 }
 
-/*
- * Note: Coordinate changes to this structure with the XFS_DI_* #defines
- * below and the offsets table in xfs_ialloc_log_di().
- */
 type xfs_dinode_core
 assert ( ? XFS_DINODE_MAGIC == di_magic) as chk_magic
 assert ( ? di_nlink > 0) as chk_links

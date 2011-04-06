@@ -1,12 +1,12 @@
 u64 assert_nonzero(u64 x) { if (x == 0) return fsl_fail(0); return x; }
-int blks_per_grp() { return assert_nonzero(disk.sb.s_blks_per_grp); }
-u32 get_ino_sz() { return disk.sb.s_inode_size; }
-int blknum_to_grp(blknum_t blknum) { return (blknum-1) / blks_per_grp(); }
-int blknum_to_bmpidx(blknum_t blknum) { return (blknum-1) % blks_per_grp(); }
+int blks_per_grp() = assert_nonzero(disk.sb.s_blks_per_grp);
+u32 get_ino_sz() = disk.sb.s_inode_size;
+int blknum_to_grp(blknum_t blknum) = (blknum-1) / blks_per_grp();
+int blknum_to_bmpidx(blknum_t blknum) = (blknum-1) % blks_per_grp();
 
-int get_total_blks() { return assert_nonzero(disk.sb.s_blocks_c); }
-int get_block_size() { return assert_nonzero(1024 << disk.sb.s_log_block_sz); }
-int inos_per_grp() { return disk.sb.s_inos_per_grp; }
+int get_total_blks() = assert_nonzero(disk.sb.s_blocks_c);
+int get_block_size() = assert_nonzero(1024 << disk.sb.s_log_block_sz);
+int inos_per_grp() = disk.sb.s_inos_per_grp;
 
 int get_group_count()
 {
@@ -15,7 +15,7 @@ int get_group_count()
 		1+(((sb.s_blocks_c-sb.s_first_data_block)-1)/blks_per_grp()));
 }
 
-uint blocks_per_indir() { return assert_nonzero(get_block_size()/4); }
+uint blocks_per_indir() = assert_nonzero(get_block_size()/4);
 
 int bit_add_offset() { if (get_block_size() > 1024) return 1; return 0; }
 
@@ -165,8 +165,7 @@ blknum_t get_nth_blknum(ext2_inode ino, uint n)
 
 ext2_data_block get_nth(ext2_inode ino, uint n)
 {
-	blknum_t	blknum;
-	blknum = get_nth_blknum(ino, n);
+	blknum_t	blknum = get_nth_blknum(ino, n);
 	return ext2_data_block_lookup(blknum);
 }
 
@@ -245,12 +244,11 @@ u32 fmeta_to_fblk(uint n)
 /* 0 indexed */
 blknum_t get_nth_meta_blknum(ext2_inode ino, uint n)
 {
-	u32	blks_left;
-	u32	per_indir;
+	u32	blks_left = n;
+	u32	per_indir = blocks_per_indir();
 	u32	indir_num;
 	u32	indir_off;
 
-	blks_left = n;
 	if (blks_left < EXT2_NDIR_BLOCKS) return get_nth_blknum(ino, n);
 	blks_left -= EXT2_NDIR_BLOCKS;
 	if (blks_left == 0) return ino.i_block_indir;
@@ -259,7 +257,6 @@ blknum_t get_nth_meta_blknum(ext2_inode ino, uint n)
 	n--;
 	blks_left--;
 
-	per_indir = blocks_per_indir();
 	if (blks_left < per_indir) return get_nth_blknum(ino, n);
 	blks_left -= per_indir;
 
@@ -290,8 +287,7 @@ blknum_t get_nth_meta_blknum(ext2_inode ino, uint n)
 
 ext2_data_block get_nth_meta(ext2_inode ino, uint n)
 {
-	blknum_t	blknum;
-	blknum = get_nth_meta_blknum(ino, n);
+	blknum_t	blknum = get_nth_meta_blknum(ino, n);
 	return ext2_data_block_lookup(blknum);
 }
 
@@ -333,4 +329,4 @@ u32 tri_count(ext2_triindir_block id)
 	return ret;
 }
 
-int bn2bmpidx(blknum_t bn) { return bn + bit_add_offset(); }
+int bn2bmpidx(blknum_t bn) = bn + bit_add_offset();
