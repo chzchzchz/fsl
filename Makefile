@@ -5,11 +5,10 @@ ifndef LINUX_SRCDIR
 	LINUX_SRCDIR:=/home/chz/src/research/FSL_VM_LINUX/
 endif
 MAKECMD=make -j$(NUM_JOBS)
-#CFLAGS=-O3 -DFSL_RELEASE -DNDEBUG -DFSL_LITTLE_ENDIAN
+CFLAGS=-O3 -DFSL_RELEASE -DNDEBUG -DFSL_LITTLE_ENDIAN
+#CFLAGS=-g  -DFSL_LITTLE_ENDIAN -fno-common
 OPT_FLAGS=-O3
 LLC_FLAGS=-O3
-CFLAGS=-g -O3 -DFSL_LITTLE_ENDIAN -fno-common
-#CFLAGS=-g
 export CFLAGS
 OBJDIR=$(shell pwd)/obj/
 BINDIR=$(shell pwd)/bin/
@@ -24,7 +23,7 @@ export FSNAMES
 export LINUX_SRCDIR
 all: code tools tests draw
 
-clean: code-clean tests-clean
+clean: code-clean tests-clean clean-root
 	rm -f bin/*-* bin/lang bin/*/*
 
 clean-root:
