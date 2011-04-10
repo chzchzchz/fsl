@@ -8,6 +8,8 @@
 # XFM_MEM
 # IGNORE_FAIL	-- do not exit on failure
 
+OPROF_SAMPLERATE=1000000
+
 if [ -z $src_root ]; then
 	echo "Source root not defined!"
 	exit -1
@@ -22,7 +24,7 @@ fi
 function start_oprof
 {
 	if [ ! -z $USE_OPROF ]; then
-		sudo opcontrol --start --vmlinux=/usr/src/linux/vmlinux --event=CPU_CLK_UNHALTED:800000:0:1:1
+		sudo opcontrol --start --vmlinux=/usr/src/linux/vmlinux --event=CPU_CLK_UNHALTED:${OPROF_SAMPLERATE}:0:1:1
 	fi
 }
 
