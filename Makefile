@@ -162,6 +162,19 @@ tests-extra-oprof: $(TESTS_EXTRA_OPROF)
 tests-extra-oprof-%:
 	TEST_CONFIG="EXTRA" USE_OPROF="YES" TEST_FS=`echo $@ | cut -f4 -d-`  tests/do_all_tests.sh
 
+DIRS_TEST=$(FSNAMES:%=dirs-test-%)
+dirs-test: $(DIRS_TEST)
+dirs-test-%:
+	mkdir -p tests/scantool-`echo $@ | cut -f3 -d-`
+	mkdir -p tests/relocate-`echo $@ | cut -f3 -d-`
+	mkdir -p tests/defragtool-`echo $@ | cut -f3 -d-`
+	mkdir -p tests/thrashcopy-`echo $@ | cut -f3 -d-`
+	mkdir -p tests/smushtool-`echo $@ | cut -f3 -d-`
+	mkdir -p tests/scattertool-`echo $@ | cut -f3 -d-`
+	mkdir -p tests/fusebrowse-`echo $@ | cut -f3 -d-`
+	mkdir -p tests/kernel-`echo $@ | cut -f3 -d-`
+	mkdir -p tests/klee-`echo $@ | cut -f3 -d-`
+
 tests-clean:
 	rm -f tests/misc/*
 	rm -f tests/scantool-*/*
