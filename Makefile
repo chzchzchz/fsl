@@ -174,9 +174,11 @@ dirs-test-%:
 	mkdir -p tests/fusebrowse-`echo $@ | cut -f3 -d-`
 	mkdir -p tests/kernel-`echo $@ | cut -f3 -d-`
 	mkdir -p tests/klee-`echo $@ | cut -f3 -d-`
+	mkdir -p tests/fsck-`echo $@| cut -f3 -d-`
 
 tests-clean:
 	rm -f tests/misc/*
+	rm -f tests/fsck-*/*
 	rm -f tests/scantool-*/*
 	rm -f tests/relocate-*/*
 	rm -f tests/defragtool-*/*
