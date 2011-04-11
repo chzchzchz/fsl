@@ -9,6 +9,7 @@ all: 	fill mk_img mk_depth mk_many_img		\
 	vfat-32-many.img				\
 	vfat-manymore.img				\
 	vfat-many-4097.img				\
+	btrfs-empty.img					\
 	postmark
 
 linux: 	ext2-linux-4gb.img reiserfs-linux-4gb.img vfat-linux-4gb.img iso9660-linux-4gb.img	\
