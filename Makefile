@@ -133,6 +133,11 @@ tests-extra-std: $(TEST_EXTRA)
 tests-extra-std-%:
 	TEST_CONFIG="EXTRA" USE_STATS="YES" TEST_FS=`echo $@ | cut -f4 -d-` tests/do_all_tests.sh
 
+TEST_EXTRA=$(FSNAMES:%=tests-extra-temporal-%)
+tests-extra-temporal: $(TEST_EXTRA)
+tests-extra-temporal-%:
+	TEST_CONFIG="EXTRA" USE_TEMPORAL="YES" TEST_FS=`echo $@ | cut -f4 -d-` tests/do_all_tests.sh
+
 TEST_EXTRA=$(FSNAMES:%=tests-extra-std-%)
 tests-extra-diskstat: $(TEST_EXTRA)
 tests-extra-diskstat-%:

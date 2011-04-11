@@ -14,64 +14,39 @@ struct io_ev_log
 {
 	uint64_t	*ev_log;
 	const char	*ev_fname;
-	uint64_t	ev_bytelen;
 	const char	*ev_envvar;
 	fsl_io_callback	ev_cb;
+	fsl_io_callback	ev_cb_prev;
 	int		ev_cb_type;
 };
 
-static void fsl_hits_io_cb_hit(struct fsl_rt_io* io, uint64_t bit_addr);
-static void fsl_hits_io_cb_miss(struct fsl_rt_io* io, uint64_t bit_addr);
-static void fsl_hits_io_cb_write(struct fsl_rt_io* io, uint64_t bit_addr);
-
-
-static struct io_ev_log	log_hit = { .ev_envvar = FSL_ENV_VAR_HITFILE,
-	.ev_cb = fsl_hits_io_cb_hit,
-	.ev_cb_type = IO_CB_CACHE_HIT};
-static struct io_ev_log	log_miss = { .ev_envvar = FSL_ENV_VAR_MISSFILE,
-	.ev_cb = fsl_hits_io_cb_miss,
-	.ev_cb_type = IO_CB_CACHE_MISS
-};
-static struct io_ev_log	log_write = { .ev_envvar = FSL_ENV_VAR_WRITEFILE,
-	.ev_cb = fsl_hits_io_cb_write,
-	.ev_cb_type = IO_CB_WRITE};
-
-static void fsl_hits_io_cb_hit(struct fsl_rt_io* io, uint64_t bit_addr)
-{
-	bit_addr /= 8;				/* to bytes */
-	bit_addr /= HIT_BYTE_GRANULARITY;	/* to sectors */
-	log_hit.ev_log[bit_addr]++;
+#define DECL_CB(x,y,z)		\
+static void fsl_hits_io_cb_##x(struct fsl_rt_io* io, uint64_t bit_addr); \
+static struct io_ev_log log_##x = {					\
+	.ev_envvar = z, .ev_cb = fsl_hits_io_cb_##x, .ev_cb_type = y };	\
+static void fsl_hits_io_cb_##x(struct fsl_rt_io* io, uint64_t bit_addr)	\
+{									\
+	bit_addr /= 8;				/* to bytes */		\
+	bit_addr /= HIT_BYTE_GRANULARITY;	/* to sectors */	\
+	log_##x.ev_log[bit_addr]++;					\
+	log_##x.ev_cb_prev(io, bit_addr);				\
 }
 
-static void fsl_hits_io_cb_miss(struct fsl_rt_io* io, uint64_t bit_addr)
-{
-	bit_addr /= 8;				/* to bytes */
-	bit_addr /= HIT_BYTE_GRANULARITY;	/* to sectors */
-	log_miss.ev_log[bit_addr]++;
-}
-
-static void fsl_hits_io_cb_write(struct fsl_rt_io* io, uint64_t bit_addr)
-{
-	bit_addr /= 8;				/* to bytes */
-	bit_addr /= HIT_BYTE_GRANULARITY;	/* to sectors */
-	log_write.ev_log[bit_addr]++;
-}
+DECL_CB(hit, IO_CB_CACHE_HIT, FSL_ENV_VAR_HITFILE)
+DECL_CB(miss, IO_CB_CACHE_MISS, FSL_ENV_VAR_MISSFILE)
+DECL_CB(write, IO_CB_WRITE, FSL_ENV_VAR_WRITEFILE)
 
 #ifndef USE_KLEE
 static void fsl_hits_init_ev(struct io_ev_log* ev, uint64_t byte_len)
 {
-	fsl_io_callback	old_cb;
-
 	ev->ev_log = NULL;
 	ev->ev_fname = getenv(ev->ev_envvar);
 	if (ev->ev_fname == NULL) return;
 
-	ev->ev_bytelen = byte_len;
-	ev->ev_log = malloc(ev->ev_bytelen);
+	ev->ev_log = malloc(byte_len);
 
-	old_cb = fsl_io_hook(fsl_get_io(), ev->ev_cb, ev->ev_cb_type);
-	assert (old_cb == NULL && "No nesting with hits!");
-
+	ev->ev_cb_prev = fsl_io_hook(fsl_get_io(), ev->ev_cb, ev->ev_cb_type);
+	if (ev->ev_cb_prev == NULL) ev->ev_cb_prev = fsl_io_cb_identity;
 }
 
 static void fsl_hits_uninit_ev(struct io_ev_log* ev)

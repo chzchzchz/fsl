@@ -34,6 +34,7 @@ RT_OBJNAMES =	runtime.o 		\
 		log.o			\
 		alloc_libc.o		\
 		hits.o			\
+		temporal.o		\
 		lookup.o		\
 		info_libc.o		\
 		entry.o			\

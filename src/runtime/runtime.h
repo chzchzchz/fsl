@@ -35,10 +35,13 @@ typedef void (*fsl_io_callback)(struct fsl_rt_io*, uint64_t /* bit off */);
 
 #define tt_by_num(x)	(&fsl_rt_table[x])
 
-#define FSL_ENV_VAR_STATFILE	"FSL_ENV_STATFILE"
-#define FSL_ENV_VAR_HITFILE	"FSL_ENV_HITFILE"
-#define FSL_ENV_VAR_MISSFILE	"FSL_ENV_MISSFILE"
-#define FSL_ENV_VAR_WRITEFILE	"FSL_ENV_WRITEFILE"
+#define FSL_ENV_VAR_STATFILE		"FSL_ENV_STATFILE"
+#define FSL_ENV_VAR_HITFILE		"FSL_ENV_HITFILE"
+#define FSL_ENV_VAR_MISSFILE		"FSL_ENV_MISSFILE"
+#define FSL_ENV_VAR_WRITEFILE		"FSL_ENV_WRITEFILE"
+#define FSL_ENV_VAR_TEMPORAL_HITFILE	"FSL_ENV_TEMPORAL_HITFILE"
+#define FSL_ENV_VAR_TEMPORAL_MISSFILE	"FSL_ENV_TEMPORAL_MISSFILE"
+#define FSL_ENV_VAR_TEMPORAL_WRITEFILE	"FSL_ENV_TEMPORAL_WRITEFILE"
 
 typedef uint64_t	diskoff_t;	/* bits */
 typedef uint64_t	voff_t;		/* virtual offset */

@@ -229,3 +229,5 @@ void fsl_io_dump_pending(void)
 	}
 	DEBUG_WRITE("Done dumping pending");
 }
+
+void fsl_io_cb_identity(struct fsl_rt_io* io, uint64_t bit_addr) { return; }

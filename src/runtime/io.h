@@ -59,6 +59,7 @@ void fsl_io_free(struct fsl_rt_io* io);
 uint64_t fsl_io_size(struct fsl_rt_io* io);
 void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits);
 fsl_io_callback fsl_io_hook(struct fsl_rt_io* io, fsl_io_callback, int cb_type);
+void fsl_io_cb_identity(struct fsl_rt_io* io, uint64_t bit_addr);
 void fsl_io_unhook(struct fsl_rt_io* io, int cb_type);
 void fsl_io_do_wpkt(const struct fsl_rtt_wpkt* wpkt, const uint64_t* params);
 

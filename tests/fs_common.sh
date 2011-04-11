@@ -3,6 +3,7 @@
 #env variables:
 # USE_OPROF
 # USE_STATS
+# USE_TEMPORAL
 # USE_SYNC
 # XFM_PIN_STACK
 # XFM_MEM
@@ -30,7 +31,7 @@ function start_oprof
 
 function stop_oprof
 {
-	if [ ! -z $USE_OPROF ]; then
+	if [ ! -z "$USE_OPROF" ]; then
 		oproffile="$1".oprof
 		cmdname="$2"
 		sudo opcontrol --dump
@@ -40,10 +41,23 @@ function stop_oprof
 	fi
 }
 
+function set_temporal
+{
+	fnameprefix="$1"
+	if [ ! -z "$USE_TEMPORAL" ]; then
+		# don't use a hit file! pricey!!!
+		# export FSL_ENV_TEMPORAL_HITFILE="${fnameprefix}.hits"
+		export FSL_ENV_TEMPORAL_MISSFILE="${fnameprefix}.misslog"
+		if [ ! -z $2 ]; then
+			export FSL_ENV_TEMPORAL_WRITEFILE="${fnameprefix}.writelog"
+		fi
+	fi
+}
+
 function set_statfiles
 {
 	fnameprefix="$1"
-	if [ ! -z $USE_STATS ]; then
+	if [ ! -z "$USE_STATS" ]; then
 		export FSL_ENV_HITFILE="${fnameprefix}.hits"
 		export FSL_ENV_MISSFILE="${fnameprefix}.misses"
 		export FSL_ENV_STATFILE="${fnameprefix}.stats"
@@ -61,6 +75,13 @@ function unset_statfiles
 	unset FSL_ENV_WRITEFILE
 	unset LD_PRELOAD
 	unset MMAP_INST_OUTFNAME
+}
+
+function unset_temporal
+{
+	unset FSL_ENV_TEMPORAL_WRITEFILE
+	unset FSL_ENV_TEMPORAL_MISSFILE
+	unset FSL_ENV_TEMPORAL_HITFILE
 }
 
 function get_timefname
@@ -278,6 +299,7 @@ function fs_cmd_startup_img
 	fprefix="${outdir}/${imgname}"
 	start_oprof
 	set_statfiles "$fprefix" "$doeswrite"
+	set_temporal "$fprefix" "$doeswrite"
 	get_timefname "$fprefix"
 	timefname=${TIMEFNAME_VAL}
 	cmd_xfrm "$cmd" "$fprefix"
@@ -294,6 +316,7 @@ function fs_cmd_startup_img
 	fi
 
 	unset_statfiles
+	unset_temporal
 	stop_oprof "$fprefix" `echo $cmd | cut -f1 -d' ' `
 
 	if [ $retval -ne 0 ] && [ -z "$IGNORE_FAIL" ]; then

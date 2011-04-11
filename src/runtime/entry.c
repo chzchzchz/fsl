@@ -3,13 +3,17 @@
 #include <stdlib.h>
 #include "io.h"
 #include "alloc.h"
-#include "hits.h"
 #include "runtime.h"
 #include <string.h>
 #include <stdio.h>
 
 extern uint64_t fsl_num_types;
 extern const char* fsl_stat_fields[FSL_NUM_STATS];
+
+extern void fsl_hits_init(void);
+extern void fsl_hits_uninit(void);
+extern void fsl_temporal_init(void);
+extern void fsl_temporal_uninit(void);
 
 static void fsl_rt_dump_stats(struct fsl_rt_ctx* fctx)
 {
@@ -74,10 +78,12 @@ int main(int argc, char* argv[])
 
 	/* track hits, if applicable */
 	fsl_hits_init();
+	fsl_temporal_init();
 
 	fsl_load_memo();
 
 	tool_ret = tool_entry(argc-2, argv+2);
+	fsl_temporal_uninit();
 	fsl_hits_uninit();
 
 	fsl_rt_dump_stats(fsl_env);

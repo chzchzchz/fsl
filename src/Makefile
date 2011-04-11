@@ -69,6 +69,7 @@ USER_RTOBJS= runtime.o	\
 	debug_libc.o		\
 	info_libc.o		\
 	hits.o			\
+	temporal.o		\
 	log.o			\
 	type_print.o		\
 	usemap.o		\
