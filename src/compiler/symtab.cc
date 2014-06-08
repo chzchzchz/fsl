@@ -63,10 +63,10 @@ const SymbolTableEnt* SymbolTable::lookup(const std::string& name) const
 {
 	sym_map::const_iterator	it;
 
-	if (sm.count(name) == 0) return false;
+	if (sm.count(name) == 0) return NULL;
 
 	it = sm.find(name);
-	if (it == sm.end()) return false;
+	if (it == sm.end()) return NULL;
 
 	return ((*it).second);
 }

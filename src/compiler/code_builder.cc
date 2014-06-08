@@ -1,10 +1,10 @@
-#include <llvm/DerivedTypes.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/raw_os_ostream.h>
-#include <llvm/Intrinsics.h>
+#include <llvm/IR/Intrinsics.h>
 #include <fstream>
 
 #include "eval.h"
@@ -62,45 +62,45 @@ llvm::GlobalVariable* CodeBuilder::getGlobalVar(const std::string& varname) cons
 
 llvm::Function* CodeBuilder::genProto(const string& name, uint64_t num_args)
 {
-	const llvm::Type*		i64ty = builder->getInt64Ty();
-	vector<const llvm::Type*>	args(num_args, i64ty);
+	llvm::Type*			i64ty = builder->getInt64Ty();
+	vector<llvm::Type*>	args(num_args, i64ty);
 	return genProtoV(name, i64ty, args);
 }
 
 llvm::Function* CodeBuilder::genProto(
 	const std::string& 	name,
-	const llvm::Type	*ret_type,
-	const llvm::Type	*t1)
+	llvm::Type	*ret_type,
+	llvm::Type	*t1)
 {
-	const llvm::Type*		args[] = {t1};
-	vector<const llvm::Type*>	args_v(args,args+1);
+	llvm::Type*		args[] = {t1};
+	vector<llvm::Type*>	args_v(args,args+1);
 	return genProtoV(name, ret_type, args_v);
 }
 
 llvm::Function* CodeBuilder::genProto(
 	const std::string& 	name,
-	const llvm::Type	*ret_type,
-	const llvm::Type *t1, const llvm::Type *t2)
+	llvm::Type	*ret_type,
+	llvm::Type *t1, llvm::Type *t2)
 {
-	const llvm::Type*		args[] = {t1, t2};
-	vector<const llvm::Type*>	args_v(args,args+2);
+	llvm::Type*		args[] = {t1, t2};
+	vector<llvm::Type*>	args_v(args,args+2);
 	return genProtoV(name, ret_type, args_v);
 }
 
 llvm::Function* CodeBuilder::genProto(
 	const std::string& 	name,
-	const llvm::Type	*ret_type,
-	const llvm::Type *t1, const llvm::Type *t2, const llvm::Type* t3)
+	llvm::Type	*ret_type,
+	llvm::Type *t1, llvm::Type *t2, llvm::Type* t3)
 {
-	const llvm::Type*		args[] = {t1, t2, t3};
-	vector<const llvm::Type*>	args_v(args,args+3);
+	llvm::Type*		args[] = {t1, t2, t3};
+	vector<llvm::Type*>	args_v(args,args+3);
 	return genProtoV(name, ret_type, args_v);
 }
 
 llvm::Function* CodeBuilder::genProtoV(
 	const std::string& name,
-	const llvm::Type* ret_type,
-	const vector<const llvm::Type*>& args)
+	llvm::Type* ret_type,
+	const vector<llvm::Type*>& args)
 {
 	llvm::Function			*f;
 	llvm::FunctionType		*ft;
@@ -117,7 +117,7 @@ llvm::Function* CodeBuilder::genProtoV(
 	/* should not be redefinitions.. */
 	if (f->getName() != name) {
 		cerr << "Expected name " << name <<" got " <<
-		f->getNameStr() << endl;
+		f->getName().str() << endl;
 	}
 
 	assert (f->getName() == name);
@@ -128,9 +128,9 @@ llvm::Function* CodeBuilder::genProtoV(
 
 void CodeBuilder::genThunkProto(
 	const std::string&	name,
-	const llvm::Type	*ret_type)
+	llvm::Type	*ret_type)
 {
-	vector<const llvm::Type*>	args;
+	vector<llvm::Type*>	args;
 	args.push_back(getClosureTyPtr());
 	genProtoV(name, ret_type, args);
 }
@@ -315,7 +315,7 @@ llvm::Type* CodeBuilder::getClosureTyPtr(void)
 
 void CodeBuilder::makeClosureTy(void)
 {
-	vector<const llvm::Type*>	types;
+	vector<llvm::Type*>	types;
 	llvm::LLVMContext		&gctx(llvm::getGlobalContext());
 
 	/* diskoffset */
@@ -328,7 +328,7 @@ void CodeBuilder::makeClosureTy(void)
 	closure_struct = llvm::StructType::get(gctx, types, "closure");
 }
 
-const llvm::Type* CodeBuilder::getI64TyPtr(void)
+llvm::Type* CodeBuilder::getI64TyPtr(void)
 {
 	return llvm::Type::getInt64PtrTy(llvm::getGlobalContext());
 }
@@ -374,7 +374,7 @@ void CodeBuilder::emitMemcpy64(
 	llvm::Value* dst, llvm::Value* src, unsigned int elem_c)
 {
 	llvm::Function	*memcpy_f;
-	const llvm::Type *Tys[] = {
+	llvm::Type *Tys[] = {
 		builder->getInt8PtrTy(),
 		builder->getInt8PtrTy(),
 		builder->getInt32Ty(),
@@ -394,10 +394,14 @@ void CodeBuilder::emitMemcpy64(
 		/* is volatile (no) */
 		llvm::ConstantInt::get(builder->getInt1Ty(), 0),
 	};
+	std::vector<llvm::Type*>	args_ty(Tys, Tys+3);
+	std::vector<llvm::Value*>	args_v(args, args+5);
+
 
 	memcpy_f =  llvm::Intrinsic::getDeclaration(
-		mod, llvm::Intrinsic::memcpy, Tys, 3);
-	builder->CreateCall(memcpy_f, args, args+5);
+		mod, llvm::Intrinsic::memcpy,
+		llvm::ArrayRef<llvm::Type*>(args_ty));
+	builder->CreateCall(memcpy_f, llvm::ArrayRef<llvm::Value*>(args_v));
 }
 
 llvm::Value* CodeBuilder::loadPtr(llvm::Value* ptr, unsigned int idx)

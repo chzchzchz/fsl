@@ -1,8 +1,8 @@
-#include <llvm/DerivedTypes.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IR/IRBuilder.h>
 
 #include "func.h"
 #include "eval.h"
@@ -158,7 +158,7 @@ Value* FuncRet::codeGen(void) const
 	IRBuilder<>		*builder;
 	BasicBlock		*cur_bb;
 	const Function		*f;
-	const llvm::Type	*t;
+	llvm::Type	*t;
 	EvalCtx			ectx(getOwner());
 
 	e_v = evalAndGen(ectx, expr);
@@ -342,10 +342,10 @@ Function* FuncStmt::getFunction() const { return getFunc()->getFunction(); }
 
 void Func::genProto(void) const
 {
-	vector<const llvm::Type*>	f_args;
+	vector<llvm::Type*>	f_args;
 	llvm::Function			*llvm_f;
 	llvm::FunctionType		*llvm_ft;
-	const llvm::Type		*t_ret;
+	llvm::Type		*t_ret;
 	bool				is_user_type;
 
 	if (getRetType() != NULL) {
@@ -388,7 +388,7 @@ void Func::genProto(void) const
 	}
 }
 
-bool Func::genFuncCodeArgs(vector<const llvm::Type*>& llvm_args) const
+bool Func::genFuncCodeArgs(vector<llvm::Type*>& llvm_args) const
 {
 	const ArgsList	*args = getArgs();
 	bool		is_ret_user_type;
@@ -401,7 +401,7 @@ bool Func::genFuncCodeArgs(vector<const llvm::Type*>& llvm_args) const
 	for (unsigned int i = 0; i < args->size(); i++) {
 		string			cur_type;
 		bool			is_user_type;
-		const llvm::Type	*t;
+		llvm::Type	*t;
 
 		cur_type = (((args->get(i)).first)->getName());
 		if (types_map.count(cur_type) != 0) is_user_type = true;

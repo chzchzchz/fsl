@@ -236,7 +236,7 @@ void InstanceIter::genCodeLookup(void) const
 void InstanceIter::genProto(void) const
 {
 	const ThunkType			*tt;
-	vector<const llvm::Type*>	args;
+	vector<llvm::Type*>	args;
 
 	tt = symtabs[src_type->getName()]->getThunkType();
 

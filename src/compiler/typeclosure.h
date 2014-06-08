@@ -2,9 +2,9 @@
 #define TYPECLOSURE_H
 
 #include <assert.h>
-#include <llvm/DerivedTypes.h>
-#include <llvm/Module.h>
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/IRBuilder.h>
 
 #define RT_CLO_IDX_OFFSET			0
 #define RT_CLO_IDX_PARAMS			1

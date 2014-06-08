@@ -1,11 +1,11 @@
-FSNAMES= ext2 vfat iso9660 reiserfs xfs minix btrfs nilfs2
+FSNAMES= ext2 vfat iso9660 reiserfs xfs minix btrfs nilfs2  pcpartfs
 NUM_JOBS=6
 #LINUX_SRCDIR=/usr/src/linux/
 ifndef LINUX_SRCDIR
 	LINUX_SRCDIR:=/home/chz/src/research/FSL_VM_LINUX/
 endif
 MAKECMD=make -j$(NUM_JOBS)
-CFLAGS=-O3 -DFSL_RELEASE -DNDEBUG -DFSL_LITTLE_ENDIAN -fno-common
+CFLAGS= -g -O3 -DFSL_RELEASE -DNDEBUG -DFSL_LITTLE_ENDIAN -fno-common
 #CFLAGS=-g  -DFSL_LITTLE_ENDIAN -fno-common
 OPT_FLAGS=-O3
 LLC_FLAGS=-O3
@@ -13,7 +13,7 @@ export CFLAGS
 OBJDIR=$(shell pwd)/obj/
 BINDIR=$(shell pwd)/bin/
 FSSRCDIR=$(shell pwd)/fs/
-KLEEBINDIR=/home/chz/src/klee/Release/bin/
+KLEEBINDIR=/home/chz/klee/Release/bin/
 export OBJDIR
 export BINDIR
 export FSSRCDIR
@@ -99,6 +99,7 @@ tests-klee-%:
 	cp $(BINDIR)/klee/scantool-`echo $@ | cut -f3 -d- `.bc \
 		tests/klee-`echo $@ | cut -f3 -d- `/
 	cd tests/klee-`echo $@ | cut -f3 -d-` && \
+	echo `pwd` && \
 	$(KLEEBINDIR)/klee $(KLEEFLAGS) ./scantool-`echo $@ | cut -f3 -d-`.bc \
 		$(KLEEENV)
 

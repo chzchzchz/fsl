@@ -1,6 +1,7 @@
 type disk
 points_range(
 	ino, 0, xfs_inos_per_ag()*get_agcount(), xfs_get_inode(ino)) as inodes
+//points(xfs_get_inode() as root_ino
 {
 	aggregate	aggr[get_agcount()] fixed;
 	set_bytes(0);

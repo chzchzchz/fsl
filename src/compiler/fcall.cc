@@ -1,9 +1,9 @@
 #include <stdint.h>
-#include <llvm/DerivedTypes.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IR/IRBuilder.h>
 #include <iostream>
 
 #include "type.h"
@@ -382,7 +382,7 @@ Value* FCall::codeGenClosureRetCall(std::vector<llvm::Value*>& args) const
 	/* doit */
 	builder->CreateCall(
 		code_builder->getModule()->getFunction(id->getName()),
-		args.begin(), args.end());
+		ArrayRef<llvm::Value*>(args));
 
 	return tmp_tp;
 }
@@ -404,7 +404,7 @@ llvm::Value* FCall::codeGenPrimitiveRetCall(vector<llvm::Value*>& args) const
 	if (memotab.canMemoize(callee_func))
 		return memotab.memoFuncCall(callee_func);
 
-	return builder->CreateCall(callee, args.begin(), args.end());
+	return builder->CreateCall(callee, ArrayRef<Value*>(args));
 }
 
 Value* FCall::codeGen() const

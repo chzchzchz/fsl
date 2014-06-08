@@ -22,7 +22,7 @@ public:
 		typename std::list<T*>::iterator	it;
 		for (it = this->begin(); it != this->end(); it++) delete (*it);
 	}
-	virtual void add(T* t) { assert (t != NULL); push_back(t); }
+	virtual void add(T* t) { assert (t != NULL); this->push_back(t); }
 	virtual void clear_nofree(void)
 	{
 		std::list<T*>::clear();

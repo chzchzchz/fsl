@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <map>
-#include "llvm/DerivedTypes.h"
+#include <llvm/IR/DerivedTypes.h>
 #include "collection.h"
 
 typedef std::map<std::string, class Expr*>		const_map;

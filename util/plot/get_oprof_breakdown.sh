@@ -41,7 +41,7 @@ function header
 }
 
 header
-for fs in iso9660 vfat ext2 reiserfs; do
+for fs in iso9660 vfat ext2 reiserfs xfs minix; do
 	SUFFIX="-postmark.img.oprof"
 	tooltype=scan
 	fname=${FSL_BASE}/tests/scantool-$fs/$fs$SUFFIX

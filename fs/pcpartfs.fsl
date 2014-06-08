@@ -1,0 +1,46 @@
+const __FSL_FSNAME = pcpartfs;
+
+include "assert.fsl"
+
+u64 num_sect() { return sizeof_bytes(disk) / 512; }
+
+sector part_first_sect(part p)
+{
+	u32 first_sect = assert_nonzero (p.relative_sect); // too lazy for chs support
+	return disk.sects[first_sect-1];
+}
+
+type disk
+assert (? bootsig == 0x55aa) as chk_bootsig
+assert (? sizeof_bytes(this) == num_sect()*512) as chk_size
+points_range_cast(
+	i, 0, 3,
+	part_first_sect(part_info[i]), extent(part_info[i].num_sect)) as parts
+{
+	set_bytes(0x1be);	/* thanks osdev wiki */
+	part	part_info[4] fixed;
+	u16	bootsig;
+	set_bytes(0x200);
+	sector	sects[num_sect()-1] fixed;
+}
+
+type sector { u8 data[512]; }
+type extent(u32 sectors) { sector sects[sectors]; }
+
+type chs
+{
+	u8 	start_head;
+	u6	start_sector;
+	u10	start_cylinder;
+}
+
+/* describes a partition */
+type part
+{
+	u8	boot;	/*  0 => no boot, 0x80 => bootable */
+	chs	start;
+	u8	sys_id;
+	chs	end;
+	u32	relative_sect;	/* start of part; equals part first LBA value */
+	u32	num_sect;	/* total sectors in partition  */
+}

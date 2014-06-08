@@ -1,11 +1,10 @@
 #ifndef CODEBUILDER_H
 #define CODEBUILDER_H
 
-#include <llvm/DerivedTypes.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/raw_os_ostream.h>
 
 #include "args.h"
@@ -33,21 +32,21 @@ public:
 	llvm::Function* genProto(const std::string& name, uint64_t num_args);
 	llvm::Function* genProto(
 		const std::string& 	name,
-		const llvm::Type	*ret_type,
-		const llvm::Type	*t1);
+		llvm::Type	*ret_type,
+		llvm::Type	*t1);
 	llvm::Function* genProto(
 		const std::string& 	name,
-		const llvm::Type	*ret_type,
-		const llvm::Type *t1, const llvm::Type *t2);
+		llvm::Type	*ret_type,
+		llvm::Type *t1, llvm::Type *t2);
 	llvm::Function* genProto(
 		const std::string& 	name,
-		const llvm::Type	*ret_type,
-		const llvm::Type *t1, const llvm::Type *t2,
-		const llvm::Type *t3);
+		llvm::Type	*ret_type,
+		llvm::Type *t1, llvm::Type *t2,
+		llvm::Type *t3);
 	llvm::Function* genProtoV(
 		const std::string& name,
-		const llvm::Type* ret_type,
-		const std::vector<const llvm::Type*>& args);
+		llvm::Type* ret_type,
+		const std::vector<llvm::Type*>& args);
 	void genCode(
 		const class Type* t,
 		const std::string& name,
@@ -66,7 +65,7 @@ public:
 	void genThunkProto(const std::string& name);
 	void genThunkProto(
 		const std::string	&name,
-		const llvm::Type	*ret_type);
+		llvm::Type	*ret_type);
 
 	void write(std::ostream& os);
 	void write(std::string& os);
@@ -99,7 +98,7 @@ public:
 	llvm::Type* getClosureTy(void) { return closure_struct; }
 	llvm::Type* getClosureTyPtr(void);
 	llvm::Type* getVirtTyPtr(void);
-	const llvm::Type* getI64TyPtr(void);
+	llvm::Type* getI64TyPtr(void);
 
 	void copyClosure(const Type* t,
 		llvm::Value *src, llvm::Value *dst_ptr);

@@ -1,7 +1,7 @@
 #ifndef THUNKPARAMS_H
 #define THUNKPARAMS_H
 
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IR/IRBuilder.h>
 #include "thunk_fieldfunc.h"
 
 #define THUNKPARAM_PREFIX	"__thunkparams_"

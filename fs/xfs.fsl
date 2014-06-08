@@ -27,7 +27,6 @@ const BMBT_STARTOFF_BITLEN = 54;
 const BMBT_STARTBLOCK_BITLEN = 52;
 const BMBT_BLOCKCOUNT_BITOFF = 52;
 
-
 const XFS_SUPER_MAGIC	= 0x58465342;
 const XFS_AGF_MAGIC	= 0x58414746;	/* 'XAGF' */
 const XFS_AGI_MAGIC	= 0x58414749;	/* 'XAGI' */
@@ -61,7 +60,6 @@ enum xfs_dino_fmt_t =
         XFS_DINODE_FMT_BTREE,           /* DIR, REG, LNK: di_bmbt */
         XFS_DINODE_FMT_UUID             /* MNT: di_uuid */
 } u8;
-
 
 include "xfs_func.fsl"
 include "xfs_types.fsl"

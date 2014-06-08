@@ -25,7 +25,7 @@ VarScope::VarScope(llvm::IRBuilder<>* in_b)
 /* pull args from parambuf */
 void VarScope::genTypeArgs(const Type* t)
 {
-	const llvm::Type		*l_t;
+	llvm::Type		*l_t;
 	const ArgsList			*args;
 	llvm::AllocaInst		*params_ai;
 
@@ -45,7 +45,7 @@ void VarScope::loadClosureIntoThunkVars(
 	llvm::Function::arg_iterator 	ai,
 	llvm::IRBuilder<>		&tmpB)
 {
-	const llvm::Type		*l_t;
+	llvm::Type		*l_t;
 	llvm::AllocaInst		*allocai;
 	TypeClosure			tc(ai);
 
@@ -88,7 +88,7 @@ void VarScope::loadArgs(
 
 	for (unsigned int i = 0; i < arg_c; i++, ai++) {
 		llvm::AllocaInst	*allocai;
-		const llvm::Type	*t;
+		llvm::Type	*t;
 		const Type*		user_type;
 		string			arg_name, type_name;
 		bool			is_user_type;
@@ -189,7 +189,7 @@ llvm::AllocaInst* VarScope::createTmpClosurePtr(
 	llvm::IRBuilder<>	&tmpB)
 {
 	llvm::AllocaInst	*allocai;
-	const llvm::Type	*tp;
+	llvm::Type	*tp;
 
 	tp = code_builder->getClosureTyPtr();
 

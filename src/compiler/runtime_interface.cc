@@ -88,7 +88,7 @@ struct rt_func rt_funcs[] =
 	{ NULL }
 };
 
-static const llvm::Type* rtf_type2llvm(rtftype_t t)
+static llvm::Type* rtf_type2llvm(rtftype_t t)
 {
 	llvm::LLVMContext	&gctx(llvm::getGlobalContext());
 
@@ -105,7 +105,7 @@ static const llvm::Type* rtf_type2llvm(rtftype_t t)
 }
 static void rt_func_args(
 	const struct rt_func* rtf,
-	vector<const llvm::Type*>& args)
+	vector<llvm::Type*>& args)
 {
 	args.clear();
 	for (unsigned int i = 0; i < rtf->rtf_param_c; i++) {
@@ -120,7 +120,7 @@ static void rt_func_args(
 void RTInterface::loadRunTimeFuncs(CodeBuilder* cb)
 {
 	for (unsigned int k = 0; rt_funcs[k].rtf_name != NULL; k++) {
-		vector<const llvm::Type*>	args;
+		vector<llvm::Type*>	args;
 		rtftype_t			rtft;
 		llvm::Function			*f;
 

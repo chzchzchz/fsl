@@ -1,8 +1,7 @@
 #!/usr/bin/python
 import os
 import sys
-import Image
-import ImageColor
+from PIL import Image, ImageColor
 import math
 
 #Usage:

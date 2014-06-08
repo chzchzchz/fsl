@@ -198,4 +198,4 @@ $(OBJDIR)/fs/fsl.$(FSNAME).table.c $(OBJDIR)/fs/fsl.$(FSNAME).types.ll: $(SRC_FS
 	cd $(OBJDIR)/fs/ && $(BINDIR)/lang $(FSNAME) <$(SRC_FSL) 2>$(FSNAME).err
 
 $(OBJDIR)/fs/fsl.$(FSNAME).table.bc: $(OBJDIR)/fs/fsl.$(FSNAME).table.c
-	llvm-gcc $(CFLAGS) --emit-llvm -I.. -c $^ -o $@
+	clang -emit-llvm $(CFLAGS) -I.. -c $^ -o $@

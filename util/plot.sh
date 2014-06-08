@@ -235,5 +235,10 @@ gnuplot <util/plot/gnuplot/hit-miss.gnu
 
 echo OK
 
+echo "Making IO figs..."
+gnuplot <util/plot/gnuplot/fsckio.gnu
+gnuplot <util/plot/gnuplot/scanio.gnu
+echo OK
+
 echo "Building git stat chart."
 util/gitgraph.sh

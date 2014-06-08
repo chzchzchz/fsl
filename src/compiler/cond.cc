@@ -1,8 +1,8 @@
-#include <llvm/DerivedTypes.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IR/IRBuilder.h>
 #include <assert.h>
 
 #include "expr.h"
@@ -77,7 +77,7 @@ llvm::Value* BOPAnd::codeGen(const EvalCtx* ctx) const
 
 	builder->SetInsertPoint(bb_merge);
 
-	pn = builder->CreatePHI(llvm::Type::getInt1Ty(gctx), "and_iftmp");
+	pn = builder->CreatePHI(llvm::Type::getInt1Ty(gctx), 2, "and_iftmp");
 
 	/* lhs_v true, eval rhs_v */
 	pn->addIncoming(rhs_v, bb_rhs_merge);
@@ -124,7 +124,7 @@ llvm::Value* BOPOr::codeGen(const EvalCtx* ctx) const
 	builder->SetInsertPoint(bb_merge);
 
 	/* short-circuit */
-	pn = builder->CreatePHI(llvm::Type::getInt1Ty(gctx), "or_iftmp");
+	pn = builder->CreatePHI(llvm::Type::getInt1Ty(gctx), 2, "or_iftmp");
 	pn->addIncoming(
 		llvm::ConstantInt::get(llvm::Type::getInt1Ty(gctx), 1),
 		bb_then);

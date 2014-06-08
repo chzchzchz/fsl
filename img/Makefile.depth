@@ -1,9 +1,18 @@
 DEPTH_COUNTS=1 2 4 8 16 32 64 128 192 256
-DEPTH_IMGS=	$(DEPTH_COUNTS:%=ext2-depth-%.img)	\
-	$(DEPTH_COUNTS:%=reiserfs-depth-%.img)	\
-	$(DEPTH_COUNTS:%=vfat-depth-%.img)	\
-	$(DEPTH_COUNTS:%=nilfs2-depth-%.img)	\
-	$(DEPTH_COUNTS:%=iso9660-depth-%.img)
+DEPTH_IMGS=						\
+	$(DEPTH_COUNTS:%=ext2-depth-%.img)		\
+	$(DEPTH_COUNTS:%=reiserfs-depth-%.img)		\
+	$(DEPTH_COUNTS:%=vfat-depth-%.img)		\
+	$(DEPTH_COUNTS:%=nilfs2-depth-%.img)		\
+	$(DEPTH_COUNTS:%=iso9660-depth-%.img)		\
+	$(DEPTH_COUNTS:%=minix-depth-%.img)		\
+
+minix-depth-%.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.minix $@
+	./loopback_fs_setup.sh $@ minix
+	DEPTH=`echo $@ | cut -f3 -d'-' | cut -f1 -d'.'` ./gen_depth.sh
+	./loopback_fs_teardown.sh
 
 ext2-depth-%.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10

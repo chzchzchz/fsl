@@ -515,7 +515,7 @@ expr	:	TOKEN_LPAREN expr TOKEN_RPAREN	{ $$ = new ExprParens($2); }
 	|	fcall				{ $$ = $1; }
 	;
 
-expr_ident 	: ident { $$ = $1 }
+expr_ident 	: ident { $$ = $1; }
 		;
 
 expr_id_struct	: ident_struct { $$ = $1; }
@@ -557,7 +557,7 @@ arith		: 	expr TOKEN_BITOR expr  	{ $$ = new AOPOr($1, $3); }
 		;
 
 write_stmts	: write_stmts write_stmt { $1->add($2); }
-		| write_stmt { $$ = new WritePktBlk(); $$->add($1) }
+		| write_stmt { $$ = new WritePktBlk(); $$->add($1); }
 		;
 write_stmt	: ident_struct TOKEN_WRITEARROW expr TOKEN_EXCLAIM
 		{ $$ = new WritePktStruct($1, $3); }

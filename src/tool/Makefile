@@ -1,4 +1,4 @@
-FILESYSTEMS := ext2 vfat nilfs2 iso9660 testfs reiserfs xfs minix btrfs
+FILESYSTEMS := ext2 vfat nilfs2 iso9660 testfs reiserfs xfs minix btrfs pcpartfs
 TOOL_NAMES=browser scantool modify fragtool relocate defragtool scattertool smushtool fsck
 TOOLS_BROWSER := $(FILESYSTEMS:%=browser-%)
 TOOLS_SCAN := $(FILESYSTEMS:%=scantool-%)
@@ -22,6 +22,8 @@ browser-testfs: $(wildcard ../../fs/testfs*.fsl)
 	FSNAME=testfs make -f Makefile.tools
 browser-iso9660: $(wildcard ../../fs/iso9660*.fsl)
 	FSNAME=iso9660 make -f Makefile.tools
+browser-pcpartfs: $(wildcard ../../fs/nilfs2*.fsl)
+	FSNAME=pcpartfs make -f Makefile.tools
 browser-nilfs2: $(wildcard ../../fs/nilfs2*.fsl)
 	FSNAME=nilfs2 make -f Makefile.tools
 browser-vfat: $(wildcard ../../fs/vfat*.fsl)

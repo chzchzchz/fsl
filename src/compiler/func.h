@@ -216,7 +216,7 @@ public:
 		delete block;
 	}
 
-	bool genFuncCodeArgs(std::vector<const llvm::Type*>& llvm_args) const;
+	bool genFuncCodeArgs(std::vector<llvm::Type*>& llvm_args) const;
 
 	void print(std::ostream& out) const { out << "Func"; }
 

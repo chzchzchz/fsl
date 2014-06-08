@@ -1,9 +1,9 @@
 #include <stdint.h>
-#include <llvm/DerivedTypes.h>
-#include <llvm/LLVMContext.h>
-#include <llvm/Module.h>
+#include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 #include <llvm/Analysis/Verifier.h>
-#include <llvm/Support/IRBuilder.h>
+#include <llvm/IR/IRBuilder.h>
 #include <iostream>
 
 #include "code_builder.h"
@@ -140,7 +140,7 @@ Value* CondVal::codeGen(void) const
 	builder->CreateBr(bb_merge);
 
 	builder->SetInsertPoint(bb_merge);
-	pn = builder->CreatePHI(llvm::Type::getInt64Ty(gctx), "cv_iftmp");
+	pn = builder->CreatePHI(llvm::Type::getInt64Ty(gctx), 2, "cv_iftmp");
 	pn->addIncoming(e_t_v, bb_then);
 	pn->addIncoming(e_f_v, bb_else);
 
