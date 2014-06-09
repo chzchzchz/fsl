@@ -9,17 +9,31 @@ function draw_fs_img
 	SCANOUTFNAME="${FSIMG}.out"
 	OUTPNG="${FSIMG}.png"
 	DRAWLOG="${FSIMG}.log"
+	SZ_X=""
+	SZ_Y=""
+
 	if [ ! -f  $SCANOUTFNAME ]; then
 		echo "${FSIMG}: No files generated? Run some tests first."
 		return
+	fi
+
+	ispicture=`echo "$SCANOUTFNAME" | grep "\.reloc\."`
+	if [ ! -z "$ispicture" ]; then
+		pic=`echo "$IMGNAME" | cut -f2,3 -d'.'`.pic
+		echo $pic
+		SX_X=`head -n1 tests/$pic`
+		SZ_Y=`head -n2 tests/$pic | tail -n1`
 	fi
 
 	processed_fname="${FSIMG}.processed.out"
 	grep Mode $SCANOUTFNAME | egrep "$REGEX" >${processed_fname}
 	src_sz=`ls -l $IMGNAME  | awk '{ print $5; }'`
 
-	./util/draw_scan.py "${processed_fname}" $src_sz "$OUTPNG" >"$DRAWLOG"
-
+	if [ -z "$SZ_X" ]; then
+		./util/draw_scan.py "${processed_fname}" $src_sz "$OUTPNG" >"$DRAWLOG"
+	else
+		./util/draw_scan.py "${processed_fname}" $src_sz "$OUTPNG" "$SZ_X" "$SZ_Y" >"$DRAWLOG"
+	fi
 }
 
 function draw_scan_fs

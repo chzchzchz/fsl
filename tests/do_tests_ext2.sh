@@ -98,4 +98,6 @@ if [ -z "$grp8_inobmp_str" ]; then
 	exit 5
 fi
 
+echo ext2 fusebrowse OK
+
 exit 0

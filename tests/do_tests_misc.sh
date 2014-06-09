@@ -30,7 +30,7 @@ function get_fsck_scan_cmd
 {
 	case "$1" in
 #	iso9660)	echo "iso9660_scan"		;;
-	vfat)		echo "/sbin/dosfsck"		;;
+	vfat)		echo "/usr/sbin/dosfsck"	;;
 	ext2)		echo "/sbin/e2fsck -f -n "	;;
 	reiserfs)	echo "/sbin/debugreiserfs -d "	;;
 	xfs)		echo "PATH=$PATH:/usr/sbin/ xfs_check "		;;

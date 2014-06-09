@@ -135,20 +135,36 @@ function fs_browser_startup
 	fi
 }
 
+
+function fs_reloc_img_name
+{
+	bn=`echo "$2" | cut -f1 -d'.'`
+	pn="$3"
+	if [ -z "$pn" ]; then
+		pn="${src_root}/tests/reloc.spock.pic"
+	fi
+	picname=`echo $(basename "$pn") | cut -f1,2 -d'.'`
+	echo "$bn"."$picname".img
+}
+
 function fs_reloc_img
 {
 	fs="$1"
 	imgname="$2"
 	picname="$3"
+	newimg=`fs_reloc_img_name "$1" "$2" "$3"`
+	cp ${src_root}/img/$imgname ${src_root}/img/"$newimg"
 
 	echo "Testing relocate-$fs (${imgname} => ${picname})."
-	cmd="${TOOL_BINDIR}/relocate-$fs ${src_root}/img/$imgname ${picname}"
+
+	cmd="${TOOL_BINDIR}/relocate-$fs ${src_root}/img/$newimg ${picname}"
 	outdir="${src_root}/tests/relocate-$fs"
-	fs_cmd_startup_img "$cmd" "$outdir" "$imgname" "WRITE"
+	fs_cmd_startup_img "$cmd" "$outdir" "$newimg" "WRITE"
 }
 
 function fs_reloc_startup_img
 {
+	# fsname fsimage picture
 	fs_reloc_img "$1" "$2" "${src_root}/tests/reloc.spock.pic"
 }
 

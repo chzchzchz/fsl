@@ -14,10 +14,11 @@ fs_scan_startup_img $fs $imgname
 
 
 exit 0
-imgname=$fs-relocate.img
-cp ${src_root}/img/$fs-many-blockfile.img ${src_root}/img/$imgname
-fs_reloc_startup_img $fs $imgname
+imgname=`fs_reloc_img_name $fs $fs-relocate.img ""`
+fs_reloc_startup_img $fs "$fs"-many.img
+fsck_img $imgname
 fs_scan_startup_img $fs $imgname
+
 
 #imgname=$fs-relocate-problem.img
 #cp ${src_root}/img/$fs-postmark.img ${src_root}/img/$imgname

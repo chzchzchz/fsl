@@ -40,9 +40,9 @@ if [ "$fcount" -ne 27561 ]; then
 	exit -2
 fi
 
-imgname=$fs-relocate.img
-cp ${src_root}/img/$fs-many.img ${src_root}/img/$imgname
-fs_reloc_startup_img $fs $imgname
+imgname=`fs_reloc_img_name $fs $fs-relocate.img ""`
+fs_reloc_startup_img $fs "$fs"-many.img
+fsck_img $imgname
 fs_scan_startup_img $fs $imgname
 fcount=`grep "file_cluster" "${src_root}"/tests/scantool-$fs/$imgname.out | wc -l`
 if [ "$fcount" -ne 10100 ]; then

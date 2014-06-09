@@ -59,7 +59,7 @@ function fsck_get_cmd
 	"minix")	FSCKCMD="sudo /sbin/fsck.minix -v -s -f " ;;
 	"btrfs")	FSCKCMD="sudo /sbin/btrfsck " ;;
 	"xfs")		FSCKCMD="sudo /sbin/xfs_check " ;;
-	"vfat")		FSCKCMD="sudo /sbin/dosfsck -n " ;;
+	"vfat")		FSCKCMD="sudo /usr/sbin/dosfsck -n " ;;
 	"nilfs2")	FSCKCMD="true " ;; # no fsck for nilfs2!
 	*)		FSCKCMD="sudo fsck " ;;
 	esac
@@ -84,8 +84,8 @@ function fsck_img
 
 	sudo /sbin/losetup $FSCKLODEV ${src_root}/img/${fsck_imgname}
 	$FSCKCMD $FSCKLODEV 				\
-		2>${src_root}/fsck.fail.$fs.stderr	\
-		>${src_root}/fsck.fail.$fs.stdout
+		2>${src_root}/fsck.fail.${fsck_imgname}.stderr	\
+		>${src_root}/fsck.fail.${fsck_imgname}.stdout
 	retval=$?
 	sudo /sbin/losetup -d $FSCKLODEV
 	if [ $retval -ne 0 ]; then
