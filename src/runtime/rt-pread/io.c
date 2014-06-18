@@ -67,14 +67,17 @@ uint64_t __getLocalPhys(uint64_t bit_off, uint64_t num_bits)
 struct fsl_rt_io* fsl_io_alloc(const char* backing_fname)
 {
 	struct fsl_rt_io	*ret;
-	int			fd;
+	int			fd, flags;
 	struct stat		s;
 
 	assert (backing_fname != NULL);
 
 	if (stat(backing_fname, &s) == -1) return NULL;
 
-	fd = open(backing_fname, O_LARGEFILE | O_RDWR /* O_RDONLY */);
+	flags = O_LARGEFILE;
+	flags |= (getenv("FSL_READONLY") != NULL) ? O_RDONLY : O_RDWR;
+
+	fd = open(backing_fname, flags);
 	if (fd == -1) return NULL;
 
 	ret = malloc(sizeof(*ret));

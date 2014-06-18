@@ -82,10 +82,15 @@ function fsck_img
 	fsck_imgname="$1"
 	echo "FSCKING ${fsck_imgname}"
 
+	outpath=${src_root}/
+	if [ ! -z "$fs" ]; then
+		outpath=${src_root}/tests/fsck-$fs/
+	fi
+
 	sudo /sbin/losetup $FSCKLODEV ${src_root}/img/${fsck_imgname}
 	$FSCKCMD $FSCKLODEV 				\
-		2>${src_root}/fsck.fail.${fsck_imgname}.stderr	\
-		>${src_root}/fsck.fail.${fsck_imgname}.stdout
+		2>$outpath/fsck.fail.${fsck_imgname}.stderr	\
+		>$outpath/fsck.fail.${fsck_imgname}.stdout
 	retval=$?
 	sudo /sbin/losetup -d $FSCKLODEV
 	if [ $retval -ne 0 ]; then

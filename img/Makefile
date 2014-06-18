@@ -1,4 +1,4 @@
-FSNAMES= ext2 xfs minix iso9660 reiserfs nilfs2 vfat btrfs
+FSNAMES= ext2 xfs minix iso9660 reiserfs nilfs2 vfat btrfs hfsplus
 ifndef LINUXTAR
 	LINUXTAR="/usr/src/linux-2.6.36.2.tar.bz2"
 endif
@@ -146,6 +146,19 @@ vfat-linux-4gb.img:
 	./loopback_fs_teardown.sh
 	rm -rf linuxtmp
 
+hfsplus.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /sbin/mkfs.hfsplus $@
+	./loopback_fs_setup.sh $@ hfsplus && ./gen_files.sh  && ./loopback_fs_teardown.sh
+
+hfsplus-many.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /sbin/mkfs.hfsplus $@
+	./loopback_fs_setup.sh $@ hfsplus
+	./gen_files.sh 100
+	./loopback_fs_teardown.sh
+
+
 # LOGFS IS BUSTED AS OF 2.6.37. DON'T BOTHER
 #logfs.img:
 #	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
@@ -209,6 +222,12 @@ ext2-postmark.img:
 	./gen_postmark.sh
 	mkdir /mnt/FSTEST/lost+found/
 	./loopback_fs_teardown.sh
+
+hfsplus-depth.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
+	yes | /sbin/mkfs.hfsplus $@
+	./loopback_fs_setup.sh $@ hfsplus && ./gen_depth.sh && ./loopback_fs_teardown.sh
+
 
 minix-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=50

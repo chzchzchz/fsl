@@ -233,7 +233,7 @@ struct type_info* typeinfo_alloc_by_field(
 
 	DEBUG_TYPEINFO_ENTER();
 
-	DEBUG_TYPEINFO_WRITE("alloc_by_field: td_offset=%"PRIu64, td_offset(ti_td));
+	DEBUG_TYPEINFO_WRITE("by_field: td_off=%"PRIu64, td_offset(ti_td));
 
 	DEBUG_TYPEINFO_WRITE("Filling out generic details");
 	ret = typeinfo_alloc_generic(ti_td, ti_prev);
@@ -246,7 +246,7 @@ struct type_info* typeinfo_alloc_by_field(
 	ret->ti_print_name = (ti_field) ? ti_field->tf_fieldname : "disk";
 	ret->ti_print_idxval = TI_INVALID_IDXVAL;
 	if (ti_prev &&  (rtm = ti_xlate(ti_prev)) != NULL) {
-		ret->ti_td.td_clo.clo_xlate = fsl_virt_ref(&ti_clo(ret));
+		ret->ti_td.td_clo.clo_xlate = fsl_virt_ref(&ti_clo(ti_prev));
 	}
 
 	DEBUG_TYPEINFO_WRITE("Verifying");
@@ -789,6 +789,7 @@ static struct type_info* typeinfo_follow_name(
 	ti_prev = ti->ti_prev;
 	if (ti_prev == NULL) return NULL;
 
+	ret = NULL;
 	if (ti->ti_points != NULL) {
 		ret = typeinfo_follow_name_pt(ti_prev, ti->ti_points, name);
 	} else if (ti->ti_virt != NULL) {

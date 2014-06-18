@@ -201,6 +201,7 @@ done:
 }
 
 #define MCMD_DUMP	-1
+#define MCMD_EXIT	-2
 
 /**
  * false -> go back a level from when entered
@@ -213,6 +214,12 @@ const struct fsl_rtt_type	*tt;
 	if (choice == MCMD_DUMP) {
 		/* dump all of current type */
 		typeinfo_dump_data(cur);
+		return true;
+	}
+
+	if (choice == MCMD_EXIT) {
+		printf("Exiting...\n");
+		exit(0);
 		return true;
 	}
 

@@ -20,9 +20,9 @@ function draw_fs_img
 	ispicture=`echo "$SCANOUTFNAME" | grep "\.reloc\."`
 	if [ ! -z "$ispicture" ]; then
 		pic=`echo "$IMGNAME" | cut -f2,3 -d'.'`.pic
-		echo $pic
-		SX_X=`head -n1 tests/$pic`
+		SZ_X=`head -n1 tests/$pic`
 		SZ_Y=`head -n2 tests/$pic | tail -n1`
+		echo $pic $SZ_X $SZ_Y
 	fi
 
 	processed_fname="${FSIMG}.processed.out"

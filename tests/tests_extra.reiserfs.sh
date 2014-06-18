@@ -34,8 +34,8 @@ fi
 imgname=$fs-many-blockfile.img
 fs_scan_startup_img $fs $imgname
 
-imgname=`fs_reloc_img_name $fs $fs-relocate.img ""`
-fs_reloc_startup_img $fs "$fs"-many.img
+imgname=`fs_reloc_img_name $fs $fs-postmark.img ""`
+fs_reloc_startup_img $fs "$fs"-postmark.img
 fsck_img $imgname
 fs_scan_startup_img $fs $imgname
 

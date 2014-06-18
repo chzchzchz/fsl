@@ -1,4 +1,4 @@
-FILESYSTEMS := ext2 vfat nilfs2 iso9660 testfs reiserfs xfs minix btrfs pcpartfs
+FILESYSTEMS := ext2 vfat nilfs2 iso9660 testfs reiserfs xfs minix btrfs pcpartfs hfsplus
 TOOL_NAMES=browser scantool modify fragtool relocate defragtool scattertool smushtool fsck
 TOOLS_BROWSER := $(FILESYSTEMS:%=browser-%)
 TOOLS_SCAN := $(FILESYSTEMS:%=scantool-%)
@@ -38,6 +38,9 @@ browser-minix: $(wildcard ../../fs/minix*fsl)
 	FSNAME=minix make -f Makefile.tools
 browser-btrfs: $(wildcard ../../fs/btrfs*fsl)
 	FSNAME=btrfs make -f Makefile.tools
+browser-hfsplus: $(wildcard ../../fs/hfsplus*fsl)
+	FSNAME=hfsplus make -f Makefile.tools
+
 
 
 CLEANTARGETS=$(FILESYSTEMS:%=clean-%)

@@ -1,0 +1,28 @@
+
+uint get_block_size() = disk.vol_hdr.blocksize;
+u32 get_total_blocks() = disk.vol_hdr.total_blocks;
+
+
+u32 extrec_blks(hfsplus_extent_rec er)
+{
+	uint	i = 0;
+	u32	blk_c = 0;
+	while (i < 8) {
+		blk_c += er.exts[i].block_count;
+		i++;
+	}
+	return blk_c;
+}
+
+/* expects n < extrec_blks(er). indexing starts at 0 */
+hfsplus_block extrec_idx2blk(hfsplus_extent_rec er, uint n)
+{
+	uint	i = 0;
+
+	while (n > er.exts[i].block_count) {
+		n -= er.exts[i].block_count;
+		i++;
+	}
+
+	return disk.blocks[er.exts[i].start_block + n];
+}

@@ -9,8 +9,8 @@
 
 struct fsl_virtc_ent
 {
-	uint64_t	vc_idx;
-	diskoff_t	vc_off;
+	uint64_t	vc_idx;	/* index # into virt */
+	diskoff_t	vc_off;	/* disk offset of virt entry */
 };
 
 struct fsl_rt_mapping

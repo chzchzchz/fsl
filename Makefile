@@ -1,4 +1,4 @@
-FSNAMES= ext2 vfat iso9660 reiserfs xfs minix btrfs nilfs2  pcpartfs
+FSNAMES= ext2 vfat iso9660 reiserfs xfs minix btrfs nilfs2  pcpartfs hfsplus
 NUM_JOBS=6
 #LINUX_SRCDIR=/usr/src/linux/
 ifndef LINUX_SRCDIR
