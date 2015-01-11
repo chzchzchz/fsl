@@ -2,7 +2,9 @@ const __FSL_FSNAME = pcpartfs;
 
 include "assert.fsl"
 
-u64 num_sect() { return sizeof_bytes(disk) / 512; }
+const SSZ = 512;
+
+u64 num_sect() { return sizeof_bytes(disk) / SSZ; }
 
 sector part_first_sect(part p)
 {
@@ -11,8 +13,8 @@ sector part_first_sect(part p)
 }
 
 type disk
-assert (? bootsig == 0x55aa) as chk_bootsig
-assert (? sizeof_bytes(this) == num_sect()*512) as chk_size
+assert (? bootsig == 0xaa55) as chk_bootsig
+assert (? sizeof_bytes(this) == num_sect()*SSZ) as chk_size
 points_range_cast(
 	i, 0, 3,
 	part_first_sect(part_info[i]), extent(part_info[i].num_sect)) as parts
@@ -20,11 +22,11 @@ points_range_cast(
 	set_bytes(0x1be);	/* thanks osdev wiki */
 	part	part_info[4] fixed;
 	u16	bootsig;
-	set_bytes(0x200);
-	sector	sects[num_sect()-1] fixed;
+	set_bytes(SSZ);
+	sector	sects[num_sect()-1] fixed nofollow;
 }
 
-type sector { u8 data[512]; }
+type sector { u8 data[SSZ]; }
 type extent(u32 sectors) { sector sects[sectors]; }
 
 type chs
