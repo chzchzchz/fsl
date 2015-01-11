@@ -76,16 +76,23 @@ function fsck_img_setup
 	fsck_get_cmd
 }
 
+# fsck_img <img name>
+# Runs fsck on img of type 'fs'
+# Write output to tests/fsck-$fs or srcroot if no fs given
 function fsck_img
 {
 	fsck_img_setup "$1"
 	fsck_imgname="$1"
 	echo "FSCKING ${fsck_imgname}"
 
-	outpath=${src_root}/
-	if [ ! -z "$fs" ]; then
-		outpath=${src_root}/tests/fsck-$fs/
+#	outpath=${src_root}/
+	if [ -z "$fs" ]; then
+		echo "NO FS GIVEN"
+		exit 9999
 	fi
+
+	outpath="${src_root}"/tests/fsck-$fs/
+	mkdir -p "$outpath"
 
 	sudo /sbin/losetup $FSCKLODEV ${src_root}/img/${fsck_imgname}
 	$FSCKCMD $FSCKLODEV 				\

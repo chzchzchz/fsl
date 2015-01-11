@@ -1,9 +1,15 @@
-FSNAMES= ext2 xfs minix iso9660 reiserfs nilfs2 vfat btrfs hfsplus
+# Called by srcroot Makefile under img commands
+#
 ifndef LINUXTAR
 	LINUXTAR="/usr/src/linux-2.6.36.2.tar.bz2"
 endif
 
-all: 	fill mk_img mk_depth mk_many_img		\
+ifndef FSNAMES
+	$(error No FSNAMES)
+endif
+
+all:	fill mk_img mk_depth mk_many_img		\
+	vmdk.img					\
 	ext2-small.img					\
 	reiserfs-many-blockfile.img			\
 	vfat-32-many.img				\
@@ -12,11 +18,9 @@ all: 	fill mk_img mk_depth mk_many_img		\
 	btrfs-empty.img					\
 	postmark
 
-linux: 	ext2-linux-4gb.img reiserfs-linux-4gb.img vfat-linux-4gb.img iso9660-linux-4gb.img	\
+linux: 	ext2-linux-4gb.img reiserfs-linux-4gb.img	\
+	vfat-linux-4gb.img iso9660-linux-4gb.img	\
 	ext2-linux-1gb.img xfs-linux-4gb.img nilfs2-linux-4gb.img
-
-TEST_EXTRA_MMAP=$(FSNAMES:%=tests-extra-mmap-%)
-tests-extra-mmap: $(TEST_EXTRA_MMAP)
 
 POSTMARKFS=ext2 xfs iso9660 reiserfs vfat
 postmark: $(POSTMARKFS:%=%-postmark.img)
@@ -38,6 +42,26 @@ mk_many_img: $(MK_MANY_RULES)
 
 MK_DEPTH_RULES=$(FSNAMES:%=%-depth.img)
 mk_depth: $(MK_DEPTH_RULES)
+
+pcpartfs.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	echo -e "n\np\n1\n\n+1M\nw\n" | /sbin/fdisk $@
+	echo -e "n\np\n2\n\n+2M\nw\n" | /sbin/fdisk $@
+
+pcpartfs-many.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	echo -e "n\np\n1\n\n+1M\nw\n" | /sbin/fdisk $@
+	echo -e "n\np\n2\n\n+2M\nw\n" | /sbin/fdisk $@
+	echo -e "n\np\n3\n\n+1M\nw\n" | /sbin/fdisk $@
+	echo -e "n\np\n\n+1M\nw\n" | /sbin/fdisk $@
+
+pcpartfs-depth.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	echo -e "n\np\n1\n\n+1M\nw\n" | /sbin/fdisk $@
+	echo -e "n\np\n2\n\n+2M\nw\n" | /sbin/fdisk $@
+	echo -e "n\ne\n3\n\n+6M\nw\n" | /sbin/fdisk $@
+	echo -e "n\nl\n\n+2M\nw\n" | /sbin/fdisk $@
+	echo -e "n\nl\n\n+1M\nw\n" | /sbin/fdisk $@
 
 iso9660.img:
 	rm -rf tmp_iso9660
@@ -69,6 +93,19 @@ iso9660-linux-4gb.img:
 	tar jxvf  $(LINUXTAR) -C isolinuxtmp/4
 	mkisofs -o iso9660-linux-4gb.img ./isolinuxtmp
 	rm -rf isolinuxtmp
+
+# "1GB" vmdk
+vmdk.img:
+	qemu-img create -f vmdk $@ 1G
+
+vmdk-depth.img:
+	echo NOT MAKING VMDK-DEPTH.IMG
+	touch vmdk-depth.img
+
+vmdk-many.img:
+	echo NOT MAKING VMDK-MANY.IMG
+	touch vmdk-many.img
+
 
 #unformated, 5MB:
 testfs.img: fill

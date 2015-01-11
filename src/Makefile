@@ -113,7 +113,7 @@ LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/compiler/%)
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core)
 LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual//;s/-fPIC//;s/-DNDEBUG//g") -Wall
-LLVM_LD:=$(shell llvm-config --cxxflags --ldflags --libs core)
+LLVM_LD:=$(shell llvm-config --libs core)  $(shell llvm-config --ldflags) -lpthread -lrt -lncurses -ldl
 COMP_CFLAGS= $(CFLAGS) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
 RTCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -Wall
 RTKCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) 	\
@@ -157,7 +157,7 @@ compiler/lex.yy.cc: compiler/lang.lex
 	flex -o $@ $^
 
 $(BINDIR)/lang:  $(LANGOBJSOUT) $(RTOBJSOUT) $(TOOLOBJSOUT)
-	g++ $(DEBUG_FLAG) -O3 $(LANGOBJSOUT) $(LLVM_FLAGS) -o $@
+	g++ $(DEBUG_FLAG) -O3 $(LANGOBJSOUT) $(LLVM_LD) $(LLVM_FLAGS) -o $@
 	cd tool && make clean	# outdated now..
 
 # TOOLS

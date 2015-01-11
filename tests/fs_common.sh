@@ -270,6 +270,10 @@ function fs_fuse_failcmd_img
 	fi
 }
 
+# 1. try to mount with fuse
+# 2. write output to file
+# 3. perform command over fuse dir structure
+# 4. report error if  necessary
 function fs_fuse_cmd_img
 {
 	fs="$1"
@@ -286,11 +290,14 @@ function fs_fuse_cmd_img
 		exit $ret
 	fi
 
+
+	# 2. dump output to tests/fusebrowser-$fs/....out
 	outfile="/dev/null"
 	if [ ! -z "$cmdname" ]; then
 	outfile="${src_root}"/tests/fusebrowse-${fs}/${imgname}-"$cmdname".out
 	fi
 
+	# 3. run command over fuse mount
 	eval "$cmd" >"$outfile"
 	ret=$?
 	cd ..

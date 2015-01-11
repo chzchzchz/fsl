@@ -97,6 +97,7 @@ points_range(idx, 1, extrec_blks(this), extrec_idx2blk(this, idx-1)) as blocks
 /* Information for a "Fork" in a file */
 type hfsplus_fork_raw
 assert (? extrec_blks(ext_rec) == total_blocks) as totalsz_recsz
+
 {
 	u64 total_size;
 	u32 clump_size;
@@ -104,12 +105,44 @@ assert (? extrec_blks(ext_rec) == total_blocks) as totalsz_recsz
 	hfsplus_extent_rec ext_rec;
 }
 
-type hfsplus_btree
-assert (? root_node.prev == 0) as chk_rootnode_prev
-assert (? root_node.desc_type == HFS_NODE_HEADER) as chk_rootnode_type
+type map_rec(int bits) { u1 bmp[bits]; }
+
+type map_node
+assert (?desc.desc_type == HFS_NODE_MAP) as mapnode_type
 {
-	hfs_bnode_desc		root_node;
+	hfs_bnode_desc	desc;
+//	map_rec(root_node.header.node_size*8-(20*8))	map;
+}
+
+typedef nodeoff_t = u16;
+
+type root_node
+assert (? desc.prev == 0) as chk_rootnode_prev
+assert (? desc.desc_type == HFS_NODE_HEADER) as chk_rootnode_type
+//assert (? this.recoffs[3] == sizeof_bytes(this.desc)) as chk_header_off
+{
+	hfs_bnode_desc		desc;
 	hfs_btree_header_rec	header;
+	u8			user_rec[128]; /* reserved */
+	/* the size of the map record (in bytes) is nodeSize minus 256 */
+	map_rec(8*(header.node_size-256))	map;
+	nodeoff_t		recoffs[4];	/* offsets to records */
+}
+
+type hfsplus_raw_node(int sz)
+{	hfs_bnode_desc	desc;
+	/* XXX actually there are a bunch of pointers at the end */
+	u8		dat[sz-sizeof_bytes(desc)]; }
+
+
+type hfsplus_btree
+{
+	root_node		root;
+	set_bytes(0);
+	/* so that root node is nodes[0]; this is so nodenum_t's match
+	   the indexing for the array */
+	hfsplus_raw_node(root.header.node_size)
+		nodes[root.header.node_count] fixed;
 }
 
 /* HFS+ Volume Header */
@@ -119,8 +152,20 @@ assert (? signature == HFSPLUS_VOLHEAD_SIG || signature == HFSPLUS_VOLHEAD_SIGX)
 assert (? version <= HFSPLUS_CURRENT_VERSION) as chkversion
 virtual_if(
 	? cat_file.total_size > 0,
+	hfsplus_btree, i, 1, extrec_blks(cat_file.ext_rec),
+	extrec_idx2blk(cat_file.ext_rec, i-1)) as cat_bt
+//virtual_if(
+//	? alloc_file.total_size > 0,
+//	hfsplus_btree, i, 1, 1,
+//	disk.blocks[alloc_file.ext_rec.exts[0].start_block]) as alloc_bt
+virtual_if(
+	? attr_file.total_size > 0,
 	hfsplus_btree, i, 1, 1,
-	disk.blocks[cat_file.ext_rec.exts[0].start_block]) as cat_bt
+	disk.blocks[attr_file.ext_rec.exts[0].start_block]) as attr_bt
+virtual_if(
+	? ext_file.total_size > 0,
+	hfsplus_btree, i, 1, extrec_blks(ext_file.ext_rec),
+	extrec_idx2blk(ext_file.ext_rec, i-1)) as ext_bt
 {
 	u16 signature;
 	u16 version;
@@ -172,16 +217,20 @@ HFSPLUS_KEY_CASEFOLDING	=0xCF,	/* case-insensitive */
 HFSPLUS_KEY_BINARY	=0xBC	/* case-sensitive */
 } u8;
 
+
+typedef nodenum_t = u32;
+
+
 /* HFS+ BTree header */
 type hfs_btree_header_rec
 assert (? node_count >= free_nodes) as node_counts
 assert (? node_size >= 512) as min_node_size
 {
 	u16			depth;
-	u32			root;
+	nodenum_t		root;
 	u32			leaf_count;
-	u32			leaf_head;
-	u32			leaf_tail;
+	nodenum_t		leaf_head;
+	nodenum_t		leaf_tail;
 	u16			node_size;
 	u16			max_key_len;
 	u32			node_count;
@@ -204,9 +253,10 @@ enum hfs_node_type = {
 /* HFS+ BTree node descriptor */
 type hfs_bnode_desc
 assert (? sizeof_bytes(this) == 14) as chksz
+/* points_cast(? ...) */
 {
-	u32		next;
-	u32		prev;
+	nodenum_t	next;		/* if root node, points to next map node*/
+	nodenum_t	prev;
 	hfs_node_type	desc_type;
 	u8		height;
 	u16		num_recs;
@@ -440,10 +490,10 @@ type hfsplus_block { u8 dat[get_block_size()]; }
 
 type disk
 {
-	skip_bytes(1024);
+	skip_bytes(1024); /* reserved */
+
 	hfsplus_vh	vol_hdr;
 
-//	set_bytes(get_block_size());
 	set_bytes(0);
 	hfsplus_block	blocks[get_total_blocks()] fixed nofollow;
 }

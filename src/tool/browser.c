@@ -202,6 +202,7 @@ done:
 
 #define MCMD_DUMP	-1
 #define MCMD_EXIT	-2
+#define MCMD_DUMP2FILE	-3
 
 /**
  * false -> go back a level from when entered
@@ -209,22 +210,41 @@ done:
  */
 static bool handle_menu_choice(struct type_info* cur, int choice)
 {
-const struct fsl_rtt_type	*tt;
+	const struct fsl_rtt_type	*tt;
 
-	if (choice == MCMD_DUMP) {
-		/* dump all of current type */
-		typeinfo_dump_data(cur);
-		return true;
-	}
-
-	if (choice == MCMD_EXIT) {
-		printf("Exiting...\n");
-		exit(0);
-		return true;
-	}
-
+	/* mcmd */
 	if (choice < 0)
-		return false;
+	switch (choice) {
+		case MCMD_DUMP:
+			/* dump all of current type */
+			typeinfo_dump_data(cur);
+			return true;
+
+		case MCMD_EXIT:
+			printf("Exiting...\n");
+			exit(0);
+			return true;
+
+		case MCMD_DUMP2FILE: {
+			unsigned	bytes;
+			char		*buf;
+			char		name[128];
+			FILE		*f;
+
+			/* TODO: better naming? */
+			bytes = (ti_size(cur) + 7) / 8;
+			sprintf(name, "%s.raw", tt_by_ti(cur)->tt_name);
+			buf = malloc(bytes);
+			typeinfo_to_buf(cur, buf, bytes);
+			f = fopen(name, "w");
+			fwrite(buf, bytes, 1, f);
+			fclose(f);
+			free(buf);
+			return true;
+		}
+
+		default: return false;
+	}
 
 	tt = tt_by_ti(cur);
 	if (choice < tt->tt_fieldall_c) {
