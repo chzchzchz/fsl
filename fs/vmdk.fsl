@@ -76,9 +76,9 @@ virtual(vdisk, i, 0, total_sectors(), disk.sectors[lba_to_sectidx(i)]) as lun
 	}
 
 	set_bytes(0);
-	l2	leafs[sizeof_bytes(l2)/(total_sectors() * SSZ)] fixed nofollow;
+	l2	leafs[__FROM_OS_BDEV_BYTES/sizeof_bytes(l2)] fixed nofollow;
 	set_bytes(0);
-	cluster	clusters[cluster_sectors() / total_sectors()] fixed nofollow;
+	cluster	clusters[(__FROM_OS_BDEV_BYTES/SSZ)/cluster_sectors()] fixed nofollow;
 	set_bytes(0);
-	sector sectors[total_sectors()] fixed nofollow;
+	sector sectors[__FROM_OS_BDEV_BYTES/SSZ] fixed nofollow;
 }
