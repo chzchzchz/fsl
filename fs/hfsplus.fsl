@@ -4,10 +4,7 @@ const __FSL_FSNAME = hfsplus;
 const __FSL_MODE = 1; /* big endian */
 
 include "hfsplus_funcs.fsl"
-
-/* XXX: I don't have signed types?? */
-typedef s8 = u8;
-typedef s16 = u16;
+include "signed.fsl"
 
 /* Some constants */
 const HFSPLUS_SECTOR_SIZE 		= 512;

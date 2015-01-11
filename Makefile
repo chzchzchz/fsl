@@ -49,7 +49,7 @@ code:
 	cd src && $(MAKECMD) && cd ..
 
 tools: code klee
-	cd src/tool && $(MAKECMD) && cd ../..
+	cd src/tool && FILESYSTEMS="$(FSNAMES)" $(MAKECMD) && cd ../..
 
 kern: tools
 	cd src && $(MAKECMD) kern && cd ..

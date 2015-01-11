@@ -15,9 +15,6 @@ sector part_first_sect(part p)
 type disk
 assert (? bootsig == 0xaa55) as chk_bootsig
 assert (? sizeof_bytes(this) == num_sect()*SSZ) as chk_size
-points_range_cast(
-	i, 0, 3,
-	part_first_sect(part_info[i]), extent(part_info[i].num_sect)) as parts
 {
 	set_bytes(0x1be);	/* thanks osdev wiki */
 	part	part_info[4] fixed;
@@ -38,6 +35,9 @@ type chs
 
 /* describes a partition */
 type part
+assert(? relative_sect != 0) as has_lba
+assert(? __FROM_OS_BDEV_BYTES > (relative_sect + num_sect)) as chk_range
+points_range(i, 0, num_sect, disk.sects[i + relative_sect]) as lbas
 {
 	u8	boot;	/*  0 => no boot, 0x80 => bootable */
 	chs	start;

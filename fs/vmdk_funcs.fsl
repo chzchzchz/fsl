@@ -1,0 +1,83 @@
+const SSZ = 512;	// sector size
+
+u32 magic() = disk.magic;
+u32 total_sectors()
+{
+	if (magic() == VMDK4_MAGIC) return disk.hdr.v4.capacity;
+	return disk.hdr.v3.disk_sectors;
+}
+
+u32 l2_size() {
+	if (magic() == VMDK4_MAGIC) return disk.hdr.v4.num_gtes_per_gte;
+	return SSZ;
+
+}
+
+u32 cluster_sectors()
+{
+	if (magic() == VMDK4_MAGIC) return disk.hdr.v4.granularity;
+	return disk.hdr.v3.granularity;
+}
+
+u32 l1_entry_sectors() = assert_nonzero(l2_size() * cluster_sectors());
+
+u32 l1_size()
+{
+	if (magic() == VMDK4_MAGIC)
+		return (total_sectors()  + l1_entry_sectors() - 1) / l1_entry_sectors();
+	return 1 << 6;
+}
+
+u32 l1_table_offset()
+{
+	if (magic() == VMDK4_MAGIC) return disk.hdr.v4.rgd_offset * SSZ;
+	return disk.hdr.v3.l1dir_offset * SSZ;
+}
+
+u32 l1_backup_table_offset()
+{
+	if (magic() == VMDK4_MAGIC) return disk.hdr.v4.gd_offset * SSZ;
+	return 0;
+}
+
+bool is_zero(sector s)
+{
+	u32 i = 0;
+	while (i < SSZ) { if (s.dat[i] != 0) return false; i++; }
+	return true;
+}
+
+u64 zero_sector_idx()
+{
+	u64	i = 0;
+	while (i < total_sectors()) {
+		if (is_zero(disk.sectors[i])) {
+			return i;
+		}
+		i++;
+	}
+	return assert_nonzero(0);
+}
+
+u64 lba_to_sectidx(u64 lba)
+{
+	u64	begin_cluster = cluster_offset(lba*SSZ);
+	if (begin_cluster == 0) {
+		return zero_sector_idx();
+	}
+	return (begin_cluster / SSZ) + (lba % cluster_sectors());
+}
+
+u64 cluster_offset(u64 vdisk_offset)
+{
+	u32 l1_idx; u32 l2_off; u32 l2_idx;
+
+	l1_idx = (vdisk_offset / SSZ) / l1_entry_sectors();
+	if (l1_idx >= l1_size()) return 0;
+
+	l2_idx = (disk.l1_table.dat[l1_idx] * SSZ) / sizeof_bytes(l2);
+	if (l2_idx == 0) return 0;
+
+	l2_off = ((vdisk_offset / SSZ) / cluster_sectors()) % l2_size();
+	return disk.leafs[l2_idx].dat[l2_off] * SSZ;
+}

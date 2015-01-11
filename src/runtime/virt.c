@@ -86,8 +86,10 @@ static uint64_t fsl_virt_xlate_rtm(struct fsl_rt_mapping* rtm, uint64_t bit_off)
 	}
 	off = bit_off % rtm->rtm_cached_srcsz;
 
-	FSL_ASSERT (bit_off != base+off &&
-		"Base+Off=BitOff? => Identity xlate. Probably wrong.");
+// This is OK if sequential zero pages pointing to the same page.
+// Other useful reasons for having this?
+//	FSL_ASSERT (bit_off != base+off &&
+//		"Base+Off=BitOff? => Identity xlate. Probably wrong.");
 	FSL_ASSERT ((base+off) != 0 && "xlated addr == origin? Probably wrong.");
 
 	FSL_STATS_INC(&fsl_env->fctx_stat, FSL_STAT_XLATE_CALL);

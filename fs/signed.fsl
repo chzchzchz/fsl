@@ -1,0 +1,4 @@
+typedef s8 = u8;
+typedef s16 = u16;
+typedef s32 = u32;
+typedef s64 = u64;

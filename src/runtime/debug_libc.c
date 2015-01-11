@@ -53,6 +53,7 @@ void fsl_debug_vwrite(const char* fmt, va_list vl)
 void fsl_assert_fail(const char* fname, int line, const char* str)
 {
 	fprintf(get_out_f(), "BARF: %s@%d. %s\n", fname, line, str);
+	abort();
 	exit(-1);
 }
 
