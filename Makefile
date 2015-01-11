@@ -97,9 +97,12 @@ paper-plot:
 	./util/plot.sh
 paper-draw: draw paper-plot
 
+TEST_MMAP=$(FSNAMES:%=tests-mmap-%)
+tests-mmap: $(TEST_MMAP)
 tests-mmap-flags=TOOL_RT=mmap
-tests-mmap:
-	$(tests-mmap-flags) tests/do_all_tests.sh
+tests-mmap-%: code tools
+	$(tests-mmap-flags) TEST_FS=`echo $@ | cut -f3 -d-` tests/do_all_tests.sh
+
 
 tests-misc:
 	tests/do_tests_misc.sh
