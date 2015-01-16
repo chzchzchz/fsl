@@ -10,78 +10,9 @@ ifndef BINDIR
 	$(error No OBJDIR. Run from top level.)
 endif
 
-LANGOBJS=	lex.yy.o		\
-		parser.o		\
-		main.o			\
-		type.o			\
-		eval.o			\
-		symtab.o		\
-		expr.o			\
-		cond.o			\
-		fcall.o			\
-		func.o			\
-		evalctx.o		\
-		stat.o			\
-		annotation.o		\
-		symtab_thunkbuilder.o	\
-		code_builder.o		\
-		table_gen.o		\
-		thunk_type.o		\
-		thunk_fieldoffset.o	\
-		thunk_elems.o		\
-		thunk_field.o		\
-		thunk_fieldsize.o	\
-		thunk_size.o		\
-		thunk_func.o		\
-		thunk_params.o			\
-		thunk_fieldoffset_cond.o	\
-		thunk_fieldfunc.o	\
-		preamble.o		\
-		points.o		\
-		asserts.o		\
-		runtime_interface.o	\
-		args.o			\
-		virt.o			\
-		writepkt.o		\
-		instance_iter.o		\
-		typeclosure.o		\
-		type_stack.o		\
-		reloc.o			\
-		repair.o		\
-		varscope.o		\
-		wpkt_inst.o		\
-		wpkt_struct.o		\
-		wpkt_call.o		\
-		memotab.o
-
-USER_RTOBJS= runtime.o	\
-	type_info.o 	\
-	virt.o		\
-	io.o		\
-	entry.o		\
-	rt-pread/io.o		\
-	rt-pread/cache.o	\
-	rt-mmap/io.o		\
-	io_mmap.o		\
-	io_pread.o		\
-	max.o			\
-	debug.o			\
-	debug_libc.o		\
-	info_libc.o		\
-	hits.o			\
-	temporal.o		\
-	log.o			\
-	type_print.o		\
-	usemap.o		\
-	bitmap.o		\
-	scan.o			\
-	choice.o		\
-	writepkt.o		\
-	lookup.o		\
-	bridge.o		\
-	alloc_libc.o
-
-KERN_RTOBJS=	runtime.o	\
+LANGOBJS=$(patsubst %.cc,%.o,$(wildcard compiler/*.cc))
+USER_RTOBJS=$(patsubst %.c,%.o,$(wildcard runtime/*.c) $(wildcard runtime/*/*.c))
+KERN_RTOBJS0=	runtime.o	\
 		bridge.o	\
 		type_info.o 	\
 		type_print.o	\
@@ -95,20 +26,20 @@ KERN_RTOBJS=	runtime.o	\
 		choice.o	\
 		writepkt.o	\
 		lookup.o	\
+KERN_RTOBJS=$(KERN_RTOBJS0:%=runtime/%)
 
-KERN_TOOLOBJS = smushtool.o scattertool.o defragtool.o
+KERN_TOOLOBJS0 = smushtool.o scattertool.o defragtool.o
+KERN_TOOLOBJS=$(KERN_TOOLOBJS0:%=tool/%)
+TOOLOBJS=$(patsubst %.c,%.o,$(wildcard tool/*.c))
 
-TOOLOBJS=	scantool.o browser.o modify.o fragtool.o relocate.o defragtool.o 	\
-		scattertool.o smushtool.o fuse-browser.o fuse_node.o thrashcopy.o	\
-		fsck.o
 
-RTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/runtime/%)
-KLEERTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/klee/runtime/%)
+RTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/%)
+KLEERTOBJSOUT := $(USER_RTOBJS:%=$(OBJDIR)/klee/%)
 RTKOBJSOUT := $(KERN_RTOBJS:%=$(OBJDIR)/kernel/%)
-TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/tool/%)
-KLEETOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/klee/tool/%)
-KTOOLOBJSOUT := $(KERN_TOOLOBJS:%=$(OBJDIR)/kernel/tool/%)
-LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/compiler/%)
+TOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/%)
+KLEETOOLOBJSOUT := $(TOOLOBJS:%=$(OBJDIR)/klee/%)
+KTOOLOBJSOUT := $(KERN_TOOLOBJS:%=$(OBJDIR)/kernel/%)
+LANGOBJSOUT := $(LANGOBJS:%=$(OBJDIR)/%)
 
 DEFINE_FLAGS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
 LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core)
