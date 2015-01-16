@@ -1,6 +1,7 @@
 #!/bin/bash
 export USE_STATS="YES"
-export XFM_PIN_STACK="YES"
+# XXX GET PIN WORKING AGAIN
+# export XFM_PIN_STACK="YES"
 
 src_root=`pwd`
 

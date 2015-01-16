@@ -7,7 +7,8 @@ include "vmdk_funcs.fsl"
 const VMDK3_MAGIC =  (('D' << 24) | ('W' << 16) | ('O' << 8) | 'C');
 const VMDK4_MAGIC = (('V' << 24) | ('M' << 16) | ('D' << 8) | 'K');
 
-type VMDK3Header {
+type VMDK3Header
+{
 	u32 disk_sectors;
 	u32 granularity;
 	u32 l1dir_offset;
