@@ -370,6 +370,11 @@ int main(int argc, char *argv[])
 
 	code_builder = new CodeBuilder("fsl.types.mod");
 
+	if (argc == 3) {
+		FILE	*f = freopen(argv[2], "r", stdin);
+		assert(f != nullptr && "couldn't open provided file");
+	}
+
 	fsl_src_fname = "TOP_FILE";
 	yyparse();
 
