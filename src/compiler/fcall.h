@@ -55,6 +55,8 @@ public:
 
 	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
 	{
+		assert (to_rewrite && "no target expression");
+		assert (new_expr && "no replacement expression");
 		exprs->rewrite(to_rewrite, new_expr);
 		return Expr::rewrite(to_rewrite, new_expr);
 	}

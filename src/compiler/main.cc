@@ -87,16 +87,11 @@ static void load_primitive_ptypes(void)
 
 static void load_detached_preambles(const GlobalBlock* gb)
 {
-	GlobalBlock::const_iterator	it;
-
-	for (it = gb->begin(); it!= gb->end(); it++) {
-		DetachedPreamble	*dp;
-		Type			*t;
-
-		dp = dynamic_cast<DetachedPreamble*>(*it);
+	for (auto &block : *gb) {
+		auto dp = dynamic_cast<DetachedPreamble*>(block.get());
 		if (dp == NULL) continue;
 
-		t = types_map[dp->getTypeName()];
+		auto t = types_map[dp->getTypeName()];
 		if (t == NULL) {
 			cerr	<< "Detached preamble with bad type (" <<
 				dp->getTypeName() << ")" << endl;
@@ -109,13 +104,8 @@ static void load_detached_preambles(const GlobalBlock* gb)
 
 static void load_def_types(const GlobalBlock* gb)
 {
-	GlobalBlock::const_iterator	it;
-	deftype_map::const_iterator	dt_it;
-
-	for (it = gb->begin(); it != gb->end(); it++) {
-		DefType		*dt;
-
-		dt = dynamic_cast<DefType*>(*it);
+	for (auto &block : *gb) {
+		auto dt = dynamic_cast<DefType*>(block.get());
 		if (dt == NULL) continue;
 
 		if (ctypes_map.count(dt->getName()) != 0) {
@@ -151,14 +141,10 @@ static void load_def_types(const GlobalBlock* gb)
 
 static void load_user_types_list(const GlobalBlock* gb)
 {
-	GlobalBlock::const_iterator	it;
-	int				type_num;
+	int type_num = 0;
 
-	type_num = 0;
-	for (it = gb->begin(); it != gb->end(); it++) {
-		Type	*t;
-
-		t = dynamic_cast<Type*>(*it);
+	for (auto &block : *gb) {
+		auto t = dynamic_cast<Type*>(block.get());
 		if (t == NULL) continue;
 
 		types_list.push_back(t);
@@ -178,13 +164,8 @@ static void load_user_types_list(const GlobalBlock* gb)
 
 static void load_user_funcs(const GlobalBlock* gb)
 {
-	for (	GlobalBlock::const_iterator it = gb->begin();
-		it != gb->end();
-		it++)
-	{
-		Func		*f;
-
-		f = dynamic_cast<Func*>(*it);
+	for (auto &block : *gb) {
+		auto f = dynamic_cast<Func*>(block.get());
 		if (f == NULL) continue;
 
 		/* add to mappings.. */
@@ -197,10 +178,7 @@ static void load_user_funcs(const GlobalBlock* gb)
 
 	memotab.allocTable();
 
-	for (	func_list::const_iterator it = funcs_list.begin();
-		it != funcs_list.end();
-		it++)
-		(*it)->genCode();
+	for (auto f : funcs_list) f->genCode();
 }
 
 /**
@@ -208,10 +186,7 @@ static void load_user_funcs(const GlobalBlock* gb)
  */
 static void build_symtabs(void)
 {
-	type_list::iterator	it;
-
-	for (it = types_list.begin(); it != types_list.end(); it++) {
-		Type		*t = *it;
+	for (auto t : types_list) {
 		SymbolTable	*syms;
 
 		assert (t != NULL);
@@ -226,15 +201,11 @@ static void build_symtabs(void)
 
 static void load_constants(const GlobalBlock* gb)
 {
-	GlobalBlock::const_iterator	it;
-
 	constants["true"] = new Boolean(true);
 	constants["false"] = new Boolean(false);
 
-	for (it = gb->begin(); it != gb->end(); it++) {
-		ConstVar	*c;
-
-		c = dynamic_cast<ConstVar*>(*it);
+	for (auto &block : *gb) {
+		auto c = dynamic_cast<ConstVar*>(block.get());
 		if (c == NULL) continue;
 		constants[c->getName()] = (c->getExpr())->copy();
 	}
@@ -242,29 +213,21 @@ static void load_constants(const GlobalBlock* gb)
 
 static void load_enums(const GlobalBlock* gb)
 {
-	GlobalBlock::const_iterator	it;
-
-	for (it = gb->begin(); it != gb->end(); it++) {
-		Enum::iterator	eit;
-		Enum		*e;
+	for (auto &block : *gb) {
 		unsigned long	n;
 
-		e = dynamic_cast<Enum*>(*it);
+		auto e = dynamic_cast<Enum*>(block.get());
 		if (e == NULL) continue;
 
 		/* map values to enum */
 		n = 0;
-		for (eit = e->begin(); eit != e->end(); eit++) {
-			const EnumEnt		*ent;
-			const Expr		*ent_num;
-			Expr			*num;
+		for (const auto& ent : *e) {
+			const Expr *ent_num = ent->getNumber();
 
-			ent = *eit;
-			ent_num = ent->getNumber();
-			if (ent_num == NULL)	num = new Number(n);
-			else			num = ent_num->copy();
-
-			constants[ent->getName()] = num;
+			constants[ent->getName()] = (ent_num == nullptr)
+				? new Number(n)
+				: ent_num->copy();
+			
 			n++;
 		}
 
@@ -283,12 +246,7 @@ static void load_enums(const GlobalBlock* gb)
 
 static void dump_constants(void)
 {
-	for (	const_map::iterator it = constants.begin();
-		it!=constants.end();
-		it++)
-	{
-		pair<string, Expr*>	p(*it);
-
+	for (auto &p : constants) {
 		cerr << p.first << ": ";
 		p.second->print(cerr);
 		cerr << endl;
@@ -315,13 +273,10 @@ static void simplify_constants(void)
 
 static bool apply_consts_to_consts(void)
 {
-	const_map::iterator	it;
-	bool			updated;
+	bool updated = false;
 
-	updated = false;
-	for (it = constants.begin(); it != constants.end(); it++){
-		pair<string, Expr*>	p(*it);
-		Expr			*new_expr, *old_expr;
+	for (auto &p : constants) {
+		Expr	*new_expr, *old_expr;
 
 		old_expr = (p.second)->copy();
 		new_expr = expr_resolve_consts(constants, p.second);
@@ -339,31 +294,32 @@ static bool apply_consts_to_consts(void)
 
 static void gen_thunk_code(void)
 {
-	for (	symtab_map::const_iterator it = symtabs.begin();
-		it != symtabs.end();
-		it++)
-	{
-		const SymbolTable	*st;
-		const ThunkType		*thunk_type;
-
-		st = (*it).second;
-		thunk_type = st->getThunkType();
-		thunk_type->genCode();
+	for (auto &p : symtabs) {
+		const SymbolTable	*st = p.second;
+		st->getThunkType()->genCode();
 	}
 }
 
 static void gen_thunk_proto(void)
 {
-	for (	symtab_map::const_iterator it = symtabs.begin();
-		it != symtabs.end();
-		it++)
-	{
-		const SymbolTable	*st;
-		const ThunkType		*thunk_type;
+	for (auto &p : symtabs) {
+		const SymbolTable	*st = p.second;
+		st->getThunkType()->genProtos();
+	}
+}
 
-		st = (*it).second;
-		thunk_type = st->getThunkType();
-		thunk_type->genProtos();
+template<class NoteType>
+static void gen_notes(
+	PtrList<NoteType> &note_list,
+	std::map<std::string, NoteType*> &note_map
+	)
+{
+	for (const auto& t : types_list) {
+		NoteType	*note = new NoteType(t);
+		note->genProto();
+		note->genCode();
+		note_list.add(note);
+		note_map[t->getName()] = note;
 	}
 }
 
@@ -373,15 +329,8 @@ static void gen_notes(
 	std::map<std::string, NoteType*> &note_map
 	)
 {
-	for (	type_list::const_iterator it = types_list.begin();
-		it != types_list.end();
-		it++)
-	{
-		const Type	*t;
-		NoteType	*note;
-
-		t = *it;
-		note = new NoteType(t);
+	for (const auto& t : types_list) {
+		NoteType	*note = new NoteType(t);
 		note->genProto();
 		note->genCode();
 		note_list.push_back(note);
@@ -391,13 +340,8 @@ static void gen_notes(
 
 static void gen_writepkts(const GlobalBlock* gb)
 {
-	for (	GlobalBlock::const_iterator it = gb->begin();
-		it != gb->end();
-		it++)
-	{
-		WritePkt	*wpkt;
-
-		wpkt = dynamic_cast<WritePkt*>(*it);
+	for (auto &block : *gb) {
+		auto wpkt = dynamic_cast<WritePkt*>(block.get());
 		if (wpkt == NULL) continue;
 
 		/* add to mappings.. */
@@ -406,12 +350,7 @@ static void gen_writepkts(const GlobalBlock* gb)
 		wpkt->genProtos();
 	}
 
-	for (	writepkt_list::const_iterator it = writepkts_list.begin();
-		it != writepkts_list.end();
-		it++)
-	{
-		(*it)->genCode();
-	}
+	for (auto &wpkt : writepkts_list) wpkt->genCode();
 }
 
 int main(int argc, char *argv[])

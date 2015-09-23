@@ -85,10 +85,9 @@ Expr* FCall::extractParamVal(const Expr* expr, const Expr* off)
 
 llvm::Value* FCall::codeGenLet(void) const
 {
-	ExprList::const_iterator	it;
-	Id				*to_bind_name;
-	Expr				*to_bind_val;
-	Expr				*to_apply;
+	Id	*to_bind_name;
+	Expr	*to_bind_val;
+	Expr	*to_apply;
 
 	assert (id->getName() == "let");
 
@@ -96,14 +95,14 @@ llvm::Value* FCall::codeGenLet(void) const
 	/* let(var_to_bind, value_to_bind_to_var, expr) */
 	if (exprs->size() != 3) return ErrorV(string("let takes 3 params"));
 
-	it = exprs->begin();
-	to_bind_name = dynamic_cast<Id*>(*it);
+	auto it = exprs->begin();
+	to_bind_name = dynamic_cast<Id*>(it->get());
 
 	it++;
-	to_bind_val = dynamic_cast<Expr*>(*it);
+	to_bind_val = dynamic_cast<Expr*>(it->get());
 
 	it++;
-	to_apply = dynamic_cast<Expr*>(*it);
+	to_apply = dynamic_cast<Expr*>(it->get());
 
 	assert (to_bind_name != NULL);
 	assert (to_bind_val != NULL);
@@ -120,7 +119,6 @@ llvm::Value* FCall::codeGenLet(void) const
 
 llvm::Value* FCall::codeGenExtractOff(void) const
 {
-	Expr		*expr;
 	llvm::Value	*closure_val;
 	llvm::Value	*ret;
 
@@ -132,8 +130,7 @@ llvm::Value* FCall::codeGenExtractOff(void) const
 	}
 
 	/* we were passed expr that is a TypePassStruct */
-	expr = exprs->front();
-	closure_val = expr->codeGen();
+	closure_val = exprs->front()->codeGen();
 	if (closure_val == NULL) {
 		cerr << "__extractOff could not get closure" << endl;
 		return NULL;
@@ -147,7 +144,6 @@ llvm::Value* FCall::codeGenExtractOff(void) const
 
 llvm::Value* FCall::codeGenExtractVirt(void) const
 {
-	Expr		*expr;
 	llvm::Value	*closure_val;
 
 	assert (id->getName() == "__extractVirt");
@@ -158,8 +154,7 @@ llvm::Value* FCall::codeGenExtractVirt(void) const
 	}
 
 	/* we were passed expr that is a closure */
-	expr = exprs->front();
-	closure_val = expr->codeGen();
+	closure_val = exprs->front()->codeGen();
 	if (closure_val == NULL) {
 		cerr << "__extractVirt could not get closure" << endl;
 		return NULL;
@@ -171,11 +166,9 @@ llvm::Value* FCall::codeGenExtractVirt(void) const
 
 llvm::Value* FCall::codeGenExtractParamVal(void) const
 {
-	Expr				*expr, *off;
-	Number				*n;
-	ExprList::const_iterator	it;
-	llvm::Value			*pb_val, *ret, *idx_val;
-	llvm::IRBuilder<>		*builder;
+	Number			*n;
+	llvm::Value		*pb_val, *ret, *idx_val;
+	llvm::IRBuilder<>	*builder;
 
 	assert (id->getName() == "__extractParamVal");
 
@@ -185,17 +178,16 @@ llvm::Value* FCall::codeGenExtractParamVal(void) const
 	}
 
 	/* we were passed expr that is a parambuf */
-	it = exprs->begin();
-	expr = (*it); it++;
-	pb_val = expr->codeGen();
-	off = (*it);
+	auto it = exprs->begin();
+	pb_val = it->get()->codeGen();
 
 	if (pb_val == NULL) {
 		cerr << "__extractParamVal could not get pbuf";
 		return NULL;
 	}
 
-	n = dynamic_cast<Number*>(off);
+	it++;
+	n = dynamic_cast<Number*>(it->get());
 	assert (n != NULL && "NEED NUMERIC PARAMVAL");
 
 	builder = code_builder->getBuilder();
@@ -208,7 +200,6 @@ llvm::Value* FCall::codeGenExtractParamVal(void) const
 
 llvm::Value* FCall::codeGenExtractParam(void) const
 {
-	Expr		*expr;
 	llvm::Value	*closure_val;
 
 	assert (id->getName() == "__extractParam");
@@ -219,8 +210,7 @@ llvm::Value* FCall::codeGenExtractParam(void) const
 	}
 
 	/* we were passed expr that is a TypePassStruct */
-	expr = exprs->front();
-	closure_val = expr->codeGen();
+	closure_val = exprs->front()->codeGen();
 	if (closure_val == NULL) {
 		cerr << "__extractParam could not get closure";
 		return NULL;
@@ -269,11 +259,10 @@ llvm::Value* FCall::codeGenMkClosure(void) const
 llvm::Value* FCall::codeGenParamsAllocaByCount(void) const
 {
 	llvm::AllocaInst	*parambuf;
-	Number			*n;
 
 	assert (exprs->size() == 1);
 
-	n = dynamic_cast<Number*>(exprs->front());
+	auto n = dynamic_cast<Number*>(exprs->front().get());
 	assert (n != NULL);
 
 	parambuf = code_builder->createPrivateTmpI64Array(
@@ -293,12 +282,8 @@ llvm::Value* FCall::codeGenParams(vector<llvm::Value*>& args) const
 	params_ret = NULL;
 	args.clear();
 
-	for (it = exprs->begin(); it != exprs->end(); it++) {
-		Expr	*cur_expr;
-		FCall	*fc;
-
-		cur_expr = *it;
-		fc = dynamic_cast<FCall*>(cur_expr);
+	for (auto &cur_expr : *exprs) {
+		FCall	*fc = dynamic_cast<FCall*>(cur_expr.get());
 		if (fc != NULL && fc->getName() == "paramsAllocaByCount") {
 			llvm::AllocaInst	*p_ptr;
 			llvm::Value		*params;

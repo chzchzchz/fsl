@@ -42,9 +42,7 @@ CodeBuilder::~CodeBuilder(void)
 
 void CodeBuilder::createGlobal(const char* str, uint64_t v, bool is_const)
 {
-	llvm::GlobalVariable	*gv;
-
-	gv = new llvm::GlobalVariable(
+	new llvm::GlobalVariable(
 		*mod,
 		llvm::Type::getInt64Ty(llvm::getGlobalContext()),
 		is_const,
@@ -536,15 +534,11 @@ int CodeBuilder::storeExprListIntoParamBuf(
 
 	pb_idx = 0;
 	arg_idx = 0;
-	for (	ExprList::const_iterator it = exprs->begin();
-		it != exprs->end();
-		it++, arg_idx++)
-	{
-		const Expr	*cur_expr = *it;
+	for (auto &cur_expr : *exprs) {
 		Expr		*evaled_cexpr;
 		int		elems_stored;
 
-		evaled_cexpr = eval(*ectx, cur_expr);
+		evaled_cexpr = eval(*ectx, cur_expr.get());
 		elems_stored = storeExprIntoParamBuf(
 			args_out->get(arg_idx), evaled_cexpr,
 			params_out_ptr, pb_idx);
@@ -554,6 +548,7 @@ int CodeBuilder::storeExprListIntoParamBuf(
 			return -1;
 		}
 		pb_idx += elems_stored;
+		arg_idx++;
 	}
 
 	return pb_idx;

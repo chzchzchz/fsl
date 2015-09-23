@@ -90,14 +90,13 @@ TypeStack* EvalCtx::resolveIdStructFHead(
 	const IdStruct* ids, Expr* &parent_closure) const
 {
 	const Type		*t;
-	const FCall		*ids_f;
 	const Func		*f;
 	Expr			*evaled_ids_f;
 	TypeBase		*head;
 	const SymbolTable	*head_st;
 	TypeStack		*ret_ts;
 
-	ids_f = dynamic_cast<const FCall*>(ids->front());
+	auto ids_f = dynamic_cast<const FCall*>(ids->front().get());
 	assert (ids_f != NULL);
 
 	/* idstruct of form func(...).a.b.c... */
@@ -138,16 +137,13 @@ TypeStack* EvalCtx::resolveTypeStack(
 	const Type		*t;
 	string			name;
 	Expr			*idx;
-	bool			found_expr;
 
 	assert (ids != NULL);
 
-	if (dynamic_cast<const FCall*>(ids->front()) != NULL)
+	if (dynamic_cast<const FCall*>(ids->front().get()) != NULL)
 		return resolveIdStructFHead(ids, parent_closure);
 
-	if (toName(ids->front(), name, idx) == false) return false;
-
-	found_expr = false;
+	if (toName(ids->front().get(), name, idx) == false) return nullptr;
 
 	/* this will catch parameters passed to the type */
 	if (cur_scope != NULL) {
@@ -495,11 +491,8 @@ const Type* EvalCtx::getTypeId(const Id* id) const
 
 const Type* EvalCtx::getTypeIdStruct(const IdStruct* ids) const
 {
-	IdStruct::const_iterator	it;
-	const Type			*cur_type;
-
-	it = ids->begin();
-	cur_type = getType(*it);
+	auto it = ids->begin();
+	auto cur_type = getType(it->get());
 
 	/* walk the symbol tables */
 	for (++it; it != ids->end(); it++) {
@@ -513,9 +506,9 @@ const Type* EvalCtx::getTypeIdStruct(const IdStruct* ids) const
 		cur_symtab = symtabByName(cur_type->getName());
 		if (cur_symtab == NULL) return NULL;
 
-		if ((id = dynamic_cast<const Id*>(*it)) != NULL) {
+		if ((id = dynamic_cast<const Id*>(it->get())) != NULL) {
 			fieldname = id->getName();
-		} else if ((ida = dynamic_cast<const IdArray*>(*it)) != NULL) {
+		} else if ((ida = dynamic_cast<const IdArray*>(it->get())) != NULL) {
 			fieldname = ida->getName();
 		} else {
 			/* id or ida expected */
@@ -586,12 +579,9 @@ TypeStack* EvalCtx::resolveTail(
 	assert (ids != NULL);
 
 	ts = new TypeStack(tb);
-	for (	IdStruct::const_iterator it = ids_begin;
-		ids_begin != ids->end();
-		ids_begin++)
-	{
+	for (; ids_begin != ids->end(); ids_begin++) {
 		if (ts->getTop()->getType() == NULL) break;
-		if (toName(*ids_begin, name, idx) == false) goto cleanup_err;
+		if (toName(ids_begin->get(), name, idx) == false) goto cleanup_err;
 		if (ts->followIdIdx(this, name, idx) == false) break;
 	}
 	return ts;

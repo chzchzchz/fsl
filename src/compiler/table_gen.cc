@@ -266,14 +266,20 @@ void TableGen::genTableHeaders(void)
 }
 
 template<class T>
-void TableGen::genTableWriters(const list<T*>& tw_list)
+void TableGen::genTableWriters(const PtrList<T>& tw_list)
 {
-	for (	typename list<T*>::const_iterator it = tw_list.begin();
-		it != tw_list.end();
-		it++)
-	{
-		(*it)->genExterns(this);
-		(*it)->genTables(this);
+	for (auto &t : tw_list) {
+		t->genExterns(this);
+		t->genTables(this);
+	}
+}
+
+template<class T>
+void TableGen::genTableWriters(const std::list<T*>& tw_list)
+{
+	for (auto &t : tw_list) {
+		t->genExterns(this);
+		t->genTables(this);
 	}
 }
 

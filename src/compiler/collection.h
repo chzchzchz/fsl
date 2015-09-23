@@ -2,38 +2,44 @@
 #define COLLECTION_H
 
 #include <assert.h>
-
 #include <vector>
 #include <list>
+#include <memory>
 
 template <typename T>
-class PtrList : public std::list<T*>
+class PtrList : public std::list<std::unique_ptr<T>>
 {
 public:
 	PtrList() {}
-	PtrList(const PtrList<T>& pl)
+
+	PtrList(const PtrList<T> &p)
+		: std::list<std::unique_ptr<T>>()
 	{
-		typename std::list<T*>::const_iterator	it;
-		for (it = pl.begin(); it != pl.end(); it++) add((*it)->copy());
+		for (auto &t : p) this->add(t->copy());
 	}
 
-	virtual ~PtrList()
-	{
-		typename std::list<T*>::iterator	it;
-		for (it = this->begin(); it != this->end(); it++) delete (*it);
-	}
-	virtual void add(T* t) { assert (t != NULL); this->push_back(t); }
-	virtual void clear_nofree(void)
-	{
-		std::list<T*>::clear();
+	PtrList(PtrList<T> &&) = delete;
+
+	virtual ~PtrList() {}
+
+	void add(T* t) {
+		assert (t != NULL);
+		this->push_back(std::unique_ptr<T>(t));
 	}
 
-	virtual void clear(void)
-	{
-		typename std::list<T*>::iterator	it;
-		for (it = this->begin(); it != this->end(); it++) delete (*it);
-		std::list<T*>::clear();
+	void clear_nofree() {
+		for (auto &t : *this) t.release();
+		this->clear();
+	}
+
+	std::list<const T*> to_list(void) const {
+		std::list<const T*> ret;
+		for (const auto& t : *this)
+			ret.push_back(t.get());
+		return ret;
 	}
 };
+
+template <typename T> using PtrVec = std::list<std::unique_ptr<T>>;
 
 #endif

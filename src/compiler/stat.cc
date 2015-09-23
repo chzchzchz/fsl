@@ -20,7 +20,6 @@ Stat::~Stat(void) {}
 void Stat::load(const Preamble* p)
 {
 	const preamble_args		*args;
-	preamble_args::const_iterator	it;
 
 	args = p->getArgsList();
 	if (args == NULL || args->size() != STAT_NUM_ARGS) {
@@ -28,9 +27,8 @@ void Stat::load(const Preamble* p)
 		return;
 	}
 
-	for (it = args->begin(); it != args->end(); it++) {
-		CondOrExpr	*coe = *it;
-		if (coe->getExpr() == NULL) {
+	for (auto &arg : *args) {
+		if (arg->getExpr() == NULL) {
 			cerr << "stat: only exprs" << endl;
 			return;
 		}
@@ -99,12 +97,9 @@ void StatEnt::genInstance(TableGen* tg) const
 void Stat::genExterns(TableGen* tg)
 {
 	const string args[] = {"const struct fsl_rt_closure*", "uint64_t*"};
-	for (	statent_list::const_iterator it = stat_elems.begin();
-		it != stat_elems.end();
-		it++)
-	{
+	for (auto& stat_elem : stat_elems) {
 		tg->printExternFunc(
-			(*it)->getFCallName(),
+			stat_elem->getFCallName(),
 			"void",
 			vector<string>(args, args+2));
 	}
@@ -118,11 +113,8 @@ void Stat::genTables(TableGen* tg)
 		"__rt_tab_stats_" + getType()->getName() + "[]",
 		true);
 
-	for (	statent_list::const_iterator it = stat_elems.begin();
-		it != stat_elems.end();
-		it++)
-	{
+	for (auto &stat_elem : stat_elems) {
 		sw.beginWrite();
-		(*it)->genInstance(tg);
+		stat_elem->genInstance(tg);
 	}
 }

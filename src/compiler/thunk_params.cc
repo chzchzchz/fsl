@@ -176,7 +176,6 @@ bool ThunkParams::storeIntoParamBuf(llvm::AllocaInst *params_out_ptr) const
 {
 	const Type			*t;
 	const ArgsList			*args;
-	llvm::IRBuilder<>		*builder;
 	EvalCtx				ectx(symtabs[getType()->getName()]);
 	ExprList::const_iterator	it;
 	unsigned int			pb_idx, arg_idx;
@@ -185,8 +184,6 @@ bool ThunkParams::storeIntoParamBuf(llvm::AllocaInst *params_out_ptr) const
 	if ((t = getFieldType()) && t->getArgs() && exprs->size() == 0)
 		assert (0 == 1 && "Type needs args, but none given");
 	if (exprs->size() == 0) return true;
-
-	builder = code_builder->getBuilder();
 
 	assert (t != NULL && "Only types can take arguments");
 	args = t->getArgs();
@@ -198,13 +195,12 @@ bool ThunkParams::storeIntoParamBuf(llvm::AllocaInst *params_out_ptr) const
 		it != exprs->end();
 		it++, arg_idx++)
 	{
-		Expr		*cur_expr, *idxed_expr;
+		Expr		*idxed_expr;
 		int		elems_stored;
 
 		/* generate code for idx */
-		cur_expr = *it;
 		idxed_expr = Expr::rewriteReplace(
-			eval(ectx, cur_expr),
+			eval(ectx, it->get()),
 			new Id("@"),
 			rt_glue.getThunkArgIdx());
 

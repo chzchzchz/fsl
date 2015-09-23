@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <sstream>
 
 #include "AST.h"
 #include "collection.h"
@@ -116,8 +117,9 @@ public:
 	const Id* getType(void) const { return type; }
 	const Id* getScalar(void) const { return name; }
 	const IdArray* getArray(void) const { return array; }
-	const bool isFixed(void) const { return fixed_array; }
-	const bool isNoFollow(void) const { return nofollow; }
+	bool isFixed(void) const { return fixed_array; }
+	bool isNoFollow(void) const { return nofollow; }
+
 private:
 	Id*		type;
 	Id*		name;
@@ -303,14 +305,11 @@ public:
 
 	void print(std::ostream& out) const { fcall->print(out); }
 
-	const std::string getName(void) const
-	{
-		std::string	s(fcall->getName());
-		int		tmp_str_bufsz = s.size() + 32;
-		char		tmp_str[tmp_str_bufsz];
-
-		snprintf(tmp_str, tmp_str_bufsz, "%s_%p", s.c_str(), this);
-		return std::string(tmp_str);
+	const std::string getName(void) const {
+		std::stringstream	ss;
+		std::string		s(fcall->getName());
+		ss << fcall->getName() << '_' << (const void*)this;
+		return ss.str();
 	}
 
 	virtual void accept(TypeVisitor* tv) const { tv->visit(this); }

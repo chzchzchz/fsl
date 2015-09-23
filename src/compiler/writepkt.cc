@@ -138,30 +138,24 @@ bool WritePktStmt::genCodeHeader(
 
 void WritePktBlk::setParent(WritePkt* wp, unsigned int n)
 {
-	int	k;
+	int	k = 0;
 	parent = wp;
 	blk_num = n;
-	k = 0;
-	for (iterator it = begin(); it != end(); it++, k++) {
-		WritePktStmt	*wps = *it;
+	for (auto &wps : *this) {
 		cerr << "ADDING: " << endl;
 		wps->print(cerr);
 		cerr << endl;
 		wps->setParent(this, k);
 		cerr << "FUNC NAME: " << wps->getFuncName() << endl << endl;
+		k++;
 	}
 }
 
 void WritePkt::genStmtFuncCode(void) const
 {
-	unsigned int	i = 0;
 	gen_vscope = NULL;
-	for (const_iterator it = begin(); it != end(); it++) {
-		WritePktBlk*	wpb = *it;
-		for (	WritePktBlk::const_iterator it2 = wpb->begin();
-			it2 != wpb->end(); it2++, i++)
-		{
-			WritePktStmt	*wps = *it2;
+	for (auto& wpb : *this) {
+		for (auto& wps : *wpb) {
 			wps->genCode();
 		}
 	}
@@ -170,13 +164,8 @@ void WritePkt::genStmtFuncCode(void) const
 
 void WritePkt::genStmtFuncProtos(void) const
 {
-	unsigned int	i = 0;
-	for (const_iterator it = begin(); it != end(); it++) {
-		WritePktBlk*	wpb = *it;
-		for (	WritePktBlk::const_iterator it2 = wpb->begin();
-			it2 != wpb->end(); it2++, i++)
-		{
-			WritePktStmt	*wps = *it2;
+	for (auto& wpb : *this) {
+		for (auto& wps : *wpb) {
 			wps->genProto();
 		}
 	}
@@ -264,52 +253,39 @@ WritePktInstance* WritePkt::getInstance(
 
 void WritePkt::genFuncTables(TableGen* tg) const
 {
-	const_iterator			it;
-	unsigned int			n;
-	ostream&			os(tg->getOS());
+	ostream		&os(tg->getOS());
+	unsigned	n = 0;
 
 	/* generate dump of write stmts in a few tables */
-	for (it = begin(), n = 0; it != end(); it++, n++) {
-		const WritePktBlk	*wblk = *it;
-
+	for (const auto &wblk : *this) {
 		os << "static wpktf_t wpkt_funcs_" <<
 			getName() << n << "[] = \n";
 		{
-		StructWriter			sw(os);
-		for (	WritePktBlk::const_iterator it2 = wblk->begin();
-			it2 != wblk->end();
-			it2++)
-		{
-			const WritePktStruct	*wstmt;
-			wstmt = dynamic_cast<const WritePktStruct*>((*it2));
+		StructWriter sw(os);
+		for (const auto &w_ : *wblk) {
+			auto wstmt = dynamic_cast<const WritePktStruct*>(w_.get());
 			if (wstmt == NULL) continue;
 			sw.write(wstmt->getFuncName());
 		}
 		}
 		os << ";\n";
+		n++;
 	}
 }
 
 void WritePkt::genCallsTables(TableGen* tg) const
 {
-	const_iterator			it;
-	unsigned int			n;
-	ostream&			os(tg->getOS());
+	ostream		&os(tg->getOS());
+	unsigned int	n = 0;
 
 	/* generate dump of write stmts in a few tables */
-	for (it = begin(), n = 0; it != end(); it++, n++) {
-		const WritePktBlk	*wblk = *it;
-
+	for (const auto &wblk : *this) {
 		os << "static struct fsl_rtt_wpkt2wpkt wpkt_calls_" <<
 			getName() << n << "[] = \n";
 		{
 		StructWriter			sw(os);
-		for (	WritePktBlk::const_iterator it2 = wblk->begin();
-			it2 != wblk->end();
-			it2++)
-		{
-			const WritePktCall	*wc;
-			wc = dynamic_cast<const WritePktCall*>((*it2));
+		for (const auto &w_ : *wblk) {
+			auto wc = dynamic_cast<const WritePktCall*>(w_.get());
 			if (wc == NULL) continue;
 			sw.beginWrite();
 			wc->genTableInstance(tg);
@@ -321,16 +297,14 @@ void WritePkt::genCallsTables(TableGen* tg) const
 
 void WritePkt::genWpktStructs(TableGen* tg) const
 {
-	const_iterator			it;
-	unsigned int			n, num_blks;
-	ostream&			os(tg->getOS());
-	list<WritePktBlk*>		l(*this);
+	unsigned int	n;
+	ostream		&os(tg->getOS());
+	auto		l = to_list();
 
 	l.reverse();
 	/* now generate writepkt structs.. */
-	num_blks = size();
-	for (it = l.begin(), n = num_blks-1; it != l.end(); it++, n--) {
-		const WritePktBlk*	wblk = *it;
+	n = size() - 1;
+	for (const auto& wblk : l) {
 		StructWriter	sw(
 			os,
 			"fsl_rtt_wpkt",
@@ -355,6 +329,7 @@ void WritePkt::genWpktStructs(TableGen* tg) const
 				string("wpkt_")+getName()+int_to_string(n-1));
 		else
 			sw.write("wpkt_next", "NULL");
+		n--;
 	}
 }
 
@@ -372,23 +347,17 @@ void WritePktStmt::printExterns(class TableGen* tg) const
 
 void WritePkt::genExterns(TableGen* tg) const
 {
-	unsigned int	n;
-	const_iterator	it;
-	ostream&	os(tg->getOS());
+	ostream	&os(tg->getOS());
 
 	/* extern all stmt functions */
-	for (it = begin(); it != end(); it++) {
-		const WritePktBlk	*wblk = *it;
-
-		for (	WritePktBlk::const_iterator it2 = wblk->begin();
-			it2 != wblk->end();
-			it2++) {
-			(*it2)->printExterns(tg);
+	for (const auto &wblk : *this) {
+		for (const auto &ws : *wblk) {
+			ws->printExterns(tg);
 		}
 	}
 
 	/* extern all writepkt structs for outcalls */
-	for (it = begin(), n = 0; it != end(); it++, n++) {
+	for (unsigned n = 0; n < size(); n++) {
 		os	<< "extern const struct fsl_rtt_wpkt "
 			<< string("wpkt_")+getName()+int_to_string(n)<<";\n";
 	}
@@ -397,16 +366,17 @@ void WritePkt::genExterns(TableGen* tg) const
 unsigned int WritePktBlk::getNumFuncs(void) const
 {
 	unsigned int	ret = 0;
-	for (const_iterator it = begin(); it != end(); it++)
-		if (dynamic_cast<WritePktStruct*>((*it)) != NULL) ret++;
+	for (const auto &w_ : *this)
+		if (dynamic_cast<WritePktStruct*>(w_.get()) != NULL)
+			ret++;
 	return ret;
 }
 
 unsigned int WritePktBlk::getNumCalls(void) const
 {
 	unsigned int	ret = 0;
-	for (const_iterator it = begin(); it != end(); it++) {
-		if (dynamic_cast<WritePktCall*>((*it)) != NULL) ret++;
-	}
+	for (const auto &w_ : *this)
+		if (dynamic_cast<WritePktCall*>(w_.get()) != NULL)
+			ret++;
 	return ret;
 }

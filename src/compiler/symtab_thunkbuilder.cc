@@ -141,12 +141,8 @@ SymbolTable* SymTabThunkBuilder::getSymTab(
 
 	{
 	ExprList	*size_args = new ExprList();
-	for (	sym_list::const_iterator it = cur_symtab->begin();
-		it != cur_symtab->end();
-		it++)
-	{
-		const ThunkField* tf = (*it)->getFieldThunk();
-		size_args->add(tf->getSize()->copyFCall());
+	for (auto sym : *cur_symtab) {
+		size_args->add(sym->getFieldThunk()->getSize()->copyFCall());
 	}
 	size_expr = rt_glue.maxValue(size_args);
 	}
@@ -256,6 +252,7 @@ void SymTabThunkBuilder::addToCurrentSymTab(
 		field_thunk,
 		(weak_c > 0),
 		(cond_stack.size() > 0));
+	(void)was_added;
 
 	field_count++;
 	if (union_c > 0)
@@ -267,11 +264,7 @@ const Type* SymTabThunkBuilder::getTypeFromUnionSyms(
 {
 	const Type *union_t = NULL;
 
-	for (	list<SymbolTable*>::const_iterator it = union_symtabs.begin();
-		it != union_symtabs.end();
-		it++)
-	{
-		SymbolTable	*union_st = *it;
+	for (auto union_st : union_symtabs) {
 		string		name;
 
 		union_t = union_st->getOwnerType();

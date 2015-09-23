@@ -179,7 +179,7 @@ public:							\
 	virtual ~x() {}					\
 	CMP_GETOP(y)					\
 	CMP_COPY(x)					\
-};
+}
 
 CMP_CLASS(CmpEQ, EQ);
 CMP_CLASS(CmpNE, NE);

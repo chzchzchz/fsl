@@ -89,15 +89,15 @@ Value* x::codeGen(void) const { 					\
 	return get_builder()->y(e_lhs->codeGen(), e_rhs->codeGen());	\
 }
 
-AOP_CODEGEN(AOPOr, CreateOr);
-AOP_CODEGEN(AOPAnd, CreateAnd);
-AOP_CODEGEN(AOPAdd, CreateAdd);
-AOP_CODEGEN(AOPSub, CreateSub);
-AOP_CODEGEN(AOPDiv, CreateUDiv);
-AOP_CODEGEN(AOPMul, CreateMul);
-AOP_CODEGEN(AOPLShift, CreateShl);
-AOP_CODEGEN(AOPRShift, CreateLShr);
-AOP_CODEGEN(AOPMod, CreateURem);
+AOP_CODEGEN(AOPOr, CreateOr)
+AOP_CODEGEN(AOPAnd, CreateAnd)
+AOP_CODEGEN(AOPAdd, CreateAdd)
+AOP_CODEGEN(AOPSub, CreateSub)
+AOP_CODEGEN(AOPDiv, CreateUDiv)
+AOP_CODEGEN(AOPMul, CreateMul)
+AOP_CODEGEN(AOPLShift, CreateShl)
+AOP_CODEGEN(AOPRShift, CreateLShr)
+AOP_CODEGEN(AOPMod, CreateURem)
 
 Value* Number::codeGen() const
 {

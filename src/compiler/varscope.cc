@@ -25,7 +25,6 @@ VarScope::VarScope(llvm::IRBuilder<>* in_b)
 /* pull args from parambuf */
 void VarScope::genTypeArgs(const Type* t)
 {
-	llvm::Type		*l_t;
 	const ArgsList			*args;
 	llvm::AllocaInst		*params_ai;
 
@@ -33,7 +32,7 @@ void VarScope::genTypeArgs(const Type* t)
 	if (args == NULL) return;
 
 	/* long type */
-	l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
+	// auto l_t = llvm::Type::getInt64Ty(llvm::getGlobalContext());
 
 	params_ai = vars_map[rt_glue.getThunkArgParamPtrName()].tv_ai;
 	assert (params_ai != NULL && "Didn't allocate params?");

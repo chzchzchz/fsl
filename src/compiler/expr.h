@@ -49,7 +49,9 @@ public:
 
 	virtual Expr* rewrite(const Expr* to_rewrite, const Expr* new_expr)
 	{
-		assert (new_expr != NULL);
+		assert (to_rewrite && "no target expr");
+		assert (new_expr && "no replacement expr");
+		assert (this);
 		if (*this == to_rewrite) return new_expr->simplify();
 		return NULL;
 	}
@@ -84,15 +86,14 @@ public:
 
 	virtual llvm::Value* codeGen(void) const = 0;
 	virtual Expr* accept(ExprVisitor* ev) const = 0;
-protected:
-	Expr() {}
 };
 
 class ExprList : public PtrList<Expr>
 {
 public:
 	ExprList() {}
-	ExprList(Expr* e) { assert (e != NULL); add(e); }
+	ExprList(Expr* e) { add(e); }
+
 	ExprList(Expr* e, Expr* e2) {
 		assert (e != NULL && e2 != NULL);
 		add(e); add(e2);
@@ -100,8 +101,8 @@ public:
 
 	ExprList(const PtrList<Expr>& p) : PtrList<Expr>(p) {}
 	virtual ~ExprList()  {}
-	void print(std::ostream& out) const
-	{
+
+	void print(std::ostream& out) const {
 		const_iterator	it = begin();
 
 		if (it == end()) return;
@@ -115,14 +116,9 @@ public:
 
 	ExprList* copy(void) const { return new ExprList(*this); }
 
-	ExprList* simplify(void) const
-	{
-		ExprList*	ret;
-
-		ret = new ExprList();
-		for (const_iterator it = begin(); it != end(); it++)
-			ret->add((*it)->simplify());
-
+	ExprList* simplify(void) const {
+		auto ret = new ExprList();
+		for (auto &e : *this) ret->add(e->simplify());
 		return ret;
 	}
 
@@ -137,7 +133,7 @@ public:
 			it != end();
 			it++, it2++)
 		{
-			const Expr	*us(*it), *them(*it2);
+			const Expr	*us(it->get()), *them(it2->get());
 			if (*us != them) return false;
 		}
 
@@ -146,23 +142,25 @@ public:
 
 	void rewrite(const Expr* to_rewrite, const Expr* new_expr)
 	{
-		for (iterator it = begin(); it != end(); it++) {
-			Expr	*cur_expr, *tmp_expr;
+		assert (to_rewrite);
+		assert (new_expr);
 
-			cur_expr = *it;
+		for (auto & e : *this) {
+			Expr	*tmp_expr;
 
-			tmp_expr = cur_expr->rewrite(to_rewrite, new_expr);
+			assert (e != nullptr);
+
+			tmp_expr = e->rewrite(to_rewrite, new_expr);
 			if (tmp_expr == NULL) continue;
 
-			(*it) = tmp_expr;
-			delete cur_expr;
+			e.reset(tmp_expr);
 		}
 	}
 
 	const Expr* getNth(unsigned int n) const {
 		const_iterator it = begin();
 		for (unsigned int i = 0; i < n; it++,i++);
-		return (*it);
+		return it->get();
 	}
 private:
 };
@@ -226,8 +224,8 @@ public:
 			it != end();
 			++it, ++it2)
 		{
-			Expr	*our_expr = *it;
-			Expr	*in_expr = *it2;
+			const Expr	*our_expr = it->get();
+			const Expr	*in_expr = it2->get();
 			if (*our_expr != in_expr) return false;
 		}
 
@@ -528,7 +526,7 @@ protected:
 class ExprRewriteAll : public ExprRewriteVisitor
 {
 public:
-	virtual Expr* visit(const BinArithOp* a)
+	Expr* visit(const BinArithOp* a) override
 	{
 		const Expr	*lhs, *rhs;
 		BinArithOp	*new_bop;
@@ -555,41 +553,23 @@ public:
 		return new_bop;
 	}
 
-	virtual Expr* visit(const FCall* fc)
-	{
-		ExprList        *new_el;
-		const ExprList  *old_el;
-
-		old_el = fc->getExprs();
-		new_el = new ExprList();
-		for (   ExprList::const_iterator it = old_el->begin();
-			it != old_el->end();
-			it++)
-		{
-			Expr*		new_expr;
-			const Expr*	arg_expr;
-
-			arg_expr = *it;
-			new_expr = apply(arg_expr);
-			new_el->add(new_expr);
-		}
-
+	Expr* visit(const FCall* fc) override {
+		auto new_el = new ExprList();
+		for (auto &e : *fc->getExprs())
+			new_el->add(apply(e.get()));
 		return new FCall(new Id(fc->getName()), new_el);
 	}
 
-	virtual Expr* visit(const IdArray* ida)
-	{
+	Expr* visit(const IdArray* ida) override  {
 		const Expr	*idx = ida->getIdx();
 		return new IdArray(new Id(ida->getName()), apply(idx));
 	}
 
-	virtual Expr* visit(const ExprParens* epa)
-	{
+	Expr* visit(const ExprParens* epa) override  {
 		return new ExprParens(apply(epa->getExpr()));
 	}
 
-	virtual Expr* visit(const CondVal* cv)
-	{
+	Expr* visit(const CondVal* cv) override {
 		return new CondVal(
 			cv->getCond()->copy(),
 			apply(cv->getTrue()),

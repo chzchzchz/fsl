@@ -137,9 +137,8 @@ static Expr* eval_sizeof_typedef(const Id* id)
 
 static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits)
 {
-	const ExprList			*exprs;
-	Expr				*ret_size;
-	const Id			*front_id;
+	const ExprList	*exprs;
+	Expr		*ret_size;
 
 	/* fc name is either sizeof_bytes of sizeof_bits */
 	/* should probably make this its own class? */
@@ -151,7 +150,7 @@ static Expr* eval_rewrite_sizeof(const EvalCtx& ectx, const FCall* fc, bool bits
 		return NULL;
 	}
 
-	front_id = dynamic_cast<const Id*>(exprs->front());
+	auto front_id = dynamic_cast<const Id*>(exprs->front().get());
 	if (front_id == NULL) {
 		cerr << "sizeof expects id for argument. Got: ";
 		fc->print(cerr);

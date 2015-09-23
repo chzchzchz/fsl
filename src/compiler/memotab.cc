@@ -51,7 +51,7 @@ class llvm::Value* MemoTab::memoCallPrim(const class Func* f) const
 	int			idx = getFuncIdx(f);
 	llvm::Value		*ptr, *ret;
 
-	ptr = builder->CreateStructGEP(memo_datatab, idx);
+	ptr = builder->CreateStructGEP(nullptr, memo_datatab, idx);
 	ret = builder->CreateLoad(ptr);
 
 	/* special case-- boolean is a single bit */
@@ -71,7 +71,7 @@ class llvm::Value* MemoTab::memoCallType(const class Func* f) const
 	llvm::AllocaInst	*tmp_tp, *tmp_params;
 	unsigned int		param_c;
 
-	tab_ptr = builder->CreateStructGEP(memo_datatab, idx);
+	tab_ptr = builder->CreateStructGEP(nullptr, memo_datatab, idx);
 	tab_ptr = builder->CreateBitCast(
 		tab_ptr, code_builder->getClosureTyPtr());
 
@@ -94,7 +94,7 @@ void MemoTab::allocTable(void)
 
 	memo_datatab = new llvm::GlobalVariable(
 		*code_builder->getModule(),
-		(llvm::Type*)llvm::ArrayType::get(
+		llvm::ArrayType::get(
 			llvm::Type::getInt64Ty(llvm::getGlobalContext()),
 			last_datatab_idx),
 		false,

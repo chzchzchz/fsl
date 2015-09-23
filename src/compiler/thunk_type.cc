@@ -11,12 +11,7 @@ extern RTInterface rt_glue;
 ThunkType::~ThunkType(void)
 {
 	if (t_size != NULL) delete t_size;
-	for (	thunkfunc_map::iterator	it = thunkfuncs_map.begin();
-		it != thunkfuncs_map.end();
-		it++)
-	{
-		delete (*it).second;
-	}
+	for (auto &p : thunkfuncs_map) delete p.second;
 }
 
 bool ThunkType::registerFunc(const ThunkFunc* f)
@@ -39,15 +34,11 @@ bool ThunkType::registerFunc(const ThunkFunc* f)
 
 bool ThunkType::genCode(void) const
 {
-	for (	thunkfunc_map::const_iterator it = thunkfuncs_map.begin();
-		it != thunkfuncs_map.end();
-		it++)
-	{
-		ThunkFunc*	f;
+	for (const auto &p : thunkfuncs_map) {
+		ThunkFunc*	f = p.second;
 		bool		ret;
-
-		f = (*it).second;
 		ret = f->genCode();
+		assert(ret);
 	}
 
 	return true;
@@ -55,15 +46,11 @@ bool ThunkType::genCode(void) const
 
 bool ThunkType::genProtos(void) const
 {
-	for (	thunkfunc_map::const_iterator it = thunkfuncs_map.begin();
-		it != thunkfuncs_map.end();
-		it++)
-	{
-		ThunkFunc*	f;
+	for (const auto &p : thunkfuncs_map) {
+		ThunkFunc*	f = p.second;
 		bool		ret;
-
-		f = (*it).second;
 		ret = f->genProto();
+		assert (ret);
 	}
 
 	return true;
@@ -84,12 +71,8 @@ ThunkType* ThunkType::copy(void) const
 		ret->setSize(t_size->copy());
 	}
 
-	for (	thunkfunc_map::const_iterator it = thunkfuncs_map.begin();
-		it != thunkfuncs_map.end();
-		it++)
-	{
-		ret->registerFunc((*it).second);
-	}
+	for (const auto &p : thunkfuncs_map)
+		ret->registerFunc(p.second);
 
 	ret->num_fields = num_fields;
 

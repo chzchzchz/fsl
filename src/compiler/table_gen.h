@@ -5,6 +5,7 @@
 #include <fstream>
 #include <fstream>
 #include <string>
+#include "collection.h"
 #include "symtab.h"
 
 class TableGen;
@@ -40,7 +41,11 @@ public:
 	std::ofstream& getOS(void) { return out; }
 private:
 	template<class T>
+	void genTableWriters(const PtrList<T>& tw_list);
+
+	template<class T>
 	void genTableWriters(const std::list<T*>& tw_list);
+
 
 	void genTableHeaders(void);
 

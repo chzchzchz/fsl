@@ -38,15 +38,13 @@ void Repairs::load(const Preamble* p)
 		src_type);
 	assert (wpkt_repair != NULL);
 
-	repairs_l.push_back(new RepairEnt(this, p, cond,wpkt_repair));
+	repairs_l.add(new RepairEnt(this, p, cond,wpkt_repair));
 }
 
 void Repairs::genExterns(TableGen* tg)
 {
-	for (	repairent_list::const_iterator it = repairs_l.begin();
-		it != repairs_l.end();
-		it++)
-		(*it)->genExterns(tg);
+	for (auto &repair : repairs_l)
+		repair->genExterns(tg);
 }
 
 void Repairs::genTables(TableGen* tg)
@@ -57,12 +55,9 @@ void Repairs::genTables(TableGen* tg)
 		"__rt_tab_repair_" + getType()->getName() + "[]",
 		true);
 
-	for (	repairent_list::const_iterator it = repairs_l.begin();
-		it != repairs_l.end();
-		it++)
-	{
+	for (auto &repair : repairs_l) {
 		sw.beginWrite();
-		(*it)->genTableInstance(tg);
+		repair->genTableInstance(tg);
 	}
 }
 
