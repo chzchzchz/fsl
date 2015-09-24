@@ -18,7 +18,13 @@ virtual_if(
 	cluster		clusters[get_cluster_count()] fixed nofollow;
 }
 
-type cluster { u8 data[bytes_per_cluster()]; }
+type fat_de_cluster { fat_de de[bytes_per_cluster()/sizeof_bytes(fat_de)]; } 
+type cluster {
+	union {
+		fat_de_cluster		de_clus;
+		file_cluster		file_clus;
+	} v;
+}
 type file_cluster { u8 data[bytes_per_cluster()]; }
 type fat_dir(int num_ents) { fat_de de[num_ents] fixed; }
 
@@ -27,26 +33,26 @@ type fat_short_name { u8 name[8+3]; }
 type fat_de
 assert (? is_deleted(this) == false) as chk_not_del
 assert (? is_lfn(this) == false) as chk_not_lfn
-assert (? is_back_ref(this) == false) as not_backref
+// assert (? is_back_ref(this) == false) as not_backref
 virtual_if(
 	? is_de_file(this),
 	file_cluster,
 	i, 1, de_cluster_count(this), get_nth(this, i)) as vfile
 virtual_if(
-	? is_good_dir(this) == true,
+	? is_good_dir(this) == true && is_back_ref(this) == false,
 	fat_de,
 	i, 1, de_cluster_count(this), get_nth(this, i)) as vdir
 relocate(
 	j, 1, de_cluster_count(this), get_nth(this, j),
-	i, FAT_START_ENT, get_cluster_count(),
-		get_cluster(i), ? is_cluster_avail(i),
+	i, FAT_START_ENT, get_cluster_count(), get_cluster(i),
+		? is_cluster_avail(i),
 	block_alloc(i),
 	block_relink(this, j, i),
 	block_replace(get_nth_cnum(this, j))) as reloc
 relocate(
 	j, 1, de_cluster_count(this), get_nth(this, j),
-	i, FAT_START_ENT, get_cluster_count(),
-		get_cluster(i), ? is_cluster_avail(i),
+	i, FAT_START_ENT, get_cluster_count(), get_cluster(i),
+		? is_cluster_avail(i),
 	block_alloc(i),
 	block_relink(this, j, i),
 	block_replace(get_nth_cnum(this, j))) as defrag
@@ -135,6 +141,7 @@ type fat_ent16 { u16	cluster_num; }
 type fat_ent32 { u32	cluster_num; }
 
 type fat
+assert (? is_fat32() == true || is_fat16() == true || is_fat12() == true) as chk_fattype
 {
 	if (is_fat32()) {
 		fat_ent32 ent32[FAT_START_ENT+get_cluster_count()] fixed nofollow;
@@ -142,8 +149,6 @@ type fat
 		fat_ent16 ent16[FAT_START_ENT+get_cluster_count()] fixed nofollow;
 	} else if (is_fat12()) {
 		fat_ent12 ent12[FAT_START_ENT+get_cluster_count()] fixed nofollow;
-	} else {
-		fsl_fail(2);
 	}
 	set_bytes(get_fat_sectors()*bytes_per_sector());
 }
