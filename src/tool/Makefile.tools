@@ -175,8 +175,10 @@ $(OBJDIR)/fs/kfsl.$(FSNAME).table.o: $(OBJDIR)/fs/fsl.$(FSNAME).table.c
 $(OBJDIR)/fs/kfsl.$(FSNAME).types.o: $(OBJDIR)/fs/kfsl.$(FSNAME).types.s
 	as -g $< -o $@
 
+# XXX -disable-red-zone should already be disabled in .bc file; the flag
+# has been deprecated. Possibly need type annotations.
 $(OBJDIR)/fs/kfsl.$(FSNAME).types.s: $(OBJDIR)/fs/fsl.$(FSNAME).types.bc
-	llc -disable-red-zone -code-model=kernel $(LLC_FLAGS)  $< -o $@
+	llc -code-model=kernel $(LLC_FLAGS)  $< -o $@
 
 # USER SPACE FS MODULES
 $(OBJDIR)/fs/fsl.$(FSNAME).o: $(OBJDIR)/fs/fsl.$(FSNAME).table.o $(OBJDIR)/fs/fsl.$(FSNAME).types.o
