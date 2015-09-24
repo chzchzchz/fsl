@@ -155,8 +155,8 @@ static struct type_info* lookup_virts(
 	const char* next_elems,	/* path cdr */
 	int* err)
 {
-	struct type_info			*next_ti;
-	const struct fsl_rtt_virt		*vt;
+	struct type_info		*next_ti = cur_ti;
+	const struct fsl_rtt_virt	*vt;
 
 	vt = find_virt(cur_ti, cur_elem);
 	if (vt == NULL) ret_err(err, LOOKUP_RC_NOVIRT);
