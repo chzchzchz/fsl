@@ -37,10 +37,7 @@ public:
 	bool isWeak(void) const { return is_weak; }
 	bool isConditional(void) const { return is_conditional; }
 
-	virtual ~SymbolTableEnt(void)
-	{
-		delete thunk_field;
-}
+	virtual ~SymbolTableEnt(void) { delete thunk_field; }
 
 private:
 	std::string		type_name;
@@ -74,7 +71,7 @@ public:
 
 	void print(std::ostream& out) const;
 	SymbolTable& operator=(const SymbolTable& st);
-	SymbolTable* copy(void);
+	SymbolTable* copy(void) const;
 	void copyInto(const SymbolTable& st);
 
 	sym_list::const_iterator begin(void) const { return sl.begin(); }
@@ -93,12 +90,8 @@ inline static void dump_symlist(const SymbolTable& st)
 	unsigned int	i = 0;
 	std::cerr << "dumping symlist " << st.getOwnerType()->getName() << "(" <<
 		&st << ") (in order)\n";
-	for (	sym_list::const_iterator it = st.begin();
-		it != st.end();
-		it++, i++)
-	{
-		const SymbolTableEnt	*st_ent = *it;
-		std::cerr << i << ". " << st_ent->getFieldName() << '\n';
+	for (const auto st_ent : st) {
+		std::cerr << i++ << ". " << st_ent->getFieldName() << '\n';
 	}
 	std::cerr << "done.\n";
 }

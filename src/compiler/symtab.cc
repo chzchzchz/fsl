@@ -11,25 +11,18 @@ extern symtab_map		symtabs;
 
 void SymbolTable::print(ostream& out) const
 {
-	sym_map::const_iterator	it;
-
 	out << "SymTable for " << owner->getType()->getName() << std::endl;
-	for (it = sm.begin(); it != sm.end(); it++) {
-		const SymbolTableEnt	*st_ent = (*it).second;
-
-		out 	<< "Symbol: \"" <<  (*it).first << "\" = ";
-		out << st_ent->getTypeName();
+	for (auto const &p : sm) {
+		out << "Symbol: \"" <<  p.first << "\" = ";
+		out << p.second->getTypeName();
 		out << std::endl;
 	}
 }
 
-SymbolTable* SymbolTable::copy(void)
+SymbolTable* SymbolTable::copy(void) const
 {
-	SymbolTable	*new_st;
-
-	new_st = new SymbolTable(owner->copy());
+	auto new_st = new SymbolTable(owner->copy());
 	new_st->copyInto(*this);
-
 	return new_st;
 }
 
@@ -41,17 +34,12 @@ SymbolTable& SymbolTable::operator=(const SymbolTable& st)
 
 void SymbolTable::copyInto(const SymbolTable& st)
 {
-	sym_list::const_iterator	it;
-
 	if (&st == this) return;
 
 	freeData();
 
 	owner = (st.owner)->copy();
-	for (it = st.sl.begin(); it != st.sl.end(); it++) {
-		const SymbolTableEnt	*st_ent;
-
-		st_ent = (*it);
+	for (const auto st_ent : st.sl) {
 		add(	st_ent->getFieldName(),
 			st_ent->getTypeName(),
 			st_ent->getFieldThunk()->copy(*owner),
@@ -113,17 +101,12 @@ const Type* SymbolTable::getOwnerType(void) const { return owner->getType(); }
 
 void SymbolTable::freeData(void)
 {
-	sym_list::iterator	it;
-
-	for (it = sl.begin(); it != sl.end(); it++) delete (*it);
-
+	for (auto sym : sl) delete sym;
 	sm.clear();
 	sl.clear();
 
-	if (owner != NULL) {
-		delete owner;
-		owner = NULL;
-	}
+	delete owner;
+	owner = NULL;
 }
 
 const ThunkType* SymbolTable::getThunkType(void) const { return owner->copy(); }
