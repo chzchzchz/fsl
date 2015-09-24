@@ -169,10 +169,8 @@ int bmp_count_contig_avail(bitmap* b, unsigned int offset)
 
 static int bmp_find_avail(bitmap* b, unsigned int offset)
 {
-	int	n;
 	int	i;
 
-	n = 0;
 	for(i = offset / 8; i < b->bmp_bytes; i++){
 		int	ii;
 		if(b->bmp_data[i] != 0xff){
@@ -189,10 +187,8 @@ static int bmp_find_avail(bitmap* b, unsigned int offset)
 
 static int bmp_find_set(bitmap* b, unsigned int offset)
 {
-	int	n;
 	int	i;
 
-	n = 0;
 	for(i = offset / 8; i < b->bmp_bytes; i++){
 		int	ii;
 

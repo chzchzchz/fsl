@@ -192,7 +192,7 @@ void fsl_io_write(uint64_t bit_off, uint64_t val, uint64_t num_bits)
 		assert (0 == 1 && "UNALIGNED ACCESS");
 	}
 	if ((num_bits % 8)) {
-		printf("WHRG! NON-BYTE BITS", num_bits);
+		fprintf(stderr, "WHRG! NON-BYTE BITS %"PRIu64"\n", num_bits);
 		assert (0 == 1 && "NON-BYTE BITS");
 	}
 
