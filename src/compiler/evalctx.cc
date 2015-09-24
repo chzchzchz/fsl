@@ -252,14 +252,13 @@ done:
  *  access call or dynamic call */
 Expr* EvalCtx::resolveVal(const Id* id) const
 {
-	const_map::const_iterator	const_it;
-	const SymbolTableEnt		*st_ent;
-	const Type			*t;
+	const SymbolTableEnt	*st_ent;
+	const Type		*t;
 
 	assert (id != NULL);
 
 	/* is it a constant? */
-	const_it = constants.find(id->getName());
+	auto const_it = constants.find(id->getName());
 	if (const_it != constants.end())
 		return ((*const_it).second)->simplify();
 

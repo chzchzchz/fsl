@@ -30,8 +30,7 @@ public:
 	ExprRewriteConsts(const const_map& consts)
 	: constants(consts) {}
 
-	virtual Expr* visit(const Id* id)
-	{
+	Expr* visit(const Id* id) override  {
 		Expr	*new_expr;
 		new_expr = getNewExpr(id);
 		return (new_expr == NULL) ? id->copy() : new_expr;
@@ -56,26 +55,22 @@ public:
 	ExprResolveIds(const EvalCtx& evalctx)
 		: ectx(evalctx) {}
 
-	virtual Expr* visit(const Id* id)
-	{
+	Expr* visit(const Id* id) override  {
 		Expr	*result = ectx.resolveVal(id);
 		return (result == NULL) ? id->copy() : result;
 	}
 
-	virtual Expr* visit(const IdStruct* ids)
-	{
+	Expr* visit(const IdStruct* ids) override {
 		Expr	*result = ectx.resolveVal(ids);
 		return (result == NULL) ? ids->copy() : result;
 	}
 
-	virtual Expr* visit(const IdArray* ida)
-	{
+	Expr* visit(const IdArray* ida) override {
 		Expr	*result = ectx.resolveVal(ida);
 		return (result == NULL) ? ida->copy() : result;
 	}
 
-	virtual Expr* visit(const FCall* fc)
-	{
+	Expr* visit(const FCall* fc) override {
 		if (fc->getName() == "sizeof_bits")
 			return eval_rewrite_sizeof(ectx, fc, true);
 		else if (fc->getName() == "sizeof_bytes")
@@ -102,21 +97,22 @@ Expr* expr_resolve_consts(const const_map& consts, Expr* cur_expr)
 
 static Expr* eval_sizeof_type(const EvalCtx& ectx, const Id* id)
 {
-	Expr				*ret_size;
-	Expr				*resolved_closure;
-	const SymbolTable		*st;
-	const Type			*t;
-	symtab_map::const_iterator	it;
+	Expr			*ret_size;
+	Expr			*resolved_closure;
+	const SymbolTable	*st;
+	const Type		*t;
 
-	if (id == NULL) return NULL;
+	if (id == NULL) return nullptr;
 
-	if (types_map.count(id->getName()) == 0) {
-		resolved_closure = ectx.resolveVal(id);
-		t = ectx.getType(id);
-		if (t == NULL) return NULL;
-	} else {
+	if (types_map.count(id->getName())) {
 		t = types_map[id->getName()];
+		assert (t != nullptr);
 		resolved_closure = FCall::mkBaseClosure(t);
+	} else {
+		t = ectx.getType(id);
+		if (!t) return nullptr;
+		resolved_closure = ectx.resolveVal(id);
+		if (!resolved_closure) return nullptr;
 	}
 
 	/* st = symbol table for type to get size of */
