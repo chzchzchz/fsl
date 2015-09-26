@@ -1,0 +1,71 @@
+KERN_RTOBJS0=	runtime.o	\
+		bridge.o	\
+		type_info.o 	\
+		type_print.o	\
+		virt.o		\
+		io.o		\
+		max.o		\
+		debug.o		\
+		log.o		\
+		bitmap.o	\
+		scan.o		\
+		choice.o	\
+		writepkt.o	\
+		lookup.o
+
+USER_RTOBJS=$(patsubst %.c,%.o, $(wildcard src/runtime/*.c))
+KERN_RTOBJS=$(KERN_RTOBJS0:%=src/runtime/%)
+RTOBJSOUT := $(patsubst src/%,$(OBJDIR)/%,$(USER_RTOBJS))
+KLEERTOBJSOUT := $(patsubst src/%,$(OBJDIR)/klee/%,$(USER_RTOBJS))
+RTKOBJSOUT := $(KERN_RTOBJS:%=$(OBJDIR)/kernel/%)
+
+RT_PREAD_OBJS := $(RTOBJSOUT) $(OBJDIR)/runtime/io_pread.o
+RT_MMAP_OBJS := $(RTOBJSOUT) $(OBJDIR)/runtime/io_mmap.o
+
+WRITE_OBJNAMES = scan.o choice.o writepkt.o bitmap.o
+WRITE_OBJS := $(WRITE_OBJNAMES:%=$(OBJDIR)/runtime/%)
+KLEE_WRITE_OBJS := $(WRITE_OBJNAMES:%=$(OBJDIR)/klee/runtime/%)
+KLEE_RT_PREAD_OBJS := $(RT_PREAD_OBJNAMES:%=$(OBJDIR)/klee/runtime/%)
+
+RTCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) -Wall
+RTKCFLAGS= $(CFLAGS) $(DEFINE_FLAGS) 	\
+	-I$(LINUX_SRCDIR)/include/ 	\
+	-I$(LINUX_SRCDIR)/arch/x86/include/ 	\
+	-mcmodel=kernel -mno-red-zone -Wall  -D__KERNEL__
+
+IO_KLEE_PREADDEPS :=	$(OBJDIR)/klee/runtime/rt-pread/io.o \
+			$(OBJDIR)/klee/runtime/rt-pread/cache.o
+
+$(OBJDIR)/klee/runtime/io_pread.o: $(IO_KLEE_PREADDEPS)
+	llvm-link -o $@ $^
+$(OBJDIR)/klee/runtime/io_mmap.o: $(OBJDIR)/klee/runtime/rt-mmap/io.o
+	cp $^ $@
+
+$(OBJDIR)/klee/runtime/%.o: src/runtime/%.c
+	clang -DUSE_KLEE $(RTCFLAGS) -emit-llvm -Isrc/runtime/ -c $< -o $@
+$(OBJDIR)/klee/runtime/rt-pread/%.o: src/runtime/rt-pread/%.c
+	clang -DUSE_KLEE $(RTCFLAGS) -emit-llvm -Isrc/runtime/ -c $< -o $@
+
+
+
+$(OBJDIR)/runtime/io_pread.o:	$(OBJDIR)/runtime/rt-pread/io.o \
+				$(OBJDIR)/runtime/rt-pread/cache.o
+	ld -r -o $@ $^
+$(OBJDIR)/runtime/io_mmap.o: $(OBJDIR)/runtime/rt-mmap/io.o
+	cp $^ $@
+
+$(OBJDIR)/runtime/%.o: src/runtime/%.c
+	gcc $(RTCFLAGS) -Isrc/runtime/ -c $< -o $@
+$(OBJDIR)/kernel/%.o: src/runtime/%.c
+	gcc $(RTKCFLAGS) -Isrc/runtime/ -c $< -o $@
+
+
+.PHONY: runtime
+runtime: $(RTOBJSOUT) $(OBJDIR)/runtime/io_pread.o $(OBJDIR)/runtime/io_mmap.o
+
+.PHONY: runtime-clean
+runtime-clean:
+	rm -f 			\
+		$(RTOBJSOUT) 	\
+		$(RTKOBJSOUT)	\
+		$(KLEERTOBJSOUT)

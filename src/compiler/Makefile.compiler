@@ -1,0 +1,35 @@
+COMP_CFLAGS= $(CFLAGS) $(LLVM_FLAGS)  $(DEFINE_FLAGS) -Wall
+LANGOBJS=$(patsubst %.cc,%.o,	$(wildcard src/compiler/*.cc) 	\
+				src/compiler/parser.cc		\
+				src/compiler/lex.yy.cc		)
+LANGOBJSOUT := $(patsubst src/%,$(OBJDIR)/%,$(LANGOBJS))
+
+LLVM_FLAGS_ORIGINAL:=$(shell llvm-config --cxxflags --ldflags --libs core)
+LLVM_FLAGS:=$(shell echo "$(LLVM_FLAGS_ORIGINAL)" |  sed "s/-Woverloaded-virtual//;s/-fPIC//;s/-DNDEBUG//g") -Wall
+LLVM_LD:=$(shell llvm-config --libs core)  $(shell llvm-config --ldflags) -lpthread -lrt -lncurses -ldl
+
+src/compiler/parser.hh: src/compiler/parser.cc
+
+src/compiler/parser.cc: src/compiler/parser.y
+	bison -d -o $@ $^
+
+src/compiler/lex.yy.cc: src/compiler/lang.lex
+	flex -o $@ $^
+
+$(BINDIR)/lang: $(LANGOBJSOUT)
+	g++ $(DEBUG_FLAG) -O3 $(LLVM_LD) $(LLVM_FLAGS) -o $@ `echo $(LANGOBJSOUT)  | sed 's/ /\n/g' | sort | uniq`
+
+$(OBJDIR)/compiler/%.o: src/compiler/%.cc
+	g++ $(COMP_CFLAGS) -c $< $(LLVM_FLAGS) -o $@
+
+.PHONY: compiler
+compiler: $(BINDIR)/lang
+
+.PHONY: compiler-clean
+compiler-clean:
+	rm -f	\
+		src/compiler/lex.yy.cc	\
+		src/compiler/y.tab.h	\
+		src/compiler/parser.cc	\
+		src/compiler/parser.hh	\
+		$(LANGOBJSOUT)
