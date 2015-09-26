@@ -66,13 +66,13 @@ virtual(vdisk, i, 0, total_sectors(), disk.sectors[lba_to_sectidx(i)]) as lun
 
 	set_bytes(l1_table_offset());
 	l1 l1_table;
+	set_bytes(l1_backup_table_offset());
 	if (l1_backup_table_offset() != 0) {
-		set_bytes(l1_backup_table_offset());
 		l1 l1_backup;
 	}
 
+	set_bytes(hdr.v4.desc_offset*512);
 	if (magic == VMDK4_MAGIC) {
-		set_bytes(hdr.v4.desc_offset*512);
 		desc	img_desc;
 	}
 
