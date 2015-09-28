@@ -17,10 +17,10 @@ src/compiler/lex.yy.cc: src/compiler/lang.lex
 	flex -o $@ $^
 
 $(BINDIR)/lang: $(LANGOBJSOUT)
-	g++ $(DEBUG_FLAG) -O3 $(LLVM_LD) $(LLVM_FLAGS) -o $@ `echo $(LANGOBJSOUT)  | sed 's/ /\n/g' | sort | uniq`
+	$(CXX) $(DEBUG_FLAG) -O3 $(LLVM_LD) $(LLVM_FLAGS) -o $@ `echo $(LANGOBJSOUT)  | sed 's/ /\n/g' | sort | uniq`
 
 $(OBJDIR)/compiler/%.o: src/compiler/%.cc
-	g++ $(COMP_CFLAGS) -c $< $(LLVM_FLAGS) -o $@
+	$(CXX) $(COMP_CFLAGS) -c $< $(LLVM_FLAGS) -o $@
 
 .PHONY: compiler
 compiler: $(BINDIR)/lang

@@ -42,9 +42,9 @@ $(OBJDIR)/klee/runtime/io_mmap.o: $(OBJDIR)/klee/runtime/rt-mmap/io.o
 	cp $^ $@
 
 $(OBJDIR)/klee/runtime/%.o: src/runtime/%.c
-	clang -DUSE_KLEE $(RTCFLAGS) -emit-llvm -Isrc/runtime/ -c $< -o $@
+	$(LLVMCC) -DUSE_KLEE $(RTCFLAGS) -emit-llvm -Isrc/runtime/ -c $< -o $@
 $(OBJDIR)/klee/runtime/rt-pread/%.o: src/runtime/rt-pread/%.c
-	clang -DUSE_KLEE $(RTCFLAGS) -emit-llvm -Isrc/runtime/ -c $< -o $@
+	$(LLVMCC) -DUSE_KLEE $(RTCFLAGS) -emit-llvm -Isrc/runtime/ -c $< -o $@
 
 
 
@@ -55,9 +55,9 @@ $(OBJDIR)/runtime/io_mmap.o: $(OBJDIR)/runtime/rt-mmap/io.o
 	cp $^ $@
 
 $(OBJDIR)/runtime/%.o: src/runtime/%.c
-	gcc $(RTCFLAGS) -Isrc/runtime/ -c $< -o $@
+	$(CC) $(RTCFLAGS) -Isrc/runtime/ -c $< -o $@
 $(OBJDIR)/kernel/%.o: src/runtime/%.c
-	gcc $(RTKCFLAGS) -Isrc/runtime/ -c $< -o $@
+	$(CC) $(RTKCFLAGS) -Isrc/runtime/ -c $< -o $@
 
 
 .PHONY: runtime

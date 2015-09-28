@@ -76,11 +76,11 @@ $(foreach fs, $(FILESYSTEMS), $(eval fusebrowse-$fs-mmap-deps += $(fusebrowse-ob
 
 .SECONDEXPANSION:
 $(TOOL_BINS) : $(BINDIR)/% : $$($$*-deps)
-	gcc $(TOOL_CFLAGS) -lfuse -o $@ $^
+	$(CC) $(TOOL_CFLAGS) -lfuse -o $@ $^
 
 .SECONDEXPANSION:
 $(TOOL_MMAP_BINS) : $(BINDIR)/mmap/% : $$($$*-mmap-deps)
-	gcc $(TOOL_CFLAGS) -lfuse -o $@ $^
+	$(CC) $(TOOL_CFLAGS) -lfuse -o $@ $^
 
 .SECONDEXPANSION:
 $(KLEE_TOOL_BINS) : $(BINDIR)/klee/%.bc : $$($$*-klee-deps)
@@ -90,13 +90,13 @@ $(KLEE_TOOL_BINS) : $(BINDIR)/klee/%.bc : $$($$*-klee-deps)
 
 ### TOOL OBJECTS ######
 $(OBJDIR)/klee/tool/%.o: src/tool/%.c
-	clang -DUSE_KLEE $(RTCFLAGS) -emit-llvm -Isrc/runtime/ -c $< -o $@
+	$(LLVMCC) -DUSE_KLEE $(RTCFLAGS) -emit-llvm -Isrc/runtime/ -c $< -o $@
 
 $(OBJDIR)/tool/%.o: src/tool/%.c
-	gcc $(RTCFLAGS) -Isrc/runtime/ -c $< -o $@
+	$(CC) $(RTCFLAGS) -Isrc/runtime/ -c $< -o $@
 
 $(OBJDIR)/kernel/tool/%.o: src/tool/%.c
-	gcc $(RTKCFLAGS) -Isrc/runtime/ -c $< -o $@
+	$(CC) $(RTKCFLAGS) -Isrc/runtime/ -c $< -o $@
 ###################
 
 #############################
@@ -108,7 +108,7 @@ $(OBJDIR)/fs/kfsl.%.o:	$(OBJDIR)/fs/kfsl.%.table.o \
 	ld -r -o $@ $^
 
 $(OBJDIR)/fs/kfsl.%.table.o: $(OBJDIR)/fs/fsl.%.table.c
-	gcc -mcmodel=kernel -mno-red-zone $(TOOL_CFLAGS) -I.. -c $^ -o $@
+	$(CC) -mcmodel=kernel -mno-red-zone $(TOOL_CFLAGS) -I.. -c $^ -o $@
 
 $(OBJDIR)/fs/kfsl.%.types.o: $(OBJDIR)/fs/kfsl.%.types.s
 	as -g $< -o $@
@@ -124,10 +124,10 @@ $(OBJDIR)/fs/fsl.%.o:	$(OBJDIR)/fs/fsl.%.table.o \
 	ld -r -o $@ $^
 
 $(OBJDIR)/fs/fsl.%.table.o: $(OBJDIR)/fs/fsl.%.table.c
-	gcc $(TOOL_CFLAGS) -I.. -c -o $@ $<
+	$(CC) $(TOOL_CFLAGS) -I.. -c -o $@ $<
 
 $(OBJDIR)/fs/fsl.%.table.bc: $(OBJDIR)/fs/fsl.%.table.c
-	clang -emit-llvm $(TOOL_CFLAGS) -I.. -c -o $@ $<
+	$(LLVMCC) -emit-llvm $(TOOL_CFLAGS) -I.. -c -o $@ $<
 
 $(OBJDIR)/fs/fsl.%.types.o: $(OBJDIR)/fs/fsl.%.types.s
 	as -g -o $@ $<

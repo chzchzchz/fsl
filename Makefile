@@ -27,6 +27,10 @@ MAKECMD=make -j$(NUM_JOBS)
 CFLAGS= -g -O3 -DFSL_RELEASE -DFSL_LITTLE_ENDIAN -fno-common
 OPT_FLAGS=-O3
 LLC_FLAGS=-O3
+LLVMCC=clang
+LLVMCXX=clang++
+CC=gcc
+CXX=g++
 export CFLAGS
 OBJDIR=$(shell pwd)/obj
 BINDIR=$(shell pwd)/bin
@@ -78,3 +82,10 @@ libs-clean:
 
 imgs:
 	cd img && $(MAKECMD)
+
+.PHONY: scan-build
+scan-build:
+	mkdir -p scan-out
+	scan-build --use-cc="$(CC)" --use-c++="$(CXX)" \
+		`clang -cc1 -analyzer-checker-help | awk ' { print "-enable-checker="$1 } ' | grep '\.' | grep -v debug ` \
+		-o `pwd`/scan-out $(MAKECMD) all
