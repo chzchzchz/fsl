@@ -1,61 +1,59 @@
-# Called by srcroot Makefile under img commands
-#
+DEPTH_COUNTS=1 2 4 8 16 32 64 128 192 256
 ifndef LINUXTAR
 	LINUXTAR="/usr/src/linux-2.6.36.2.tar.bz2"
 endif
 
-ifndef FSNAMES
-	$(error No FSNAMES)
-endif
-
-all:	fill mk_img mk_depth mk_many_img		\
-	vmdk.img					\
-	ext2-small.img					\
-	reiserfs-many-blockfile.img			\
-	vfat-32-many.img				\
-	vfat-manymore.img				\
-	vfat-many-4097.img				\
-	btrfs-empty.img					\
+.PHONY: imgs-all
+imgs-all:						\
+	$(IMGDIR)/fill mk_img mk_depth mk_many_img	\
+	$(IMGDIR)/vmdk.img				\
+	$(IMGDIR)/ext2-small.img			\
+	$(IMGDIR)/reiserfs-many-blockfile.img		\
+	$(IMGDIR)/vfat-32-many.img			\
+	$(IMGDIR)/vfat-manymore.img			\
+	$(IMGDIR)/vfat-many-4097.img			\
+	$(IMGDIR)/btrfs-empty.img			\
 	postmark
 
-linux: 	ext2-linux-4gb.img reiserfs-linux-4gb.img	\
+.PHONY: imgs-linux
+imgs-linux: 						\
+	ext2-linux-4gb.img reiserfs-linux-4gb.img	\
 	vfat-linux-4gb.img iso9660-linux-4gb.img	\
 	ext2-linux-1gb.img xfs-linux-4gb.img nilfs2-linux-4gb.img
 
 POSTMARKFS=ext2 xfs iso9660 reiserfs vfat
-postmark: $(POSTMARKFS:%=%-postmark.img)
+postmark: $(POSTMARKFS:%=$(IMGDIR)/%-postmark.img)
 
-include Makefile.depth
+.PHONY: imgs-depth
+imgs-depth: $(DEPTH_IMGS)
 
-depth: $(DEPTH_IMGS)
+$(IMGDIR)/fill: $(IMGDIR)/fill.c
+	gcc -O2 -o $@ $(IMGDIR)/fill.c
 
-fill: fill.c
-	gcc -O2 fill.c -o fill
+imgs-clean:
+	rm -f $(IMGDIR)/*.img $(IMGDIR)/*qcow2 $(IMGDIR)/fill
 
-clean:
-	rm -f *.img *qcow2 fill
-
-MK_IMG_RULES=$(FSNAMES:%=%.img) testfs.img
+MK_IMG_RULES=$(FSNAMES:%=$(IMGDIR)/%.img) $(IMGDIR)/testfs.img
 mk_img: $(MK_IMG_RULES)
-MK_MANY_RULES=$(FSNAMES:%=%-many.img)
+MK_MANY_RULES=$(FSNAMES:%=$(IMGDIR)/%-many.img)
 mk_many_img: $(MK_MANY_RULES)
 
-MK_DEPTH_RULES=$(FSNAMES:%=%-depth.img)
+MK_DEPTH_RULES=$(FSNAMES:%=$(IMGDIR)/%-depth.img)
 mk_depth: $(MK_DEPTH_RULES)
 
-pcpartfs.img:
+$(IMGDIR)/pcpartfs.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
 	echo -e "n\np\n1\n\n+1M\nw\n" | /sbin/fdisk $@
 	echo -e "n\np\n2\n\n+2M\nw\n" | /sbin/fdisk $@
 
-pcpartfs-many.img:
+$(IMGDIR)/pcpartfs-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
 	echo -e "n\np\n1\n\n+1M\nw\n" | /sbin/fdisk $@
 	echo -e "n\np\n2\n\n+2M\nw\n" | /sbin/fdisk $@
 	echo -e "n\np\n3\n\n+1M\nw\n" | /sbin/fdisk $@
 	echo -e "n\np\n\n+1M\nw\n" | /sbin/fdisk $@
 
-pcpartfs-depth.img:
+$(IMGDIR)/pcpartfs-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
 	echo -e "n\np\n1\n\n+1M\nw\n" | /sbin/fdisk $@
 	echo -e "n\np\n2\n\n+2M\nw\n" | /sbin/fdisk $@
@@ -63,27 +61,27 @@ pcpartfs-depth.img:
 	echo -e "n\nl\n\n+2M\nw\n" | /sbin/fdisk $@
 	echo -e "n\nl\n\n+1M\nw\n" | /sbin/fdisk $@
 
-iso9660.img:
+$(IMGDIR)/iso9660.img:
 	rm -rf tmp_iso9660
 	GEN_FILE_PATH=./tmp_iso9660/ ./gen_files.sh
 	mkisofs -o iso9660.img ./tmp_iso9660
 	rm -rf tmp_iso9660
 
-iso9660-many.img:
+$(IMGDIR)/iso9660-many.img:
 	rm -rf tmp_iso9660_many
 	mkdir tmp_iso9660_many
 	GEN_FILE_PATH=./tmp_iso9660_many/ ./gen_files.sh 100
 	mkisofs -o iso9660-many.img ./tmp_iso9660_many
 	rm -rf tmp_iso9660_many
 
-iso9660-postmark.img:
+$(IMGDIR)/iso9660-postmark.img:
 	rm -rf tmp_iso9660_postmark
 	mkdir tmp_iso9660_postmark
 	GEN_FILE_PATH=./tmp_iso9660_postmark/ ./gen_postmark.sh 100
 	mkisofs -o iso9660-postmark.img ./tmp_iso9660_postmark
 	rm -rf tmp_iso9660_postmark
 
-iso9660-linux-4gb.img:
+$(IMGDIR)/iso9660-linux-4gb.img:
 	rm -rf isolinuxtmp
 	mkdir isolinuxtmp
 	mkdir isolinuxtmp/{1,2,3,4}
@@ -95,23 +93,23 @@ iso9660-linux-4gb.img:
 	rm -rf isolinuxtmp
 
 # "1GB" vmdk
-vmdk.img:
+$(IMGDIR)/vmdk.img:
 	qemu-img create -f vmdk $@ 1G
 
-vmdk-depth.img:
+$(IMGDIR)/vmdk-depth.img:
 	echo NOT MAKING VMDK-DEPTH.IMG
 	touch vmdk-depth.img
 
-vmdk-many.img:
+$(IMGDIR)/vmdk-many.img:
 	echo NOT MAKING VMDK-MANY.IMG
 	touch vmdk-many.img
 
 
 #unformated, 5MB:
-testfs.img: fill
-	./fill 1 `expr 5 \* 1024 \* 1024` $@
+$(IMGDIR)/testfs.img: $(IMGDIR)/fill
+	$(IMGDIR)/fill 1 `expr 5 \* 1024 \* 1024` $@
 
-ext2-linux-1gb.img:
+$(IMGDIR)/ext2-linux-1gb.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=1024
 	yes | /sbin/mkfs.ext2 $@
 	./loopback_fs_setup.sh $@ ext2
@@ -120,7 +118,7 @@ ext2-linux-1gb.img:
 	./loopback_fs_teardown.sh
 
 
-ext2-linux-4gb.img:
+$(IMGDIR)/ext2-linux-4gb.img:
 	echo $(LINUXTAR)
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096
 	yes | /sbin/mkfs.ext2 $@
@@ -132,7 +130,7 @@ ext2-linux-4gb.img:
 	tar jxvf $(LINUXTAR) -C /mnt/FSTEST/4
 	./loopback_fs_teardown.sh
 
-xfs-linux-4gb.img:
+$(IMGDIR)/xfs-linux-4gb.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096
 	yes | /sbin/mkfs.xfs  $@
 	./loopback_fs_setup.sh $@ xfs
@@ -143,7 +141,7 @@ xfs-linux-4gb.img:
 	sudo tar jxvf $(LINUXTAR) -C /mnt/FSTEST/4
 	./loopback_fs_teardown.sh
 
-nilfs2-linux-4gb.img:
+$(IMGDIR)/nilfs2-linux-4gb.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096
 	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
 	./loopback_fs_setup.sh $@ nilfs2
@@ -156,7 +154,7 @@ nilfs2-linux-4gb.img:
 	./loopback_fs_teardown.sh
 
 
-reiserfs-linux-4gb.img:
+$(IMGDIR)/reiserfs-linux-4gb.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096
 	yes | /sbin/mkfs.reiserfs -f $@
 	./loopback_fs_setup.sh $@ reiserfs
@@ -168,7 +166,7 @@ reiserfs-linux-4gb.img:
 	./loopback_fs_teardown.sh
 
 # lack of perms and symlinks in vfat mean we need to untar to a unix fs first
-vfat-linux-4gb.img:
+$(IMGDIR)/vfat-linux-4gb.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=4096
 	yes | /usr/sbin/mkfs.msdos -f 1 $@
 	./loopback_fs_setup.sh $@ vfat
@@ -183,12 +181,12 @@ vfat-linux-4gb.img:
 	./loopback_fs_teardown.sh
 	rm -rf linuxtmp
 
-hfsplus.img:
+$(IMGDIR)/hfsplus.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.hfsplus $@
 	./loopback_fs_setup.sh $@ hfsplus && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
-hfsplus-many.img:
+$(IMGDIR)/hfsplus-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.hfsplus $@
 	./loopback_fs_setup.sh $@ hfsplus
@@ -202,147 +200,147 @@ hfsplus-many.img:
 #	../ext/logfsprogs*/mklogfs $@ <<<"yes"
 #	./loopback_fs_setup.sh $@ logfs  && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
-minix.img:
+$(IMGDIR)/minix.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=50
 	yes | /sbin/mkfs.minix $@
 	./loopback_fs_setup.sh $@ minix && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
-minix-many.img:
+$(IMGDIR)/minix-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=50
 	yes | /sbin/mkfs.minix $@
 	./loopback_fs_setup.sh $@ minix
 	./gen_files.sh 100
 	./loopback_fs_teardown.sh
 
-btrfs-empty.img:
+$(IMGDIR)/btrfs-empty.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
 	/sbin/mkfs.btrfs $@
 
-btrfs.img:
+$(IMGDIR)/btrfs.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
 	/sbin/mkfs.btrfs $@
 	./loopback_fs_setup.sh $@ btrfs  && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
-ext2.img:
+$(IMGDIR)/ext2.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.ext2 $@
-	./loopback_fs_setup.sh ext2.img ext2  && ./gen_files.sh  && ./loopback_fs_teardown.sh
+	./loopback_fs_setup.sh $@ ext2  && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
 # 5MB
-ext2-small.img:
+$(IMGDIR)/ext2-small.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=5
 	yes | /sbin/mkfs.ext2 $@
-	./loopback_fs_setup.sh ext2-small.img ext2  && ./gen_files.sh  && ./loopback_fs_teardown.sh
+	./loopback_fs_setup.sh $@ ext2  && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
 # many files
-ext2-many.img:
+$(IMGDIR)/ext2-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.ext2 $@
-	./loopback_fs_setup.sh ext2-many.img ext2
+	./loopback_fs_setup.sh $@
 	./gen_files.sh 100
 	./loopback_fs_teardown.sh
 
-btrfs-postmark.img:
+$(IMGDIR)/btrfs-postmark.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
 	/sbin/mkfs.btrfs $@
 	./loopback_fs_setup.sh $@ btrfs && ./gen_postmark.sh &&	./loopback_fs_teardown.sh
 
-btrfs-many.img:
+$(IMGDIR)/btrfs-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
 	/sbin/mkfs.btrfs $@
 	./loopback_fs_setup.sh $@ btrfs && ./gen_files.sh 100 && ./loopback_fs_teardown.sh
 
-ext2-postmark.img:
+$(IMGDIR)/ext2-postmark.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.ext2 $@
-	./loopback_fs_setup.sh ext2-postmark.img ext2
+	./loopback_fs_setup.sh $@ ext2
 	./gen_postmark.sh
 	mkdir /mnt/FSTEST/lost+found/
 	./loopback_fs_teardown.sh
 
-hfsplus-depth.img:
+$(IMGDIR)/hfsplus-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.hfsplus $@
 	./loopback_fs_setup.sh $@ hfsplus && ./gen_depth.sh && ./loopback_fs_teardown.sh
 
 
-minix-depth.img:
+$(IMGDIR)/minix-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=50
 	yes | /sbin/mkfs.minix $@
 	./loopback_fs_setup.sh $@ minix && ./gen_depth.sh && ./loopback_fs_teardown.sh
 
-ext2-depth.img:
+$(IMGDIR)/ext2-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.ext2 $@
 	./loopback_fs_setup.sh $@ ext2  && ./gen_depth.sh && ./loopback_fs_teardown.sh
 
-vfat-depth.img:
+$(IMGDIR)/vfat-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /usr/sbin/mkfs.vfat $@
 	./loopback_fs_setup.sh $@ vfat  && ./gen_depth.sh && ./loopback_fs_teardown.sh
 
-iso9660-depth.img:
+$(IMGDIR)/iso9660-depth.img:
 	mkdir tmp_isodepth
 	rm -rf tmp_isodepth/*
 	GEN_FILE_PATH=./tmp_isodepth/ ./gen_depth.sh
 	mkisofs -o $@  ./tmp_isodepth
 	rm -rf tmp_isodepth
 
-vfat.img:
+$(IMGDIR)/vfat.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /usr/sbin/mkfs.vfat $@
-	./loopback_fs_setup.sh vfat.img vfat && ./gen_files.sh  && ./loopback_fs_teardown.sh
+	./loopback_fs_setup.sh $@ vfat && ./gen_files.sh  && ./loopback_fs_teardown.sh
 
-vfat-many-4097.img:
+$(IMGDIR)/vfat-many-4097.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /usr/sbin/mkfs.vfat $@
 	./loopback_fs_setup.sh $@ vfat  && GEN_FILE_LENGTH=4097 ./gen_files.sh 100 && ./loopback_fs_teardown.sh
 
 
-vfat-many.img:
+$(IMGDIR)/vfat-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /usr/sbin/mkfs.vfat $@
 	./loopback_fs_setup.sh $@ vfat  && ./gen_files.sh 100 && ./loopback_fs_teardown.sh
 
-vfat-32-many.img:
+$(IMGDIR)/vfat-32-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /usr/sbin/mkfs.vfat -F 32 $@
 	./loopback_fs_setup.sh $@ vfat  && ./gen_files.sh 100 && ./loopback_fs_teardown.sh
 
 
-vfat-manymore.img:
+$(IMGDIR)/vfat-manymore.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /usr/sbin/mkfs.vfat $@
 	./loopback_fs_setup.sh $@ vfat  && ./gen_files.sh 120 && ./loopback_fs_teardown.sh
 
 # many files
-vfat-postmark.img:
+$(IMGDIR)/vfat-postmark.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /usr/sbin/mkfs.vfat $@
-	./loopback_fs_setup.sh vfat-postmark.img vfat
+	./loopback_fs_setup.sh $@ vfat
 	./gen_postmark.sh
 	./loopback_fs_teardown.sh
 
-btrfs-depth.img:
+$(IMGDIR)/btrfs-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
 	/sbin/mkfs.btrfs $@
 	./loopback_fs_setup.sh $@ btrfs && ./gen_depth.sh && ./loopback_fs_teardown.sh
 
-nilfs2-depth.img:
+$(IMGDIR)/nilfs2-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
 	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
 	./loopback_fs_setup.sh $@ nilfs2 && ./gen_depth.sh && ./loopback_fs_teardown.sh
 
-nilfs2.img:
+$(IMGDIR)/nilfs2.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
 	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
 	./loopback_fs_setup.sh $@ nilfs2 && ./gen_files.sh  && ./loopback_fs_teardown.sh
-nilfs2-many.img:
+$(IMGDIR)/nilfs2-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
 	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
 	./loopback_fs_setup.sh $@ nilfs2 && ./gen_files.sh 100  && ./loopback_fs_teardown.sh
 
-xfs.img:
+$(IMGDIR)/xfs.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.xfs  $@
 	./loopback_fs_setup.sh $@ xfs
@@ -350,21 +348,21 @@ xfs.img:
 	./loopback_fs_teardown.sh
 
 
-xfs-many.img:
+$(IMGDIR)/xfs-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.xfs $@
 	./loopback_fs_setup.sh $@ xfs
 	./gen_files.sh 100
 	./loopback_fs_teardown.sh
 
-xfs-postmark.img:
+$(IMGDIR)/xfs-postmark.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.xfs  $@
 	./loopback_fs_setup.sh $@ xfs
 	./gen_postmark.sh
 	./loopback_fs_teardown.sh
 
-xfs-depth.img:
+$(IMGDIR)/xfs-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.xfs  $@
 	./loopback_fs_setup.sh $@ xfs
@@ -372,7 +370,7 @@ xfs-depth.img:
 	./loopback_fs_teardown.sh
 
 
-reiserfs.img:
+$(IMGDIR)/reiserfs.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
@@ -380,30 +378,80 @@ reiserfs.img:
 	./loopback_fs_teardown.sh
 
 
-reiserfs-many.img:
+$(IMGDIR)/reiserfs-many.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
 	./gen_files.sh 100
 	./loopback_fs_teardown.sh
 
-reiserfs-postmark.img:
+$(IMGDIR)/reiserfs-postmark.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
 	./gen_postmark.sh
 	./loopback_fs_teardown.sh
 
-reiserfs-depth.img:
+$(IMGDIR)/reiserfs-depth.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
 	./gen_depth.sh
 	./loopback_fs_teardown.sh
 
-reiserfs-many-blockfile.img:
+$(IMGDIR)/reiserfs-many-blockfile.img:
 	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=100
 	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
 	./loopback_fs_setup.sh $@ reiserfs
 	GEN_FILE_LENGTH=4096 ./gen_files.sh 75
 	./loopback_fs_teardown.sh
+
+DEPTH_IMGS=						\
+	$(DEPTH_COUNTS:%=$(IMGDIR)/ext2-depth-%.img)		\
+	$(DEPTH_COUNTS:%=$(IMGDIR)/reiserfs-depth-%.img)	\
+	$(DEPTH_COUNTS:%=$(IMGDIR)/vfat-depth-%.img)		\
+	$(DEPTH_COUNTS:%=$(IMGDIR)/nilfs2-depth-%.img)		\
+	$(DEPTH_COUNTS:%=$(IMGDIR)/iso9660-depth-%.img)		\
+	$(DEPTH_COUNTS:%=$(IMGDIR)/minix-depth-%.img)		\
+
+$(IMGDIR)/minix-depth-%.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.minix $@
+	./loopback_fs_setup.sh $@ minix
+	DEPTH=`echo $@ | cut -f3 -d'-' | cut -f1 -d'.'` ./gen_depth.sh
+	./loopback_fs_teardown.sh
+
+$(IMGDIR)/ext2-depth-%.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.ext2 $@
+	./loopback_fs_setup.sh $@ ext2
+	DEPTH=`echo $@ | cut -f3 -d'-' | cut -f1 -d'.'` ./gen_depth.sh
+	./loopback_fs_teardown.sh
+
+$(IMGDIR)/reiserfs-depth-%.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /sbin/mkfs.reiserfs -s 1024 -f $@
+	./loopback_fs_setup.sh $@ reiserfs
+	DEPTH=`echo $@ | cut -f3 -d'-' | cut -f1 -d'.'` ./gen_depth.sh
+	./loopback_fs_teardown.sh
+
+$(IMGDIR)/vfat-depth-%.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=10
+	yes | /usr/sbin/mkfs.vfat $@
+	./loopback_fs_setup.sh $@ vfat
+	DEPTH=`echo $@ | cut -f3 -d'-' | cut -f1 -d'.'`  ./gen_depth.sh
+	./loopback_fs_teardown.sh
+
+$(IMGDIR)/nilfs2-depth-%.img:
+	dd if=/dev/zero of=$@ bs=`expr 1024 \* 1024` count=256
+	yes | /sbin/mkfs.nilfs2 -L mkfsnilfs2 -b 4096 $@
+	./loopback_fs_setup.sh $@ nilfs2 && \
+		DEPTH=`echo $@ | cut -f3 -d'-' | cut -f1 -d'.'` ./gen_depth.sh && \
+		./loopback_fs_teardown.sh
+
+#nothing
+$(IMGDIR)/iso9660-depth-%.img:
+	@@echo "Not making $@"
+
+$(IMGDIR)/testfs%.img :
+	@@echo "Not making $@"

@@ -34,6 +34,7 @@ CXX=g++
 export CFLAGS
 OBJDIR=$(shell pwd)/obj
 BINDIR=$(shell pwd)/bin
+IMGDIR=$(shell pwd)/img
 FSSRCDIR=$(shell pwd)/fs
 KLEEBINDIR=/home/chz/klee/Release/bin/
 export OBJDIR
@@ -49,6 +50,7 @@ all: code tools
 
 include src/Makefile
 include Makefile.tests
+include Makefile.img
 
 
 .PHONY: clean
@@ -80,8 +82,8 @@ libs:
 libs-clean:
 	make -C lib clean
 
-imgs:
-	cd img && $(MAKECMD)
+.PHONY: imgs
+imgs: imgs-all
 
 .PHONY: scan-build
 scan-build:
