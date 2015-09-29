@@ -23,7 +23,7 @@ if [ -z "$NUM_SUBDIRS" ]; then
 	NUM_SUBDIRS=5
 fi
 
-../benchmarks/postmark/postmark <<<"
+benchmarks/postmark/postmark <<<"
 set size ${MIN_FILE_BYTES} ${MAX_FILE_BYTES}
 set number ${MAX_FILES}
 set location ${GEN_FILE_PATH}
