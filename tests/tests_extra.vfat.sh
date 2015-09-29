@@ -39,6 +39,7 @@ if [ "$fcount" -ne 27561 ]; then
 	echo "BADCOUNT $fcount != 27561 for ${src_root}/tests/scantool-$fs/$imgname.out"
 	exit -2
 fi
+fsck_img $imgname
 
 imgname=`fs_reloc_img_name $fs $fs-relocate.img ""`
 fs_reloc_startup_img $fs "$fs"-many.img
