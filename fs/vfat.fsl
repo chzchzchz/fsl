@@ -33,21 +33,32 @@ include "vfat_func.fsl"
 include "vfat_type.fsl"
 include "vfat_fsck.fsl"
 
-/* mark this as something we don't want people to take */
-write block_alloc(clusternum_t cn)
-{
-	disk.fats[0].ent12[cn].cluster_num <- BAD_FAT12 ? is_fat12() !
-	disk.fats[0].ent16[cn].cluster_num <- BAD_FAT16 ? is_fat16() !
-	disk.fats[0].ent32[cn].cluster_num <- BAD_FAT32 ? is_fat32() !
+clusternum_t get_cn_badfat() {
+	if (is_fat12()) return BAD_FAT12;
+	if (is_fat16()) return BAD_FAT16;
+	return BAD_FAT32;
 }
 
-/* restore to free pool */
-write block_replace(clusternum_t cn)
+write write_fat(clusternum_t cn, clusternum_t val)
 {
-	disk.fats[0].ent12[cn].cluster_num <- FAT_ENT_FREE ? is_fat12() !
-	disk.fats[0].ent16[cn].cluster_num <- FAT_ENT_FREE ? is_fat16() !
-	disk.fats[0].ent32[cn].cluster_num <- FAT_ENT_FREE ? is_fat32() !
+	write_fat_n(cn, val, 0) !
+	write_fat_n(cn, val, 1) !
 }
+
+write write_fat_n(clusternum_t cn, clusternum_t val, uint n)
+{
+	disk.fats[n].ent12[cn].cluster_num <- val ? is_fat12() !
+	disk.fats[n].ent16[cn].cluster_num <- val ? is_fat16() !
+	disk.fats[n].ent32[cn].cluster_num <- val ? is_fat32() !
+//	XXX not sure why this doesn't work right now
+//	write_fat_n(cn, val, n + 1) ? n < disk.d_bpb.fat_count !
+}
+
+/* mark this as something we don't want people to take */
+write block_alloc(clusternum_t cn) { write_fat(cn, get_cn_badfat()) ! }
+
+/* restore to free pool */
+write block_replace(clusternum_t cn) { write_fat(cn, FAT_ENT_FREE) ! }
 
 // update de
 write block_rel_update_de(fat_de de, clusternum_t new_cn)
@@ -66,23 +77,13 @@ write block_rel_update_de(fat_de de, clusternum_t new_cn)
 // update fat entry that points to this
 write block_rel_update_fatent(fat_de de, uint f_clus_off, clusternum_t new_cn)
 {
-	disk.fats[0].ent12[get_nth_cnum(de, f_clus_off-1)].cluster_num <-
-		new_cn ? is_fat12() !
-	disk.fats[0].ent16[get_nth_cnum(de, f_clus_off-1)].cluster_num <-
-		new_cn ? is_fat16() !
-	disk.fats[0].ent32[get_nth_cnum(de, f_clus_off-1)].cluster_num <-
-		new_cn ? is_fat32() !
+	write_fat(get_nth_cnum(de, f_clus_off - 1), new_cn) !
 }
 
 // point this to next fat entry
 write block_rel_update_fatnext(fat_de de, uint f_clus_off, clusternum_t new_cn)
 {
-	disk.fats[0].ent12[new_cn].cluster_num <- get_nth_cnum(de, f_clus_off+1)
-		? is_fat12() !
-	disk.fats[0].ent16[new_cn].cluster_num <- get_nth_cnum(de, f_clus_off+1)
-		? is_fat16() !
-	disk.fats[0].ent32[new_cn].cluster_num <- get_nth_cnum(de, f_clus_off+1)
-		? is_fat32() !
+	write_fat(new_cn, get_nth_cnum(de, f_clus_off + 1)) !
 }
 
 /* link cluster into given file offset, assumes file offset... */
