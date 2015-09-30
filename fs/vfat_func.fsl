@@ -147,6 +147,13 @@ bool is_self_ref(fat_de de)
 	return true;
 }
 
+bool is_dotdot_ref(fat_de de)
+{
+	if (is_back_ref(de) == false) return false;
+	if (de.fname.name[1] != '.') return false;
+	return true;
+}
+
 bool is_back_ref(fat_de de)
 {
 	fat_short_name sn = de.fname;
@@ -201,6 +208,20 @@ uint de_cluster_count(fat_de de)
 	return ((de.file_size + bpc - 1) / bpc);
 }
 
+uint de_children_count(fat_de de)
+{
+	return de_cluster_count(de) * de_per_cluster();
+}
+
+fat_de get_nth_de(fat_de de, uint n)
+{
+	uint	byte_off = n * sizeof_bytes(fat_de);
+	uint	de_clus_off = (byte_off % bytes_per_cluster()) / sizeof_bytes(fat_de);
+	uint	clus_n = byte_off / bytes_per_cluster();
+	fat_de_cluster	de_clus =get_cluster(get_nth_cnum(de, clus_n)).v.de_clus;
+	return de_clus.de[de_clus_off];
+}
+
 bool is_valid_cnum(clusternum_t cnum)
 {
 	fat_type	ft = get_fat_type();
@@ -251,7 +272,6 @@ bool is_de_dir(fat_de de)
 	return true;
 }
 
-
 bool is_de_file(fat_de de)
 {
 	if (de.file_size != 0xffffffff && ((DIR_MASK & de.attr) == 0))
@@ -260,22 +280,32 @@ bool is_de_file(fat_de de)
 }
 
 // find the '.' entry in this de's directory file
-fat_de find_dot_de(fat_de de)
+fat_de find_dot_de(fat_de_cluster dec)
 {
 	u32		i = 0;
-	clusternum_t	cn = get_nth_cnum(de, 0);
-
-//	 if (is_de_dir(de) == false)
-//		fsl_fail(0);
-
-	while (i < bytes_per_cluster() / sizeof_bytes(fat_de)) {
-		fat_de cur_de = disk.clusters[cn-2].v.de_clus.de[i];
+	while (i < de_per_cluster()) {
+		fat_de cur_de = dec.de[i];
 		if (is_de_dir(cur_de) && is_self_ref(cur_de)) {
 			return cur_de;
 		}
 		i++;
 	}
+	// XXX
+	return dec.de[0];
+}
 
-//	fsl_fail(10);
+// find the '.' entry in this de's directory file
+fat_de find_dotdot_de(fat_de de)
+{
+	u32		i = 0;
+	while (i < de_per_cluster()) {
+		fat_de cur_de = get_nth_de(de, i);
+		if (is_de_dir(cur_de) && is_dotdot_ref(cur_de)) {
+			return cur_de;
+		}
+		i++;
+	}
 	return de;
 }
+
+uint de_per_cluster() = bytes_per_cluster() / sizeof_bytes(fat_de);

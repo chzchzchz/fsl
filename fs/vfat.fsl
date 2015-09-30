@@ -39,19 +39,14 @@ clusternum_t get_cn_badfat() {
 	return BAD_FAT32;
 }
 
-write write_fat(clusternum_t cn, clusternum_t val)
-{
-	write_fat_n(cn, val, 0) !
-	write_fat_n(cn, val, 1) !
-}
+write write_fat(clusternum_t cn, clusternum_t v) { write_fat_n(cn, v, 0) ! }
 
 write write_fat_n(clusternum_t cn, clusternum_t val, uint n)
 {
 	disk.fats[n].ent12[cn].cluster_num <- val ? is_fat12() !
 	disk.fats[n].ent16[cn].cluster_num <- val ? is_fat16() !
 	disk.fats[n].ent32[cn].cluster_num <- val ? is_fat32() !
-//	XXX not sure why this doesn't work right now
-//	write_fat_n(cn, val, n + 1) ? n < disk.d_bpb.fat_count !
+	write_fat_n(cn, val, n + 1) ? (n + 1) < disk.d_bpb.fat_count !
 }
 
 /* mark this as something we don't want people to take */
@@ -60,8 +55,35 @@ write block_alloc(clusternum_t cn) { write_fat(cn, get_cn_badfat()) ! }
 /* restore to free pool */
 write block_replace(clusternum_t cn) { write_fat(cn, FAT_ENT_FREE) ! }
 
+
 // update de
 write block_rel_update_de(fat_de de, clusternum_t new_cn)
+{
+	write_de_cn(de, new_cn) !
+	write_fix_dir_refs(de, new_cn) ? is_good_dir(de) !
+}
+
+// relocated a directory, must update its '.' and '..' backrefs
+write write_fix_dir_refs(fat_de de, clusternum_t new_cn)
+{
+	// NOTE: de's first cluster is outdated since it's been relocated
+	// to new_cn; must use new_cn to get the '.' de
+	write_de_cn(	find_dot_de(get_cluster(new_cn).v.de_clus),
+			new_cn) !	// '.'
+	write_fix_dotdot_n(de, new_cn, 0) !	// children '..'
+}
+
+// de points to a directory that's been moved
+// all directories d in de therefore must have their '..' updated too
+write write_fix_dotdot_n(fat_de de, clusternum_t new_cn, uint n)
+{
+	write_de_cn(find_dotdot_de(get_nth_de(de, n)), new_cn)
+		? is_good_dir(get_nth_de(de, n)) !
+	write_fix_dotdot_n(de, new_cn, n + 1)
+		? (n + 1) < de_children_count(de) !
+}
+
+write write_de_cn(fat_de de, clusternum_t new_cn)
 {
 	de.first_cluster_lo <- new_cn & 0x0fff	? is_fat12() !
 	de.first_cluster_lo <- new_cn & 0xffff	? is_fat16() !
@@ -69,27 +91,15 @@ write block_rel_update_de(fat_de de, clusternum_t new_cn)
 	de.first_cluster_hi <- 0		? is_fat12() !
 	de.first_cluster_hi <- 0		? is_fat16() !
 	de.first_cluster_hi <- new_cn >> 16	? is_fat32() !
-	// relocated a directory and must update its '.' entry
-	block_rel_update_de(find_dot_de(de), new_cn)
-		? is_de_dir(de) && is_back_ref(de) == false !
-}
-
-// update fat entry that points to this
-write block_rel_update_fatent(fat_de de, uint f_clus_off, clusternum_t new_cn)
-{
-	write_fat(get_nth_cnum(de, f_clus_off - 1), new_cn) !
-}
-
-// point this to next fat entry
-write block_rel_update_fatnext(fat_de de, uint f_clus_off, clusternum_t new_cn)
-{
-	write_fat(new_cn, get_nth_cnum(de, f_clus_off + 1)) !
 }
 
 /* link cluster into given file offset, assumes file offset... */
 write block_relink(fat_de de, uint f_clus_off, clusternum_t new_cn)
 {
+	// update de pointers to the first cluster
 	block_rel_update_de(de, new_cn) ? f_clus_off == 1 !
-	block_rel_update_fatent(de, f_clus_off, new_cn) ? f_clus_off > 1 !
-	block_rel_update_fatnext(de, f_clus_off, new_cn) !
+	// update fat entry that points to this
+	write_fat(get_nth_cnum(de, f_clus_off - 1), new_cn) ? f_clus_off > 1 !
+	// point this to next fat entry
+	write_fat(new_cn, get_nth_cnum(de, f_clus_off + 1)) !
 }

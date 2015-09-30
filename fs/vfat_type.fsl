@@ -33,7 +33,7 @@ type fat_short_name { u8 name[8+3]; }
 type fat_de
 assert (? is_deleted(this) == false) as chk_not_del
 assert (? is_lfn(this) == false) as chk_not_lfn
-// assert (? is_back_ref(this) == false) as not_backref
+assert (? is_back_ref(this) == false) as not_backref
 virtual_if(
 	? is_de_file(this),
 	file_cluster,
