@@ -1,3 +1,4 @@
+#include <iostream>
 #include "code_builder.h"
 #include "typeclosure.h"
 
@@ -14,7 +15,13 @@ TypeClosure::TypeClosure(llvm::Value* in_clo)
 	: clo_ptr(in_clo), builder(code_builder->getBuilder())
 {
 	assert (clo_ptr != NULL);
-	assert (clo_ptr->getType() == code_builder->getClosureTyPtr());
+	if (clo_ptr->getType() != code_builder->getClosureTyPtr()) {
+		std::cerr << "Type closure mismatch:\n";
+		clo_ptr->getType()->dump();
+		std::cerr << " vs \n";
+		code_builder->getClosureTyPtr()->dump();
+		abort();
+	}
 }
 
 llvm::Value* TypeClosure::load(void) const
